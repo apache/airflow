@@ -60,7 +60,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_c
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
-from airflow.utils.synchronized_queue import SynchronizedQueue
 
 Base = models.base.Base  # type: Any
 ID_LEN = models.base.ID_LEN
@@ -320,7 +319,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         self._file_path = file_path
         # Queue that's used to pass results from the child process.
-        self._result_queue = SynchronizedQueue()
+        self._result_queue = multiprocessing.Queue()
         # The process that was launched to process the given .
         self._process = None
         self._dag_id_white_list = dag_id_white_list
@@ -352,7 +351,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         Launch a process to process the given file.
 
         :param result_queue: the queue to use for passing back the result
-        :type result_queue: SynchronizedQueue
+        :type result_queue: multiprocessing.Queue
         :param file_path: the file to process
         :type file_path: unicode
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -1420,7 +1419,7 @@ class SchedulerJob(BaseJob):
         :param dags: the DAGs from the DagBag to process
         :type dags: airflow.models.DAG
         :param tis_out: A queue to add generated TaskInstance objects
-        :type tis_out: SynchronizedQueue[TaskInstance]
+        :type tis_out: multiprocessing.Queue[TaskInstance]
         :rtype: None
         """
         for dag in dags:

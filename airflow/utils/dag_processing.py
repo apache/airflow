@@ -48,7 +48,6 @@ from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.utils.synchronized_queue import SynchronizedQueue
 
 
 class SimpleDag(BaseDag):
@@ -488,8 +487,8 @@ class DagFileProcessorAgent(LoggingMixin):
         # Pipe for communicating signals
         self._parent_signal_conn, self._child_signal_conn = multiprocessing.Pipe()
         # Pipe for communicating DagParsingStat
-        self._stat_queue = SynchronizedQueue()
-        self._result_queue = SynchronizedQueue()
+        self._stat_queue = multiprocessing.Queue()
+        self._result_queue = multiprocessing.Queue()
         self._process = None
         self._done = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
@@ -576,7 +575,11 @@ class DagFileProcessorAgent(LoggingMixin):
         # if it processed all files for max_run times and exit normally.
         self._heartbeat_manager()
         simple_dags = []
-        qsize = self._result_queue.qsize()
+        # multiprocessing.Queue().qsize will not work on MacOS.
+        if sys.platform == "darwin":
+            qsize = self._result_count
+        else:
+            qsize = self._result_queue.qsize()
         for _ in range(qsize):
             simple_dags.append(self._result_queue.get())
 
@@ -665,7 +668,7 @@ class DagFileProcessorAgent(LoggingMixin):
 class DagFileProcessorManager(LoggingMixin):
     """
     Given a list of DAG definition files, this kicks off several processors
-    in parallel to process them and put the results to a SynchronizedQueue
+    in parallel to process them and put the results to a multiprocessing.Queue
     for DagFileProcessorAgent to harvest. The parallelism is limited and as the
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
@@ -700,9 +703,9 @@ class DagFileProcessorManager(LoggingMixin):
         :param signal_conn: connection to communicate signal with processor agent.
         :type signal_conn: airflow.models.connection.Connection
         :param stat_queue: the queue to use for passing back parsing stat to agent.
-        :type stat_queue: SynchronizedQueue
+        :type stat_queue: multiprocessing.Queue
         :param result_queue: the queue to use for passing back the result to agent.
-        :type result_queue: SynchronizedQueue
+        :type result_queue: multiprocessing.Queue
         :param async_mode: whether to start the manager in async mode
         :type async_mode: bool
         """
