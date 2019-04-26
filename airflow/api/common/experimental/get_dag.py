@@ -16,10 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import url_for
 
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagRun
 from airflow.api.common.experimental.get_dags import get_dags
 
 
@@ -29,10 +27,10 @@ def get_dag(dag_id):
     :param dag_id: String identifier of a DAG
     :return: DAG info for a specific DAG ID.
     """
-    dag_list = get_dags();
+    dag_list = get_dags()
 
     for dag in dag_list:
-        print (dag['dag_id'] + ' : ' + dag_id)
+        print(dag['dag_id'] + ' : ' + dag_id)
         if dag['dag_id'] == dag_id:
             return dag
 

@@ -134,6 +134,7 @@ def task_instances_filter():
 
     return jsonify(task_instances)
 
+
 @api_experimental.route('/dags', methods=['GET'])
 @requires_authentication
 def get_all_dags():
@@ -147,6 +148,7 @@ def get_all_dags():
 
     return jsonify(dag_list)
 
+
 @api_experimental.route('/dags/<string:dag_id>', methods=['GET'])
 @requires_authentication
 def get_dag_info(dag_id):
@@ -158,7 +160,7 @@ def get_dag_info(dag_id):
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
+        response.status_code = 404
         return response
     return jsonify(dag)
 

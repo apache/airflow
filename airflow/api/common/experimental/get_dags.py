@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import url_for
 
-from airflow.models import DagBag, DagRun
+from airflow.models import DagBag
 from airflow import configuration
+
 
 def get_dags(is_paused=None):
     """
@@ -30,7 +30,7 @@ def get_dags(is_paused=None):
     dag_list = list()
     if is_paused:
         is_paused = is_paused.lower()
-        is_paused = 1 if is_paused=='true' else 0
+        is_paused = 1 if is_paused == 'true' else 0
 
     for dag_id in dagbag.dags:
         dag = dagbag.get_dag(dag_id)
@@ -48,12 +48,13 @@ def get_dags(is_paused=None):
             'task_count': dag.task_count,
             'task_ids': dag.task_ids,
             'resources': {
-                'dag_runs' : configuration.conf.get('webserver', 'BASE_URL')
-                +'/api/experimental/dags/'
-                +dag.dag_id
-                +'/dag_runs'
-                }
-            })
+                'dag_runs': configuration.conf.get('webserver', 'BASE_URL') +
+                '/api/experimental/dags/' +
+                dag.dag_id +
+                '/dag_runs'}})
 
-    filtered_dag_list = [ dag for dag in dag_list if dag['is_paused'] == is_paused ] if is_paused!=None else dag_list
-    return  filtered_dag_list
+    filtered_dag_list = dag_list
+    if is_paused is not None:
+        filtered_dag_list = [dag_object for dag_object in dag_list if dag['is_paused'] == is_paused]
+
+    return filtered_dag_list
