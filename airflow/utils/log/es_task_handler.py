@@ -20,7 +20,6 @@
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import logging
-import re
 import sys
 import pendulum
 from elasticsearch_dsl import Search
