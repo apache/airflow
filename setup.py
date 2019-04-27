@@ -181,6 +181,7 @@ gcp_api = [
     'google-cloud-spanner>=1.7.1',
     'google-cloud-storage~=1.14',
     'google-cloud-translate>=1.3.3',
+    'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
