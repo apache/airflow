@@ -192,6 +192,7 @@ gcp = [
     'google-cloud-spanner>=1.7.1',
     'google-cloud-storage~=1.14',
     'google-cloud-translate>=1.3.3',
+    'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',

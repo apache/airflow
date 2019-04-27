@@ -689,6 +689,18 @@ Cloud Translate Text Operators
     Translate a string or list of strings.
 
 
+Cloud Video Intelligence
+''''''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator`
+    Performs video annotation, annotating video labels.
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
+    Performs video annotation, annotating explicit content.
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator`
+    Performs video annotation, annotating video shots.
+
+They also use :class:`airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook` to communicate with Google Cloud Platform.
+
 Google Kubernetes Engine
 ''''''''''''''''''''''''
 
