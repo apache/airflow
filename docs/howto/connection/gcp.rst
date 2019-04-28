@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/connection:gcp:
+
 Google Cloud Platform Connection
 ================================
 
@@ -36,30 +38,7 @@ There are two ways to connect to GCP using Airflow.
 Default Connection IDs
 ----------------------
 
-The following connection IDs are used by default.
-
-``bigquery_default``
-    Used by the :class:`~airflow.contrib.hooks.bigquery_hook.BigQueryHook`
-    hook.
-
-``google_cloud_datastore_default``
-    Used by the :class:`~airflow.contrib.hooks.datastore_hook.DatastoreHook`
-    hook.
-
-``google_cloud_default``
-    Used by those hooks:
-
-    * :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`
-    * :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`
-    * :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`
-    * :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`
-    * :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook`
-    * :class:`~airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook`
-    * :class:`~airflow.contrib.hooks.gcp_compute_hook.GceHook`
-    * :class:`~airflow.contrib.hooks.gcp_function_hook.GcfHook`
-    * :class:`~airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook`
-    * :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook`
-
+All hooks and operators related to Google Cloud Platform use ``google_cloud_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -92,6 +71,12 @@ Scopes (comma separated)
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
 
+Number of Retries
+    Integer, number of times to retry with randomized
+    exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
+    represents the last request. If zero (default), we attempt the
+    request only once.
+
     When specifying the connection in environment variable you should specify
     it using URI syntax, with the following requirements:
 
@@ -105,6 +90,7 @@ Scopes (comma separated)
         * ``extra__google_cloud_platform__key_path`` - Keyfile Path
         * ``extra__google_cloud_platform__key_dict`` - Keyfile JSON
         * ``extra__google_cloud_platform__scope`` - Scopes
+        * ``extra__google_cloud_platform__num_retries`` - Number of Retries
 
     Note that all components of the URI should be URL-encoded.
 
@@ -112,4 +98,4 @@ Scopes (comma separated)
 
     .. code-block:: bash
 
-       google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow
+       google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow&extra__google_cloud_platform__num_retries=5

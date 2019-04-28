@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from datetime import datetime, date
 import json
@@ -28,15 +23,6 @@ import numpy as np
 
 
 # Dates and JSON encoding/decoding
-
-def json_ser(obj):
-    """json serializer that deals with dates.
-
-    usage: json.dumps(object, default=utils.json.json_ser)
-    """
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-
 
 class AirflowJsonEncoder(json.JSONEncoder):
 

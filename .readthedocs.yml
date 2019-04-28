@@ -16,18 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+version: 2
+formats: []
 python:
-    pip_install: true
-    extra_requirements:
-        - all_dbs
-        - databricks
-        - doc
-        - docker
-        - emr
-        - gcp
-        - s3
-        - salesforce
-        - sendgrid
-        - ssh
-        - slack
-        - qds
+    version: 3.7
+    install:
+      - method: pip
+        path: .
+        extra_requirements:
+            - doc
+    system_packages: true

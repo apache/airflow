@@ -28,15 +28,8 @@ from airflow.contrib.operators.gcp_spanner_operator import \
     CloudSpannerInstanceDatabaseDeployOperator, \
     CloudSpannerInstanceDatabaseDeleteOperator, \
     CloudSpannerInstanceDatabaseUpdateOperator
+from tests.compat import mock
 
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 PROJECT_ID = 'project-id'
 INSTANCE_ID = 'instance-id'

@@ -52,7 +52,6 @@ class PythonSensor(BaseSensorOperator):
     """
 
     template_fields = ('templates_dict',)
-    template_ext = tuple()
 
     @apply_defaults
     def __init__(
@@ -63,7 +62,7 @@ class PythonSensor(BaseSensorOperator):
             provide_context=False,
             templates_dict=None,
             *args, **kwargs):
-        super(PythonSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}

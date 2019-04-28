@@ -18,6 +18,7 @@
 # under the License.
 
 from builtins import str
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -38,8 +39,8 @@ class SqlSensor(BaseSensorOperator):
     :param parameters: The parameters to render the SQL query with (optional).
     :type parameters: mapping or iterable
     """
-    template_fields = ('sql',)
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql',)  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#7c7287'
 
     @apply_defaults
@@ -47,7 +48,7 @@ class SqlSensor(BaseSensorOperator):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
-        super(SqlSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         conn = BaseHook.get_connection(self.conn_id)

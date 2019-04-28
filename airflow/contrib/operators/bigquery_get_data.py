@@ -76,11 +76,11 @@ class BigQueryGetDataOperator(BaseOperator):
                  table_id,
                  max_results='100',
                  selected_fields=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = max_results

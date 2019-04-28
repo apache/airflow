@@ -19,20 +19,13 @@
 
 import unittest
 from airflow.hooks.pig_hook import PigCliHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestPigCliHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPigCliHook, self).setUp()
+        super().setUp()
 
         self.extra_dejson = mock.MagicMock()
         self.extra_dejson.get.return_value = None

@@ -39,7 +39,7 @@ class MySqlHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs):
-        super(MySqlHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def set_autocommit(self, conn, autocommit):
@@ -113,7 +113,7 @@ class MySqlHook(DbApiHook):
         cur.execute("""
             LOAD DATA LOCAL INFILE '{tmp_file}'
             INTO TABLE {table}
-            """.format(**locals()))
+            """.format(tmp_file=tmp_file, table=table))
         conn.commit()
 
     def bulk_dump(self, table, tmp_file):
@@ -125,7 +125,7 @@ class MySqlHook(DbApiHook):
         cur.execute("""
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
-            """.format(**locals()))
+            """.format(tmp_file=tmp_file, table=table))
         conn.commit()
 
     @staticmethod

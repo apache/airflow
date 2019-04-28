@@ -43,7 +43,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
     @elasticmock
     def setUp(self):
-        super(TestElasticsearchTaskHandler, self).setUp()
+        super().setUp()
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
         self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
@@ -195,7 +195,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
                 mock_execute.side_effect = Exception('Failed to read')
                 logs, metadatas = self.es_task_handler.read(self.ti, 1)
-            mock_exception.assert_called_once()
+            assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             self.assertIn("Could not read log with log_id:", args[0])
 

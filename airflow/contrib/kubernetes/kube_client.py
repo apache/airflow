@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.configuration import conf
-from six import PY2
 
 try:
     from kubernetes import config, client
@@ -36,16 +35,15 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
         config.load_incluster_config()
     else:
         config.load_kube_config(config_file=config_file, context=cluster_context)
-    if PY2:
-        # For connect_get_namespaced_pod_exec
-        from kubernetes.client import Configuration
-        configuration = Configuration()
-        configuration.assert_hostname = False
-        Configuration.set_default(configuration)
     return client.CoreV1Api()
 
 
 def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster'),
                     cluster_context=None,
                     config_file=None):
+    if not in_cluster:
+        if cluster_context is None:
+            cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if config_file is None:
+            config_file = conf.get('kubernetes', 'config_file', fallback=None)
     return _load_kube_config(in_cluster, cluster_context, config_file)

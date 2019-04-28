@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
 import google.api_core.exceptions
 
 from airflow import AirflowException
@@ -33,7 +34,7 @@ class BigtableValidationMixin(object):
     Common class for Cloud Bigtable operators for validating required fields.
     """
 
-    REQUIRED_ATTRIBUTES = []
+    REQUIRED_ATTRIBUTES = []  # type: Iterable[str]
 
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:
@@ -120,7 +121,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         self.timeout = timeout
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -183,7 +184,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.instance_id = instance_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         try:
@@ -246,7 +247,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self._validate_inputs()
         self.hook = BigtableHook()
         self.instance = None
-        super(BigtableTableCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _compare_column_families(self):
         table_column_families = self.hook.get_column_families_for_table(self.instance,
@@ -332,7 +333,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.app_profile_id = app_profile_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -393,7 +394,7 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
         self.nodes = nodes
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableClusterUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -450,7 +451,7 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
         self.table_id = table_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableWaitForReplicationSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,

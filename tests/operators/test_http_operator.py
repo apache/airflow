@@ -23,12 +23,7 @@ import unittest
 import requests_mock
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.exceptions import AirflowException
-
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from tests.compat import mock
 
 
 class SimpleHttpOpTests(unittest.TestCase):

@@ -23,10 +23,20 @@ Kubernetes Executor
 
 The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
 
-Example helm charts are available at `scripts/ci/kubernetes/kube/{airflow,volumes,postgres}.yaml` in the source distribution. The volumes are optional and depend on your configuration. There are two volumes available:
+Example helm charts are available at ``scripts/ci/kubernetes/kube/{airflow,volumes,postgres}.yaml`` in the source distribution.
+The volumes are optional and depend on your configuration. There are two volumes available:
 
-- Dags: by storing all the dags onto the persistent disks, all the workers can read the dags from there. Another option is using git-sync, before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
-- Logs: by storing the logs onto a persistent disk, all the logs will be available for all the workers and the webserver itself. If you don't configure this, the logs will be lost after the worker pods shuts down. Another option is to use S3/GCS/etc to store the logs.
+- **Dags**:
+
+  - By storing dags onto persistent disk, it will be made available to all workers
+
+  - Another option is to use ``git-sync``. Before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod
+
+- **Logs**:
+
+  - By storing logs onto a persistent disk, the files are accessible by workers and the webserver. If you don't configure this, the logs will be lost after the worker pods shuts down
+
+  - Another option is to use S3/GCS/etc to store logs
 
 
 Kubernetes Operator
@@ -43,10 +53,13 @@ Kubernetes Operator
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
     secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+    secret_all_keys  = Secret('env', None, 'airflow-secrets-2')
     volume_mount = VolumeMount('test-volume',
                                 mount_path='/root/mount_file',
                                 sub_path=None,
                                 read_only=True)
+
+    configmaps = ['test-configmap-1', 'test-configmap-2']
 
     volume_config= {
         'persistentVolumeClaim':
@@ -118,7 +131,7 @@ Kubernetes Operator
                               cmds=["bash", "-cx"],
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
-                              secrets=[secret_file,secret_env]
+                              secrets=[secret_file, secret_env, secret_all_keys],
                               volumes=[volume],
                               volume_mounts=[volume_mount]
                               name="test",
@@ -126,15 +139,9 @@ Kubernetes Operator
                               affinity=affinity,
                               is_delete_operator_pod=True,
                               hostnetwork=False,
-                              tolerations=tolerations
+                              tolerations=tolerations,
+                              configmaps=configmaps
                               )
 
 
-.. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
-    :noindex:
-
-
-.. autoclass:: airflow.contrib.kubernetes.secret.Secret
-    :noindex:
-
-
+See :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator`

@@ -37,7 +37,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
@@ -48,7 +48,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_create]
@@ -56,7 +56,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 
 Example request body:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_db_create_body]
     :end-before: [END howto_operator_cloudsql_db_create_body]
@@ -64,7 +64,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_create_template_fields]
@@ -73,7 +73,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database insert
+See Google Cloud SQL API documentation for `to create a new database inside the instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
@@ -91,7 +91,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
@@ -102,7 +102,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_delete]
@@ -111,7 +111,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_delete_template_fields]
@@ -120,7 +120,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database delete
+See Google Cloud SQL API documentation to `delete a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
@@ -140,7 +140,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
@@ -151,7 +151,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_patch]
@@ -159,7 +159,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 
 Example request body:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_db_patch_body]
     :end-before: [END howto_operator_cloudsql_db_patch_body]
@@ -167,7 +167,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_patch_template_fields]
@@ -176,7 +176,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database patch
+See Google Cloud SQL API documentation to `update a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
 .. _howto/operator:CloudSqlInstanceDeleteOperator:
@@ -196,7 +196,7 @@ Arguments
 
 Some arguments in the example DAG are taken from OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
@@ -207,7 +207,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_delete]
@@ -216,7 +216,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Note: If the instance has read or failover replicas you need to delete them before you delete the primary instance.
 Replicas are deleted the same way as primary instances:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_replicas_delete]
@@ -225,7 +225,7 @@ Replicas are deleted the same way as primary instances:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_delete_template_fields]
@@ -234,7 +234,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for delete
+See Google Cloud SQL API documentation to `delete a SQL instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceExportOperator:
@@ -257,19 +257,19 @@ Arguments
 
 Some arguments in the example DAG are taken from Airflow variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_export_import_arguments]
     :end-before: [END howto_operator_cloudsql_export_import_arguments]
 
 Example body defining the export operation:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_export_body]
     :end-before: [END howto_operator_cloudsql_export_body]
@@ -280,7 +280,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export]
@@ -289,7 +289,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_export_template_fields]
@@ -298,8 +298,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for export <https://cloud.google
-.com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
+See Google Cloud SQL API documentation to `export data
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
 
 Troubleshooting
 """""""""""""""
@@ -314,7 +314,7 @@ To grant the service account with the appropriate WRITE permissions for the GCS 
 you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`,
 as shown in the example:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
@@ -354,19 +354,19 @@ Arguments
 
 Some arguments in the example DAG are taken from Airflow variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_export_import_arguments]
     :end-before: [END howto_operator_cloudsql_export_import_arguments]
 
 Example body defining the import operation:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_import_body]
     :end-before: [END howto_operator_cloudsql_import_body]
@@ -377,7 +377,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_import]
@@ -386,7 +386,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_import_template_fields]
@@ -395,7 +395,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for import <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
+See Google Cloud SQL API documentation to `import data
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
 
 Troubleshooting
 """""""""""""""
@@ -410,7 +411,7 @@ To grant the service account with the appropriate READ permissions for the GCS o
 you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`,
 as shown in the example:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
@@ -436,28 +437,28 @@ Arguments
 
 Some arguments in the example DAG are taken from OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
 Some other arguments are created based on the arguments above:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_arguments]
     :end-before: [END howto_operator_cloudsql_create_arguments]
 
 Example body defining the instance with failover replica:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_body]
     :end-before: [END howto_operator_cloudsql_create_body]
 
 Example body defining read replica for the instance above:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_replica]
     :end-before: [END howto_operator_cloudsql_create_replica]
@@ -471,7 +472,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_create]
@@ -480,7 +481,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_create_template_fields]
@@ -489,7 +490,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for insert
+See Google Cloud SQL API documentation to `create an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
 .. _howto/operator:CloudSqlInstancePatchOperator:
@@ -511,14 +512,14 @@ Arguments
 
 Some arguments in the example DAG are taken from OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
 Example body defining the instance:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_patch_body]
     :end-before: [END howto_operator_cloudsql_patch_body]
@@ -529,7 +530,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_patch]
@@ -538,7 +539,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_patch_template_fields]
@@ -547,7 +548,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for patch
+See Google Cloud SQL API documentation to `patch an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
 .. _howto/operator:CloudSqlQueryOperator:
@@ -602,7 +603,7 @@ NFS-like volumes in the same path for all the workers.
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_arguments]
     :end-before: [END howto_operator_cloudsql_query_arguments]
@@ -610,7 +611,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Example connection definitions for all connectivity cases. Note that all the components
 of the connection URI should be URL-encoded:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections]
     :end-before: [END howto_operator_cloudsql_query_connections]
@@ -622,7 +623,7 @@ Example operators below are using all connectivity options. Note connection id
 from the operator matches the `AIRFLOW_CONN_*` postfix uppercase. This is
 standard AIRFLOW notation for defining connection via environment variables):
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_operators]
     :end-before: [END howto_operator_cloudsql_query_operators]
@@ -630,7 +631,7 @@ standard AIRFLOW notation for defining connection via environment variables):
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_sql_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_query_template_fields]
@@ -639,5 +640,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL Proxy documentation
-<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_.
+See Google Cloud SQL documentation for `MySQL <https://cloud.google.com/sql/docs/mysql/sql-proxy>`_ and
+`PostgreSQL <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_ related proxies.

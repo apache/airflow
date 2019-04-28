@@ -40,7 +40,7 @@ class FileTaskHandler(logging.Handler):
         :param base_log_folder: Base log folder to place logs.
         :param filename_template: template filename string
         """
-        super(FileTaskHandler, self).__init__()
+        super().__init__()
         self.handler = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = \

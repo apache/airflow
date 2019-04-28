@@ -21,6 +21,7 @@
 import datetime
 import re
 import unittest
+from typing import Dict
 
 from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
@@ -34,16 +35,9 @@ from airflow.contrib.operators.dataproc_operator import \
     DataprocWorkflowTemplateInstantiateOperator, \
     DataprocClusterScaleOperator
 from airflow.version import version
+from tests.compat import mock
 
 from copy import deepcopy
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 from mock import MagicMock, Mock
 from mock import patch
@@ -68,7 +62,7 @@ WORKER_DISK_SIZE = 100
 WORKER_DISK_TYPE = 'pd-standard'
 NUM_PREEMPTIBLE_WORKERS = 2
 GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
-LABEL1 = {}
+LABEL1 = {}  # type: Dict
 LABEL2 = {'application': 'test', 'year': 2017}
 SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
@@ -413,7 +407,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterScaleOperator(
                 task_id=TASK_ID,
@@ -477,7 +471,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterDeleteOperator(
                 task_id=TASK_ID,

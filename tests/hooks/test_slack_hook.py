@@ -20,14 +20,7 @@
 import unittest
 from airflow.exceptions import AirflowException
 from airflow.hooks.slack_hook import SlackHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class SlackHookTestCase(unittest.TestCase):

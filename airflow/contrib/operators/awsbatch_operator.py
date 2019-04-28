@@ -66,7 +66,7 @@ class AWSBatchOperator(BaseOperator):
     @apply_defaults
     def __init__(self, job_name, job_definition, job_queue, overrides, max_retries=4200,
                  aws_conn_id=None, region_name=None, **kwargs):
-        super(AWSBatchOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.job_name = job_name
         self.aws_conn_id = aws_conn_id

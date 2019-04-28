@@ -132,8 +132,8 @@ Here are the guidelines that you should follow to make validation forward-compat
 """
 
 import re
+from typing import Sequence, Dict, Callable
 
-from typing import Callable
 from airflow import LoggingMixin, AirflowException
 
 COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
@@ -144,7 +144,7 @@ class GcpFieldValidationException(AirflowException):
     """
 
     def __init__(self, message):
-        super(GcpFieldValidationException, self).__init__(message)
+        super().__init__(message)
 
 
 class GcpValidationSpecificationException(AirflowException):
@@ -155,7 +155,7 @@ class GcpValidationSpecificationException(AirflowException):
     """
 
     def __init__(self, message):
-        super(GcpValidationSpecificationException, self).__init__(message)
+        super().__init__(message)
 
 
 def _int_greater_than_zero(value):
@@ -195,8 +195,8 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     """
     def __init__(self, validation_specs, api_version):
-        # type: ([dict], str) -> None
-        super(GcpBodyFieldValidator, self).__init__()
+        # type: (Sequence[Dict], str) -> None
+        super().__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version
 

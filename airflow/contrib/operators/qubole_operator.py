@@ -17,10 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import BaseOperator
+from typing import Iterable
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
     flatten_list, POSITIONAL_ARGS
+
+
+class QDSLink(BaseOperatorLink):
+
+    name = 'Go to QDS'
+
+    def get_link(self, operator, dttm):
+        return operator.get_hook().get_extra_links(operator, dttm)
 
 
 class QuboleOperator(BaseOperator):
@@ -70,12 +79,12 @@ class QuboleOperator(BaseOperator):
             :parameters: any extra args which need to be passed to script (only when
                 script_location is supplied
         sparkcmd:
-            :program: the complete Spark Program in Scala, SQL, Command, R, or Python
+            :program: the complete Spark Program in Scala, R, or Python
             :cmdline: spark-submit command line, all required information must be specify
                 in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
-            :language: language of the program, Scala, SQL, Command, R, or Python
+            :language: language of the program, Scala, R, or Python
             :app_id: ID of an Spark job server app
             :arguments: spark-submit command line arguments
             :user_program_arguments: arguments that the user program takes in
@@ -141,12 +150,16 @@ class QuboleOperator(BaseOperator):
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
                        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
                        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')
+                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
 
-    template_ext = ('.txt',)
+    template_ext = ('.txt',)  # type: Iterable[str]
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
+
+    operator_extra_links = (
+        QDSLink(),
+    )
 
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
@@ -155,7 +168,7 @@ class QuboleOperator(BaseOperator):
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         self.hook = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
-        super(QuboleOperator, self).__init__(*args, **filtered_base_kwargs)
+        super().__init__(*args, **filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry

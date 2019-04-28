@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 
@@ -135,7 +133,7 @@ class MySqlTest(unittest.TestCase):
         hook.bulk_dump(table, tmp_file)
 
         from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-        mock_execute.assert_called_once()
+        assert mock_execute.call_count == 1
         query = """
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
@@ -391,7 +389,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -406,7 +404,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive_part',
             partition={'ds': DEFAULT_DATE_DS},
@@ -423,7 +421,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -458,13 +456,13 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table='test_mysql_to_hive',
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             d = OrderedDict()
             d["c0"] = "SMALLINT"
             d["c1"] = "INT"
@@ -525,7 +523,7 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table=hive_table,
                 recreate=True,

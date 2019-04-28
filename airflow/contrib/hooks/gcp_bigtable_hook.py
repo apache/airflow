@@ -38,7 +38,7 @@ class BigtableHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(BigtableHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def _get_client(self, project_id):
         if not self._client:

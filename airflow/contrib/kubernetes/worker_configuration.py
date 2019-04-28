@@ -40,7 +40,7 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
 
-        super(WorkerConfiguration, self).__init__()
+        super().__init__()
 
     def _get_init_containers(self):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
@@ -140,7 +140,7 @@ class WorkerConfiguration(LoggingMixin):
         env["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
 
         if self.kube_config.airflow_configmap:
-            env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
+            env['AIRFLOW_HOME'] = self.worker_airflow_home
             env['AIRFLOW__CORE__DAGS_FOLDER'] = self.worker_airflow_dags
         if (not self.kube_config.airflow_configmap and
                 'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
@@ -155,13 +155,28 @@ class WorkerConfiguration(LoggingMixin):
             env['AIRFLOW__CORE__DAGS_FOLDER'] = dag_volume_mount_path
         return env
 
+    def _get_configmaps(self):
+        """Extracts any configmapRefs to envFrom"""
+        if not self.kube_config.env_from_configmap_ref:
+            return []
+        return self.kube_config.env_from_configmap_ref.split(',')
+
     def _get_secrets(self):
         """Defines any necessary secrets for the pod executor"""
         worker_secrets = []
+
         for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
-                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key))
+                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key)
+            )
+
+        if self.kube_config.env_from_secret_ref:
+            for secret_ref in self.kube_config.env_from_secret_ref.split(','):
+                worker_secrets.append(
+                    Secret('env', None, secret_ref)
+                )
+
         return worker_secrets
 
     def _get_image_pull_secrets(self):
@@ -172,12 +187,19 @@ class WorkerConfiguration(LoggingMixin):
 
     def _get_security_context(self):
         """Defines the security context"""
-        if self.kube_config.git_ssh_key_secret_name:
-            return {
-                'fsGroup': 65533  # to make SSH key readable
-            }
-        else:
-            return None
+        security_context = {}
+
+        if self.kube_config.worker_run_as_user:
+            security_context['runAsUser'] = self.kube_config.worker_run_as_user
+
+        if self.kube_config.worker_fs_group:
+            security_context['fsGroup'] = self.kube_config.worker_fs_group
+
+        # set fs_group to 65533 if not explicitly specified and using git ssh keypair auth
+        if self.kube_config.git_ssh_key_secret_name and security_context.get('fsGroup') is None:
+            security_context['fsGroup'] = 65533
+
+        return security_context
 
     def _get_volumes_and_mounts(self):
         def _construct_volume(name, claim, host):
@@ -331,4 +353,5 @@ class WorkerConfiguration(LoggingMixin):
             affinity=affinity,
             tolerations=tolerations,
             security_context=self._get_security_context(),
+            configmaps=self._get_configmaps()
         )

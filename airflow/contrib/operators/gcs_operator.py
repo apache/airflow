@@ -99,7 +99,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageCreateBucketOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
         self.resource = resource
         self.storage_class = storage_class

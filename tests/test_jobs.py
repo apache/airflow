@@ -17,11 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import datetime
 import json
 import logging
@@ -36,7 +31,7 @@ from tempfile import mkdtemp
 import psutil
 import six
 import sqlalchemy
-from mock import Mock, patch, MagicMock, PropertyMock
+from tests.compat import Mock, patch, MagicMock, PropertyMock
 from parameterized import parameterized
 
 from airflow.utils.db import create_session
@@ -45,10 +40,10 @@ from airflow import configuration
 from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
+from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
-    errors
-from airflow.models.slamiss import SlaMiss
+    errors, SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -63,18 +58,11 @@ from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
     clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
+from tests.compat import mock
 
 configuration.load_test_config()
 
 logger = logging.getLogger(__name__)
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -100,7 +88,7 @@ class BaseJobTest(unittest.TestCase):
 
         def __init__(self, cb):
             self.cb = cb
-            super(BaseJobTest.TestJob, self).__init__()
+            super().__init__()
 
         def _execute(self):
             return self.cb()
@@ -134,12 +122,79 @@ class BaseJobTest(unittest.TestCase):
 
 class BackfillJobTest(unittest.TestCase):
 
+    def _get_dummy_dag(self, dag_id, pool=None):
+        dag = DAG(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='op',
+                pool=pool,
+                dag=dag)
+
+        dag.clear()
+        return dag
+
+    def _times_called_with(self, method, class_):
+        count = 0
+        for args in method.call_args_list:
+            if isinstance(args[0][0], class_):
+                count += 1
+        return count
+
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
 
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
+
+    def test_unfinished_dag_runs_set_to_failed(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.FAILED, dag_run.state)
+
+    def test_dag_run_with_finished_tasks_set_to_success(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        for ti in dag_run.get_task_instances():
+            ti.set_state(State.SUCCESS)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.SUCCESS, dag_run.state)
 
     @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
@@ -240,17 +295,7 @@ class BackfillJobTest(unittest.TestCase):
             job.run()
 
     def test_backfill_conf(self):
-        dag = DAG(
-            dag_id='test_backfill_conf',
-            start_date=DEFAULT_DATE,
-            schedule_interval='@daily')
-
-        with dag:
-            DummyOperator(
-                task_id='op',
-                dag=dag)
-
-        dag.clear()
+        dag = self._get_dummy_dag('test_backfill_conf')
 
         executor = TestExecutor(do_update=True)
 
@@ -265,6 +310,189 @@ class BackfillJobTest(unittest.TestCase):
         dr = DagRun.find(dag_id='test_backfill_conf')
 
         self.assertEqual(conf, dr[0].conf)
+
+    @patch('airflow.jobs.LoggingMixin.log')
+    def test_backfill_respect_concurrency_limit(self, mock_log):
+
+        dag = self._get_dummy_dag('test_backfill_respect_concurrency_limit')
+        dag.concurrency = 2
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        concurrency_limit_reached_at_least_once = False
+
+        num_running_task_instances = 0
+
+        for running_task_instances in executor.history:
+            self.assertLessEqual(len(running_task_instances), dag.concurrency)
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == dag.concurrency:
+                concurrency_limit_reached_at_least_once = True
+
+        self.assertEquals(8, num_running_task_instances)
+        self.assertTrue(concurrency_limit_reached_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_pool_limit_reached_in_debug)
+        self.assertGreater(times_concurrency_limit_reached_in_debug, 0)
+
+    @patch('airflow.jobs.LoggingMixin.log')
+    @patch('airflow.jobs.conf.getint')
+    def test_backfill_with_no_pool_limit(self, mock_getint, mock_log):
+        non_pooled_backfill_task_slot_count = 2
+
+        def getint(section, key):
+            if section.lower() == 'core' and \
+                    'non_pooled_backfill_task_slot_count' == key.lower():
+                return non_pooled_backfill_task_slot_count
+            else:
+                return configuration.conf.getint(section, key)
+
+        mock_getint.side_effect = getint
+
+        dag = self._get_dummy_dag('test_backfill_with_no_pool_limit')
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        non_pooled_task_slot_count_reached_at_least_once = False
+
+        num_running_task_instances = 0
+
+        # if no pool is specified, the number of tasks running in
+        # parallel per backfill should be less than
+        # non_pooled_backfill_task_slot_count at any point of time.
+        for running_task_instances in executor.history:
+            self.assertLessEqual(
+                len(running_task_instances),
+                non_pooled_backfill_task_slot_count,
+            )
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == non_pooled_backfill_task_slot_count:
+                non_pooled_task_slot_count_reached_at_least_once = True
+
+        self.assertEquals(8, num_running_task_instances)
+        self.assertTrue(non_pooled_task_slot_count_reached_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_concurrency_limit_reached_in_debug)
+        self.assertGreater(times_pool_limit_reached_in_debug, 0)
+
+    def test_backfill_pool_not_found(self):
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_pool_not_found',
+            pool='king_pool',
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        try:
+            job.run()
+        except AirflowException:
+            return
+
+        self.fail()
+
+    @patch('airflow.jobs.LoggingMixin.log')
+    def test_backfill_respect_pool_limit(self, mock_log):
+        session = settings.Session()
+
+        slots = 2
+        pool = Pool(
+            pool='pool_with_two_slots',
+            slots=slots,
+        )
+        session.add(pool)
+        session.commit()
+
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_respect_pool_limit',
+            pool=pool.pool,
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        pool_was_full_at_least_once = False
+        num_running_task_instances = 0
+
+        for running_task_instances in executor.history:
+            self.assertLessEqual(len(running_task_instances), slots)
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == slots:
+                pool_was_full_at_least_once = True
+
+        self.assertEquals(8, num_running_task_instances)
+        self.assertTrue(pool_was_full_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_concurrency_limit_reached_in_debug)
+        self.assertGreater(times_pool_limit_reached_in_debug, 0)
 
     def test_backfill_run_rescheduled(self):
         dag = DAG(
@@ -1966,7 +2194,7 @@ class SchedulerJobTest(unittest.TestCase):
         with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
             scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
 
-        mock_queue_command.assert_called()
+        assert mock_queue_command.called
 
     def test_execute_task_instances_nothing(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_nothing'
@@ -2424,6 +2652,26 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
         dr_state = dr.update_state()
         self.assertEqual(dr_state, State.RUNNING)
+
+    def test_dagrun_root_after_dagrun_unfinished(self):
+        """
+        DagRuns with one successful and one future root task -> SUCCESS
+
+        Noted: the DagRun state could be still in running state during CI.
+        """
+        dag_id = 'test_dagrun_states_root_future'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        # we can't use dag.run or evaluate_dagrun because it uses BackfillJob
+        # instead of SchedulerJob and BackfillJobs are allowed to not respect start dates
+        scheduler.run()
+
+        first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
+        ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
+
+        self.assertEqual(ti_ids, [('current', State.SUCCESS)])
+        self.assertIn(first_run.state, [State.SUCCESS, State.RUNNING])
 
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
         """
@@ -3051,6 +3299,76 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_sla_miss_callback(self):
         """
+        Test that the scheduler calls the sla miss callback
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta()})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        assert sla_callback.called
+
+    def test_scheduler_sla_miss_callback_invalid_sla(self):
+        """
+        Test that the scheduler does not call the sla miss callback when
+        given an invalid sla
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        # Pass anything besides a timedelta object to the sla argument.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': None})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        sla_callback.assert_not_called()
+
+    def test_scheduler_sla_miss_callback_sent_notification(self):
+        """
         Test that the scheduler does not call the sla_miss_callback when a notification has already been sent
         """
         session = settings.Session()
@@ -3123,7 +3441,7 @@ class SchedulerJobTest(unittest.TestCase):
         with mock.patch('airflow.jobs.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
-            sla_callback.assert_called()
+            assert sla_callback.called
             mock_log().exception.assert_called_with(
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
