@@ -307,3 +307,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         self.assertEqual(expected_log_id, log_id)
+
+    def test_clean_execution_date(self):
+        clean_execution_date = self.es_task_handler._clean_execution_date(self.EXECUTION_DATE)
+        self.assertEqual('2016_01_01T00_12_00_000000', clean_execution_date)

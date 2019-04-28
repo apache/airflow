@@ -16,25 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import unittest
+from logging import makeLogRecord
 
-import logging
-import json
+from airflow.utils.log.json_formatter import JSONFormatter
 
 
-class JSONFormatter(logging.Formatter):
-    def __init__(self, fmt=None, datefmt=None, style='%', json_fields=[], extras={}):
-        super(JSONFormatter, self).__init__(fmt, datefmt, style)
-        self.json_fields = json_fields
-        self.extras = extras
+class TestJSONFormatter(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
 
-    def _merge_dicts(self, d1, d2):
-        merged = d1.copy()
-        merged.update(d2)
-        return merged
+    def test_json_formatter_is_not_none(self):
+        json_fmt = JSONFormatter()
+        self.assertIsNotNone(json_fmt)
 
-    def format(self, record):
-        super(JSONFormatter, self).format(record)
-        record_dict = {label: getattr(record, label, None)
-                       for label in self.json_fields}
-        merged_record = self._merge_dicts(record_dict, self.extras)
-        return json.dumps(merged_record)
+    def test_format(self):
+        log_record = makeLogRecord({"label": "value"})
+        json_fmt = JSONFormatter(json_fields=["label"])
+        self.assertEqual(json_fmt.format(log_record), {"label": "value"})
