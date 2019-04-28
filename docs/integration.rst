@@ -263,9 +263,9 @@ For more instructions on using Amazon SageMaker in Airflow, please see `the Sage
 Databricks
 ----------
 
-`Databricks <https://databricks.com/>`__ has contributed an Airflow operator which enables
-submitting runs to the Databricks platform. Internally the operator talks to the
-``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+With contributions from `Databricks <https://databricks.com/>`__, Airflow has several operators
+which enable the submitting and running of jobs to the Databricks platform. Internally the
+operators talk to the ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 
 
 :class:`airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator`
@@ -273,6 +273,12 @@ submitting runs to the Databricks platform. Internally the operator talks to the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
     API endpoint.
+
+:class:`airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator`
+    Runs an existing Spark job in Databricks using the
+        `api/2.0/jobs/run-now
+        <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+        API endpoint.
 
 
 .. _GCP:
