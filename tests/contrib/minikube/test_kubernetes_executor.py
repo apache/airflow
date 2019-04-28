@@ -65,8 +65,17 @@ class KubernetesExecutorTest(unittest.TestCase):
         session.mount('https://', HTTPAdapter(max_retries=retries))
         return session
 
+    def _ensure_airflow_webserver_is_healthy(self):
+        response = self.session.get(
+            "http://{host}/health".format(host=get_minikube_host()),
+            timeout=1,
+        )
+
+        self.assertEquals(response.status_code, 200)
+
     def setUp(self):
         self.session = self._get_session_with_retries()
+        self._ensure_airflow_webserver_is_healthy()
 
     def tearDown(self):
         self.session.close()
