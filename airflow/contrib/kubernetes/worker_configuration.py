@@ -206,7 +206,7 @@ class WorkerConfiguration(LoggingMixin):
         copy.update(self.kube_config.kube_labels)
         return copy
 
-    def init_volumes_and_mounts(self):
+    def _get_volumes_and_mounts(self):
         def _construct_volume(name, claim, host):
             volume = {
                 'name': name
