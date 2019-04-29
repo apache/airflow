@@ -802,81 +802,24 @@ class BackfillJobTest(unittest.TestCase):
         ti_dependent.refresh_from_db()
         self.assertEqual(ti_dependent.state, State.SUCCESS)
 
-    def test_run_naive_taskinstance(self):
-        """
-        Test that we can run naive (non-localized) task instances
-        """
-        NAIVE_DATE = datetime.datetime(2016, 1, 1)
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-        dag.clear()
-
-        task0_id = 'test_run_dependent_task'
-        args0 = ['run',
-                 '-A',
-                 dag_id,
-                 task0_id,
-                 NAIVE_DATE.isoformat()]
-
-        cli.run(self.parser.parse_args(args0))
-        ti_dependent0 = TI(
-            task=dag.get_task(task0_id),
-            execution_date=NAIVE_DATE)
-
-        ti_dependent0.refresh_from_db()
-        self.assertEqual(ti_dependent0.state, State.FAILED)
-
-    def test_cli_backfill_depends_on_past(self):
-        """
-        Test that CLI respects -I argument
-        """
-        dag_id = 'test_dagrun_states_deadlock'
-        run_date = DEFAULT_DATE + datetime.timedelta(days=1)
-        args = [
-            'backfill',
-            dag_id,
-            '-l',
-            '-s',
-            run_date.isoformat(),
-        ]
-        dag = self.dagbag.get_dag(dag_id)
-        dag.clear()
-
-        self.assertRaisesRegexp(
-            AirflowException,
-            'BackfillJob is deadlocked',
-            cli.backfill,
-            self.parser.parse_args(args))
-
-        cli.backfill(self.parser.parse_args(args + ['-I']))
-        ti = TI(dag.get_task('test_depends_on_past'), run_date)
-        ti.refresh_from_db()
-        # task ran
-        self.assertEqual(ti.state, State.SUCCESS)
-        dag.clear()
-
-    def test_cli_backfill_depends_on_past_backwards(self):
-        """
-        Test that CLI respects -B argument and raises on interaction with depends_on_past
-        """
+    def test_backfill_depends_on_past_backwards(self):
         dag_id = 'test_depends_on_past'
         start_date = DEFAULT_DATE + datetime.timedelta(days=1)
         end_date = start_date + datetime.timedelta(days=1)
-        args = [
-            'backfill',
-            dag_id,
-            '-l',
-            '-s',
-            start_date.isoformat(),
-            '-e',
-            end_date.isoformat(),
-            '-I'
-        ]
+        kwargs = dict(
+            start_date=start_date,
+            end_date=end_date,
+        )
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        cli.backfill(self.parser.parse_args(args + ['-I']))
+        executor = TestExecutor(do_update=True)
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          ignore_first_depends_on_past=True,
+                          **kwargs)
+        job.run()
+
         ti = TI(dag.get_task('test_dop_task'), end_date)
         ti.refresh_from_db()
         # runs fine forwards
@@ -885,11 +828,13 @@ class BackfillJobTest(unittest.TestCase):
         # raises backwards
         expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
             'test_dop_task')
-        self.assertRaisesRegexp(
-            AirflowException,
-            expected_msg,
-            cli.backfill,
-            self.parser.parse_args(args + ['-B']))
+        with self.assertRaisesRegexp(AirflowException, expected_msg):
+            executor = TestExecutor()
+            job = BackfillJob(dag=dag,
+                              executor=executor,
+                              run_backwards=True,
+                              **kwargs)
+            job.run()
 
     def test_cli_receives_delay_arg(self):
         """
