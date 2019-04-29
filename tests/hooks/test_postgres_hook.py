@@ -29,11 +29,11 @@ from airflow.hooks.postgres_hook import PostgresHook
 class TestPostgresHook(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestPostgresHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.table = "test_postgres_hook_table"
 
     def setUp(self):
-        super(TestPostgresHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = conn = mock.MagicMock()
@@ -48,7 +48,7 @@ class TestPostgresHook(unittest.TestCase):
         self.db_hook = UnitTestPostgresHook()
 
     def tearDown(self):
-        super(TestPostgresHook, self).tearDown()
+        super().tearDown()
 
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
@@ -64,9 +64,9 @@ class TestPostgresHook(unittest.TestCase):
 
             self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=m))
 
-            self.conn.close.assert_called_once()
-            self.cur.close.assert_called_once()
-            self.conn.commit.assert_called_once()
+            assert self.conn.close.call_count == 1
+            assert self.cur.close.call_count == 1
+            assert self.conn.commit.call_count == 1
             self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
             self.assertEqual(m.call_args[0], (filename, "r+"))
 

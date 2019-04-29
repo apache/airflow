@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
 
 import funcsigs
@@ -42,7 +40,7 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestPythonVirtualenvOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
@@ -205,3 +203,17 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(**kwargs):
             return kwargs['templates_dict']['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+    def test_provide_context(self):
+        def fn():
+            pass
+        task = PythonVirtualenvOperator(
+            python_callable=fn,
+            python_version=sys.version_info[0],
+            task_id='task',
+            dag=self.dag,
+            provide_context=True,
+        )
+        self.assertTrue(
+            task.provide_context
+        )

@@ -34,14 +34,19 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     point the operator to a Google cloud storage object name. The object in
     Google cloud storage must be a JSON file with the schema fields in it.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToBigQueryOperator`
+
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
     :param source_objects: List of Google cloud storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type source_objects: list of str
-    :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into. If <project> is not included,
-        project will be the project defined in the connection json. (templated)
+    :type source_objects: list[str]
+    :param destination_project_dataset_table: The dotted
+        ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to load data into.
+        If ``<project>`` is not included, project will be the project defined in
+        the connection json. (templated)
     :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
@@ -118,7 +123,10 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
         Not applicable for external tables.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
+    :param autodetect: [Optional] Indicates if we should automatically infer the
+        options and schema for CSV and JSON sources. (Default: ``False``)
+    :type autodetect: bool
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -144,7 +152,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  max_id_key=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  schema_update_options=(),
@@ -155,7 +163,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  autodetect=False,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # GCS config
         if src_fmt_configs is None:

@@ -32,7 +32,7 @@ class TestExecutor(BaseExecutor):
         self._running = []
         self.history = []
 
-        super(TestExecutor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute_async(self, key, command, queue=None):
         self.log.debug("{} running task instances".format(len(self.running)))

@@ -18,6 +18,7 @@
 # under the License.
 import six
 
+from typing import List
 from jinja2 import Environment
 
 
@@ -28,7 +29,7 @@ def _inherited(cls):
 
 
 class DataSet(object):
-    attributes = []
+    attributes = []  # type: List[str]
     type_name = "dataSet"
 
     def __init__(self, qualified_name=None, data=None, **kwargs):
@@ -111,7 +112,7 @@ class File(DataSet):
     attributes = ["name", "path", "isFile", "isSymlink"]
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = 'file://' + self.name
         self._data['path'] = self.name
@@ -124,7 +125,7 @@ class HadoopFile(File):
     type_name = "hdfs_file"
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = "{}@{}".format(self.name, self.cluster_name)
         self._data['path'] = self.name

@@ -18,17 +18,16 @@
 # under the License.
 
 import unittest
+from datetime import datetime
+from urllib.parse import parse_qs
+
 import mock
-from xml.dom import minidom
+from bs4 import BeautifulSoup
 
 from airflow.www import utils
 
 
 class UtilsTest(unittest.TestCase):
-
-    def setUp(self):
-        super(UtilsTest, self).setUp()
-
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -45,39 +44,43 @@ class UtilsTest(unittest.TestCase):
     def check_generate_pages_html(self, current_page, total_pages,
                                   window=7, check_middle=False):
         extra_links = 4  # first, prev, next, last
-        html_str = utils.generate_pages(current_page, total_pages)
+        search = "'>\"/><img src=x onerror=alert(1)>"
+        html_str = utils.generate_pages(current_page, total_pages,
+                                        search=search)
 
-        # dom parser has issues with special &laquo; and &raquo;
-        html_str = html_str.replace('&laquo;', '')
-        html_str = html_str.replace('&raquo;', '')
-        dom = minidom.parseString(html_str)
+        self.assertNotIn(search, html_str,
+                         "The raw search string shouldn't appear in the output")
+        self.assertIn('search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E',
+                      html_str)
+
+        self.assertTrue(
+            callable(html_str.__html__),
+            "Should return something that is HTML-escaping aware"
+        )
+
+        dom = BeautifulSoup(html_str, 'html.parser')
         self.assertIsNotNone(dom)
 
-        ulist = dom.getElementsByTagName('ul')[0]
-        ulist_items = ulist.getElementsByTagName('li')
+        ulist = dom.ul
+        ulist_items = ulist.find_all('li')
         self.assertEqual(min(window, total_pages) + extra_links, len(ulist_items))
-
-        def get_text(nodelist):
-            rc = []
-            for node in nodelist:
-                if node.nodeType == node.TEXT_NODE:
-                    rc.append(node.data)
-            return ''.join(rc)
 
         page_items = ulist_items[2:-2]
         mid = int(len(page_items) / 2)
         for i, item in enumerate(page_items):
-            a_node = item.getElementsByTagName('a')[0]
-            href_link = a_node.getAttribute('href')
-            node_text = get_text(a_node.childNodes)
+            a_node = item.a
+            href_link = a_node['href']
+            node_text = a_node.string
             if node_text == str(current_page + 1):
                 if check_middle:
                     self.assertEqual(mid, i)
-                self.assertEqual('javascript:void(0)', a_node.getAttribute('href'))
-                self.assertIn('active', item.getAttribute('class'))
+                self.assertEqual('javascript:void(0)', href_link)
+                self.assertIn('active', item['class'])
             else:
-                link_str = '?page=' + str(int(node_text) - 1)
-                self.assertEqual(link_str, href_link)
+                self.assertRegex(href_link, r'^\?', 'Link is page-relative')
+                query = parse_qs(href_link[1:])
+                self.assertListEqual(query['page'], [str(int(node_text) - 1)])
+                self.assertListEqual(query['search'], [search])
 
     def test_generate_pager_current_start(self):
         self.check_generate_pages_html(current_page=0,
@@ -109,10 +112,24 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('showPaused=False',
                          utils.get_params(showPaused=False))
 
+    def test_params_none_and_zero(self):
+        qs = utils.get_params(a=0, b=None)
+        # The order won't be consistent, but that doesn't affect behaviour of a browser
+        pairs = list(sorted(qs.split('&')))
+        self.assertListEqual(['a=0', 'b='], pairs)
+
     def test_params_all(self):
-        """Should return params string ordered by param key"""
-        self.assertEqual('page=3&search=bash_&showPaused=False',
-                         utils.get_params(showPaused=False, page=3, search='bash_'))
+        query = utils.get_params(showPaused=False, page=3, search='bash_')
+        self.assertEqual(
+            {'page': ['3'],
+             'search': ['bash_'],
+             'showPaused': ['False']},
+            parse_qs(query)
+        )
+
+    def test_params_escape(self):
+        self.assertEqual('search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E',
+                         utils.get_params(search="'>\"/><img src=x onerror=alert(1)>"))
 
     def test_open_maybe_zipped_normal_file(self):
         with mock.patch(
@@ -148,6 +165,82 @@ class UtilsTest(unittest.TestCase):
         (args, kwargs) = instance.open.call_args_list[0]
         self.assertEqual('deep/path/to/file.txt', args[0])
 
+    def test_state_token(self):
+        # It's shouldn't possible to set these odd values anymore, but lets
+        # ensure they are escaped!
+        html = str(utils.state_token('<script>alert(1)</script>'))
 
-if __name__ == '__main__':
-    unittest.main()
+        self.assertIn(
+            '&lt;script&gt;alert(1)&lt;/script&gt;',
+            html,
+        )
+        self.assertNotIn(
+            '<script>alert(1)</script>',
+            html,
+        )
+
+    def test_task_instance_link(self):
+
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.task_instance_link({
+                'dag_id': '<a&1>',
+                'task_id': '<b2>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertIn('%3Cb2%3E', html)
+        self.assertNotIn('<a&1>', html)
+        self.assertNotIn('<b2>', html)
+
+    def test_dag_link(self):
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.dag_link({
+                'dag_id': '<a&1>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertNotIn('<a&1>', html)
+
+    def test_dag_run_link(self):
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.dag_run_link({
+                'dag_id': '<a&1>',
+                'run_id': '<b2>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertIn('%3Cb2%3E', html)
+        self.assertNotIn('<a&1>', html)
+        self.assertNotIn('<b2>', html)
+
+
+class AttrRendererTest(unittest.TestCase):
+
+    def setUp(self):
+        self.attr_renderer = utils.get_attr_renderer()
+
+    def test_python_callable(self):
+        def example_callable(self):
+            print("example")
+        rendered = self.attr_renderer["python_callable"](example_callable)
+        self.assertIn('&quot;example&quot;', rendered)
+
+    def test_python_callable_none(self):
+        rendered = self.attr_renderer["python_callable"](None)
+        self.assertEqual("", rendered)
+
+    def test_markdown(self):
+        markdown = "* foo\n* bar"
+        rendered = self.attr_renderer["doc_md"](markdown)
+        self.assertIn("<li>foo</li>", rendered)
+        self.assertIn("<li>bar</li>", rendered)
+
+    def test_markdown_none(self):
+        rendered = self.attr_renderer["python_callable"](None)
+        self.assertEqual("", rendered)

@@ -100,7 +100,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                  *args,
                  **kwargs):
 
-        super(AdlsToGoogleCloudStorageOperator, self).__init__(
+        super().__init__(
             path=src_adls,
             azure_data_lake_conn_id=azure_data_lake_conn_id,
             *args,
@@ -114,7 +114,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
 
     def execute(self, context):
         # use the super to list all files in an Azure Data Lake path
-        files = super(AdlsToGoogleCloudStorageOperator, self).execute(context)
+        files = super().execute(context)
         g_hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to)
@@ -124,7 +124,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
             # and only keep those files which are present in
             # ADLS and not in Google Cloud Storage
             bucket_name, prefix = _parse_gcs_url(self.dest_gcs)
-            existing_files = g_hook.list(bucket=bucket_name, prefix=prefix)
+            existing_files = g_hook.list(bucket_name=bucket_name, prefix=prefix)
             files = set(files) - set(existing_files)
 
         if files:
@@ -140,7 +140,8 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                     dest_path = os.path.join(dest_gcs_prefix, obj)
                     self.log.info("Saving file to %s", dest_path)
 
-                    g_hook.upload(bucket=dest_gcs_bucket, object=dest_path, filename=f.name)
+                    g_hook.upload(bucket_name=dest_gcs_bucket,
+                                  object_name=dest_path, filename=f.name)
 
             self.log.info("All done, uploaded %d files to GCS", len(files))
         else:

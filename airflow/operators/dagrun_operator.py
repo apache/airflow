@@ -53,7 +53,6 @@ class TriggerDagRunOperator(BaseOperator):
     :type execution_date: str or datetime.datetime
     """
     template_fields = ('trigger_dag_id', 'execution_date')
-    template_ext = tuple()
     ui_color = '#ffefeb'
 
     @apply_defaults
@@ -63,7 +62,7 @@ class TriggerDagRunOperator(BaseOperator):
             python_callable=None,
             execution_date=None,
             *args, **kwargs):
-        super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 

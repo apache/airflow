@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import unicode_literals
-
 import getpass
 import os
 import subprocess
@@ -46,7 +44,7 @@ class BaseTaskRunner(LoggingMixin):
         :type local_task_job: airflow.jobs.LocalTaskJob
         """
         # Pass task instance context into log handlers to setup the logger.
-        super(BaseTaskRunner, self).__init__(local_task_job.task_instance)
+        super().__init__(local_task_job.task_instance)
         self._task_instance = local_task_job.task_instance
 
         popen_prepend = []
@@ -102,13 +100,12 @@ class BaseTaskRunner(LoggingMixin):
 
     def run_command(self, run_with=None, join_args=False):
         """
-        Run the task command
+        Run the task command.
 
-        :param run_with: list of tokens to run the task command with
-        E.g. ['bash', '-c']
+        :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
         :type run_with: list
-        :param join_args: whether to concatenate the list of command tokens
-        E.g. ['airflow', 'run'] vs ['airflow run']
+        :param join_args: whether to concatenate the list of command tokens e.g. ``['airflow', 'run']`` vs
+            ``['airflow run']``
         :param join_args: bool
         :return: the process that was run
         :rtype: subprocess.Popen
@@ -146,7 +143,7 @@ class BaseTaskRunner(LoggingMixin):
     def return_code(self):
         """
         :return: The return code associated with running the task instance or
-        None if the task is not yet done.
+            None if the task is not yet done.
         :rtype: int
         """
         raise NotImplementedError()
@@ -162,4 +159,7 @@ class BaseTaskRunner(LoggingMixin):
         A callback that should be called when this is done running.
         """
         if self._cfg_path and os.path.isfile(self._cfg_path):
-            subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            if self.run_as_user:
+                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            else:
+                os.remove(self._cfg_path)

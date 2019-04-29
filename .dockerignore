@@ -1,0 +1,100 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# NOTE! This docker ignore uses recommended technique
+# Where everything is excluded by default and you deliberately
+# Add only those directories/files you need. This is very useful
+# To make sure that Docker context is always the same on any machine
+# So that generated files are not accidentally added to the context
+# This allows Docker's `COPY .` to behave in predictable way
+
+# Ignore everything
+**
+
+# Allow only these directories
+!airflow
+!dags
+!dev
+#!/docs - we do not need docs in the Docker!
+!licenses
+!scripts
+!tests
+
+!.coveragerc
+!.rat-excludes
+!LICENSE
+!MANIFEST.in
+!NOTICE
+
+# Avoid triggering context change on README change (new companies using Airflow)
+# So please do not uncomment this line ;)
+# !README.md
+
+# Setup/version configuration
+!setup.cfg
+!setup.py
+
+# Entrypoint script
+!scripts/docker/entrypoint.sh
+
+# Now - ignore unnecessary files inside allowed directories
+# This goes after the allowed directories
+
+# Git version is dynamically generated
+airflow/git_version
+
+# Exclude static www files generated bu NPM
+airflow/www/static/coverage
+airflow/www/static/dist
+airflow/www/node_modules
+
+# Exclude link to docs
+airflow/www/static/docs
+
+# Exclude python generated files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/env/
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+
+# Exclude temporary vi files
+**/*~
+
+# Exclude output files
+**/*.out
+**/hive_scratch_dir/
+
+# Exclude auto-generated Finder files on Mac OS
+**/.DS_Store
+**/Thumbs.db

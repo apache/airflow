@@ -56,7 +56,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param log_id_template: log id template
         :param host: Elasticsearch host name
         """
-        super(ElasticsearchTaskHandler, self).__init__(
+        super().__init__(
             base_log_folder, filename_template)
         self.closed = False
 
@@ -87,7 +87,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
-        :return a list of log documents and metadata.
+        :return: a list of log documents and metadata.
         """
         if not metadata:
             metadata = {'offset': 0}
@@ -147,14 +147,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 logs = s[self.MAX_LINE_PER_PAGE * self.PAGE:self.MAX_LINE_PER_PAGE] \
                     .execute()
             except Exception as e:
-                msg = 'Could not read log with log_id: {}, ' \
-                      'error: {}'.format(log_id, str(e))
-                self.log.exception(msg)
+                self.log.exception('Could not read log with log_id: %s, error: %s', log_id, str(e))
 
         return logs
 
     def set_context(self, ti):
-        super(ElasticsearchTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         self.mark_end_on_close = not ti.raw
 
     def close(self):
@@ -183,6 +181,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # so we know where to stop while auto-tailing.
         self.handler.stream.write(self.end_of_log_mark)
 
-        super(ElasticsearchTaskHandler, self).close()
+        super().close()
 
         self.closed = True

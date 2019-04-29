@@ -21,7 +21,7 @@ from builtins import str
 from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
-import sys
+from typing import Optional
 
 from sqlalchemy import create_engine
 
@@ -34,7 +34,7 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None
+    conn_name_attr = None  # type: Optional[str]
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.
@@ -88,8 +88,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
         import pandas.io.sql as psql
 
         with closing(self.get_conn()) as conn:
@@ -105,9 +103,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -126,9 +121,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -161,8 +153,6 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for s in sql:
-                    if sys.version_info[0] < 3:
-                        s = s.encode('utf-8')
                     if parameters is not None:
                         self.log.info("{} with parameters {}".format(s, parameters))
                         cur.execute(s, parameters)
@@ -256,12 +246,11 @@ class DbApiHook(BaseHook):
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded {i} into {table} rows so far".format(**locals())
+                            "Loaded %s into %s rows so far", i, table
                         )
 
             conn.commit()
-        self.log.info(
-            "Done loading. Loaded a total of {i} rows".format(**locals()))
+        self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
     def _serialize_cell(cell, conn=None):

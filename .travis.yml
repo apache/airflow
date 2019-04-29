@@ -16,25 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-sudo: true
-dist: trusty
+dist: xenial
 language: python
 python:
   - "3.6"
 env:
   global:
-    - DOCKER_COMPOSE_VERSION=1.20.0
-    - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=py27-backend_mysql-env_docker
-    - TOX_ENV=py27-backend_sqlite-env_docker
-    - TOX_ENV=py27-backend_postgres-env_docker
     - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
 
 stages:
   - pre-test
@@ -44,11 +37,24 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      script: pip install flake8 && flake8
+      install: pip install flake8
+      script: flake8
+    - name: mypy
+      stage: pre-test
+      install: pip install mypy
+      script: mypy airflow tests
     - name: Check license header
       stage: pre-test
+      install: skip
       script: scripts/ci/6-check-license.sh
-
+    - name: Lint Dockerfile
+      stage: pre-test
+      install: skip
+      script: scripts/ci/ci_lint_dockerfile.sh
+    - name: Check docs
+      stage: pre-test
+      install: pip install -e .[doc]
+      script: docs/build.sh
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -59,14 +65,12 @@ before_install:
   # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
   - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
 install:
-  # Use recent docker-compose version
-  - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
+  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet
 script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
+  - if [ -z "$KUBERNETES_VERSION" ]; then
+      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
+    fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
       ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
       ./scripts/ci/kubernetes/setup_kubernetes.sh &&

@@ -17,11 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
-import os
 import contextlib
+import os
+import warnings
 from collections import OrderedDict
 
 import six
@@ -29,11 +27,7 @@ import six
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
-if six.PY2:
-    # Need `assertWarns` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
+import unittest
 
 
 @contextlib.contextmanager
@@ -139,7 +133,7 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
-    def test_command_config(self):
+    def test_command_precedence(self):
         TEST_CONFIG = '''[test]
 key1 = hello
 key2_cmd = printf cmd_result
@@ -170,6 +164,9 @@ key6 = value6
         self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
         self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
         self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
+        self.assertEqual(True, test_conf.getboolean('another', 'key8_boolean', fallback='True'))
+        self.assertEqual(10, test_conf.getint('another', 'key8_int', fallback='10'))
+        self.assertEqual(1.0, test_conf.getfloat('another', 'key8_float', fallback='1'))
 
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))
@@ -181,6 +178,67 @@ key6 = value6
         cfg_dict = test_conf.as_dict(display_sensitive=True)
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
+
+    def test_getboolean(self):
+        """Test AirflowConfigParser.getboolean"""
+        TEST_CONFIG = """
+[type_validation]
+key1 = non_bool_value
+
+[true]
+key2 = t
+key3 = true
+key4 = 1
+
+[false]
+key5 = f
+key6 = false
+key7 = 0
+
+[inline-comment]
+key8 = true #123
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getboolean('type_validation', 'key1')
+        self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
+        self.assertEqual(True, test_conf.getboolean('true', 'key2'))
+        self.assertEqual(True, test_conf.getboolean('true', 'key3'))
+        self.assertEqual(True, test_conf.getboolean('true', 'key4'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key5'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key6'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key7'))
+        self.assertEqual(True, test_conf.getboolean('inline-comment', 'key8'))
+
+    def test_getint(self):
+        """Test AirflowConfigParser.getint"""
+        TEST_CONFIG = """
+[invalid]
+key1 = str
+
+[valid]
+key2 = 1
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getint('invalid', 'key1')
+        self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
+        self.assertEqual(1, test_conf.getint('valid', 'key2'))
+
+    def test_getfloat(self):
+        """Test AirflowConfigParser.getfloat"""
+        TEST_CONFIG = """
+[invalid]
+key1 = str
+
+[valid]
+key2 = 1.23
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getfloat('invalid', 'key1')
+        self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
+        self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
@@ -275,3 +333,40 @@ key3 = value3
             self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+
+    def test_deprecated_values(self):
+        def make_config():
+            test_conf = AirflowConfigParser(default_config='')
+            # Guarantee we have a deprecated setting, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_values = {
+                'core': {
+                    'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+                },
+            }
+            test_conf.read_dict({
+                'core': {
+                    'executor': 'SequentialExecutor',
+                    'task_runner': 'BashTaskRunner',
+                    'sql_alchemy_conn': 'sqlite://',
+                },
+            })
+            return test_conf
+
+        with self.assertWarns(FutureWarning):
+            test_conf = make_config()
+            self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with self.assertWarns(FutureWarning):
+            with env_vars(AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with warnings.catch_warnings(record=True) as w:
+            with env_vars(AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+
+                self.assertListEqual([], w)

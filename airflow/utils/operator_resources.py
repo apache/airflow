@@ -72,22 +72,22 @@ class Resource(object):
 
 class CpuResource(Resource):
     def __init__(self, qty):
-        super(CpuResource, self).__init__('CPU', 'core(s)', qty)
+        super().__init__('CPU', 'core(s)', qty)
 
 
 class RamResource(Resource):
     def __init__(self, qty):
-        super(RamResource, self).__init__('RAM', 'MB', qty)
+        super().__init__('RAM', 'MB', qty)
 
 
 class DiskResource(Resource):
     def __init__(self, qty):
-        super(DiskResource, self).__init__('Disk', 'MB', qty)
+        super().__init__('Disk', 'MB', qty)
 
 
 class GpuResource(Resource):
     def __init__(self, qty):
-        super(GpuResource, self).__init__('GPU', 'gpu(s)', qty)
+        super().__init__('GPU', 'gpu(s)', qty)
 
 
 class Resources(object):

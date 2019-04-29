@@ -70,7 +70,7 @@ class GKEClusterDeleteOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        super(GKEClusterDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -119,7 +119,7 @@ class GKEClusterCreateOperator(BaseOperator):
 
     .. seealso::
         For more detail on about creating clusters have a look at the reference:
-        https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/types.html#google.cloud.container_v1.types.Cluster
+        :class:`google.cloud.container_v1.types.Cluster`
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
@@ -145,7 +145,7 @@ class GKEClusterCreateOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        super(GKEClusterCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if body is None:
             body = {}
@@ -232,7 +232,7 @@ class GKEPodOperator(KubernetesPodOperator):
                  gcp_conn_id='google_cloud_default',
                  *args,
                  **kwargs):
-        super(GKEPodOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
@@ -277,7 +277,7 @@ class GKEPodOperator(KubernetesPodOperator):
 
             # Tell `KubernetesPodOperator` where the config file is located
             self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-            super(GKEPodOperator, self).execute(context)
+            return super().execute(context)
 
     def _set_env_from_extras(self, extras):
         """
@@ -318,5 +318,5 @@ class GKEPodOperator(KubernetesPodOperator):
         if long_f in extras:
             return extras[long_f]
         else:
-            self.log.info('Field {} not found in extras.'.format(field))
+            self.log.info('Field %s not found in extras.', field)
             return default

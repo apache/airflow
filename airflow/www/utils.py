@@ -23,8 +23,6 @@ standard_library.install_aliases()  # noqa
 import inspect
 import json
 import time
-import wtforms
-import bleach
 import markdown
 import re
 import zipfile
@@ -40,14 +38,14 @@ from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
+from urllib.parse import urlencode
+
 from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
-
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -71,17 +69,11 @@ def should_hide_value_for_key(key_name):
 
 
 def get_params(**kwargs):
-    params = []
-    for k, v in kwargs.items():
-        if k == 'showPaused':
-            # True is default or None
-            if v or v is None:
-                continue
-            params.append('{}={}'.format(k, v))
-        elif v:
-            params.append('{}={}'.format(k, v))
-    params = sorted(params, key=lambda x: x.split('=')[0])
-    return '&'.join(params)
+    if 'showPaused' in kwargs:
+        v = kwargs['showPaused']
+        if v or v is None:
+            kwargs.pop('showPaused')
+    return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
 
 
 def generate_pages(current_page, num_of_pages,
@@ -112,27 +104,27 @@ def generate_pages(current_page, num_of_pages,
     """
 
     void_link = 'javascript:void(0)'
-    first_node = """<li class="paginate_button {disabled}" id="dags_first">
+    first_node = Markup("""<li class="paginate_button {disabled}" id="dags_first">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&laquo;</a>
-</li>"""
+</li>""")
 
-    previous_node = """<li class="paginate_button previous {disabled}" id="dags_previous">
+    previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
-</li>"""
+</li>""")
 
-    next_node = """<li class="paginate_button next {disabled}" id="dags_next">
+    next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
-</li>"""
+</li>""")
 
-    last_node = """<li class="paginate_button {disabled}" id="dags_last">
+    last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&raquo;</a>
-</li>"""
+</li>""")
 
-    page_node = """<li class="paginate_button {is_active}">
+    page_node = Markup("""<li class="paginate_button {is_active}">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="2" tabindex="0">{page_num}</a>
-</li>"""
+</li>""")
 
-    output = ['<ul class="pagination" style="margin-top:0px;">']
+    output = [Markup('<ul class="pagination" style="margin-top:0px;">')]
 
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(first_node.format(href_link="?{}"
@@ -188,9 +180,9 @@ def generate_pages(current_page, num_of_pages,
                                                       showPaused=showPaused)),
                                    disabled=is_disabled))
 
-    output.append('</ul>')
+    output.append(Markup('</ul>'))
 
-    return wtforms.widgets.core.HTMLString('\n'.join(output))
+    return Markup('\n'.join(output))
 
 
 def epoch(dttm):
@@ -209,6 +201,9 @@ def json_response(obj):
         mimetype="application/json")
 
 
+ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+
+
 def open_maybe_zipped(f, mode='r'):
     """
     Opens the given file. If the path contains a folder with a .zip suffix, then
@@ -217,8 +212,7 @@ def open_maybe_zipped(f, mode='r'):
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
 
-    _, archive, filename = re.search(
-        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    _, archive, filename = ZIP_REGEX.search(f).groups()
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
@@ -235,8 +229,8 @@ def make_cache_key(*args, **kwargs):
 
 
 def task_instance_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
-    task_id = bleach.clean(attr.get('task_id')) if attr.get('task_id') else None
+    dag_id = attr.get('dag_id')
+    task_id = attr.get('task_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.task',
@@ -257,14 +251,14 @@ def task_instance_link(attr):
             aria-hidden="true"></span>
         </a>
         </span>
-        """.format(**locals()))
+        """).format(url=url, task_id=task_id, url_root=url_root)
 
 
 def state_token(state):
     color = State.color(state)
     return Markup(
         '<span class="label" style="background-color:{color};">'
-        '{state}</span>'.format(**locals()))
+        '{state}</span>').format(color=color, state=state)
 
 
 def state_f(attr):
@@ -275,7 +269,7 @@ def state_f(attr):
 def nobr_f(attr_name):
     def nobr(attr):
         f = attr.get(attr_name)
-        return Markup("<nobr>{}</nobr>".format(f))
+        return Markup("<nobr>{}</nobr>").format(f)
     return nobr
 
 
@@ -285,24 +279,24 @@ def datetime_f(attr_name):
         f = f.isoformat() if f else ''
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup("<nobr>{}</nobr>".format(f))
+        return Markup("<nobr>{}</nobr>").format(f)
     return dt
 
 
 def dag_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
+    dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.graph',
         dag_id=dag_id,
         execution_date=execution_date)
     return Markup(
-        '<a href="{}">{}</a>'.format(url, dag_id))
+        '<a href="{}">{}</a>').format(url, dag_id)
 
 
 def dag_run_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
-    run_id = bleach.clean(attr.get('run_id')) if attr.get('run_id') else None
+    dag_id = attr.get('dag_id')
+    run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.graph',
@@ -310,7 +304,7 @@ def dag_run_link(attr):
         run_id=run_id,
         execution_date=execution_date)
     return Markup(
-        '<a href="{url}">{run_id}</a>'.format(**locals()))
+        '<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
@@ -337,11 +331,15 @@ def render(obj, lexer):
 
 
 def wrapped_markdown(s):
-    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+    return (
+        '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+        if s is not None
+        else None
+    )
 
 
 def get_attr_renderer():
-    attr_renderer = {
+    return {
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -351,9 +349,8 @@ def get_attr_renderer():
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
         'python_callable': lambda x: render(
-            inspect.getsource(x), lexers.PythonLexer),
+            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
     }
-    return attr_renderer
 
 
 def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
@@ -387,7 +384,7 @@ class UtcAwareFilterMixin(object):
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super(UtcAwareFilterMixin, self).apply(query, value)
+        return super().apply(query, value)
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
@@ -425,7 +422,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
     def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+        super().__init__(obj)
 
         def clean_column_names():
             if self.list_properties:

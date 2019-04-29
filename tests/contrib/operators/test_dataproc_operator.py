@@ -21,6 +21,7 @@
 import datetime
 import re
 import unittest
+from typing import Dict
 
 from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
@@ -34,16 +35,9 @@ from airflow.contrib.operators.dataproc_operator import \
     DataprocWorkflowTemplateInstantiateOperator, \
     DataprocClusterScaleOperator
 from airflow.version import version
+from tests.compat import mock
 
 from copy import deepcopy
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 from mock import MagicMock, Mock
 from mock import patch
@@ -63,12 +57,12 @@ CUSTOM_IMAGE = 'test-custom-image'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
-WORKER_MACHINE_TYPE = 'n1-standard-2'
-WORKER_DISK_SIZE = 100
-WORKER_DISK_TYPE = 'pd-standard'
+WORKER_MACHINE_TYPE = 'n1-standard-4'
+WORKER_DISK_SIZE = 200
+WORKER_DISK_TYPE = 'pd-ssd'
 NUM_PREEMPTIBLE_WORKERS = 2
 GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
-LABEL1 = {}
+LABEL1 = {}  # type: Dict
 LABEL2 = {'application': 'test', 'year': 2017}
 SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
@@ -265,6 +259,20 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                          "2017-06-07T00:00:00.000000Z")
 
+    def test_build_cluster_data_with_auto_zone(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            master_machine_type=MASTER_MACHINE_TYPE,
+            worker_machine_type=WORKER_MACHINE_TYPE
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertNotIn('zoneUri', cluster_data['config']['gceClusterConfig'])
+        self.assertEqual(cluster_data['config']['masterConfig']['machineTypeUri'], MASTER_MACHINE_TYPE)
+        self.assertEqual(cluster_data['config']['workerConfig']['machineTypeUri'], WORKER_MACHINE_TYPE)
+
     def test_init_with_image_version_and_custom_image_both_set(self):
         with self.assertRaises(AssertionError):
             DataprocClusterCreateOperator(
@@ -413,7 +421,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterScaleOperator(
                 task_id=TASK_ID,
@@ -477,7 +485,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterDeleteOperator(
                 task_id=TASK_ID,

@@ -26,14 +26,7 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 configuration.load_test_config()
 

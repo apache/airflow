@@ -39,7 +39,7 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs):
-        super(PostgresHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):

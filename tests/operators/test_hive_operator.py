@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import datetime
 import os
 import unittest
@@ -163,7 +161,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         def test_beeline(self):
             t = HiveOperator(
-                task_id='beeline_hql', hive_cli_conn_id='beeline_default',
+                task_id='beeline_hql', hive_cli_conn_id='hive_cli_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
