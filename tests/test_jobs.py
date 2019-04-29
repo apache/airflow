@@ -31,34 +31,35 @@ from tempfile import mkdtemp
 import psutil
 import six
 import sqlalchemy
-from tests.compat import Mock, patch, MagicMock, PropertyMock
 from parameterized import parameterized
 
-from airflow.utils.db import create_session
-from airflow import AirflowException, settings, models
+import airflow.example_dags
+from airflow import AirflowException, models, settings
 from airflow import configuration
 from airflow.bin import cli
-import airflow.example_dags
-from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot
-from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
-from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
-    errors, SlaMiss
+from airflow.executors import BaseExecutor, SequentialExecutor
+from airflow.jobs import BackfillJob, BaseJob, LocalTaskJob, SchedulerJob
+from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
+    TaskInstance as TI, errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
 from airflow.utils.dates import days_ago
+from airflow.utils.db import create_session
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
-    clear_db_sla_miss, clear_db_errors
+from tests.compat import MagicMock, Mock, PropertyMock, patch
+from tests.compat import mock
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
-from tests.compat import mock
+from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
+    clear_db_runs, clear_db_sla_miss
+from tests.test_utils.decorators import mock_conf_get
 
 configuration.load_test_config()
 
@@ -1832,6 +1833,50 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[1].key, res_keys)
         self.assertIn(tis[3].key, res_keys)
 
+    @mock_conf_get('core', 'non_pooled_task_slot_count', 1)
+    def test_find_executable_task_instances_in_non_pool(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_non_pool'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        t1 = DummyOperator(dag=dag, task_id='dummy1')
+        t2 = DummyOperator(dag=dag, task_id='dummy2')
+        dagbag = self._make_simple_dag_bag([dag])
+
+        executor = TestExecutor(do_update=True)
+        scheduler = SchedulerJob(executor=executor)
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+        session = settings.Session()
+
+        ti1 = TI(task=t1, execution_date=dr1.execution_date)
+        ti2 = TI(task=t2, execution_date=dr2.execution_date)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.commit()
+
+        # Two tasks w/o pool up for execution and our non_pool size is 1
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=(State.SCHEDULED,),
+            session=session)
+        self.assertEqual(1, len(res))
+
+        ti2.state = State.RUNNING
+        ti2.pool = Pool.default_pool_name
+        session.merge(ti2)
+        session.commit()
+
+        # One task w/o pool up for execution and one task task running
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=(State.SCHEDULED,),
+            session=session)
+        self.assertEqual(0, len(res))
+
+        session.close()
+
     def test_nonexistent_pool(self):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
         task_id = 'dummy_wrong_pool'
@@ -1962,7 +2007,8 @@ class SchedulerJobTest(unittest.TestCase):
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
         dagbag = self._make_simple_dag_bag([dag])
 
-        scheduler = SchedulerJob()
+        executor = TestExecutor(do_update=True)
+        scheduler = SchedulerJob(executor=executor)
         session = settings.Session()
 
         dr1 = scheduler.create_dag_run(dag)
@@ -2041,6 +2087,23 @@ class SchedulerJobTest(unittest.TestCase):
         res = scheduler._find_executable_task_instances(
             dagbag,
             states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(1, len(res))
+
+        ti1_1.state = State.QUEUED
+        ti1_2.state = State.SCHEDULED
+        ti1_3.state = State.SUCCESS
+        session.merge(ti1_1)
+        session.merge(ti1_2)
+        session.merge(ti1_3)
+        session.commit()
+
+        executor.queued_tasks[ti1_1.key] = ti1_1
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED, State.QUEUED],
             session=session)
 
         self.assertEqual(1, len(res))

@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, func
 
+from airflow import conf
 from airflow.models.base import Base
-from airflow.utils.db import provide_session
 from airflow.utils.state import State
+from airflow.utils.db import provide_session
 
 
 class Pool(Base):
@@ -32,8 +33,20 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
+    default_pool_name = 'not_pooled'
+
     def __repr__(self):
         return self.pool
+
+    @staticmethod
+    @provide_session
+    def default_pool_open_slots(session):
+        from airflow.models import TaskInstance as TI  # To avoid circular imports
+        total_slots = conf.getint('core', 'non_pooled_task_slot_count')
+        used_slots = session.query(func.count()).filter(
+            TI.pool == Pool.default_pool_name).filter(
+            TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
+        return total_slots - used_slots
 
     def to_json(self):
         return {
@@ -44,41 +57,13 @@ class Pool(Base):
         }
 
     @provide_session
-    def used_slots(self, session):
-        """
-        Returns the number of slots used at the moment
-        """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
-        running = (
-            session
-            .query(TaskInstance)
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.RUNNING)
-            .count()
-        )
-        return running
-
-    @provide_session
-    def queued_slots(self, session):
-        """
-        Returns the number of slots used at the moment
-        """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
-        return (
-            session
-            .query(TaskInstance)
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.QUEUED)
-            .count()
-        )
-
-    @provide_session
     def open_slots(self, session):
         """
         Returns the number of slots open at the moment
         """
-        used_slots = self.used_slots(session=session)
-        queued_slots = self.queued_slots(session=session)
-        return self.slots - used_slots - queued_slots
+        from airflow.models.taskinstance import \
+            TaskInstance as TI  # Avoid circular import
+
+        used_slots = session.query(func.count()).filter(TI.pool == self.pool).filter(
+            TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
+        return self.slots - used_slots
