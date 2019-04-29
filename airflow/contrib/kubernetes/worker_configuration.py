@@ -202,8 +202,8 @@ class WorkerConfiguration(LoggingMixin):
         return security_context
 
     def _get_labels(self, labels):
-        copy = labels.copy()
-        copy.update(self.kube_config.kube_labels)
+        copy = self.kube_config.kube_labels.copy()
+        copy.update(labels)
         return copy
 
     def _get_volumes_and_mounts(self):
