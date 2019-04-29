@@ -937,15 +937,15 @@ def webserver(args):
 
         if args.daemon:
             run_args += ['-D']
-            
+
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
-            
+
         if args.gunicorn_params:
-            for item in args.gunicorn_params.split(',')
+            for item in args.gunicorn_params.split(','):
                 key, val = item.split("=")
                 run_args += [key, val]
-                
+
         webserver_module = 'www'
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
@@ -1996,9 +1996,12 @@ class CLIFactory(object):
         'gunicorn_params': Arg(
             ("-g", "--gunicorn_params"),
             default="",
-            help="Extra params passed directly to gunicorn. "
-            "Example --gunicorn_params='--limit-request-line=0,--limit_request_fields=100'"),        
-        
+            help=(
+                "Extra params passed directly to gunicorn. "
+                "Example --gunicorn_params='--limit-request-line=0,--limit_request_fields=100'"
+            )
+        ),
+
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
