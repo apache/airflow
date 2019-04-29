@@ -33,4 +33,4 @@ class TestJSONFormatter(unittest.TestCase):
     def test_format(self):
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"])
-        self.assertEqual(json_fmt.format(log_record), {"label": "value"})
+        self.assertEqual(json_fmt.format(log_record), '{"label": "value"}')
