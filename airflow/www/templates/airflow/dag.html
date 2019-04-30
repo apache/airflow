@@ -153,13 +153,13 @@
             View Log
           </a>
           <hr/>
-          <div>
+          <div id="dag_dl_logs">
             <label style="display:inline"> Download Log (by attempts): </label>
             <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
             </ul>
+            <hr/>
+            <hr/>
           </div>
-          <hr/>
-          <hr/>
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden">
@@ -416,6 +416,10 @@ function updateQueryStringParameter(uri, key, value) {
           $("#div_btn_subdag").show();
           subdag_id = "{{ dag.dag_id }}." + t;
       }
+      if (try_numbers > 0)
+          $("#dag_dl_logs").show();
+      else
+          $("#dag_dl_logs").hide();
 
       updateModalUrls();
 
