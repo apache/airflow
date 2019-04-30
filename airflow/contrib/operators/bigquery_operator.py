@@ -21,8 +21,20 @@ import json
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
+
+
+class BigQueryConsoleLink(BaseOperatorLink):
+
+    name = 'BigQuery Console'
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        return 'https://console.cloud.google.com/bigquery?j={job_id}'.format(
+            job_id=job_id) if job_id else ''
 
 
 class BigQueryOperator(BaseOperator):
@@ -111,6 +123,10 @@ class BigQueryOperator(BaseOperator):
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
+    operator_extra_links = (
+        BigQueryConsoleLink(),
+    )
+
     @apply_defaults
     def __init__(self,
                  sql,
@@ -169,7 +185,7 @@ class BigQueryOperator(BaseOperator):
             )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
-        self.bq_cursor.run_query(
+        job_id = self.bq_cursor.run_query(
             sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
@@ -187,6 +203,7 @@ class BigQueryOperator(BaseOperator):
             api_resource_configs=self.api_resource_configs,
             cluster_fields=self.cluster_fields,
         )
+        context['task_instance'].xcom_push(key='job_id', value=job_id)
 
     def on_kill(self):
         super().on_kill()
