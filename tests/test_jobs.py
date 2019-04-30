@@ -208,9 +208,9 @@ class BackfillJobTest(unittest.TestCase):
         target_dag.sync_to_db()
 
         scheduler = SchedulerJob()
-        queue = Mock()
-        scheduler._process_task_instances(target_dag, queue=queue)
-        self.assertFalse(queue.append.called)
+        task_instances_list = Mock()
+        scheduler._process_task_instances(target_dag, task_instances_list=task_instances_list)
+        self.assertFalse(task_instances_list.append.called)
 
         job = BackfillJob(
             dag=dag,
@@ -220,9 +220,9 @@ class BackfillJobTest(unittest.TestCase):
         )
         job.run()
 
-        scheduler._process_task_instances(target_dag, queue=queue)
+        scheduler._process_task_instances(target_dag, task_instances_list=task_instances_list)
 
-        self.assertTrue(queue.append.called)
+        self.assertTrue(task_instances_list.append.called)
 
     @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
@@ -1687,6 +1687,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.run()
         shutil.rmtree(empty_dir)
 
+        scheduler.executor.terminate()
         # Remove potential noise created by previous tests.
         current_children = set(current_process.children(recursive=True)) - set(
             old_children)
@@ -2915,7 +2916,7 @@ class SchedulerJobTest(unittest.TestCase):
     def test_scheduler_process_task_instances(self, state, start_date, end_date):
         """
         Test if _process_task_instances puts the right task instances into the
-        queue.
+        mock_list.
         """
         dag = DAG(
             dag_id='test_scheduler_process_execute_task',
@@ -2941,10 +2942,10 @@ class SchedulerJobTest(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-        queue = Mock()
-        scheduler._process_task_instances(dag, queue=queue)
+        mock_list = Mock()
+        scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        queue.append.assert_called_with(
+        mock_list.append.assert_called_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -2973,10 +2974,10 @@ class SchedulerJobTest(unittest.TestCase):
             dag_id='test_scheduler_do_not_schedule_removed_task',
             start_date=DEFAULT_DATE)
 
-        queue = Mock()
-        scheduler._process_task_instances(dag, queue=queue)
+        mock_list = Mock()
+        scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        queue.put.assert_not_called()
+        mock_list.put.assert_not_called()
 
     def test_scheduler_do_not_schedule_too_early(self):
         dag = DAG(
@@ -2999,10 +3000,10 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNone(dr)
 
-        queue = Mock()
-        scheduler._process_task_instances(dag, queue=queue)
+        mock_list = Mock()
+        scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        queue.put.assert_not_called()
+        mock_list.put.assert_not_called()
 
     def test_scheduler_do_not_schedule_without_tasks(self):
         dag = DAG(
@@ -3045,10 +3046,10 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
         session.close()
 
-        queue = Mock()
-        scheduler._process_task_instances(dag, queue=queue)
+        mock_list = Mock()
+        scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        queue.put.assert_not_called()
+        mock_list.put.assert_not_called()
 
     def test_scheduler_add_new_task(self):
         """
@@ -3083,8 +3084,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        queue = Mock()
-        scheduler._process_task_instances(dag, queue=queue)
+        task_instances_list = Mock()
+        scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
 
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
@@ -3224,12 +3225,12 @@ class SchedulerJobTest(unittest.TestCase):
         # Reduce max_active_runs to 1
         dag.max_active_runs = 1
 
-        queue = Mock()
+        task_instances_list = Mock()
         # and schedule them in, so we can check how many
-        # tasks are put on the queue (should be one, not 3)
-        scheduler._process_task_instances(dag, queue=queue)
+        # tasks are put on the task_instances_list (should be one, not 3)
+        scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
 
-        queue.append.assert_called_with(
+        task_instances_list.append.assert_called_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -3266,13 +3267,13 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(dr.execution_date, DEFAULT_DATE)
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        queue = []
-        scheduler._process_task_instances(dag, queue=queue)
-        self.assertEqual(len(queue), 2)
+        task_instances_list = []
+        scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
+        self.assertEqual(len(task_instances_list), 2)
         dagbag = self._make_simple_dag_bag([dag])
 
         # Recreated part of the scheduler here, to kick off tasks -> executor
-        for ti_key in queue:
+        for ti_key in task_instances_list:
             task = dag.get_task(ti_key[1])
             ti = TI(task, ti_key[2])
             # Task starts out in the scheduled state. All tasks in the

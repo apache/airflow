@@ -21,7 +21,6 @@ import unittest
 
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
-from airflow.utils.timeout import timeout
 
 
 class LocalExecutorTest(unittest.TestCase):
@@ -35,31 +34,19 @@ class LocalExecutorTest(unittest.TestCase):
         success_key = 'success {}'
         success_command = ['true', 'some_parameter']
         fail_command = ['false', 'some_parameter']
+        self.assertTrue(executor.result_queue.empty())
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key, command = success_key.format(i), success_command
-            executor.execute_async(key=key, command=command)
             executor.running[key] = True
-
-        # errors are propagated for some reason
-        try:
-            executor.execute_async(key='fail', command=fail_command)
-        except Exception:
-            pass
+            executor.execute_async(key=key, command=command)
 
         executor.running['fail'] = True
+        executor.execute_async(key='fail', command=fail_command)
 
-        if parallelism == 0:
-            with timeout(seconds=10):
-                executor.end()
-        else:
-            executor.end()
-
-        if isinstance(executor.impl, LocalExecutor._LimitedParallelism):
-            self.assertTrue(executor.queue.empty())
-
+        executor.end()
+        # By that time Queues are already shutdown so we cannot check if they are empty
         self.assertEqual(len(executor.running), 0)
-        self.assertTrue(executor.result_queue.empty())
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key = success_key.format(i)

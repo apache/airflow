@@ -17,10 +17,11 @@
 
 import base64
 import hashlib
+from queue import Empty
+
 import re
 import json
 import multiprocessing
-from queue import Queue
 from dateutil import parser
 from uuid import uuid4
 import kubernetes
@@ -374,7 +375,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_client = kube_client
         self.launcher = PodLauncher(kube_client=self.kube_client)
         self.worker_configuration = WorkerConfiguration(kube_config=self.kube_config)
-        self.watcher_queue = multiprocessing.Queue()
+        self._manager = multiprocessing.Manager()
+        self.watcher_queue = self._manager.Queue()
         self.worker_uuid = worker_uuid
         self.kube_watcher = self._make_kube_watcher()
 
@@ -440,11 +442,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         """
         self._health_check_kube_watcher()
-        while not self.watcher_queue.empty():
-            self.process_watcher_task()
+        while True:
+            try:
+                task = self.watcher_queue.get_nowait()
+                try:
+                    self.process_watcher_task(task)
+                finally:
+                    self.watcher_queue.task_done()
+            except Empty:
+                break
 
-    def process_watcher_task(self):
-        pod_id, state, labels, resource_version = self.watcher_queue.get()
+    def process_watcher_task(self, task):
+        pod_id, state, labels, resource_version = task
         self.log.info(
             'Attempting to finish pod; pod_id: %s; state: %s; labels: %s',
             pod_id, state, labels
@@ -591,6 +600,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         return None
 
+    def terminate(self):
+        self.watcher_queue.join()
+        self._manager.shutdown()
+
 
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def __init__(self):
@@ -600,6 +613,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler = None
         self.kube_client = None
         self.worker_uuid = None
+        self._manager = multiprocessing.Manager()
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -695,8 +709,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs
         # /CoreV1Api.md#list_namespaced_pod
         KubeResourceVersion.reset_resource_version()
-        self.task_queue = Queue()
-        self.result_queue = Queue()
+        self.task_queue = self._manager.Queue()
+        self.result_queue = self._manager.Queue()
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue,
@@ -721,29 +735,38 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler.sync()
 
         last_resource_version = None
-        while not self.result_queue.empty():
-            results = self.result_queue.get()
-            key, state, pod_id, resource_version = results
-            last_resource_version = resource_version
-            self.log.info('Changing state of %s to %s', results, state)
+        while True:
             try:
-                self._change_state(key, state, pod_id)
-            except Exception as e:
-                self.log.exception('Exception: %s when attempting ' +
-                                   'to change state of %s to %s, re-queueing.', e, results, state)
-                self.result_queue.put(results)
+                results = self.result_queue.get_nowait()
+                try:
+                    key, state, pod_id, resource_version = results
+                    last_resource_version = resource_version
+                    self.log.info('Changing state of %s to %s', results, state)
+                    try:
+                        self._change_state(key, state, pod_id)
+                    except Exception as e:
+                        self.log.exception('Exception: %s when attempting ' +
+                                           'to change state of %s to %s, re-queueing.', e, results, state)
+                        self.result_queue.put(results)
+                finally:
+                    self.result_queue.task_done()
+            except Empty:
+                break
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        for i in range(min((self.kube_config.worker_pods_creation_batch_size, self.task_queue.qsize()))):
-            task = self.task_queue.get()
-
+        for _ in range(self.kube_config.worker_pods_creation_batch_size):
             try:
-                self.kube_scheduler.run_next(task)
-            except ApiException:
-                self.log.exception('ApiException when attempting ' +
-                                   'to run task, re-queueing.')
-                self.task_queue.put(task)
+                task = self.task_queue.get_nowait()
+                try:
+                    self.kube_scheduler.run_next(task)
+                except ApiException:
+                    self.log.exception('ApiException when attempting to run task, re-queueing.')
+                    self.task_queue.put(task)
+                finally:
+                    self.task_queue.task_done()
+            except Empty:
+                break
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
@@ -769,3 +792,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def end(self):
         self.log.info('Shutting down Kubernetes executor')
         self.task_queue.join()
+        self.result_queue.join()
+        if self.kube_scheduler:
+            self.kube_scheduler.terminate()
+        self._manager.shutdown()
