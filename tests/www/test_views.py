@@ -32,7 +32,7 @@ from urllib.parse import quote_plus
 
 import mock
 import jinja2
-from flask import url_for
+from flask import Markup, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -264,6 +264,21 @@ class TestPoolModelView(TestBase):
         resp = self.client.get('/pool/list/')
         self.check_content_in_response('test-pool&lt;script&gt;', resp)
         self.check_content_not_in_response('test-pool<script>', resp)
+
+    def test_list(self):
+        self.pool['pool'] = 'test-pool'
+        self.session.add(models.Pool(**self.pool))
+        self.session.commit()
+        resp = self.client.get('/pool/list/')
+        # We should see this link
+        with self.app.test_request_context():
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='running')
+            used_tag = Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
+            queued_tag = Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        self.check_content_in_response(used_tag, resp)
+        self.check_content_in_response(queued_tag, resp)
 
 
 class TestMountPoint(unittest.TestCase):
