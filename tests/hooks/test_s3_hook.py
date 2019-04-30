@@ -205,7 +205,7 @@ class TestS3Hook(unittest.TestCase):
         conn.create_bucket(Bucket='mybucket')
         conn.put_object(Bucket='mybucket', Key='my_key', Body=b'Cont\xC3\xA9nt')
 
-        self.assertEqual(hook.read_key('my_key', 'mybucket'), u'Contént')
+        self.assertEqual(hook.read_key('my_key', 'mybucket'), 'Contént')
 
     # As of 1.3.2, Moto doesn't support select_object_content yet.
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
@@ -213,7 +213,7 @@ class TestS3Hook(unittest.TestCase):
         mock_get_client_type.return_value.select_object_content.return_value = \
             {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
         hook = S3Hook(aws_conn_id=None)
-        self.assertEqual(hook.select_key('my_key', 'mybucket'), u'Contént')
+        self.assertEqual(hook.select_key('my_key', 'mybucket'), 'Contént')
 
     @mock_s3
     def test_check_for_wildcard_key(self):
@@ -263,7 +263,7 @@ class TestS3Hook(unittest.TestCase):
         # AWS account
         conn.create_bucket(Bucket="mybucket")
 
-        hook.load_string(u"Contént", "my_key", "mybucket")
+        hook.load_string("Contént", "my_key", "mybucket")
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')

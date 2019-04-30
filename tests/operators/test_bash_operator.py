@@ -97,4 +97,4 @@ class BashOperatorTest(unittest.TestCase):
         )
         return_value = bash_operator.execute(context={})
 
-        self.assertEqual(return_value, u'stdout')
+        self.assertEqual(return_value, 'stdout')

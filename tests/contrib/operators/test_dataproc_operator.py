@@ -370,7 +370,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 setattr(dataproc_task, 'cluster_name', rendered)
                 with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
-                mock_info.assert_called_with('Creating cluster: %s', u'smoke-cluster-testnodash')
+                mock_info.assert_called_with('Creating cluster: %s', 'smoke-cluster-testnodash')
 
     def test_build_cluster_data_internal_ip_only_without_subnetwork(self):
 
@@ -457,7 +457,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
                 setattr(dataproc_task, 'cluster_name', rendered)
                 with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
-                mock_info.assert_called_with('Scaling cluster: %s', u'smoke-cluster-testnodash')
+                mock_info.assert_called_with('Scaling cluster: %s', 'smoke-cluster-testnodash')
 
 
 class DataprocClusterDeleteOperatorTest(unittest.TestCase):
@@ -518,7 +518,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Deleting cluster: %s',
-                                             u'smoke-cluster-testnodash')
+                                             'smoke-cluster-testnodash')
 
 
 class DataProcHadoopOperatorTest(unittest.TestCase):

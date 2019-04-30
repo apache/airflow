@@ -145,9 +145,9 @@ class NVD3Chart(object):
         self.htmlheader = ''
         #: Place holder for the graph (the HTML div)
         #: Written by ``buildcontainer``
-        self.container = u''
+        self.container = ''
         #: Header for javascript code
-        self.containerheader = u''
+        self.containerheader = ''
         # CDN http://cdnjs.com/libraries/nvd3/ needs to make sure it's up to
         # date
         self.header_css = [

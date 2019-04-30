@@ -154,13 +154,13 @@ class TestSparkSubmitOperator(unittest.TestCase):
         ti.render_templates()
 
         # Then
-        expected_application_args = [u'-f', 'foo',
-                                     u'--bar', 'bar',
-                                     u'--start', (DEFAULT_DATE - timedelta(days=1))
+        expected_application_args = ['-f', 'foo',
+                                     '--bar', 'bar',
+                                     '--start', (DEFAULT_DATE - timedelta(days=1))
                                      .strftime("%Y-%m-%d"),
-                                     u'--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
-                                     u'--with-spaces',
-                                     u'args should keep embdedded spaces',
+                                     '--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
+                                     '--with-spaces',
+                                     'args should keep embdedded spaces',
                                      ]
         expected_name = "spark_submit_job"
         self.assertListEqual(expected_application_args,

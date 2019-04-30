@@ -76,7 +76,7 @@ class MongoToS3OperatorTest(unittest.TestCase):
         ti = TaskInstance(self.mock_operator, DEFAULT_DATE)
         ti.render_templates()
 
-        expected_rendered_template = {'$lt': u'2017-01-01T00:00:00+00:00Z'}
+        expected_rendered_template = {'$lt': '2017-01-01T00:00:00+00:00Z'}
 
         self.assertDictEqual(
             expected_rendered_template,
