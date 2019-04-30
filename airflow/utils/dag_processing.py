@@ -681,7 +681,9 @@ class DagFileProcessorAgent(LoggingMixin):
             self.log.info("Killing manager process: %s", manager_process.pid)
             manager_process.kill()
             manager_process.wait()
-        self._result_queue.join()
+        # TODO: bring it back once we replace process termination above with multiprocess-friendly
+        #       way (https://issues.apache.org/jira/browse/AIRFLOW-4440)
+        # self._result_queue.join()
         self._manager.shutdown()
 
 
