@@ -272,6 +272,20 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
+def correct_maybe_zipped(fileloc):
+    """
+    If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive and path to zip is returned.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return archive
+    else:
+        return fileloc
+
+
 def list_py_file_paths(directory, safe_mode=True,
                        include_examples=None):
     """

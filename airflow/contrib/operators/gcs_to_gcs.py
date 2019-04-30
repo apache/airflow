@@ -129,8 +129,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  last_modified_time=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageToGoogleCloudStorageOperator,
-              self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_bucket = destination_bucket

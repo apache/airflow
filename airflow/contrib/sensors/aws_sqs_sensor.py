@@ -49,7 +49,7 @@ class SQSSensor(BaseSensorOperator):
                  wait_time_seconds=1,
                  *args,
                  **kwargs):
-        super(SQSSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages

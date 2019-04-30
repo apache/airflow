@@ -42,7 +42,7 @@ class CeleryQueueSensor(BaseSensorOperator):
             *args,
             **kwargs):
 
-        super(CeleryQueueSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 

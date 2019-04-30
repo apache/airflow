@@ -98,7 +98,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  field_delimiter=',',
                  *args,
                  **kwargs):
-        super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.bucket = bucket
         self.filename = filename

@@ -40,7 +40,7 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestPythonVirtualenvOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

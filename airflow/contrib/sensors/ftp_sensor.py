@@ -56,7 +56,7 @@ class FTPSensor(BaseSensorOperator):
         :type ftp_conn_id: str
         """
 
-        super(FTPSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.path = path
         self.ftp_conn_id = ftp_conn_id

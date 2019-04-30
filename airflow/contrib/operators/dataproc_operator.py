@@ -98,7 +98,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type num_preemptible_workers: int
     :param labels: dict of labels to add to the cluster
     :type labels: dict
-    :param zone: The zone where the cluster will be located. (templated)
+    :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
     :type zone: str
     :param network_uri: The network uri to be used for machine communication, cannot be
         specified with subnetwork_uri
@@ -146,7 +146,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  cluster_name,
                  project_id,
                  num_workers,
-                 zone,
+                 zone=None,
                  network_uri=None,
                  subnetwork_uri=None,
                  internal_ip_only=None,
@@ -178,7 +178,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(DataprocClusterCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -285,23 +285,22 @@ class DataprocClusterCreateOperator(BaseOperator):
             " should be expressed in minutes or seconds. i.e. 10m, 30s")
 
     def _build_cluster_data(self):
-        zone_uri = \
-            'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
-                self.project_id, self.zone
-            )
-        master_type_uri = \
-            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
-            .format(self.project_id, self.zone, self.master_machine_type)
-        worker_type_uri = \
-            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
-            .format(self.project_id, self.zone, self.worker_machine_type)
+        if self.zone:
+            master_type_uri = \
+                "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
+                .format(self.project_id, self.zone, self.master_machine_type)
+            worker_type_uri = \
+                "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
+                .format(self.project_id, self.zone, self.worker_machine_type)
+        else:
+            master_type_uri = self.master_machine_type
+            worker_type_uri = self.worker_machine_type
 
         cluster_data = {
             'projectId': self.project_id,
             'clusterName': self.cluster_name,
             'config': {
                 'gceClusterConfig': {
-                    'zoneUri': zone_uri
                 },
                 'masterConfig': {
                     'numInstances': 1,
@@ -344,6 +343,12 @@ class DataprocClusterCreateOperator(BaseOperator):
                                        'v' + version.replace('.', '-').replace('+', '-')})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
+        if self.zone:
+            zone_uri = \
+                'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
+                    self.project_id, self.zone
+                )
+            cluster_data['config']['gceClusterConfig']['zoneUri'] = zone_uri
         if self.metadata:
             cluster_data['config']['gceClusterConfig']['metadata'] = self.metadata
         if self.network_uri:
@@ -497,7 +502,7 @@ class DataprocClusterScaleOperator(BaseOperator):
                  graceful_decommission_timeout=None,
                  *args,
                  **kwargs):
-        super(DataprocClusterScaleOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -622,7 +627,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(DataprocClusterDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -758,7 +763,7 @@ class DataProcPigOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcPigOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -855,7 +860,7 @@ class DataProcHiveOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcHiveOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -954,7 +959,7 @@ class DataProcSparkSqlOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcSparkSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -1062,7 +1067,7 @@ class DataProcSparkOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcSparkOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main_jar = main_jar
@@ -1170,7 +1175,7 @@ class DataProcHadoopOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcHadoopOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main_jar = main_jar
@@ -1305,7 +1310,7 @@ class DataProcPySparkOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcPySparkOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main = main
@@ -1361,7 +1366,7 @@ class DataprocWorkflowTemplateBaseOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(DataprocWorkflowTemplateBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.project_id = project_id
@@ -1407,7 +1412,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
 
     @apply_defaults
     def __init__(self, template_id, *args, **kwargs):
-        (super(DataprocWorkflowTemplateInstantiateOperator, self)
+        (super()
             .__init__(*args, **kwargs))
         self.template_id = template_id
 
@@ -1451,7 +1456,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
 
     @apply_defaults
     def __init__(self, template, *args, **kwargs):
-        (super(DataprocWorkflowTemplateInstantiateInlineOperator, self)
+        (super()
             .__init__(*args, **kwargs))
         self.template = template
 

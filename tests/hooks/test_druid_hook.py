@@ -30,7 +30,7 @@ from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook
 class TestDruidHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDruidHook, self).setUp()
+        super().setUp()
         session = requests.Session()
         adapter = requests_mock.Adapter()
         session.mount('mock', adapter)
@@ -138,7 +138,7 @@ class TestDruidHook(unittest.TestCase):
 class TestDruidDbApiHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDruidDbApiHook, self).setUp()
+        super().setUp()
         self.cur = MagicMock()
         self.conn = conn = MagicMock()
         self.conn.host = 'host'

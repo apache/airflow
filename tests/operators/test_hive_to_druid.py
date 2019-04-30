@@ -61,7 +61,7 @@ class TestDruidHook(unittest.TestCase):
     }
 
     def setUp(self):
-        super(TestDruidHook, self).setUp()
+        super().setUp()
 
         configuration.load_test_config()
         args = {

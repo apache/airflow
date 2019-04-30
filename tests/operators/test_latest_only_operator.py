@@ -46,7 +46,7 @@ def get_task_instances(task_id):
 class LatestOnlyOperatorTest(unittest.TestCase):
 
     def setUp(self):
-        super(LatestOnlyOperatorTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

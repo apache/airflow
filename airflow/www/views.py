@@ -236,7 +236,10 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(~DagModel.is_paused)
 
             if arg_search_query:
-                dags_query = dags_query.filter(sqla.func.lower(DagModel.dag_id) == arg_search_query.lower())
+                dags_query = dags_query.filter(
+                    DagModel.dag_id.ilike('%' + arg_search_query + '%') |
+                    DagModel.owners.ilike('%' + arg_search_query + '%')
+                )
 
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
@@ -1424,7 +1427,8 @@ class Airflow(AirflowBaseView):
         fails_totals = defaultdict(int)
         for tf in ti_fails:
             dict_key = (tf.dag_id, tf.task_id, tf.execution_date)
-            fails_totals[dict_key] += tf.duration
+            if tf.duration:
+                fails_totals[dict_key] += tf.duration
 
         for ti in tis:
             if ti.duration:
@@ -2479,10 +2483,10 @@ class DagModelView(AirflowModelView):
         Default filters for model
         """
         return (
-            super(DagModelView, self).get_query()
-                                     .filter(or_(models.DagModel.is_active,
-                                                 models.DagModel.is_paused))
-                                     .filter(~models.DagModel.is_subdag)
+            super().get_query()
+            .filter(or_(models.DagModel.is_active,
+                        models.DagModel.is_paused))
+            .filter(~models.DagModel.is_subdag)
         )
 
     def get_count_query(self):
@@ -2490,7 +2494,7 @@ class DagModelView(AirflowModelView):
         Default filters for model
         """
         return (
-            super(DagModelView, self).get_count_query()
-                                     .filter(models.DagModel.is_active)
-                                     .filter(~models.DagModel.is_subdag)
+            super().get_count_query()
+            .filter(models.DagModel.is_active)
+            .filter(~models.DagModel.is_subdag)
         )

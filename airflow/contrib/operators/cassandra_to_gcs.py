@@ -85,7 +85,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(CassandraToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cql = cql
         self.bucket = bucket
         self.filename = filename

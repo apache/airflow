@@ -58,7 +58,7 @@ class SFTPToS3Operator(BaseOperator):
                  s3_conn_id='aws_default',
                  *args,
                  **kwargs):
-        super(SFTPToS3Operator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket

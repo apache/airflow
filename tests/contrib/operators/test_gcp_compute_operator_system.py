@@ -30,7 +30,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_COMPUTE_KEY
 class GcpComputeExampleDagsSystemTest(DagGcpSystemTestCase):
 
     def setUp(self):
-        super(GcpComputeExampleDagsSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_instance()
         self.helper.create_instance()
@@ -40,10 +40,10 @@ class GcpComputeExampleDagsSystemTest(DagGcpSystemTestCase):
         self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_instance()
         self.gcp_authenticator.gcp_revoke_authentication()
-        super(GcpComputeExampleDagsSystemTest, self).tearDown()
+        super().tearDown()
 
     def __init__(self, method_name='runTest'):
-        super(GcpComputeExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_compute',
             gcp_key=GCP_COMPUTE_KEY)
@@ -57,7 +57,7 @@ class GcpComputeExampleDagsSystemTest(DagGcpSystemTestCase):
 class GcpComputeIgmExampleDagsSystemTest(DagGcpSystemTestCase):
 
     def setUp(self):
-        super(GcpComputeIgmExampleDagsSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         try:
             self.helper.delete_instance_group_and_template(silent=True)
@@ -71,10 +71,10 @@ class GcpComputeIgmExampleDagsSystemTest(DagGcpSystemTestCase):
             self.helper.delete_instance_group_and_template()
         finally:
             self.gcp_authenticator.gcp_revoke_authentication()
-        super(GcpComputeIgmExampleDagsSystemTest, self).tearDown()
+        super().tearDown()
 
     def __init__(self, method_name='runTest'):
-        super(GcpComputeIgmExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_compute_igm',
             gcp_key=GCP_COMPUTE_KEY)

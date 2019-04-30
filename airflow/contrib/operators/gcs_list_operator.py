@@ -72,7 +72,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter

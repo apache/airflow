@@ -50,7 +50,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(CreateEvaluateOpsTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

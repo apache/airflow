@@ -67,7 +67,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                  mode='poke',
                  *args,
                  **kwargs):
-        super(BaseSensorOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout

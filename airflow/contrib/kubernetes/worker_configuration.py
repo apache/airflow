@@ -40,7 +40,7 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
 
-        super(WorkerConfiguration, self).__init__()
+        super().__init__()
 
     def _get_init_containers(self):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
@@ -201,6 +201,11 @@ class WorkerConfiguration(LoggingMixin):
 
         return security_context
 
+    def _get_labels(self, labels):
+        copy = self.kube_config.kube_labels.copy()
+        copy.update(labels)
+        return copy
+
     def _get_volumes_and_mounts(self):
         def _construct_volume(name, claim, host):
             volume = {
@@ -332,13 +337,13 @@ class WorkerConfiguration(LoggingMixin):
             image_pull_policy=(kube_executor_config.image_pull_policy or
                                self.kube_config.kube_image_pull_policy),
             cmds=airflow_command,
-            labels={
+            labels=self._get_labels({
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
-            },
+            }),
             envs=self._get_environment(),
             secrets=self._get_secrets(),
             service_account_name=self.kube_config.worker_service_account_name,

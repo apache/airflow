@@ -78,7 +78,7 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set = product_set
@@ -154,7 +154,7 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -243,7 +243,7 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set = product_set
         self.update_mask = update_mask
         self.location = location
@@ -317,7 +317,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -398,7 +398,7 @@ class CloudVisionProductCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product = product
         self.project_id = project_id
@@ -478,7 +478,7 @@ class CloudVisionProductGetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -577,7 +577,7 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product = product
         self.location = location
         self.product_id = product_id
@@ -655,7 +655,7 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -707,7 +707,7 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
     def __init__(
         self, request, retry=None, timeout=None, gcp_conn_id='google_cloud_default', *args, **kwargs
     ):
-        super(CloudVisionAnnotateImageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.request = request
         self.retry = retry
         self.timeout = timeout
@@ -783,7 +783,7 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionReferenceImageCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.reference_image = reference_image
@@ -870,7 +870,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionAddProductToProductSetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -942,7 +942,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionRemoveProductFromProductSetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -1011,7 +1011,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionDetectTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1081,7 +1081,7 @@ class CloudVisionDetectDocumentTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionDetectDocumentTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1142,7 +1142,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionDetectImageLabelsOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1199,7 +1199,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionDetectImageSafeSearchOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry

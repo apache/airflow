@@ -37,7 +37,7 @@ class FileProcessorHandler(logging.Handler):
         :param base_log_folder: Base log folder to place logs.
         :param filename_template: template filename string
         """
-        super(FileProcessorHandler, self).__init__()
+        super().__init__()
         self.handler = None
         self.base_log_folder = base_log_folder
         self.dag_dir = os.path.expanduser(settings.DAGS_FOLDER)

@@ -82,7 +82,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
         :param parameters: a parameters dict that is substituted at query runtime.
         :type parameters: dict
         """
-        super(PostgresToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.bucket = bucket
         self.filename = filename

@@ -114,7 +114,7 @@ class TestBase(unittest.TestCase):
 
 class TestConnectionModelView(TestBase):
     def setUp(self):
-        super(TestConnectionModelView, self).setUp()
+        super().setUp()
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
@@ -126,7 +126,7 @@ class TestConnectionModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(Connection)
-        super(TestConnectionModelView, self).tearDown()
+        super().tearDown()
 
     def test_create_connection(self):
         resp = self.client.post('/connection/add',
@@ -137,7 +137,7 @@ class TestConnectionModelView(TestBase):
 
 class TestVariableModelView(TestBase):
     def setUp(self):
-        super(TestVariableModelView, self).setUp()
+        super().setUp()
         self.variable = {
             'key': 'test_key',
             'val': 'text_val',
@@ -146,7 +146,7 @@ class TestVariableModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(models.Variable)
-        super(TestVariableModelView, self).tearDown()
+        super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
 
@@ -225,7 +225,7 @@ class TestVariableModelView(TestBase):
 
 class TestPoolModelView(TestBase):
     def setUp(self):
-        super(TestPoolModelView, self).setUp()
+        super().setUp()
         self.pool = {
             'pool': 'test-pool',
             'slots': 777,
@@ -234,7 +234,7 @@ class TestPoolModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(models.Pool)
-        super(TestPoolModelView, self).tearDown()
+        super().tearDown()
 
     def test_create_pool_with_same_name(self):
         # create test pool
@@ -302,7 +302,7 @@ class TestAirflowBaseViews(TestBase):
     run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     def setUp(self):
-        super(TestAirflowBaseViews, self).setUp()
+        super().setUp()
         self.logout()
         self.login()
         self.cleanup_dagruns()
@@ -666,7 +666,7 @@ class TestLogView(TestBase):
         conf.set('core', 'logging_config_class', '')
 
         self.logout()
-        super(TestLogView, self).tearDown()
+        super().tearDown()
 
     @parameterized.expand([
         [State.NONE, 0, 0],
@@ -949,14 +949,14 @@ class TestGraphView(TestBase):
         super(TestGraphView, cls).setUpClass()
 
     def setUp(self):
-        super(TestGraphView, self).setUp()
+        super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GRAPH_ENDPOINT)
         self.tester.setUp()
 
     def tearDown(self):
         self.tester.tearDown()
-        super(TestGraphView, self).tearDown()
+        super().tearDown()
 
     @classmethod
     def tearDownClass(cls):
@@ -988,14 +988,14 @@ class TestGanttView(TestBase):
         super(TestGanttView, cls).setUpClass()
 
     def setUp(self):
-        super(TestGanttView, self).setUp()
+        super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GANTT_ENDPOINT)
         self.tester.setUp()
 
     def tearDown(self):
         self.tester.tearDown()
-        super(TestGanttView, self).tearDown()
+        super().tearDown()
 
     @classmethod
     def tearDownClass(cls):
@@ -1057,7 +1057,7 @@ class TestDagACLView(TestBase):
             state=State.RUNNING)
 
     def setUp(self):
-        super(TestDagACLView, self).setUp()
+        super().setUp()
         self.cleanup_dagruns()
         self.prepare_dagruns()
         self.logout()
@@ -1638,7 +1638,7 @@ class TestTaskInstanceView(TestBase):
 class TestTriggerDag(TestBase):
 
     def setUp(self):
-        super(TestTriggerDag, self).setUp()
+        super().setUp()
         self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
 
@@ -1666,39 +1666,49 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        super(TestExtraLinks, self).setUp()
+        super().setUp()
         self.ENDPOINT = "extra_links"
         self.DEFAULT_DATE = datetime(2017, 1, 1)
 
         class RaiseErrorLink(BaseOperatorLink):
+            name = 'raise_error'
 
             def get_link(self, operator, dttm):
                 raise ValueError('This is an error')
 
         class NoResponseLink(BaseOperatorLink):
+            name = 'no_response'
 
             def get_link(self, operator, dttm):
                 return None
 
         class FooBarLink(BaseOperatorLink):
+            name = 'foo-bar'
 
             def get_link(self, operator, dttm):
                 return 'http://www.example.com/{0}/{1}/{2}'.format(
                     operator.task_id, 'foo-bar', dttm)
 
+        class AirflowLink(BaseOperatorLink):
+            name = 'airflow'
+
+            def get_link(self, operator, dttm):
+                return 'https://airflow.apache.org'
+
         class DummyTestOperator(BaseOperator):
 
-            operator_extra_link_dict = {
-                'raise_error': RaiseErrorLink(),
-                'no_response': NoResponseLink(),
-                'foo-bar': FooBarLink()
-            }
+            operator_extra_links = (
+                RaiseErrorLink(),
+                NoResponseLink(),
+                FooBarLink(),
+                AirflowLink(),
+            )
 
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
 
     def tearDown(self):
-        super(TestExtraLinks, self).tearDown()
+        super().tearDown()
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_extra_links_works(self, get_dag_function):
@@ -1716,6 +1726,42 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': ('http://www.example.com/some_dummy_task/'
                     'foo-bar/2017-01-01T00:00:00+00:00'),
+            'error': None
+        })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_global_extra_links_works(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
+            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://github.com/apache/airflow',
+            'error': None
+        })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org',
             'error': None
         })
 

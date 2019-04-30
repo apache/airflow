@@ -36,7 +36,7 @@ send_email_test = mock.Mock()
 class TestEmailOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestEmailOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

@@ -57,7 +57,7 @@ class TestApiExperimental(TestBase):
         session.close()
 
     def setUp(self):
-        super(TestApiExperimental, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         session = Session()
@@ -65,7 +65,7 @@ class TestApiExperimental(TestBase):
         session.query(TaskInstance).delete()
         session.commit()
         session.close()
-        super(TestApiExperimental, self).tearDown()
+        super().tearDown()
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
@@ -285,7 +285,7 @@ class TestPoolApiExperimental(TestBase):
         session.close()
 
     def setUp(self):
-        super(TestPoolApiExperimental, self).setUp()
+        super().setUp()
 
         self.pools = []
         for i in range(2):
@@ -304,7 +304,7 @@ class TestPoolApiExperimental(TestBase):
         self.session.query(Pool).delete()
         self.session.commit()
         self.session.close()
-        super(TestPoolApiExperimental, self).tearDown()
+        super().tearDown()
 
     def _get_pool_count(self):
         response = self.client.get('/api/experimental/pools')

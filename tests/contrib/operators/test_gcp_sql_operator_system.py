@@ -34,7 +34,7 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
 class CloudSqlExampleDagsIntegrationTest(DagGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
-        super(CloudSqlExampleDagsIntegrationTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_sql',
             gcp_key=GCP_CLOUDSQL_KEY)
@@ -50,7 +50,7 @@ class CloudSqlExampleDagsIntegrationTest(DagGcpSystemTestCase):
             SQL_QUERY_TEST_HELPER.delete_service_account_acls()
         finally:
             self.gcp_authenticator.gcp_revoke_authentication()
-        super(CloudSqlExampleDagsIntegrationTest, self).tearDown()
+        super().tearDown()
 
     def test_run_example_dag_cloudsql(self):
         try:

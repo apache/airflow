@@ -48,7 +48,7 @@ class MsSqlOperator(BaseOperator):
     def __init__(
             self, sql, mssql_conn_id='mssql_default', parameters=None,
             autocommit=False, database=None, *args, **kwargs):
-        super(MsSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters

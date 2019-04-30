@@ -384,7 +384,7 @@ class UtcAwareFilterMixin(object):
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super(UtcAwareFilterMixin, self).apply(query, value)
+        return super().apply(query, value)
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
@@ -422,7 +422,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
     def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+        super().__init__(obj)
 
         def clean_column_names():
             if self.list_properties:

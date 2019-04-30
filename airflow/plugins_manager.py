@@ -26,6 +26,7 @@ import pkg_resources
 from typing import List, Any
 
 from airflow import settings
+from airflow.models.baseoperator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -55,7 +56,8 @@ class AirflowPlugin(object):
     #
     # The function should have the following signature:
     # def func_name(stat_name: str) -> str:
-    stat_name_handler = None  # type:Any
+    stat_name_handler = None  # type: Any
+    global_operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod
     def validate(cls):
@@ -176,6 +178,7 @@ menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
+global_operator_extra_links = []  # type: List[Any]
 
 stat_name_handlers = []
 for p in plugins:
@@ -199,6 +202,7 @@ for p in plugins:
     } for bp in p.flask_blueprints])
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
+    global_operator_extra_links.extend(p.global_operator_extra_links)
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
