@@ -200,16 +200,10 @@ class KubernetesPodOperator(BaseOperator):
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-<<<<<<< HEAD
         self.do_xcom_push = do_xcom_push
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-
-        self.resources = resources or Resources()
-=======
-        self.xcom_push = xcom_push
         self.resources = self._set_resources(resources)
->>>>>>> [AIRFLOW-2955] Fix kubernetes pod operator to set requests and limits on task pods.
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
