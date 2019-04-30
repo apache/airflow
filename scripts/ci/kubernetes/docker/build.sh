@@ -25,6 +25,12 @@ PYTHON_DOCKER_IMAGE=python:3.6-slim
 
 set -e
 
+# Don't rebuild the image more than once on travis
+if [[ -n "$TRAVIS" || -z "$AIRFLOW_CI_REUSE_K8S_IMAGE" ]] && docker image inspect "$IMAGE:$TAG" > /dev/null 2>/dev/null; then
+  echo "Re-using existing image"
+  exit 0
+fi
+
 if [ "${VM_DRIVER:-none}" != "none" ]; then
     ENVCONFIG=$(minikube docker-env)
     if [ $? -eq 0 ]; then
