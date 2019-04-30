@@ -17,9 +17,15 @@
 * under the License.
 */
 
-body { padding-top: 70px; }
+body {
+    padding-top: 70px;
+    background-color: #fefcf9;
+    font-family: "Sofia Regular";
+}
 .container {
-    width: 100%;
+    width: 98%;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 a.navbar-brand span {
     color: white;
@@ -32,9 +38,9 @@ a.navbar-brand span {
     z-index: 5;
 }
 nav{
-    -webkit-box-shadow: 0px 3px 3px #AAA;
+    /* -webkit-box-shadow: 0px 3px 3px #AAA;
     -moz-box-shadow:    0px 3px 3px #AAA;
-    box-shadow:         0px 3px 3px #AAA;
+    box-shadow:         0px 3px 3px #AAA; */
     z-index:999;
 }
 a.navbar-brand {
@@ -74,28 +80,28 @@ div.squares{
 div.task_row{
 }
 span.success{
-    background-color: green;
+    background-color: #02a562;
 }
 span.up_for_retry{
-    background-color: gold;
+    background-color: #FFC847;
 }
 span.up_for_reschedule{
-    background-color: turquoise;
+    background-color: #47DAE9;
 }
 span.started{
-    background-color: lime;
+    background-color: #07d65b;
 }
 span.error{
-    background-color: red;
+    background-color: #fb5b3c;
 }
 span.queued{
-    background-color: gray;
+    background-color: #8f8d86;
 }
 span.upstream_failed{
-    background-color: orange;
+    background-color: #ff9a09
 }
 span.skipped{
-    background-color: pink;
+    background-color: #F4788F;
 }
 .tooltip-inner {
     max-width: 500px;
@@ -221,7 +227,7 @@ div.square {
     border:1px solid black;
 }
 .btn:active, .btn.active {
-  box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
+  /* box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4); */
 }
 
 .hll { background-color: #ffffcc }
