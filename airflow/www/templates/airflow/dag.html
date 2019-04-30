@@ -345,7 +345,7 @@ function updateQueryStringParameter(uri, key, value) {
     var dag_id = '{{ dag.dag_id }}';
     var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
     var task_id = '';
-    var exection_date = '';
+    var execution_date = '';
     var subdag_id = '';
 
     var buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce(function(obj, elm) {

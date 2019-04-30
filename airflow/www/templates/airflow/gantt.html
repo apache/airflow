@@ -54,7 +54,7 @@
   $( document ).ready(function() {
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
-    var exection_date = '';
+    var execution_date = '';
     data = {{ data |tojson|safe }};
     var gantt = d3.gantt()
       .taskTypes(data.taskNames)

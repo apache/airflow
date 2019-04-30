@@ -477,7 +477,7 @@ class TaskInstanceTest(unittest.TestCase):
 
         # Run with multiple reschedules.
         # During reschedule the try number remains the same, but each reschedule is recorded.
-        # The start date is expected to remain the inital date, hence the duration increases.
+        # The start date is expected to remain the initial date, hence the duration increases.
         # When finished the try number is incremented and there is no reschedule expected
         # for this try.
 
