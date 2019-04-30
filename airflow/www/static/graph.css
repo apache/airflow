@@ -26,31 +26,31 @@ g.node text {
     cursor: pointer;
 }
 g.node.success rect {
-    stroke: green;
+    stroke: #02a562;
 }
 g.node.up_for_retry rect {
-    stroke: gold;
+    stroke: #FFC847;
 }
 g.node.queued rect {
-    stroke: grey;
+    stroke: #8f8d86;
 }
 g.node.up_for_reschedule rect{
-    stroke: turquoise;
+    stroke: #47DAE9;
 }
 g.node.running rect{
-    stroke: lime;
+    stroke: #07d65b;
 }
 g.node.failed rect {
-    stroke: red;
+    stroke: #fb5b3c;
 }
 g.node.shutdown rect{
-    stroke: blue;
+    stroke: #0784aa;
 }
 g.node.upstream_failed rect{
-    stroke: orange;
+    stroke: #ff9a09;
 }
 g.node.skipped rect{
-    stroke: pink;
+    stroke: #F4788F;
 }
 div#svg_container {
  border: 1px solid black;

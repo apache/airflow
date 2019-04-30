@@ -46,39 +46,39 @@ rect.undefined {
 }
 
 rect.success {
-  fill: green;
+  fill: #02a562;
 }
 
 rect.running {
-  fill: lime;
+  fill: #07d65b;
 }
 
 rect.failed {
-  fill: red;
+  fill: #fb5b3c;
 }
 
 rect.queued {
-  fill: gray;
+  fill: #8f8d86;
 }
 
 rect.shutdown {
-  fill: blue;
+  fill: #0784aa;
 }
 
 rect.upstream_failed {
-  fill: orange;
+  fill: #ff9a09;
 }
 
 rect.up_for_retry {
-  fill: gold;
+  fill: #ffc847;
 }
 
 rect.up_for_reschedule {
-  fill: turquoise;
+  fill: #47dae9;
 }
 
 rect.skipped {
-  fill: pink;
+  fill: #f4788f;
 }
 
 .tooltip.in {

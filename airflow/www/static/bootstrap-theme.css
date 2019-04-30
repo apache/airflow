@@ -9,8 +9,59 @@
  * BootSwatchr built and provided by @DrewStrickland
  */
 /*! normalize.css v3.0.2 | MIT License | git.io/normalize */
+@font-face{
+  font-family:"Sofia Light";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/0eaf6264-15ee-4251-826e-9c0a59e8395f.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/0eaf6264-15ee-4251-826e-9c0a59e8395f.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/8d11b8a0-868c-4a53-8b26-9f0ccbd58247.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/9b976f15-23b7-45cd-ad4b-59c95b2889f9.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/864da3de-5a97-4ce6-a22b-22932ed4dfe0.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d5898683-1b2a-4b1b-8058-0c8db30e40cf.svg#d5898683-1b2a-4b1b-8058-0c8db30e40cf") format("svg");
+}
+@font-face{
+  font-family:"Sofia Light Italic";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/9b4837d6-e74a-44ef-a6c4-6b35a90a3702.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/9b4837d6-e74a-44ef-a6c4-6b35a90a3702.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/9be1eedf-69e4-4b70-ba74-3b23121fde9c.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/461e0a9e-689d-4609-bd34-f2316740e199.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/ab9ca33b-f66e-4aaf-8370-a2cd16af4072.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d7142d94-d827-4eb5-b479-359ac2ebc205.svg#d7142d94-d827-4eb5-b479-359ac2ebc205") format("svg");
+}
+@font-face{
+  font-family:"Sofia Regular";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/941243bb-e692-46f8-91b9-6e621e5c1ff8.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/941243bb-e692-46f8-91b9-6e621e5c1ff8.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/8b31e0d7-5f53-45c2-b318-064f0b532543.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/476fe015-ab32-40a2-8fed-0a5af9a3bba4.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d8bcfa37-4f93-49cf-8dea-c29e894af58e.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/28fc42bb-8761-4e6a-8c62-65d4a41c9e33.svg#28fc42bb-8761-4e6a-8c62-65d4a41c9e33") format("svg");
+}
+@font-face{
+  font-family:"Sofia Regular Italic";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/addba733-2fd3-4151-adf4-d0b563dc6517.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/addba733-2fd3-4151-adf4-d0b563dc6517.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/87cd0dd6-3e8b-46f1-b677-ab7644ea015e.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/90682d0e-e5df-4a2e-a2ff-6899b8ae8e4b.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d1a6f359-b96c-43fd-87af-85f9762a4ecf.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/6cc18d90-baae-43d6-9b7e-e778cb8c630f.svg#6cc18d90-baae-43d6-9b7e-e778cb8c630f") format("svg");
+}
+@font-face{
+  font-family:"Sofia Medium";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/27070da8-f8ed-4002-8324-4f0dd80f8fa4.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/27070da8-f8ed-4002-8324-4f0dd80f8fa4.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/fe0b48dd-7bb4-4787-913d-eaf613373f35.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d493595c-97d2-4edc-bc9a-c09ad13b4913.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/449bb77f-1bc7-4956-a8f1-3d4ae9243a59.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/1332b505-18f0-4aa5-ba55-9be49eba8fb5.svg#1332b505-18f0-4aa5-ba55-9be49eba8fb5") format("svg");
+}
+@font-face{
+  font-family:"Sofia Medium Italic";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/877f3b67-be6a-461d-a5a6-809160a59cd8.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/877f3b67-be6a-461d-a5a6-809160a59cd8.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/9da6ce88-4609-46ec-b6a3-9e8a69f8d053.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/44cb396c-a0d9-43f0-a13f-bad6bd335656.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/aeb7ae09-586c-4808-bada-216d01ed5ec7.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/f6759ecb-5f45-4a67-a026-db1db3e2c8d0.svg#f6759ecb-5f45-4a67-a026-db1db3e2c8d0") format("svg");
+}
+@font-face{
+  font-family:"Sofia Semi Bold";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/e488d96e-1d10-41aa-a2a0-8cb7cc0a54a8.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/e488d96e-1d10-41aa-a2a0-8cb7cc0a54a8.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/20755c49-19b5-4792-aaf3-27f6b048149a.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/7cdc9309-dc21-43e2-a348-c6e3853fe8a9.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/fe0fe0a1-32b6-4795-80da-fb446ac9d5ea.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/d7a947d1-755b-4774-a917-036acd235435.svg#d7a947d1-755b-4774-a917-036acd235435") format("svg");
+}
+@font-face{
+  font-family:"Sofia Semi Bold Italic";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/6158ec61-bf1b-4bd7-9dda-df9045c9c986.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/6158ec61-bf1b-4bd7-9dda-df9045c9c986.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/e03d67b8-21d1-471a-a052-5450498e2851.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/7e254ac6-68c1-4462-b775-f4064eea9be4.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/3e17b546-0789-4b1e-b570-6590b98e9700.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/002ad5e0-12e8-474c-95bd-1e7ae9cea0d4.svg#002ad5e0-12e8-474c-95bd-1e7ae9cea0d4") format("svg");
+}
+@font-face{
+  font-family:"Sofia Bold";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/c2440dd8-b25c-49ba-bc04-8a638a943324.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/c2440dd8-b25c-49ba-bc04-8a638a943324.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/80042803-0630-405f-b2d2-af97b4e50b46.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/ec41d681-0313-4b04-88c0-820aebb51f4e.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/81434fc3-e426-4a4c-987d-f25c098198c4.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/59fd3475-fba9-4c77-94f9-959fd3925e06.svg#59fd3475-fba9-4c77-94f9-959fd3925e06") format("svg");
+}
+@font-face{
+  font-family:"Sofia Bold Italic";
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/0b2112bc-4fb7-4a37-8c55-1e5848431681.eot");
+  src:url("https://cdn.astronomer.io/app/fonts/sofia-pro/0b2112bc-4fb7-4a37-8c55-1e5848431681.eot?#iefix") format("eot"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/27f146af-7709-44d9-8b45-d09866bec59f.woff2") format("woff2"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/5f085bad-f484-4825-8686-d347df989cf2.woff") format("woff"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/a1133ba8-2dbc-4877-b3bc-b9a3a44652ba.ttf") format("truetype"),url("https://cdn.astronomer.io/app/fonts/sofia-pro/e37199b8-7efe-4da4-bb3c-9a415c519b57.svg#e37199b8-7efe-4da4-bb3c-9a415c519b57") format("svg");
+}
+
 html {
-  font-family: sans-serif;
+  font-family: "Sofia Regular";
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
@@ -294,12 +345,12 @@ textarea {
   line-height: inherit;
 }
 a {
-  color: #0091a1;
+  color: #342f54;
   text-decoration: none;
 }
 a:hover,
 a:focus {
-  color: #004c54;
+  color: #00ac6b;
   text-decoration: underline;
 }
 a:focus {
@@ -532,10 +583,10 @@ mark,
   color: #777777;
 }
 .text-primary {
-  color: #005c66;
+  color: #302c43;
 }
 a.text-primary:hover {
-  color: #002e33;
+  color: #342f54;
 }
 .text-success {
   color: #3c763d;
@@ -731,7 +782,7 @@ kbd {
   color: #ffffff;
   background-color: #333333;
   border-radius: 3px;
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  /* box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25); */
 }
 kbd kbd {
   padding: 0;
@@ -1501,7 +1552,7 @@ th {
   border-bottom-width: 2px;
 }
 .table-striped > tbody > tr:nth-child(odd) {
-  background-color: #f9f9f9;
+  background-color: #f4f2ec;
 }
 .table-hover > tbody > tr:hover {
   background-color: #f5f5f5;
@@ -1740,10 +1791,10 @@ output {
   color: #555555;
   background-color: #ffffff;
   background-image: none;
-  border: 1px solid #cccccc;
+  border: 1px solid #3c384f;
   border-radius: 4px;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
   -webkit-transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
   -o-transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
   transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
@@ -1751,8 +1802,8 @@ output {
 .form-control:focus {
   border-color: #66afe9;
   outline: 0;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, 0.6);
-  box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, 0.6);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, 0.6); */
+  /* box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, 0.6); */
 }
 .form-control::-moz-placeholder {
   color: #999999;
@@ -1973,13 +2024,13 @@ select[multiple].form-group-lg .form-control {
 }
 .has-success .form-control {
   border-color: #3c763d;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
 }
 .has-success .form-control:focus {
   border-color: #2b542c;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #67b168;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #67b168;
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #67b168; */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #67b168; */
 }
 .has-success .input-group-addon {
   color: #3c763d;
@@ -2003,13 +2054,13 @@ select[multiple].form-group-lg .form-control {
 }
 .has-warning .form-control {
   border-color: #8a6d3b;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
 }
 .has-warning .form-control:focus {
   border-color: #66512c;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #c0a16b;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #c0a16b;
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #c0a16b; */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #c0a16b; */
 }
 .has-warning .input-group-addon {
   color: #8a6d3b;
@@ -2033,13 +2084,13 @@ select[multiple].form-group-lg .form-control {
 }
 .has-error .form-control {
   border-color: #a94442;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
 }
 .has-error .form-control:focus {
   border-color: #843534;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #ce8483;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #ce8483;
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #ce8483; */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 6px #ce8483; */
 }
 .has-error .input-group-addon {
   color: #a94442;
@@ -2187,8 +2238,8 @@ select[multiple].form-group-lg .form-control {
 .btn.active {
   outline: 0;
   background-image: none;
-  -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
-  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+  /* -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); */
+  /* box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); */
 }
 .btn.disabled,
 .btn[disabled],
@@ -2197,8 +2248,8 @@ fieldset[disabled] .btn {
   pointer-events: none;
   opacity: 0.65;
   filter: alpha(opacity=65);
-  -webkit-box-shadow: none;
-  box-shadow: none;
+  /* -webkit-box-shadow: none; */
+  /* box-shadow: none; */
 }
 .btn-default {
   color: #333333;
@@ -2246,8 +2297,8 @@ fieldset[disabled] .btn-default.active {
   background-color: #333333;
 }
 .btn-primary {
-  color: #ffffff;
-  background-color: #005c66;
+  color: #fefcf9;
+  background-color: #302c43;
   border-color: #00454c;
 }
 .btn-primary:hover,
@@ -2257,7 +2308,7 @@ fieldset[disabled] .btn-default.active {
 .btn-primary.active,
 .open > .dropdown-toggle.btn-primary {
   color: #ffffff;
-  background-color: #002e33;
+  background-color: #302c43;
   border-color: #000e0f;
 }
 .btn-primary:active,
@@ -3395,8 +3446,8 @@ tbody.collapse.in {
   border: 1px solid #cccccc;
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 4px;
-  -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+  /* -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175); */
+  /* box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175); */
   background-clip: padding-box;
 }
 .dropdown-menu.pull-right {
@@ -3430,7 +3481,7 @@ tbody.collapse.in {
   color: #ffffff;
   text-decoration: none;
   outline: 0;
-  background-color: #005c66;
+  background-color: #302c43;
 }
 .dropdown-menu > .disabled > a,
 .dropdown-menu > .disabled > a:hover,
@@ -3583,8 +3634,8 @@ tbody.collapse.in {
   padding-right: 12px;
 }
 .btn-group.open .dropdown-toggle {
-  -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
-  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+  /* -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); */
+  /* box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); */
 }
 .btn-group.open .dropdown-toggle.btn-link {
   -webkit-box-shadow: none;
@@ -3949,7 +4000,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 .nav-pills > li.active > a:hover,
 .nav-pills > li.active > a:focus {
   color: #ffffff;
-  background-color: #005c66;
+  background-color: #02a562;
 }
 .nav-stacked > li {
   float: none;
@@ -4021,7 +4072,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   position: relative;
   min-height: 50px;
   margin-bottom: 20px;
-  border: 1px solid transparent;
+  border: 0px solid transparent;
 }
 @media (min-width: 768px) {
   .navbar {
@@ -4038,7 +4089,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   padding-right: 15px;
   padding-left: 15px;
   border-top: 1px solid transparent;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  /* box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); */
   -webkit-overflow-scrolling: touch;
 }
 .navbar-collapse.in {
@@ -4117,7 +4168,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 }
 .navbar-fixed-top {
   top: 0;
-  border-width: 0 0 1px;
+  border-width: 0 0 0px;
 }
 .navbar-fixed-bottom {
   bottom: 0;
@@ -4137,6 +4188,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 }
 .navbar-brand > img {
   display: block;
+  margin-right: 10px;
 }
 @media (min-width: 768px) {
   .navbar > .container .navbar-brand,
@@ -4222,8 +4274,8 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   padding: 10px 15px;
   border-top: 1px solid transparent;
   border-bottom: 1px solid transparent;
-  -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
+  /* -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1); */
+  /* box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1); */
   margin-top: 8px;
   margin-bottom: 8px;
 }
@@ -4440,8 +4492,8 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   color: #cccccc;
 }
 .navbar-inverse {
-  background-color: #007a87;
-  border-color: #004c54;
+  background-color: #302c43 !important;
+  border-color: #282632;
   background-image: none;
 }
 .navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.open>a {
@@ -4451,7 +4503,7 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   background-image: none;
 }
 .navbar-inverse .navbar-brand {
-  color: #dddddd;
+  color: #f4f2ec;
 }
 .navbar-inverse .navbar-brand:hover,
 .navbar-inverse .navbar-brand:focus {
@@ -4459,21 +4511,21 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   background-color: transparent;
 }
 .navbar-inverse .navbar-text {
-  color: #ffb400;
+  color: #f4f2ec;
 }
 .navbar-inverse .navbar-nav > li > a {
   color: #dddddd;
 }
 .navbar-inverse .navbar-nav > li > a:hover,
 .navbar-inverse .navbar-nav > li > a:focus {
-  color: #ffffff;
-  background-color: transparent;
+  color: #fefcf9;
+  background-color: #3c384f;
 }
 .navbar-inverse .navbar-nav > .active > a,
 .navbar-inverse .navbar-nav > .active > a:hover,
 .navbar-inverse .navbar-nav > .active > a:focus {
   color: #ffffff;
-  background-color: #004c54;
+  background-color: #3c384f;
 }
 .navbar-inverse .navbar-nav > .disabled > a,
 .navbar-inverse .navbar-nav > .disabled > a:hover,
@@ -4489,7 +4541,7 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   background-color: #333333;
 }
 .navbar-inverse .navbar-toggle .icon-bar {
-  background-color: #ffffff;
+  background-color: #342f54;
 }
 .navbar-inverse .navbar-collapse,
 .navbar-inverse .navbar-form {
@@ -4498,15 +4550,15 @@ fieldset[disabled] .navbar-default .btn-link:focus {
 .navbar-inverse .navbar-nav > .open > a,
 .navbar-inverse .navbar-nav > .open > a:hover,
 .navbar-inverse .navbar-nav > .open > a:focus {
-  background-color: #004c54;
+  background-color: #3c384f;
   color: #ffffff;
 }
 @media (max-width: 767px) {
   .navbar-inverse .navbar-nav .open .dropdown-menu > .dropdown-header {
-    border-color: #004c54;
+    border-color: #24232A;
   }
   .navbar-inverse .navbar-nav .open .dropdown-menu .divider {
-    background-color: #004c54;
+    background-color: #24232A;
   }
   .navbar-inverse .navbar-nav .open .dropdown-menu > li > a {
     color: #dddddd;
@@ -4520,7 +4572,7 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:hover,
   .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:focus {
     color: #ffffff;
-    background-color: #004c54;
+    background-color: #24232A;
   }
   .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a,
   .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a:hover,
@@ -4614,8 +4666,8 @@ fieldset[disabled] .navbar-inverse .btn-link:focus {
 .pagination > .active > span:focus {
   z-index: 2;
   color: #ffffff;
-  background-color: #005c66;
-  border-color: #005c66;
+  background-color: #302c43;
+  border-color: #302c43;
   cursor: default;
 }
 .pagination > .disabled > span,
@@ -4723,7 +4775,7 @@ a.label:focus {
   top: -1px;
 }
 .label-default {
-  background-color: #777777;
+  background-color: #777571;
 }
 .label-default[href]:hover,
 .label-default[href]:focus {
@@ -4906,7 +4958,7 @@ a.thumbnail.active {
   color: inherit;
 }
 .alert-success {
-  background-color: #dff0d8;
+  background-color: #00ac6b;
   border-color: #d6e9c6;
   color: #3c763d;
 }
@@ -4971,8 +5023,8 @@ a.thumbnail.active {
   margin-bottom: 20px;
   background-color: #f5f5f5;
   border-radius: 4px;
-  -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); */
+  /* box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); */
 }
 .progress-bar {
   float: left;
@@ -4983,8 +5035,8 @@ a.thumbnail.active {
   color: #ffffff;
   text-align: center;
   background-color: #005c66;
-  -webkit-box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+  /* -webkit-box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15); */
+  /* box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15); */
   -webkit-transition: width 0.6s ease;
   -o-transition: width 0.6s ease;
   transition: width 0.6s ease;
@@ -5251,8 +5303,8 @@ a.list-group-item-danger.active:focus {
   background-color: #ffffff;
   border: 1px solid transparent;
   border-radius: 4px;
-  -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  /* -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); */
+  /* box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); */
 }
 .panel-body {
   padding: 15px;
@@ -5492,11 +5544,11 @@ a.list-group-item-danger.active:focus {
   border-bottom-color: #dddddd;
 }
 .panel-primary {
-  border-color: #005c66;
+  border-color: #302c43;
 }
 .panel-primary > .panel-heading {
   color: #ffffff;
-  background-color: #005c66;
+  background-color: #302c43;
   border-color: #005c66;
 }
 .panel-primary > .panel-heading + .panel-collapse > .panel-body {
@@ -5588,8 +5640,8 @@ a.list-group-item-danger.active:focus {
   background-color: #f5f5f5;
   border: 1px solid #e3e3e3;
   border-radius: 4px;
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+  /* -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05); */
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05); */
 }
 .well blockquote {
   border-color: #ddd;
@@ -5674,8 +5726,8 @@ button.close {
   border: 1px solid #999999;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 6px;
-  -webkit-box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
+  /* -webkit-box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5); */
+  /* box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5); */
   background-clip: padding-box;
   outline: 0;
 }
@@ -5738,8 +5790,8 @@ button.close {
     margin: 30px auto;
   }
   .modal-content {
-    -webkit-box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    /* -webkit-box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); */
+    /* box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); */
   }
   .modal-sm {
     width: 300px;
@@ -5872,8 +5924,8 @@ button.close {
   border: 1px solid #cccccc;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 6px;
-  -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  /* -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2); */
+  /* box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2); */
   white-space: normal;
 }
 .popover.top {
@@ -6491,4 +6543,10 @@ button.close {
   .hidden-print {
     display: none !important;
   }
+}
+
+/* ASTRONOMER ADDITIONS */
+.navbar-inverse .navbar-nav>.active > a, .navbar-inverse .navbar-nav > .open > a {
+  -webkit-box-shadow: none;
+  box-shadow: none;
 }

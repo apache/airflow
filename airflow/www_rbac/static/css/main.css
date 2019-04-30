@@ -19,6 +19,8 @@
 
 body {
   padding-top: 70px;
+  background-color: #fefcf9;
+  font-family: "Sofia Regular";
 }
 
 div.container {
@@ -41,7 +43,7 @@ a.navbar-brand span {
 }
 
 nav {
-  box-shadow: 0 3px 3px #aaa;
+  /* box-shadow: 0 3px 3px #aaa; */
   z-index: 999;
 }
 
@@ -85,35 +87,35 @@ div.squares {
 }
 
 span.success {
-  background-color: green;
+  background-color: #02a562;
 }
 
 span.up_for_retry {
-  background-color: gold;
+  background-color: #ffc847;
 }
 
 span.up_for_reschedule {
-  background-color: turquoise;
+  background-color: #47dae9;
 }
 
 span.started {
-  background-color: lime;
+  background-color: #07d65b;
 }
 
 span.error {
-  background-color: red;
+  background-color: #fb5b3c;
 }
 
 span.queued {
-  background-color: gray;
+  background-color: #8f8d86;
 }
 
 span.upstream_failed {
-  background-color: orange;
+  background-color: #ff9a09;
 }
 
 span.skipped {
-  background-color: pink;
+  background-color: #f4788f;
 }
 
 .tooltip-inner {
@@ -271,7 +273,7 @@ div.square {
 
 .btn:active,
 .btn.active {
-  box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
+  /* box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4); */
 }
 
 label[for="timezone-other"],

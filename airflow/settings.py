@@ -157,14 +157,14 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
-    "queued": "gray",
-    "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "pink",
+    "queued": "#8f8d86",
+    "running": "#07d65b",
+    "success": "#02a562",
+    "failed": "#fb5b3c",
+    "up_for_retry": "#FFC847",
+    "up_for_reschedule": "#47DAE9",
+    "upstream_failed": "#ff9a09",
+    "skipped": "#F4788F",
     "scheduled": "tan",
 }
 
