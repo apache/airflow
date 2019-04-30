@@ -593,6 +593,7 @@ class SchedulerJob(BaseJob):
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
+        self.deferred_ghosts = conf.getboolean('scheduler', 'deferred_ghosts')
         self._last_loop = False
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -1447,6 +1448,11 @@ class SchedulerJob(BaseJob):
         """
         # TODO: this shares quite a lot of code with _manage_executor_state
 
+        if self.deferred_ghosts:
+            # Ghosts will be handled asynchronously, just clear out the event buffer
+            self.executor.get_event_buffer(simple_dag_bag.dag_ids)
+            return
+
         TI = models.TaskInstance
         for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):
@@ -1515,6 +1521,7 @@ class SchedulerJob(BaseJob):
                                                      known_file_paths,
                                                      self.num_runs,
                                                      processor_factory,
+                                                     self.executor if self.deferred_ghosts else None,
                                                      async_mode)
 
         try:

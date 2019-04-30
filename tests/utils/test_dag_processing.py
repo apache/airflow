@@ -143,6 +143,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             stat_queue=MagicMock(),
             result_queue=MagicMock,
+            ghost_queue=MagicMock,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -164,6 +165,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             stat_queue=MagicMock(),
             result_queue=MagicMock,
+            ghost_queue=MagicMock,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -185,6 +187,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             stat_queue=MagicMock(),
             result_queue=MagicMock,
+            ghost_queue=MagicMock,
             async_mode=True)
 
         dagbag = DagBag(TEST_DAG_FOLDER)
@@ -246,6 +249,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     [],
                                                     0,
                                                     processor_factory,
+                                                    None,
                                                     async_mode)
             manager_process = \
                 processor_agent._launch_process(processor_agent._dag_directory,
@@ -255,6 +259,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 processor_agent._child_signal_conn,
                                                 processor_agent._stat_queue,
                                                 processor_agent._result_queue,
+                                                processor_agent._ghost_queue,
                                                 processor_agent._async_mode)
             if not async_mode:
                 processor_agent.heartbeat()
@@ -278,6 +283,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [test_dag_path],
                                                 1,
                                                 processor_factory,
+                                                None,
                                                 async_mode)
         processor_agent.start()
         parsing_result = []
@@ -311,6 +317,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [],
                                                 0,
                                                 processor_factory,
+                                                None,
                                                 async_mode)
         manager_process = \
             processor_agent._launch_process(processor_agent._dag_directory,

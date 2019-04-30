@@ -466,6 +466,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  file_paths,
                  max_runs,
                  processor_factory,
+                 executor,
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -479,6 +480,9 @@ class DagFileProcessorAgent(LoggingMixin):
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path, log_file_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :param executor: Executor instance. Passed only if agent handles
+            executor events (ghost TIs). None otherwise.
+        :type executor: BaseExecutor
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
         """
@@ -487,6 +491,7 @@ class DagFileProcessorAgent(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._processor_factory = processor_factory
+        self._executor = executor
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -504,6 +509,9 @@ class DagFileProcessorAgent(LoggingMixin):
         self._manager = multiprocessing.Manager()
         self._stat_queue = self._manager.Queue()
         self._result_queue = self._manager.Queue()
+
+        # Queue for communicating ghosts to manager.
+        self._ghost_queue = self._manager.Queue()
         self._process = None
         self._done = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
@@ -521,6 +529,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                              self._child_signal_conn,
                                              self._stat_queue,
                                              self._result_queue,
+                                             self._ghost_queue,
                                              self._async_mode)
         self.log.info("Launched DagFileProcessorManager with pid: %s", self._process.pid)
 
@@ -548,6 +557,7 @@ class DagFileProcessorAgent(LoggingMixin):
                         signal_conn,
                         _stat_queue,
                         result_queue,
+                        ghost_queue,
                         async_mode):
         def helper():
             # Reload configurations and settings to avoid collision with parent process.
@@ -568,6 +578,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                                         signal_conn,
                                                         _stat_queue,
                                                         result_queue,
+                                                        ghost_queue,
                                                         async_mode)
 
             processor_manager.start()
@@ -602,7 +613,25 @@ class DagFileProcessorAgent(LoggingMixin):
 
         self._result_count = 0
 
+        self._insert_ghosts()
         return simple_dags
+
+    @provide_session
+    def _insert_ghosts(self, session):
+        if self._executor is None:
+            return
+        TI = airflow.models.TaskInstance
+        tis = (
+            session.query(TI)
+            .filter(TI.state == State.QUEUED)
+            .all()
+        )
+        num_ghosts = 0
+        for ti in tis:
+            if not self._executor.has_task(ti):
+                num_ghosts += 1
+                self._ghost_queue.put(SimpleTaskInstance(ti))
+        self.log.info("Found {} ghost TIs, pushed to the manager.".format(num_ghosts))
 
     def _heartbeat_manager(self):
         """
@@ -708,6 +737,7 @@ class DagFileProcessorManager(LoggingMixin):
                  signal_conn,
                  stat_queue,
                  result_queue,
+                 ghost_queue,
                  async_mode=True):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -727,6 +757,9 @@ class DagFileProcessorManager(LoggingMixin):
         :type stat_queue: multiprocessing.Queue
         :param result_queue: the queue to use for passing back the result to agent.
         :type result_queue: multiprocessing.Queue
+        :param ghost_queue: input queue for all ghosts found by agent process. Will
+            be handled like zombies by processors.
+        :type ghost_queue: multiprocessing.Queue
         :param async_mode: whether to start the manager in async mode
         :type async_mode: bool
         """
@@ -738,6 +771,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._signal_conn = signal_conn
         self._stat_queue = stat_queue
         self._result_queue = result_queue
+        self._ghost_queue = ghost_queue
         self._async_mode = async_mode
 
         self._parallelism = conf.getint('scheduler', 'max_threads')
@@ -1214,6 +1248,20 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_path_queue.extend(files_paths_to_queue)
 
         zombies = self._find_zombies()
+        ghosts = []
+        while True:
+            try:
+                ghost = self._ghost_queue.get_nowait()
+                try:
+                    ghosts.append(ghost)
+                finally:
+                    self._ghost_queue.task_done()
+            except Empty:
+                break
+        # For now we treat ghosts and zombies the same for handling. We can
+        # pass 2 different lists to the processors if we want to differentiate
+        # them later.
+        zombies.extend(ghosts)
 
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and
