@@ -212,6 +212,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     return '/usr/local/airflow/dags'
                 if(args[1] == 'delete_worker_pods'):
                     return True
+                if(args[1] == 'kube_client_request_args'):
+                    return '{"_request_timeout" : [60,360] }'
                 return '1'
             return None
 
