@@ -98,7 +98,8 @@ class SSHHook(BaseHook):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                self.key_file = extra_options.get("key_file")
+                if "key_file" in extra_options:
+                    self.key_file = extra_options.get("key_file")
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
