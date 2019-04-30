@@ -55,6 +55,9 @@ Committers
 - @dimberman (Daniel Imberman)
 - @potiuk (Jarek Potiuk)
 - @basph (Bas Harenslak)
+- @jmcarp (Joshua Carp)
+- @KevinYang21 (Kevin Yang)
+
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
