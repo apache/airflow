@@ -47,9 +47,9 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_entities_template_fields]
+    # [START natural_language_analyze_entities_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entities_template_fields]
+    # [END natural_language_analyze_entities_template_fields]
 
     def __init__(
         self,
@@ -108,9 +108,9 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_entity_sentiment_template_fields]
+    # [START natural_language_analyze_entity_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entity_sentiment_template_fields]
+    # [END natural_language_analyze_entity_sentiment_template_fields]
 
     def __init__(
         self,
@@ -172,9 +172,9 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_sentiment_template_fields]
+    # [START natural_language_analyze_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_sentiment_template_fields]
+    # [END natural_language_analyze_sentiment_template_fields]
 
     def __init__(
         self,
@@ -229,9 +229,9 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_classify_text_template_fields]
+    # [START natural_language_classify_text_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_classify_text_template_fields]
+    # [END natural_language_classify_text_template_fields]
 
     def __init__(
         self,
