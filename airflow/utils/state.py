@@ -67,15 +67,14 @@ class State(object):
     )
 
     state_color = {
-        QUEUED: 'gray',
-        RUNNING: 'lime',
-        SUCCESS: 'green',
-        SHUTDOWN: 'blue',
-        FAILED: 'red',
-        UP_FOR_RETRY: 'gold',
-        UP_FOR_RESCHEDULE: 'turquoise',
-        UPSTREAM_FAILED: 'orange',
-        SKIPPED: 'pink',
+        QUEUED: '#8f8d86',
+        RUNNING: '#07d65b',
+        SUCCESS: '#02a562',
+        SHUTDOWN: '#0784aa',
+        FAILED: '#fb5b3c',
+        UP_FOR_RETRY: '#FFC847',
+        UPSTREAM_FAILED: '#ff9a09',
+        SKIPPED: '#F4788F',
         REMOVED: 'lightgrey',
         SCHEDULED: 'tan',
         NONE: 'lightblue',

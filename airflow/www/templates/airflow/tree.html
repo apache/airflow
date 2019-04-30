@@ -39,28 +39,26 @@
 <div style="clear: both;"></div>
 <hr/>
 <div>
-  <div class="legend_item" style="border: none;">no_status</div>
-  <div class="square" style="background: white;"></div>
-  <div class="legend_item" style="border: none;">queued</div>
-  <div class="square" style="background: grey;"></div>
-  <div class="legend_item" style="border: none;">up_for_retry</div>
-  <div class="square" style="background: gold;"></div>
-  <div class="legend_item" style="border: none;">up_for_reschedule</div>
-  <div class="square" style="background: turquoise;"></div>
-  <div class="legend_item" style="border: none;">skipped</div>
-  <div class="square" style="background: pink;"></div>
-  <div class="legend_item" style="border: none;">failed</div>
-  <div class="square" style="background: red;"></div>
-  <div class="legend_item" style="border: none;">running</div>
-  <div class="square" style="background: lime;"></div>
-  <div class="legend_item" style="border: none;">success</div>
-  <div class="square" style="background: green;"></div>
-  {% for op in operators %}
-  <div class="legend_circle" style="background:{{ op.ui_color }};">
-  </div>
-  <div class="legend_item" style="float:left;border-color:white;">{{ op.__name__ }}</div>
-  {% endfor %}
-  <div style="clear:both;"></div>
+    <div class="legend_item" style="border: none;">no status</div>
+    <div class="square" style="background: white;"></div>
+    <div class="legend_item" style="border: none;">queued</div>
+    <div class="square" style="background: #8f8d86;"></div>
+    <div class="legend_item" style="border: none;">retry</div>
+    <div class="square" style="background: #FFC847;"></div>
+    <div class="legend_item" style="border: none;">skipped</div>
+    <div class="square" style="background: #F4788F;"></div>
+    <div class="legend_item" style="border: none;">failed</div>
+    <div class="square" style="background: #fb5b3c;"></div>
+    <div class="legend_item" style="border: none;">running</div>
+    <div class="square" style="background: #07d65b;"></div>
+    <div class="legend_item" style="border: none;">success</div>
+    <div class="square" style="background: #02a562;"></div>
+    {% for op in operators %}
+        <div class="legend_circle" style="background:{{ op.ui_color }};">
+        </div>
+        <div class="legend_item" style="float:left;border-color:white;">{{ op.__name__ }}</div>
+    {% endfor %}
+    <div style="clear:both;"></div>
 </div>
 <hr/>
 <div id="svg_container">
@@ -197,15 +195,13 @@ function update(source) {
       .attr("title", function(d){
         var tt = "";
         if (d.operator != undefined) {
-          if (d.operator != undefined) {
-            tt += "operator: " + escapeHtml(d.operator) + "<br/>";
-          }
-          tt += "depends_on_past: " + escapeHtml(d.depends_on_past) + "<br/>";
-          tt += "upstream: " + escapeHtml(d.num_dep) + "<br/>";
-          tt += "retries: " + escapeHtml(d.retries) + "<br/>";
-          tt += "owner: " + escapeHtml(d.owner) + "<br/>";
-          tt += "start_date: " + escapeHtml(d.start_date) + "<br/>";
-          tt += "end_date: " + escapeHtml(d.end_date) + "<br/>";
+          tt += "operator: " + d.operator + "<br/>";
+          tt += "depends_on_past: " + d.depends_on_past + "<br/>";
+          tt += "upstream: " + d.num_dep + "<br/>";
+          tt += "retries: " + d.retries + "<br/>";
+          tt += "owner: " + d.owner + "<br/>";
+          tt += "start_date: " + d.start_date + "<br/>";
+          tt += "end_date: " + d.end_date + "<br/>";
         }
         return tt;
       })
@@ -234,9 +230,9 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, d.try_number, true);
+            call_modal(d.task_id, d.execution_date, true);
         else
-            call_modal(d.task_id, d.execution_date, d.try_number);
+            call_modal(d.task_id, d.execution_date);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")
@@ -246,24 +242,17 @@ function update(source) {
       .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
       .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .attr("title", function(d){
-        var s = "";
-        if (d.task_id != undefined ) {
-          s += "Task_id: " + escapeHtml(d.task_id) + "<br>";
-        }
-        s += "Run: " + escapeHtml(d.execution_date) + "<br>";
+        s =  "Task_id: " + d.task_id + "<br>";
+        s += "Run: " + d.execution_date + "<br>";
         if(d.run_id != undefined){
-          s += "run_id: <nobr>" + escapeHtml(d.run_id) + "</nobr><br>";
+          s += "run_id: <nobr>" + d.run_id + "</nobr><br>";
         }
-        if (d.operator != undefined) {
-          s += "Operator: " + escapeHtml(d.operator) + "<br>"
-        }
+        s += "Operator: " + d.operator + "<br>"
         if(d.start_date != undefined){
-          s += "Started: " + escapeHtml(d.start_date) + "<br>";
-          s += "Ended: " + escapeHtml(d.end_date) + "<br>";
-          if (d.duration != undefined) {
-            s += "Duration: " + escapeHtml(d.duration) + "<br>";
-          }
-          s += "State: " + escapeHtml(d.state) + "<br>";
+          s += "Started: " + d.start_date + "<br>";
+          s += "Ended: " + d.end_date + "<br>";
+          s += "Duration: " + d.duration + "<br>";
+          s += "State: " + d.state + "<br>";
         }
         return s;
       })
