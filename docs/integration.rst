@@ -588,6 +588,21 @@ Cloud Storage
 :class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
     Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
 
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor`
+    Checks for the existence of a file in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor`
+    Checks if an object is updated in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor`
+    Checks for the existence of a objects at prefix in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSession`
+    Checks for changes in the number of objects at prefix in Google Cloud Storage
+    bucket and returns True if the inactivity period has passed with no
+    increase in the number of objects for situations when many objects
+    are being uploaded to a bucket with no formal success signal.
+
 
 They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
 
