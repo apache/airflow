@@ -198,7 +198,6 @@ class CgroupTaskRunner(BaseTaskRunner):
             self._delete_cgroup(self.cpu_cgroup_name)
         super().on_finish()
 
-
     @staticmethod
     def _get_cgroup_names():
         """
