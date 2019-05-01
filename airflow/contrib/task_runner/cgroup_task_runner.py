@@ -114,8 +114,8 @@ class CgroupTaskRunner(BaseTaskRunner):
     def start(self):
         # Use bash if it's already in a cgroup
         cgroups = self._get_cgroup_names()
-        if ((cgroups.get("cpu") and cgroups.get("cpu") != "/")
-                or (cgroups.get("memory") and cgroups.get("memory") != "/")):
+        if ((cgroups.get("cpu") and cgroups.get("cpu") != "/") or
+                (cgroups.get("memory") and cgroups.get("memory") != "/")):
             self.log.debug(
                 "Already running in a cgroup (cpu: %s memory: %s) so not "
                 "creating another one",
@@ -196,6 +196,8 @@ class CgroupTaskRunner(BaseTaskRunner):
             self._delete_cgroup(self.mem_cgroup_name)
         if self._created_cpu_cgroup:
             self._delete_cgroup(self.cpu_cgroup_name)
+        super().on_finish()
+
 
     @staticmethod
     def _get_cgroup_names():
