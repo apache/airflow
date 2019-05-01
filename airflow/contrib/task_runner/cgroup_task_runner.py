@@ -76,6 +76,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         node = trees.Tree().root
         path_split = path.split(os.sep)
         for path_element in path_split:
+            # node.name is encoded to bytes:
+            # https://github.com/cloudsigma/cgroupspy/blob/e705ac4ccdfe33d8ecc700e9a35a9556084449ca/cgroupspy/nodes.py#L64
             name_to_node = {x.name.decode(): x for x in node.children}
             if path_element not in name_to_node:
                 self.log.debug("Creating cgroup %s in %s", path_element, node.path)
