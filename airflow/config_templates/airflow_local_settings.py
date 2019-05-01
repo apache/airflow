@@ -139,13 +139,6 @@ REMOTE_HANDLERS = {
             's3_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
         },
-        'processor': {
-            'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            's3_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
-        },
     },
     'gcs': {
         'task': {
@@ -154,13 +147,6 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
-        },
-        'processor': {
-            'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
         },
     },
     'wasb': {
@@ -171,15 +157,6 @@ REMOTE_HANDLERS = {
             'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
             'wasb_container': 'airflow-logs',
             'filename_template': FILENAME_TEMPLATE,
-            'delete_local_copy': False,
-        },
-        'processor': {
-            'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'wasb_container': 'airflow-logs',
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
             'delete_local_copy': False,
         },
     },
@@ -196,7 +173,7 @@ REMOTE_HANDLERS = {
     },
 }
 
-REMOTE_LOGGING = conf.get('core', 'remote_logging')
+REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
