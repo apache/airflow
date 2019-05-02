@@ -33,8 +33,12 @@ class CgroupTaskRunner(BaseTaskRunner):
     """
     Runs the raw Airflow task in a cgroup that has containment for memory and
     cpu. It uses the resource requirements defined in the task to construct
-    the settings for the cgroup. Cgroup must be mounted first otherwise CgroupTaskRunner
-    will not be able to work
+    the settings for the cgroup.
+
+    Cgroup must be mounted first otherwise CgroupTaskRunner
+    will not be able to work.
+
+    cgroup-bin package must be installed to use cgexec command.
 
     Note that this task runner will only work if the Airflow user has root privileges,
     e.g. if the airflow user is called `airflow` then the following entries (or an even
@@ -80,12 +84,12 @@ class CgroupTaskRunner(BaseTaskRunner):
             # https://github.com/cloudsigma/cgroupspy/blob/e705ac4ccdfe33d8ecc700e9a35a9556084449ca/cgroupspy/nodes.py#L64
             name_to_node = {x.name.decode(): x for x in node.children}
             if path_element not in name_to_node:
-                self.log.debug("Creating cgroup %s in %s", path_element, node.path)
+                self.log.debug("Creating cgroup %s in %s", path_element, node.path.decode())
                 node = node.create_cgroup(path_element)
             else:
                 self.log.debug(
                     "Not creating cgroup %s in %s since it already exists",
-                    path_element, node.path
+                    path_element, node.path.decode()
                 )
                 node = name_to_node[path_element]
         return node
