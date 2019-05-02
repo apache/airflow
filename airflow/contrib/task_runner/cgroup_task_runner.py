@@ -38,7 +38,7 @@ class CgroupTaskRunner(BaseTaskRunner):
     Cgroup must be mounted first otherwise CgroupTaskRunner
     will not be able to work.
 
-    cgroup-bin package must be installed to use cgexec command.
+    cgroup-bin Ubuntu package must be installed to use cgexec command.
 
     Note that this task runner will only work if the Airflow user has root privileges,
     e.g. if the airflow user is called `airflow` then the following entries (or an even
