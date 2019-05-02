@@ -100,7 +100,7 @@ A few commonly used libraries and methods are made available.
 Variable                            Description
 =================================   ==============================================
 ``macros.datetime``                 The standard lib's :class:`datetime.datetime`
-``macros.timedelta``                The standard lib's :class:`datetime.datetime`
+``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
 ``macros.time``                     The standard lib's :class:`datetime.time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
