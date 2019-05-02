@@ -295,7 +295,7 @@
               tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
               tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
               tt += "Ended: " + escapeHtml(ti.end_date) + "<br>";
-              tt += "Duration: " + escapeHtml(ti.duration) + "<br>";
+              tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
               tt += "State: " + escapeHtml(ti.state) + "<br>";
               return tt;
             });

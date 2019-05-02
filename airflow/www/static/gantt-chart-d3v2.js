@@ -36,7 +36,7 @@ d3.gantt = function() {
       s += "<div class='col-md-9'><span style='color: #AAA'> "
       s += d.isoStart + "<br/>";
       s += d.isoEnd + "<br/>";
-      s += d.duration + "<br/>";
+      s += convertSecsToHumanReadable(d.duration) + "<br/>";
       s += "</span></div>";
       s += "</div>";
       return s;
