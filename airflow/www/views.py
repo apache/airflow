@@ -1155,6 +1155,12 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
         dag = dag_model.get_dag()
 
+        if dag is None:
+            dag = dagbag.get_dag(dag_id)
+            if dag is None:
+                flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
+                return redirect(url_for('Airflow.index'))
+
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
