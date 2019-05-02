@@ -158,7 +158,9 @@ celery = [
     'flower>=0.7.3, <1.0',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
 ]
-cgroups = ['cgroupspy>=0.1.4']
+cgroups = [
+    'cgroupspy>=0.1.4',
+]
 cloudant = ['cloudant>=2.0']
 crypto = ['cryptography>=0.9.3']
 dask = [
@@ -282,7 +284,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce)
+             atlas + azure + aws + salesforce + cgroups)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
