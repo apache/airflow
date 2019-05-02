@@ -45,7 +45,8 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None):
+                 life_cycle=None, annotations=None, volumes=None, volume_mounts=None,
+                 tolerations=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -55,6 +56,7 @@ class KubernetesExecutorConfig:
         self.gcp_service_account_key = gcp_service_account_key
         self.node_selectors = node_selectors
         self.affinity = affinity
+        self.life_cycle = life_cycle
         self.annotations = annotations
         self.volumes = volumes
         self.volume_mounts = volume_mounts
@@ -63,13 +65,13 @@ class KubernetesExecutorConfig:
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
-               "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={}, tolerations={})" \
+               "node_selectors={}, affinity={}, life_cycle={}, annotations={}, " \
+               "volumes={}, volume_mounts={}, tolerations={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity, self.annotations, self.volumes, self.volume_mounts,
-                    self.tolerations)
+                    self.affinity, self.life_cycle, self.annotations, self.volumes,
+                    self.volume_mounts, self.tolerations)
 
     @staticmethod
     def from_dict(obj):
@@ -92,6 +94,7 @@ class KubernetesExecutorConfig:
             gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
             node_selectors=namespaced.get('node_selectors', None),
             affinity=namespaced.get('affinity', None),
+            life_cycle=namespaced.get('life_cycle', None),
             annotations=namespaced.get('annotations', {}),
             volumes=namespaced.get('volumes', []),
             volume_mounts=namespaced.get('volume_mounts', []),
@@ -109,6 +112,7 @@ class KubernetesExecutorConfig:
             'gcp_service_account_key': self.gcp_service_account_key,
             'node_selectors': self.node_selectors,
             'affinity': self.affinity,
+            'life_cycle': self.life_cycle,
             'annotations': self.annotations,
             'volumes': self.volumes,
             'volume_mounts': self.volume_mounts,
@@ -246,6 +250,12 @@ class KubeConfig:
             self.kube_affinity = json.loads(affinity_json)
         else:
             self.kube_affinity = None
+
+        life_cycle_json = conf.get(self.kubernetes_section, 'life_cycle')
+        if life_cycle_json:
+            self.kube_life_cycle = json.loads(life_cycle_json)
+        else:
+            self.kube_life_cycle = None
 
         tolerations_json = conf.get(self.kubernetes_section, 'tolerations')
         if tolerations_json:

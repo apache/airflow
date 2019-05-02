@@ -60,6 +60,8 @@ class Pod:
     :type image_pull_secrets: str
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param life_cycle: A dict containing definitions of lifecycle events
+    :type life_cycle: dict
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
@@ -91,6 +93,7 @@ class Pod:
             resources=None,
             annotations=None,
             affinity=None,
+            life_cycle=None,
             hostnetwork=False,
             tolerations=None,
             security_context=None,
@@ -115,6 +118,7 @@ class Pod:
         self.resources = resources or Resources()
         self.annotations = annotations or {}
         self.affinity = affinity or {}
+        self.life_cycle = life_cycle or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
         self.security_context = security_context

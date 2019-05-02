@@ -82,6 +82,10 @@ class KubernetesRequestFactory:
             req['spec']['nodeSelector'][k] = v
 
     @staticmethod
+    def extract_life_cycle(pod, req):
+        req['spec']['containers'][0]['lifecycle'] = pod.life_cycle
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 

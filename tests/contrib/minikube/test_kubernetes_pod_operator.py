@@ -221,6 +221,31 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_life_cycle():
+        life_cycle = {
+            'postStart': {
+                'exec': {
+                    'command': [
+                        '/bin/sh',
+                        '-c',
+                        'echo Hello from the postStart handler > /tmp/postStart'
+                    ]
+                }
+            }
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            life_cycle=life_cycle
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_logging():
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
             k = KubernetesPodOperator(

@@ -110,7 +110,8 @@ class TestPodRequestFactory(unittest.TestCase):
                         'mountPath': '/etc/foo',
                         'name': 'secretvol0',
                         'readOnly': True
-                    }]
+                    }],
+                    'lifecycle': {},
                 }],
                 'restartPolicy': 'Never',
                 'nodeSelector': {},

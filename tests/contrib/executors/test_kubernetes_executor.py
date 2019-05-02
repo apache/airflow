@@ -154,6 +154,18 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         }
     ]
 
+    life_cycle_config = {
+        'postStart': {
+            'exec': {
+                'command': [
+                    '/bin/sh',
+                    '-c',
+                    'echo Hello from the postStart handler > /tmp/postStart'
+                ]
+            }
+        }
+    }
+
     def setUp(self):
         if AirflowKubernetesScheduler is None:
             self.skipTest("kubernetes python package is not installed")
@@ -455,6 +467,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     def test_make_pod_with_empty_executor_config(self):
         self.kube_config.kube_affinity = self.affinity_config
         self.kube_config.kube_tolerations = self.tolerations_config
+        self.kube_config.kube_life_cycle = self.life_cycle_config
 
         worker_config = WorkerConfiguration(self.kube_config)
         kube_executor_config = KubernetesExecutorConfig(annotations=[],
@@ -477,10 +490,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(2, len(pod.tolerations))
         self.assertEqual('prod', pod.tolerations[1]['key'])
 
+        self.assertTrue(pod.life_cycle is not None)
+        self.assertEqual(pod.life_cycle, self.life_cycle_config)
+
     def test_make_pod_with_executor_config(self):
         worker_config = WorkerConfiguration(self.kube_config)
         kube_executor_config = KubernetesExecutorConfig(affinity=self.affinity_config,
                                                         tolerations=self.tolerations_config,
+                                                        life_cycle=self.life_cycle_config,
                                                         annotations=[],
                                                         volumes=[],
                                                         volume_mounts=[]
@@ -500,6 +517,9 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertEqual(2, len(pod.tolerations))
         self.assertEqual('prod', pod.tolerations[1]['key'])
+
+        self.assertTrue(pod.life_cycle is not None)
+        self.assertEqual(pod.life_cycle, self.life_cycle_config)
 
     def test_worker_pvc_dags(self):
         # Tests persistence volume config created when `dags_volume_claim` is set

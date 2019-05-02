@@ -126,6 +126,19 @@ Kubernetes Operator
          }
     ]
 
+    life_cycle = {
+      'postStart': {
+        'exec': {
+          'command': ['/bin/sh', '-c', 'echo Hello from the postStart handler > /usr/share/message']
+        }
+      },
+      'preStop': {
+        'exec': {
+          'command': ['/bin/sh', '-c', 'echo Hello from the preStop handler > /usr/share/message']
+        }
+      }
+    }
+
     k = KubernetesPodOperator(namespace='default',
                               image="ubuntu:16.04",
                               cmds=["bash", "-cx"],
@@ -137,6 +150,7 @@ Kubernetes Operator
                               name="test",
                               task_id="task",
                               affinity=affinity,
+                              life_cycle=life_cycle,
                               is_delete_operator_pod=True,
                               hostnetwork=False,
                               tolerations=tolerations,

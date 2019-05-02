@@ -328,6 +328,7 @@ class WorkerConfiguration(LoggingMixin):
         volume_mounts = [value for value in volume_mounts_dict.values()] + kube_executor_config.volume_mounts
 
         affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
+        life_cycle = kube_executor_config.life_cycle or self.kube_config.kube_life_cycle
         tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
 
         return Pod(
@@ -356,6 +357,7 @@ class WorkerConfiguration(LoggingMixin):
             node_selectors=(kube_executor_config.node_selectors or
                             self.kube_config.kube_node_selectors),
             affinity=affinity,
+            life_cycle=life_cycle,
             tolerations=tolerations,
             security_context=self._get_security_context(),
             configmaps=self._get_configmaps()

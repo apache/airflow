@@ -69,6 +69,8 @@ class KubernetesPodOperator(BaseOperator):
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param life_cycle: A dict containing definitions of lifecycle events
+    :type life_cycle: dict
     :param node_selectors: A dict containing a group of scheduling rules
     :type node_selectors: dict
     :param config_file: The path to the Kubernetes config file.
@@ -121,6 +123,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.annotations = self.annotations
             pod.resources = self.resources
             pod.affinity = self.affinity
+            pod.life_cycle = self.life_cycle
             pod.node_selectors = self.node_selectors
             pod.hostnetwork = self.hostnetwork
             pod.tolerations = self.tolerations
@@ -167,6 +170,7 @@ class KubernetesPodOperator(BaseOperator):
                  annotations=None,
                  resources=None,
                  affinity=None,
+                 life_cycle=None,
                  config_file=None,
                  do_xcom_push=False,
                  node_selectors=None,
@@ -198,6 +202,7 @@ class KubernetesPodOperator(BaseOperator):
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
+        self.life_cycle = life_cycle or {}
         self.do_xcom_push = do_xcom_push
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")

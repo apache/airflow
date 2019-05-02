@@ -103,6 +103,20 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         KubernetesRequestFactory.extract_affinity(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
 
+    def test_extract_life_cycle(self):
+        # Test when life_cycle is not empty
+        life_cycle = {'postStart': {'exec': {
+            'command': [
+                '/bin/sh',
+                '-c',
+                'echo Hello from the postStart handler > /tmp/postStart'
+            ]
+        }}}
+        pod = Pod('v3.14', {}, [], life_cycle=life_cycle)
+        self.expected['spec']['containers'][0]['lifecycle'] = life_cycle
+        KubernetesRequestFactory.extract_life_cycle(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
     def test_extract_node_selector(self):
         # Test when affinity is not empty
         node_selectors = {'disktype': 'ssd', 'accelerator': 'nvidia-tesla-p100'}
