@@ -24,19 +24,19 @@ from airflow.contrib.task_runner.cgroup_task_runner import CgroupTaskRunner
 
 class TestCgroupTaskRunner(unittest.TestCase):
 
+    def setUp(self):
+        self.local_task_job = mock.Mock()
+        self.local_task_job.task_instance = mock.MagicMock()
+        self.local_task_job.task_instance.run_as_user = None
+        self.local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
+
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.__init__")
     def test_init(self, mock_super_init):
         """
         This test ensures that initiating CgroupTaskRunner object
         calls init method of BaseTaskRunner
         """
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
-
-        CgroupTaskRunner(local_task_job)
-
+        CgroupTaskRunner(self.local_task_job)
         self.assertTrue(mock_super_init.called)
 
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.on_finish")
@@ -45,14 +45,8 @@ class TestCgroupTaskRunner(unittest.TestCase):
         This test ensures that CgroupTaskRunner.on_finish()
         calls on_finish method of BaseTaskRunner to remove the temp cfg file
         """
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
-
-        runner = CgroupTaskRunner(local_task_job)
+        runner = CgroupTaskRunner(self.local_task_job)
         runner.on_finish()
-
         self.assertTrue(mock_super_on_finish.called)
 
 
