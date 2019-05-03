@@ -32,7 +32,7 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :type bucket: str
-    
+
     :param keys: The key(s) to delete from S3 bucket. (templated)
 
         When ``keys`` is a string, it's supposed to be the key name of
@@ -45,7 +45,7 @@ class S3DeleteObjectsOperator(BaseOperator):
     :type keys: str or list
 
     :param prefix: prefix of source object keys. (templated)
-        Either keys or prefix must be specified, 
+        Either keys or prefix must be specified,
         To delete all files in a bucket use empty prefix.
     :type source_bucket_prefix: str
 
@@ -99,9 +99,9 @@ class S3DeleteObjectsOperator(BaseOperator):
             )
 
             self.keys = s3_hook.list_keys(
-                    bucket_name=self.bucket,
-                    prefix=self.prefix,
-                    delimiter=self.delimiter)
+                bucket_name=self.bucket,
+                prefix=self.prefix,
+                delimiter=self.delimiter)
 
         if self.keys is None:
             self.log.info(
