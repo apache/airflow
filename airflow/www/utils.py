@@ -216,7 +216,7 @@ def open_maybe_zipped(f, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
-        return io.open(f, mode=mode)
+        return io.open(f, mode=mode, encoding="utf-8")
 
 
 def make_cache_key(*args, **kwargs):
