@@ -23,6 +23,8 @@ python:
 env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
+    - CASS_DRIVER_BUILD_CONCURRENCY=8
+    - CASS_DRIVER_NO_CYTHON=1
   matrix:
     - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
