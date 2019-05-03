@@ -284,7 +284,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce)
+             atlas + azure + aws + salesforce + cgroups)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
