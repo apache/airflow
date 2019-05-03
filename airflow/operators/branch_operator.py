@@ -19,7 +19,7 @@
 
 from airflow.models import BaseOperator, SkipMixin
 
-from typing import Union, Iterable, Dict, Set
+from typing import Union, Iterable, Dict
 
 
 class BranchOperator(BaseOperator, SkipMixin):
@@ -48,26 +48,4 @@ class BranchOperator(BaseOperator, SkipMixin):
         raise NotImplementedError
 
     def execute(self, context: Dict):
-        branch_task_ids = self.choose_branch(context)
-        self.log.info("Following branch %s", branch_task_ids)
-
-        if isinstance(branch_task_ids, str):
-            branch_task_ids = [branch_task_ids]
-
-        downstream_tasks = context['task'].downstream_list
-
-        if downstream_tasks:
-            # Also check downstream tasks of the branch task. In case the task to skip
-            # is also a downstream task of the branch task, we exclude it from skipping.
-            branch_downstream_task_ids = set()  # type: Set[str]
-            for b in branch_task_ids:
-                branch_downstream_task_ids.update(context["dag"].
-                                                  get_task(b).
-                                                  get_flat_relative_ids(upstream=False))
-
-            skip_tasks = [t for t in downstream_tasks
-                          if t.task_id not in branch_task_ids and
-                          t.task_id not in branch_downstream_task_ids]
-
-            self.log.info("Skipping tasks %s", [t.task_id for t in skip_tasks])
-            self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
+        self.skip_all_except(context['ti'], self.choose_branch(context))
