@@ -413,7 +413,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         _check_zone_operation_status.assert_called_once_with(
-            {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE)
+            {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE, mock.ANY)
         _execute_set_machine_type.assert_called_once_with(
             GCE_ZONE, RESOURCE_ID, SET_MACHINE_TYPE_BODY, GCP_PROJECT_ID)
         # Checking the full message was sometimes failing due to different order

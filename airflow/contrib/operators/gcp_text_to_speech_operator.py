@@ -99,7 +99,7 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super(GcpTextToSpeechSynthesizeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         for parameter in [
@@ -125,5 +125,5 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
             temp_file.write(result.audio_content)
             cloud_storage_hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.gcp_conn_id)
             cloud_storage_hook.upload(
-                bucket=self.target_bucket_name, object=self.target_filename, filename=temp_file.name
+                bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name
             )

@@ -48,7 +48,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             job_flow_overrides=None,
             region_name=None,
             *args, **kwargs):
-        super(EmrCreateJobFlowOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
         if job_flow_overrides is None:

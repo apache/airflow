@@ -167,7 +167,7 @@ class TestHiveCliHook(unittest.TestCase):
         assert mock_load_file.call_count == 1
         kwargs = mock_load_file.call_args[1]
         self.assertEqual(kwargs["delimiter"], delimiter)
-        self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
+        self.assertEqual(kwargs["field_dict"], {"c": "STRING"})
         self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
 

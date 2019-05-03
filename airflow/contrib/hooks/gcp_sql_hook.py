@@ -33,7 +33,7 @@ import os.path
 
 from googleapiclient.errors import HttpError
 from subprocess import Popen, PIPE
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 
 import requests
 from googleapiclient.discovery import build
@@ -46,12 +46,10 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils.db import provide_session
 
 UNIX_PATH_MAX = 108
-
-NUM_RETRIES = 5
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -78,8 +76,9 @@ class CloudSqlHook(GoogleCloudBaseHook):
                  api_version,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(CloudSqlHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
@@ -110,7 +109,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         return self.get_conn().instances().get(
             project=project_id,
             instance=instance
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_instance(self, body, project_id=None):
@@ -128,7 +127,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         response = self.get_conn().instances().insert(
             project=project_id,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -155,7 +154,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -175,7 +174,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         response = self.get_conn().instances().delete(
             project=project_id,
             instance=instance,
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -200,7 +199,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             database=database
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_database(self, instance, body, project_id=None):
@@ -221,7 +220,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -251,7 +250,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance,
             database=database,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -274,7 +273,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             database=database
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -301,7 +300,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 project=project_id,
                 instance=instance,
                 body=body
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id,
                                                  operation_name=operation_name)
@@ -332,7 +331,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 project=project_id,
                 instance=instance,
                 body=body
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id,
                                                  operation_name=operation_name)
@@ -357,7 +356,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             operation_response = service.operations().get(
                 project=project_id,
                 operation=operation_name,
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             if operation_response.get("status") == CloudSqlOperationStatus.DONE:
                 error = operation_response.get("error")
                 if error:
@@ -425,7 +424,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             that if the binary is not present in that path it will also be downloaded.
         :type sql_proxy_binary_path: str
         """
-        super(CloudSqlProxyRunner, self).__init__()
+        super().__init__()
         self.path_prefix = path_prefix
         if not self.path_prefix:
             raise AirflowException("The path_prefix must not be empty!")
@@ -717,7 +716,7 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
                  default_gcp_project_id=None):
-        super(CloudSqlDatabaseHook, self).__init__(source=None)
+        super().__init__(source=None)
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson

@@ -21,7 +21,6 @@ from builtins import str
 from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
-import sys
 from typing import Optional
 
 from sqlalchemy import create_engine
@@ -89,8 +88,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
         import pandas.io.sql as psql
 
         with closing(self.get_conn()) as conn:
@@ -106,9 +103,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -127,9 +121,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -162,8 +153,6 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for s in sql:
-                    if sys.version_info[0] < 3:
-                        s = s.encode('utf-8')
                     if parameters is not None:
                         self.log.info("{} with parameters {}".format(s, parameters))
                         cur.execute(s, parameters)

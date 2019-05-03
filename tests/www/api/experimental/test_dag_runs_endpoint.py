@@ -37,7 +37,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         session.close()
 
     def setUp(self):
-        super(TestDagRunsEndpoint, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         app, _ = application.create_app(testing=True)
         self.app = app.test_client()
@@ -47,7 +47,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         session.query(DagRun).delete()
         session.commit()
         session.close()
-        super(TestDagRunsEndpoint, self).tearDown()
+        super().tearDown()
 
     def test_get_dag_runs_success(self):
         url_template = '/api/experimental/dags/{}/dag_runs'

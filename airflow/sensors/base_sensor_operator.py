@@ -23,9 +23,7 @@ from datetime import timedelta
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
-from airflow.models import BaseOperator
-from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskreschedule import TaskReschedule
+from airflow.models import BaseOperator, SkipMixin, TaskReschedule
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -69,7 +67,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                  mode='poke',
                  *args,
                  **kwargs):
-        super(BaseSensorOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout

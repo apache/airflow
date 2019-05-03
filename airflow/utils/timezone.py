@@ -111,7 +111,12 @@ def make_aware(value, timezone=None):
     if is_localized(value):
         raise ValueError(
             "make_aware expects a naive datetime, got %s" % value)
-
+    if hasattr(value, 'fold'):
+        # In case of python 3.6 we want to do the same that pendulum does for python3.5
+        # i.e in case we move clock back we want to schedule the run at the time of the second
+        # instance of the same clock time rather than the first one.
+        # Fold parameter has no impact in other cases so we can safely set it to 1 here
+        value = value.replace(fold=1)
     if hasattr(timezone, 'localize'):
         # This method is available for pytz time zones.
         return timezone.localize(value)

@@ -38,7 +38,7 @@ from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from airflow import configuration
 from airflow.models import BaseOperator
@@ -384,7 +384,7 @@ class UtcAwareFilterMixin(object):
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super(UtcAwareFilterMixin, self).apply(query, value)
+        return super().apply(query, value)
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
@@ -422,7 +422,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
     def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+        super().__init__(obj)
 
         def clean_column_names():
             if self.list_properties:

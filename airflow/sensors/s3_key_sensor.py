@@ -66,7 +66,7 @@ class S3KeySensor(BaseSensorOperator):
                  verify=None,
                  *args,
                  **kwargs):
-        super(S3KeySensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Parse
         if bucket_name is None:
             parsed_url = urlparse(bucket_key)

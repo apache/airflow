@@ -72,7 +72,7 @@ class HiveToMySqlTransfer(BaseOperator):
                  bulk_load=False,
                  hive_conf=None,
                  *args, **kwargs):
-        super(HiveToMySqlTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id

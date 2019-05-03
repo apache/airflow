@@ -64,7 +64,7 @@ class HttpSensor(BaseSensorOperator):
                  headers=None,
                  response_check=None,
                  extra_options=None, *args, **kwargs):
-        super(HttpSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.request_params = request_params or {}

@@ -18,6 +18,8 @@
 # under the License.
 import os
 
+from cached_property import cached_property
+
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -30,14 +32,15 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
     def __init__(self, base_log_folder, s3_log_folder, filename_template):
-        super(S3TaskHandler, self).__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
 
-    def _build_hook(self):
+    @cached_property
+    def hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks.S3_hook import S3Hook
@@ -49,14 +52,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 'the S3 connection exists.', remote_conn_id
             )
 
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
-
     def set_context(self, ti):
-        super(S3TaskHandler, self).set_context(ti)
+        super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
@@ -73,7 +70,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        super(S3TaskHandler, self).close()
+        super().close()
 
         if not self.upload_on_close:
             return
@@ -113,7 +110,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
-            return super(S3TaskHandler, self)._read(ti, try_number)
+            return super()._read(ti, try_number)
 
     def s3_log_exists(self, remote_log_location):
         """

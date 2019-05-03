@@ -47,9 +47,9 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_entities_template_fields]
+    # [START natural_language_analyze_entities_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entities_template_fields]
+    # [END natural_language_analyze_entities_template_fields]
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitiesOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -108,9 +108,9 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_entity_sentiment_template_fields]
+    # [START natural_language_analyze_entity_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entity_sentiment_template_fields]
+    # [END natural_language_analyze_entity_sentiment_template_fields]
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitySentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -172,9 +172,9 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_analyze_sentiment_template_fields]
+    # [START natural_language_analyze_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_sentiment_template_fields]
+    # [END natural_language_analyze_sentiment_template_fields]
 
     def __init__(
         self,
@@ -187,7 +187,7 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeSentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -229,9 +229,9 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    # [START natural_langauge_classify_text_template_fields]
+    # [START natural_language_classify_text_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_classify_text_template_fields]
+    # [END natural_language_classify_text_template_fields]
 
     def __init__(
         self,
@@ -243,7 +243,7 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageClassifyTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.retry = retry
         self.timeout = timeout

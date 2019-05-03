@@ -45,7 +45,7 @@ class OpsgenieAlertHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(OpsgenieAlertHook, self).__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)
+        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)
 
     def _get_api_key(self):
         """

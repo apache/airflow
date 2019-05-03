@@ -26,12 +26,7 @@ from airflow.configuration import mkdir_p
 from airflow.exceptions import AirflowConfigException
 from tests.compat import mock, patch
 
-
-if six.PY2:
-    # Need `assertWarns` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
+import unittest
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {

@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from functools import wraps
 
@@ -77,7 +72,7 @@ def provide_session(func):
 
 @provide_session
 def merge_conn(conn, session=None):
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -85,7 +80,7 @@ def merge_conn(conn, session=None):
 
 def initdb():
     from airflow import models
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     upgradedb()
 
     merge_conn(

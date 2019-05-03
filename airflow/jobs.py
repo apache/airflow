@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import getpass
 import logging
@@ -30,23 +25,22 @@ import signal
 import sys
 import threading
 import time
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from time import sleep
-from typing import Any
 
 import six
 from past.builtins import basestring
 from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
+from typing import Any
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
-from airflow.models import DAG, DagRun, errors
-from airflow.models.dagpickle import DagPickle
-from airflow.models.slamiss import SlaMiss
+from airflow.exceptions import (AirflowException, DagConcurrencyLimitReached,
+                                NoAvailablePoolSlot, PoolNotFound)
+from airflow.models import DAG, DagPickle, DagRun, SlaMiss, errors
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -113,7 +107,7 @@ class BaseJob(Base, LoggingMixin):
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        super(BaseJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def is_alive(self):
         return (
@@ -323,7 +317,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         self._file_path = file_path
         # Queue that's used to pass results from the child process.
-        self._result_queue = multiprocessing.Queue()
+        self._manager = multiprocessing.Manager()
+        self._result_queue = self._manager.Queue()
         # The process that was launched to process the given .
         self._process = None
         self._dag_id_white_list = dag_id_white_list
@@ -355,7 +350,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         Launch a process to process the given file.
 
         :param result_queue: the queue to use for passing back the result
-        :type result_queue: multiprocessing.Queue
+        :type result_queue: Queue
         :param file_path: the file to process
         :type file_path: unicode
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -452,6 +447,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         if sigkill and self._process.is_alive():
             self.log.warning("Killing PID %s", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
+        self._manager.shutdown()
 
     @property
     def pid(self):
@@ -491,7 +487,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
 
         # In case result queue is corrupted.
         if self._result_queue and not self._result_queue.empty():
-            self._result = self._result_queue.get_nowait()
+            self._result = self._result_queue.get()
             self._done = True
             self.log.debug("Waiting for %s", self._process)
             self._process.join()
@@ -502,7 +498,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             self._done = True
             # Get the object from the queue or else join() can hang.
             if not self._result_queue.empty():
-                self._result = self._result_queue.get_nowait()
+                self._result = self._result_queue.get()
             self.log.debug("Waiting for %s", self._process)
             self._process.join()
             return True
@@ -562,7 +558,7 @@ class SchedulerJob(BaseJob):
             definitions, or a specific path to a file
         :type subdir: unicode
         :param num_runs: The number of times to try to schedule each DAG file.
-            -1 for unlimited within the run_duration.
+            -1 for unlimited times.
         :type num_runs: int
         :param processor_poll_interval: The number of seconds to wait between
             polls of running processors
@@ -583,7 +579,7 @@ class SchedulerJob(BaseJob):
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
-        super(SchedulerJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
@@ -665,8 +661,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)  # noqa: E712
-            .filter(SlaMiss.dag_id == dag.dag_id)
+            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa: E712
             .all()
         )
 
@@ -675,10 +670,11 @@ class SchedulerJob(BaseJob):
             qry = (
                 session
                 .query(TI)
-                .filter(TI.state != State.SUCCESS)
-                .filter(TI.execution_date.in_(sla_dates))
-                .filter(TI.dag_id == dag.dag_id)
-                .all()
+                .filter(
+                    TI.state != State.SUCCESS,
+                    TI.execution_date.in_(sla_dates),
+                    TI.dag_id == dag.dag_id
+                ).all()
             )
             blocking_tis = []
             for ti in qry:
@@ -723,7 +719,7 @@ class SchedulerJob(BaseJob):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
-            if emails and len(slas):
+            if emails:
                 try:
                     send_email(
                         emails,
@@ -900,7 +896,7 @@ class SchedulerJob(BaseJob):
                 return next_run
 
     @provide_session
-    def _process_task_instances(self, dag, queue, session=None):
+    def _process_task_instances(self, dag, task_instances_list, session=None):
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
@@ -921,8 +917,8 @@ class SchedulerJob(BaseJob):
                 continue
 
             if len(active_dag_runs) >= dag.max_active_runs:
-                self.log.info("Active dag runs > max_active_run.")
-                continue
+                self.log.info("Number of active dag runs reached max_active_run.")
+                break
 
             # skip backfill dagruns for now as long as they are not really scheduled
             if run.is_backfill:
@@ -957,7 +953,7 @@ class SchedulerJob(BaseJob):
                         dep_context=DepContext(flag_upstream_failed=True),
                         session=session):
                     self.log.debug('Queuing task: %s', ti)
-                    queue.append(ti.key)
+                    task_instances_list.append(ti.key)
 
     @provide_session
     def _change_state_for_tis_without_dagrun(self,
@@ -1018,13 +1014,14 @@ class SchedulerJob(BaseJob):
             )
 
     @provide_session
-    def __get_task_concurrency_map(self, states, session=None):
+    def __get_concurrency_maps(self, states, session=None):
         """
-        Returns a map from tasks to number in the states list given.
+        Get the concurrency maps.
 
         :param states: List of states to query for
         :type states: list[airflow.utils.state.State]
-        :return: A map from (dag_id, task_id) to count of tasks in states
+        :return: A map from (dag_id, task_id) to # of task instances and
+         a map from (dag_id, task_id) to # of task instances in the given state list
         :rtype: dict[tuple[str, str], int]
 
         """
@@ -1035,11 +1032,13 @@ class SchedulerJob(BaseJob):
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.dag_id)
         ).all()
+        dag_map = defaultdict(int)
         task_map = defaultdict(int)
         for result in ti_concurrency_query:
             task_id, dag_id, count = result
+            dag_map[dag_id] += count
             task_map[(dag_id, task_id)] = count
-        return task_map
+        return dag_map, task_map
 
     @provide_session
     def _find_executable_task_instances(self, simple_dag_bag, states, session=None):
@@ -1058,7 +1057,7 @@ class SchedulerJob(BaseJob):
         """
         executable_tis = []
 
-        # Get all the queued task instances from associated with scheduled
+        # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
         TI = models.TaskInstance
@@ -1078,6 +1077,8 @@ class SchedulerJob(BaseJob):
             .filter(or_(DM.dag_id == None,  # noqa: E711
                     not_(DM.is_paused)))
         )
+
+        # Additional filters on task instance state
         if None in states:
             ti_query = ti_query.filter(
                 or_(TI.state == None, TI.state.in_(states))  # noqa: E711
@@ -1107,7 +1108,8 @@ class SchedulerJob(BaseJob):
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
         states_to_count_as_running = [State.RUNNING, State.QUEUED]
-        task_concurrency_map = self.__get_task_concurrency_map(
+        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
+        dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
             states=states_to_count_as_running, session=session)
 
         # Go through each pool, and queue up a task for execution if there are
@@ -1117,9 +1119,9 @@ class SchedulerJob(BaseJob):
             if not pool:
                 # Arbitrary:
                 # If queued outside of a pool, trigger no more than
-                # non_pooled_task_slot_count per run
-                open_slots = conf.getint('core', 'non_pooled_task_slot_count')
-                pool_name = 'not_pooled'
+                # non_pooled_task_slot_count
+                open_slots = models.Pool.default_pool_open_slots()
+                pool_name = models.Pool.default_pool_name
             else:
                 if pool not in pools:
                     self.log.warning(
@@ -1130,18 +1132,15 @@ class SchedulerJob(BaseJob):
                 else:
                     open_slots = pools[pool].open_slots(session=session)
 
-            num_queued = len(task_instances)
+            num_ready = len(task_instances)
             self.log.info(
                 "Figuring out tasks to run in Pool(name=%s) with %s open slots "
-                "and %s task instances in queue",
-                pool, open_slots, num_queued
+                "and %s task instances ready to be queued",
+                pool, open_slots, num_ready
             )
 
             priority_sorted_task_instances = sorted(
                 task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
-
-            # DAG IDs with running tasks that equal the concurrency limit of the dag
-            dag_id_to_possibly_running_task_count = {}
 
             # Number of tasks that cannot be scheduled because of no open slot in pool
             num_starving_tasks = 0
@@ -1160,42 +1159,32 @@ class SchedulerJob(BaseJob):
                 dag_id = task_instance.dag_id
                 simple_dag = simple_dag_bag.get_dag(dag_id)
 
-                if dag_id not in dag_id_to_possibly_running_task_count:
-                    dag_id_to_possibly_running_task_count[dag_id] = \
-                        DAG.get_num_task_instances(
-                            dag_id,
-                            simple_dag_bag.get_dag(dag_id).task_ids,
-                            states=states_to_count_as_running,
-                            session=session)
-
-                current_task_concurrency = dag_id_to_possibly_running_task_count[dag_id]
-                task_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
+                current_dag_concurrency = dag_concurrency_map[dag_id]
+                dag_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
-                    dag_id, current_task_concurrency, task_concurrency_limit
+                    dag_id, current_dag_concurrency, dag_concurrency_limit
                 )
-                if current_task_concurrency >= task_concurrency_limit:
+                if current_dag_concurrency >= dag_concurrency_limit:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
                         "from DAG %s is >= to the DAG's task concurrency limit of %s",
-                        task_instance, dag_id, task_concurrency_limit
+                        task_instance, dag_id, dag_concurrency_limit
                     )
                     continue
 
-                task_concurrency = simple_dag.get_task_special_arg(
+                task_concurrency_limit = simple_dag.get_task_special_arg(
                     task_instance.task_id,
                     'task_concurrency')
-                if task_concurrency is not None:
-                    num_running = task_concurrency_map[
+                if task_concurrency_limit is not None:
+                    current_task_concurrency = task_concurrency_map[
                         (task_instance.dag_id, task_instance.task_id)
                     ]
 
-                    if num_running >= task_concurrency:
+                    if current_task_concurrency >= task_concurrency_limit:
                         self.log.info("Not executing %s since the task concurrency for"
                                       " this task has been reached.", task_instance)
                         continue
-                    else:
-                        task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
                 if self.executor.has_task(task_instance):
                     self.log.debug(
@@ -1205,7 +1194,8 @@ class SchedulerJob(BaseJob):
                     continue
                 executable_tis.append(task_instance)
                 open_slots -= 1
-                dag_id_to_possibly_running_task_count[dag_id] += 1
+                dag_concurrency_map[dag_id] += 1
+                task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
             Stats.gauge('pool.starving_tasks.{pool_name}'.format(pool_name=pool_name),
                         num_starving_tasks)
@@ -1422,24 +1412,30 @@ class SchedulerJob(BaseJob):
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
         :type dags: airflow.models.DAG
-        :param tis_out: A queue to add generated TaskInstance objects
-        :type tis_out: multiprocessing.Queue[TaskInstance]
+        :param tis_out: A list to add generated TaskInstance objects
+        :type tis_out: list[TaskInstance]
         :rtype: None
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
-                continue
-
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
+                continue
+
+            if dag.is_paused:
+                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
 
             dag_run = self.create_dag_run(dag)
             if dag_run:
+                expected_start_date = dag.following_schedule(dag_run.execution_date)
+                if expected_start_date:
+                    schedule_delay = dag_run.start_date - expected_start_date
+                    Stats.timing(
+                        'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                        schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
@@ -1745,7 +1741,7 @@ class SchedulerJob(BaseJob):
 
         # Not using multiprocessing.Queue() since it's no longer a separate
         # process and due to some unusual behavior. (empty() incorrectly
-        # returns true?)
+        # returns true as described in https://bugs.python.org/issue23582 )
         ti_keys_to_schedule = []
 
         self._process_dags(dagbag, dags, ti_keys_to_schedule)
@@ -1930,7 +1926,7 @@ class BackfillJob(BaseJob):
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
         self.run_backwards = run_backwards
-        super(BackfillJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
         """
@@ -2319,8 +2315,19 @@ class BackfillJob(BaseJob):
                                     "Not scheduling since there are no "
                                     "non_pooled_backfill_task_slot_count.")
                             non_pool_slots -= 1
+
+                        num_running_tasks = DAG.get_num_task_instances(
+                            self.dag_id,
+                            states=(State.QUEUED, State.RUNNING))
+
+                        if num_running_tasks >= self.dag.concurrency:
+                            raise DagConcurrencyLimitReached(
+                                "Not scheduling since concurrency limit "
+                                "is reached."
+                            )
+
                         _per_task_process(task, key, ti)
-            except NoAvailablePoolSlot as e:
+            except (NoAvailablePoolSlot, DagConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
             # execute the tasks in the queue
@@ -2562,7 +2569,7 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
-        super(LocalTaskJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _execute(self):
         self.task_runner = get_task_runner(self)

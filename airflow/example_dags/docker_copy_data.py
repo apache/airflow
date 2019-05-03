@@ -26,7 +26,6 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-# from __future__ import print_function
 #
 # from airflow import DAG
 # import airflow

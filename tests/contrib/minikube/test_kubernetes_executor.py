@@ -21,8 +21,10 @@ import unittest
 from subprocess import check_call, check_output
 import requests.exceptions
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import time
-import six
+
 import re
 
 try:
@@ -41,9 +43,7 @@ def get_minikube_host():
     if "MINIKUBE_IP" in os.environ:
         host_ip = os.environ['MINIKUBE_IP']
     else:
-        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
-        if six.PY3:
-            host_ip = host_ip.decode('UTF-8')
+        host_ip = check_output(['/usr/local/bin/minikube', 'ip']).decode('UTF-8')
 
     host = '{}:30809'.format(host_ip.strip())
     return host
@@ -58,6 +58,28 @@ class KubernetesExecutorTest(unittest.TestCase):
         if names:
             check_call(['kubectl', 'delete', 'pod', names[0]])
 
+    def _get_session_with_retries(self):
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1)
+        session.mount('http://', HTTPAdapter(max_retries=retries))
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        return session
+
+    def _ensure_airflow_webserver_is_healthy(self):
+        response = self.session.get(
+            "http://{host}/health".format(host=get_minikube_host()),
+            timeout=1,
+        )
+
+        self.assertEquals(response.status_code, 200)
+
+    def setUp(self):
+        self.session = self._get_session_with_retries()
+        self._ensure_airflow_webserver_is_healthy()
+
+    def tearDown(self):
+        self.session.close()
+
     def monitor_task(self, host, execution_date, dag_id, task_id, expected_final_state,
                      timeout):
         tries = 0
@@ -69,7 +91,7 @@ class KubernetesExecutorTest(unittest.TestCase):
 
             # Trigger a new dagrun
             try:
-                result = requests.get(
+                result = self.session.get(
                     'http://{host}/api/experimental/dags/{dag_id}/'
                     'dag_runs/{execution_date}/tasks/{task_id}'
                     .format(host=host,
@@ -104,7 +126,7 @@ class KubernetesExecutorTest(unittest.TestCase):
             time.sleep(5)
 
             # Trigger a new dagrun
-            result = requests.get(
+            result = self.session.get(
                 'http://{host}/api/experimental/dags/{dag_id}/'
                 'dag_runs/{execution_date}'
                 .format(host=host,
@@ -129,7 +151,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        result = requests.get(
+        result = self.session.get(
             'http://{host}/api/experimental/'
             'dags/{dag_id}/paused/false'.format(host=host, dag_id=dag_id)
         )
@@ -142,7 +164,7 @@ class KubernetesExecutorTest(unittest.TestCase):
                          .format(result=result_json))
 
         # Trigger a new dagrun
-        result = requests.post(
+        result = self.session.post(
             'http://{host}/api/experimental/'
             'dags/{dag_id}/dag_runs'.format(host=host, dag_id=dag_id),
             json={}
@@ -157,7 +179,7 @@ class KubernetesExecutorTest(unittest.TestCase):
 
         time.sleep(1)
 
-        result = requests.get(
+        result = self.session.get(
             'http://{}/api/experimental/latest_runs'.format(host)
         )
         self.assertEqual(result.status_code, 200, "Could not get the latest DAG-run:"

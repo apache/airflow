@@ -41,7 +41,7 @@ class RedisPubSubSensor(BaseSensorOperator):
         :type redis_conn_id: str
         """
 
-        super(RedisPubSubSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()

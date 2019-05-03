@@ -43,7 +43,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
     @elasticmock
     def setUp(self):
-        super(TestElasticsearchTaskHandler, self).setUp()
+        super().setUp()
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
         self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'

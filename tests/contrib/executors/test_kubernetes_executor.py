@@ -175,6 +175,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_in_image = False
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
+        self.kube_config.kube_labels = {'dag_id': 'original_dag_id', 'my_label': 'label_id'}
 
     def test_worker_configuration_no_subpaths(self):
         worker_config = WorkerConfiguration(self.kube_config)
@@ -211,6 +212,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     return '/usr/local/airflow/dags'
                 if(args[1] == 'delete_worker_pods'):
                     return True
+                if(args[1] == 'kube_client_request_args'):
+                    return '{"_request_timeout" : [60,360] }'
                 return '1'
             return None
 
@@ -626,6 +629,13 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         worker_config = WorkerConfiguration(self.kube_config)
         configmaps = worker_config._get_configmaps()
         self.assertListEqual(['configmap_a', 'configmap_b'], configmaps)
+
+    def test_get_labels(self):
+        worker_config = WorkerConfiguration(self.kube_config)
+        labels = worker_config._get_labels({
+            'dag_id': 'override_dag_id',
+        })
+        self.assertEqual({'my_label': 'label_id', 'dag_id': 'override_dag_id'}, labels)
 
 
 class TestKubernetesExecutor(unittest.TestCase):

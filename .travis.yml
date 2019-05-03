@@ -24,13 +24,9 @@ env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=py27-backend_mysql-env_docker
-    - TOX_ENV=py27-backend_sqlite-env_docker
-    - TOX_ENV=py27-backend_postgres-env_docker
     - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
 
 stages:
@@ -51,11 +47,14 @@ jobs:
       stage: pre-test
       install: skip
       script: scripts/ci/6-check-license.sh
+    - name: Lint Dockerfile
+      stage: pre-test
+      install: skip
+      script: scripts/ci/ci_lint_dockerfile.sh
     - name: Check docs
       stage: pre-test
       install: pip install -e .[doc]
       script: docs/build.sh
-
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -67,7 +66,7 @@ before_install:
   - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
 install:
   - pip install --upgrade pip
-  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet --parallel
+  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet
 script:
   - if [ -z "$KUBERNETES_VERSION" ]; then
       docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;

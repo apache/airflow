@@ -31,6 +31,7 @@ except AttributeError:
 from copy import copy
 from functools import wraps
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 
 
@@ -45,7 +46,6 @@ def apply_defaults(func):
     specific information about the missing arguments.
     """
 
-    import airflow.models
     # Cache inspect.signature for the wrapper closure to avoid calling it
     # at every decorated invocation. This is separate sig_cache created
     # per decoration, i.e. each function decorated using apply_defaults will
@@ -65,7 +65,7 @@ def apply_defaults(func):
         dag_args = {}
         dag_params = {}
 
-        dag = kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG
+        dag = kwargs.get('dag', None) or settings.CONTEXT_MANAGER_DAG
         if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
@@ -103,19 +103,3 @@ if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # flake8: noqa: F811
     # Monkey patch hook to get good function headers while building docs
     apply_defaults = lambda x: x
-
-
-class cached_property:
-    """
-    A decorator creating a property, the value of which is calculated only once and cached for later use.
-    """
-    def __init__(self, func):
-        self.func = func
-        self.__doc__ = getattr(func, '__doc__')
-
-    def __get__(self, instance, cls=None):
-        if instance is None:
-            return self
-        result = self.func(instance)
-        instance.__dict__[self.func.__name__] = result
-        return result

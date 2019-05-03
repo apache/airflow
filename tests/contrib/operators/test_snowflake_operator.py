@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import unittest
 
 from airflow import DAG, configuration
@@ -39,7 +37,7 @@ LONG_MOCK_PATH += 'SnowflakeOperator.get_hook'
 class TestSnowflakeOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestSnowflakeOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)

@@ -39,6 +39,40 @@ export function escapeHtml(text) {
 
 window.escapeHtml = escapeHtml;
 
+export function convertSecsToHumanReadable(seconds) {
+   var oriSeconds = seconds
+   var floatingPart = oriSeconds- Math.floor(oriSeconds)
+
+   seconds = Math.floor(seconds)
+
+   var secondsPerHour = 60 * 60;
+   var secondsPerMinute = 60;
+
+   var hours = Math.floor(seconds / secondsPerHour);
+   seconds = seconds - hours * secondsPerHour;
+
+   var minutes = Math.floor(seconds / secondsPerMinute);
+   seconds = seconds - minutes * secondsPerMinute;
+
+   var readableFormat = ''
+   if (hours > 0) {
+     readableFormat += hours + "Hours ";
+   }
+   if (minutes > 0) {
+     readableFormat += minutes + "Min ";
+   }
+   if (seconds + floatingPart > 0) {
+     if (Math.floor(oriSeconds) === oriSeconds) {
+       readableFormat += seconds + "Sec";
+     } else {
+       seconds += floatingPart
+       readableFormat += seconds.toFixed(3) + "Sec";
+     }
+   }
+   return readableFormat
+}
+window.convertSecsToHumanReadable = convertSecsToHumanReadable;
+
 function postAsForm(url, parameters) {
   var form = $("<form></form>");
 

@@ -42,7 +42,7 @@ class PodStatus(object):
 class PodLauncher(LoggingMixin):
     def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
                  extract_xcom=False):
-        super(PodLauncher, self).__init__()
+        super().__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster,
                                                       cluster_context=cluster_context)
         self._watch = watch.Watch()
@@ -50,11 +50,11 @@ class PodLauncher(LoggingMixin):
         self.kube_req_factory = pod_factory.ExtractXcomPodRequestFactory(
         ) if extract_xcom else pod_factory.SimplePodRequestFactory()
 
-    def run_pod_async(self, pod):
+    def run_pod_async(self, pod, **kwargs):
         req = self.kube_req_factory.create(pod)
         self.log.debug('Pod Creation Request: \n%s', json.dumps(req, indent=2))
         try:
-            resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
+            resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace, **kwargs)
             self.log.debug('Pod Creation Response: %s', resp)
         except ApiException:
             self.log.exception('Exception when attempting to create Namespaced Pod.')
