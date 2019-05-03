@@ -18,32 +18,45 @@
 # under the License.
 from flask import url_for
 
-from airflow.models import DagRun
+from airflow.exceptions import AirflowException
+from airflow.models import DagBag, DagRun
 from airflow.utils import timezone
 
 
-def get_all_dag_runs(dag_id=None, state=None, state_not_equal=None, execution_date_before=None,
-                     execution_date_after=None):
+def get_dag_runs(dag_id=None, state=None, state_ne=None, execution_date_before=None,
+                 execution_date_after=None, execution_date=None):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...
+    :param state_ne: queued|running|success...
     :param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+    :param execution_date: a query string parameter to find all runs for the provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
+    :rtype: list[dict]
     """
+    if dag_id is not None:
+        dagbag = DagBag()
+        # Check DAG exists.
+        if dag_id not in dagbag.dags:
+            error_message = "Dag id {} not found".format(dag_id)
+            raise AirflowException(error_message)
 
     dag_runs = list()
     state = state.lower() if state else None
-    state_not_equal = state_not_equal.lower() if state_not_equal else None
+    state_ne = state_ne.lower() if state_ne else None
     execution_date_before = timezone.parse(execution_date_before) if execution_date_before else None
     execution_date_after = timezone.parse(execution_date_after) if execution_date_after else None
-    for run in DagRun.find(dag_id=dag_id, state=state, state_not_equal=state_not_equal,
+    execution_date = timezone.parse(execution_date) if execution_date else None
+    for run in DagRun.find(dag_id=dag_id, state=state, state_ne=state_ne,
                            execution_date_before=execution_date_before,
-                           execution_date_after=execution_date_after):
+                           execution_date_after=execution_date_after,
+                           execution_date=execution_date):
         dag_runs.append({
             'id': run.id,
             'run_id': run.run_id,
