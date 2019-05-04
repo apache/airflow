@@ -57,6 +57,11 @@ jobs:
       stage: pre-test
       install: pip install -e .[doc]
       script: docs/build.sh
+    - name: Pylint
+      stage: pre-test
+      install: pip install pylint~=2.3.1  # Ensure the same version as in setup.py
+      script: scripts/ci/ci_pylint.sh
+      cache: false
 cache:
   directories:
     - $HOME/.wheelhouse/

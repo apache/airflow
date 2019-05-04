@@ -183,6 +183,7 @@ with models.DAG(
     )
     # [END howto_operator_spanner_delete]
 
+    # pylint: disable=pointless-statement
     spanner_instance_create_task \
         >> spanner_instance_update_task \
         >> spanner_database_deploy_task \
@@ -196,3 +197,4 @@ with models.DAG(
         >> spanner_database_delete_task2 \
         >> spanner_instance_delete_task \
         >> spanner_instance_delete_task2
+    # pylint: enable=pointless-statement

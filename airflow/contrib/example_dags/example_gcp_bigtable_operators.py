@@ -46,6 +46,7 @@ This DAG relies on the following environment variables:
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
 
 """
+
 import json
 
 from os import getenv
@@ -108,7 +109,7 @@ with models.DAG(
         cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
         task_id='create_instance_task2',
     )
-    create_instance_task >> create_instance_task2
+    create_instance_task >> create_instance_task2  # pylint: disable=pointless-statement
     # [END howto_operator_gcp_bigtable_instance_create]
 
     # [START howto_operator_gcp_bigtable_cluster_update]
@@ -125,7 +126,7 @@ with models.DAG(
         nodes=int(CBT_CLUSTER_NODES_UPDATED),
         task_id='update_cluster_task2',
     )
-    cluster_update_task >> cluster_update_task2
+    cluster_update_task >> cluster_update_task2  # pylint: disable=pointless-statement
     # [END howto_operator_gcp_bigtable_cluster_update]
 
     # [START howto_operator_gcp_bigtable_instance_delete]
@@ -152,7 +153,7 @@ with models.DAG(
         table_id=CBT_TABLE_ID,
         task_id='create_table_task2',
     )
-    create_table_task >> create_table_task2
+    create_table_task >> create_table_task2  # pylint: disable=pointless-statement
     # [END howto_operator_gcp_bigtable_table_create]
 
     # [START howto_operator_gcp_bigtable_table_wait_for_replication]
@@ -187,6 +188,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_bigtable_table_delete]
 
+    # pylint: disable=pointless-statement
     wait_for_table_replication_task >> delete_table_task
     wait_for_table_replication_task2 >> delete_table_task
     wait_for_table_replication_task >> delete_table_task2
@@ -203,3 +205,4 @@ with models.DAG(
     # Only delete instances after all tables are deleted
     [delete_table_task, delete_table_task2] >> \
         delete_instance_task >> delete_instance_task2
+    # pylint: enable=pointless-statement

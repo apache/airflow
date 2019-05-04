@@ -67,3 +67,6 @@ apache-airflow-.*\+bin.tar.gz.*
 
 # vendored modules
 _vendor/*
+
+# Temporary list of files to make compatible with Pylint
+pylint_todo.txt

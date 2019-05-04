@@ -139,6 +139,9 @@ with models.DAG(
             task_id='gcp_compute_igm_group_manager_update_template_2'
         )
     # [END howto_operator_gce_igm_update_template_no_project_id]
+
+    # pylint: disable=pointless-statement
     gce_instance_template_copy >> gce_instance_template_copy2 >> \
         gce_instance_group_manager_update_template >> \
         gce_instance_group_manager_update_template2
+    # pylint: enable=pointless-statement

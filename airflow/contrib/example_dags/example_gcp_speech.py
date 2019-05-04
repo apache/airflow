@@ -84,7 +84,7 @@ with models.DAG(
     )
     # [END howto_operator_speech_to_text_recognize]
 
-    text_to_speech_synthesize_task >> speech_to_text_recognize_task
+    text_to_speech_synthesize_task >> speech_to_text_recognize_task  # pylint: disable=pointless-statement
 
     # [START howto_operator_translate_speech]
     translate_speech_task = GcpTranslateSpeechOperator(
@@ -99,4 +99,4 @@ with models.DAG(
     )
     # [END howto_operator_translate_speech]
 
-    text_to_speech_synthesize_task >> translate_speech_task
+    text_to_speech_synthesize_task >> translate_speech_task  # pylint: disable=pointless-statement
