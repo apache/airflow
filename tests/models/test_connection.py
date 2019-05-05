@@ -89,14 +89,18 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.conn_type, 'scheme')
         self.assertEqual(connection.host, 'host/location')
         self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
+        self.assertIsNone(connection.extra)
+
+    def test_connection_from_http_uri_without_extras(self):
+        uri = 'http://user:password@host%2flocation:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'http://host%2flocation:1234/schema')
+        self.assertEqual(connection.schema, None)
         self.assertIsNone(connection.extra)
 
     def test_connection_from_uri_with_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema?' \
-              'extra1=a%20value&extra2=%2fpath%2f'
+        uri = 'scheme://user:password@host%2flocation:1234/schema?extra1=a%20value&extra2=%2fpath%2f'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'scheme')
         self.assertEqual(connection.host, 'host/location')
@@ -104,8 +108,18 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password')
         self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
+
+    def test_connection_from_http_uri_with_extras(self):
+        uri = 'http://user:password@host%2flocation:1234/schema#extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'http://host%2flocation:1234/schema')
+        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, None)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
 
     def test_connection_from_uri_with_colon_in_hostname(self):
         uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \
@@ -117,8 +131,19 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password')
         self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
+
+    def test_connection_from_http_uri_with_colon_in_hostname(self):
+        uri = 'http://user:password@host%2flocation%3ax%3ay:1234/schema#' \
+              'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
+        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, None)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
 
     def test_connection_from_uri_with_encoded_password(self):
         uri = 'scheme://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
@@ -130,6 +155,16 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
 
+    def test_connection_from_http_uri_with_encoded_password(self):
+        uri = 'http://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
+        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, None)
+
     def test_connection_from_uri_with_encoded_user(self):
         uri = 'scheme://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
         connection = Connection(uri=uri)
@@ -139,6 +174,16 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'domain/user')
         self.assertEqual(connection.password, 'password')
         self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_http_uri_with_encoded_user(self):
+        uri = 'http://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
+        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.login, 'domain/user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, None)
 
     def test_connection_from_uri_with_encoded_schema(self):
         uri = 'scheme://user:password%20with%20space@host:1234/schema%2ftest'
@@ -200,33 +245,93 @@ class ConnectionTest(unittest.TestCase):
     @parameterized.expand(
         [
             (
+                "scheme://:password@host:80/database",
+                ConnectionParts(
+                    conn_type="scheme", login='', password="password", host="host", port=80, schema="database"
+                ),
+            ),
+            (
                 "http://:password@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login='', password="password", host="host", port=80, schema="database"
+                    conn_type="http",
+                    login='',
+                    password="password",
+                    host="http://host:80/database",
+                    port=None,
+                    schema=None,
+                ),
+            ),
+            (
+                "scheme://user:@host:80/database",
+                ConnectionParts(
+                    conn_type="scheme", login="user", password=None, host="host", port=80, schema="database"
                 ),
             ),
             (
                 "http://user:@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password=None, host="host", port=80, schema="database"
+                    conn_type="http",
+                    login="user",
+                    password=None,
+                    host="http://host:80/database",
+                    port=None,
+                    schema=None,
+                ),
+            ),
+            (
+                "scheme://user:password@/database",
+                ConnectionParts(
+                    conn_type="scheme",
+                    login="user",
+                    password="password",
+                    host="",
+                    port=None,
+                    schema="database",
                 ),
             ),
             (
                 "http://user:password@/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema="database"
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="http:///database",
+                    port=None,
+                    schema=None,
+                ),
+            ),
+            (
+                "scheme://user:password@host:80/",
+                ConnectionParts(
+                    conn_type="scheme", login="user", password="password", host="host", port=80, schema=""
                 ),
             ),
             (
                 "http://user:password@host:80/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="http://host:80/",
+                    port=None,
+                    schema=None,
                 ),
             ),
             (
-                "http://user:password@/",
+                "scheme://user:password@/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                    conn_type="scheme", login="user", password="password", host="", port=None, schema=""
+                ),
+            ),
+            (
+                "https://user:password@/",
+                ConnectionParts(
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="https:///",
+                    port=None,
+                    schema=None,
                 ),
             ),
             (

@@ -19,7 +19,7 @@
 
 import json
 from builtins import bytes
-from urllib.parse import urlparse, unquote, parse_qsl
+from urllib.parse import urlparse, unquote, parse_qsl, urlunparse
 
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declared_attr
@@ -128,6 +128,27 @@ class Connection(Base, LoggingMixin):
 
     def parse_from_uri(self, uri):
         uri_parts = urlparse(uri)
+        if uri_parts.scheme in ['http', 'https']:
+            self._parse_from_http_uri(uri)
+        else:
+            self._parse_from_airflow_uri(uri)
+
+    def _parse_from_http_uri(self, uri):
+        self.conn_type = 'http'
+        url_parts = urlparse(uri)
+        netloc = "%s:%s" % (url_parts.hostname, url_parts.port) if url_parts.port else url_parts.hostname
+        # The fragment is used to store extra configuration. The HTTP client never uses fragments, so
+        # it's safe.
+        self.host = urlunparse((
+            url_parts.scheme, netloc, url_parts.path, url_parts.params, url_parts.query, None
+        ))
+        self.login = url_parts.username
+        self.password = url_parts.password
+        if url_parts.fragment:
+            self.extra = json.dumps(dict(parse_qsl(url_parts.fragment)))
+
+    def _parse_from_airflow_uri(self, uri):
+        uri_parts = urlparse(uri, allow_fragments=False)
         conn_type = uri_parts.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
