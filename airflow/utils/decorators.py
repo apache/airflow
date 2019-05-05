@@ -17,22 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import os
 
-# inspect.signature is only available in Python 3. funcsigs.signature is
-# a backport.
-try:
-    import inspect
-    signature = inspect.signature
-except AttributeError:
-    import funcsigs
-    signature = funcsigs.signature
+import inspect
+import os
 
 from copy import copy
 from functools import wraps
 
 from airflow import settings
 from airflow.exceptions import AirflowException
+
+signature = inspect.signature
 
 
 def apply_defaults(func):
