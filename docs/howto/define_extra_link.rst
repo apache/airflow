@@ -46,7 +46,7 @@ The following code shows how to add extra links to an operator:
 
         @apply_defaults
         def __init__(self, *args, **kwargs):
-            super(MyFirstOperator, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
 
         def execute(self, context):
             self.log.info("Hello World!")
