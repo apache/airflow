@@ -979,12 +979,10 @@ class BaseOperator(LoggingMixin):
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
 
 
-class BaseOperatorLink:
+class BaseOperatorLink(metaclass=ABCMeta):
     """
     Abstract base class that defines how we get an operator link.
     """
-
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod
