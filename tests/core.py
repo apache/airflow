@@ -24,6 +24,7 @@ import doctest
 import mock
 import multiprocessing
 import os
+import pickle  # type: ignore
 import re
 import signal
 import sqlalchemy
@@ -74,12 +75,6 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
 EXAMPLE_DAG_DEFAULT_DATE = days_ago(2)
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Python 3
-    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
