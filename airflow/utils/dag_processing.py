@@ -366,11 +366,10 @@ def list_py_file_paths(directory, safe_mode=True,
     return file_paths
 
 
-class AbstractDagFileProcessor(object):
+class AbstractDagFileProcessor(metaclass=ABCMeta):
     """
     Processes a DAG file. See SchedulerJob.process_file() for more details.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def start(self):

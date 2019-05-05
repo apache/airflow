@@ -20,11 +20,10 @@
 from abc import ABCMeta, abstractmethod
 
 
-class BaseDag():
+class BaseDag(metaclass=ABCMeta):
     """
     Base DAG object that both the SimpleDag and DAG inherit.
     """
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod
