@@ -130,6 +130,27 @@ class DagRunTest(unittest.TestCase):
         self.assertEqual(1,
                          len(models.DagRun.find(dag_id=dag_id2, external_trigger=False)))
 
+    def test_dagrun_ids_case_sensitive(self):
+        """
+        Regression test for case-sensitive ids in mysql. If id columns don't use a binary
+        collation, matching upper- and lower-case ids will raise an `IntegrityError`.
+        """
+        dag = DAG(
+            dag_id='test_dagrun_unique_case_sensitive',
+            start_date=timezone.datetime(2017, 1, 1)
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_case',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='TEST_CASE',
+            dag=dag)
+        dr = self.create_dag_run(dag=dag, state=State.RUNNING)
+        ti_op1 = dr.get_task_instance(task_id=dag_task1.task_id)
+        ti_op2 = dr.get_task_instance(task_id=dag_task2.task_id)
+        self.assertEqual(ti_op1.task_id, dag_task1.task_id)
+        self.assertEqual(ti_op2.task_id, dag_task2.task_id)
+
     def test_dagrun_success_when_all_skipped(self):
         """
         Tests that a DAG run succeeds when all tasks are skipped
