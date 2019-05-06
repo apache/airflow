@@ -712,8 +712,8 @@ class DataProcPigOperator(BaseOperator):
     :param dataproc_pig_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_pig_properties: dict
-    :param dataproc_pig_jars: URIs to jars provisioned in Cloud Storage (example: for
-        UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_pig_jars: HCFS URIs of jar files to add to the CLASSPATH of the Pig Client and Hadoop
+        MapReduce (MR) tasks. Can contain Pig UDFs. (templated)
     :type dataproc_pig_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -809,8 +809,8 @@ class DataProcHiveOperator(BaseOperator):
     :param dataproc_hive_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_hive_properties: dict
-    :param dataproc_hive_jars: URIs to jars provisioned in Cloud Storage (example: for
-        UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_hive_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
+        MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :type dataproc_hive_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -908,8 +908,7 @@ class DataProcSparkSqlOperator(BaseOperator):
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_spark_properties: dict
-    :param dataproc_spark_jars: URIs to jars provisioned in Cloud Storage (example:
-        for UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_spark_jars: HCFS URIs of jar files to be added to the Spark CLASSPATH. (templated)
     :type dataproc_spark_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -1014,8 +1013,8 @@ class DataProcSparkOperator(BaseOperator):
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_spark_properties: dict
-    :param dataproc_spark_jars: URIs to jars provisioned in Cloud Storage (example:
-        for UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_spark_jars: HCFS URIs of files to be copied to the working directory of Spark drivers
+        and distributed tasks. Useful for naively parallel tasks. (templated)
     :type dataproc_spark_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -1122,8 +1121,8 @@ class DataProcHadoopOperator(BaseOperator):
     :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_hadoop_properties: dict
-    :param dataproc_hadoop_jars: URIs to jars provisioned in Cloud Storage (example:
-        for UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_hadoop_jars: Jar file URIs to add to the CLASSPATHs of the Hadoop driver and
+        tasks. (tempplated)
     :type dataproc_hadoop_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -1230,8 +1229,8 @@ class DataProcPySparkOperator(BaseOperator):
     :param dataproc_pyspark_properties: Map for the Pig properties. Ideal to put in
         default arguments
     :type dataproc_pyspark_properties: dict
-    :param dataproc_pyspark_jars: URIs to jars provisioned in Cloud Storage (example:
-        for UDFs and libs) and are ideal to put in default arguments.
+    :param dataproc_pyspark_jars: HCFS URIs of jar files to add to the CLASSPATHs of the Python
+        driver and tasks. (templated)
     :type dataproc_pyspark_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
