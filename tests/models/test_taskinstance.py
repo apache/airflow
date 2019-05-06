@@ -960,7 +960,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertIsNone(ti.duration)
 
     def test_success_callbak_no_race_condition(self):
-        class CallbackWrapper(object):
+        class CallbackWrapper:
             def wrap_task_instance(self, ti):
                 self.task_id = ti.task_id
                 self.dag_id = ti.dag_id

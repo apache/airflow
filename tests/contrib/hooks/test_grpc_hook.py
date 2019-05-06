@@ -48,7 +48,7 @@ def get_airflow_connection_with_port():
     )
 
 
-class StubClass(object):
+class StubClass:
     def __init__(self, channel):
         pass
 

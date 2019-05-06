@@ -72,7 +72,7 @@ def execute_command(command_to_exec):
         raise AirflowException('Celery command failed')
 
 
-class ExceptionWithTraceback(object):
+class ExceptionWithTraceback:
     """
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 

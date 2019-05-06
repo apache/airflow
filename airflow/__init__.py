@@ -42,7 +42,7 @@ settings.initialize()
 login = None
 
 
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
     def __init__(self, namespace):
         self.namespace = namespace
 

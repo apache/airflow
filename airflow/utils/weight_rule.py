@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import object
 from typing import Set
 
 
-class WeightRule(object):
+class WeightRule:
     DOWNSTREAM = 'downstream'
     UPSTREAM = 'upstream'
     ABSOLUTE = 'absolute'

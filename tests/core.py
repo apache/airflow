@@ -621,7 +621,7 @@ class CoreTest(unittest.TestCase):
         Test templates can handle objects with no sense of truthiness
         """
 
-        class NonBoolObject(object):
+        class NonBoolObject:
             def __len__(self):
                 return NotImplemented
 
@@ -1935,7 +1935,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class FakeWebHDFSHook(object):
+class FakeWebHDFSHook:
     def __init__(self, conn_id):
         self.conn_id = conn_id
 
@@ -1950,7 +1950,7 @@ class FakeSnakeBiteClientException(Exception):
     pass
 
 
-class FakeSnakeBiteClient(object):
+class FakeSnakeBiteClient:
 
     def __init__(self):
         self.started = True
@@ -2089,7 +2089,7 @@ class FakeSnakeBiteClient(object):
             raise FakeSnakeBiteClientException
 
 
-class FakeHDFSHook(object):
+class FakeHDFSHook:
     def __init__(self, conn_id=None):
         self.conn_id = conn_id
 

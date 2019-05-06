@@ -125,7 +125,7 @@ class LocalExecutor(BaseExecutor):
     of tasks.
     """
 
-    class _UnlimitedParallelism(object):
+    class _UnlimitedParallelism:
         """Implements LocalExecutor with unlimited parallelism, starting one process
         per each command to execute."""
 
@@ -164,7 +164,7 @@ class LocalExecutor(BaseExecutor):
             while self.executor.workers_active > 0:
                 self.executor.sync()
 
-    class _LimitedParallelism(object):
+    class _LimitedParallelism:
         """Implements LocalExecutor with limited parallelism using a task queue to
         coordinate work distribution."""
 

@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import object
 import imp
 import inspect
 import os
@@ -38,7 +37,7 @@ class AirflowPluginException(Exception):
     pass
 
 
-class AirflowPlugin(object):
+class AirflowPlugin:
     name = None  # type: str
     operators = []  # type: List[Any]
     sensors = []  # type: List[Any]

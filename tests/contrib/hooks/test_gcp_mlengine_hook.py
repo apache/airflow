@@ -35,7 +35,7 @@ except GoogleAuthError:
     cml_available = False
 
 
-class _TestMLEngineHook(object):
+class _TestMLEngineHook:
 
     def __init__(self, test_cls, responses, expected_requests):
         """

@@ -30,7 +30,7 @@ class InvalidFernetToken(Exception):
     pass
 
 
-class NullFernet(object):
+class NullFernet:
     """
     A "Null" encryptor class that doesn't encrypt or decrypt but that presents
     a similar interface to Fernet.

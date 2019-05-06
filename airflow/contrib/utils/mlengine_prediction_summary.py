@@ -99,7 +99,7 @@ import apache_beam as beam
 import dill
 
 
-class JsonCoder(object):
+class JsonCoder:
     @staticmethod
     def encode(x):
         return json.dumps(x)

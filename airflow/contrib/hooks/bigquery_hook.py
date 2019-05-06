@@ -172,7 +172,7 @@ class BigQueryPandasConnector(GbqConnector):
         self.dialect = dialect
 
 
-class BigQueryConnection(object):
+class BigQueryConnection:
     """
     BigQuery does not have a notion of a persistent connection. Thus, these
     objects are small stateless factories for cursors, which do all the real

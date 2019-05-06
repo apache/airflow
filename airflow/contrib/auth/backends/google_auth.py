@@ -74,7 +74,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class GoogleAuthBackend(object):
+class GoogleAuthBackend:
 
     def __init__(self):
         # self.google_host = get_config_param('host')

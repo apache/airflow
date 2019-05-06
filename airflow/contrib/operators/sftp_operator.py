@@ -24,7 +24,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class SFTPOperation(object):
+class SFTPOperation:
     PUT = 'put'
     GET = 'get'
 

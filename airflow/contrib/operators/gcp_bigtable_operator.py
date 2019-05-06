@@ -29,7 +29,7 @@ from google.cloud.bigtable_admin_v2 import enums
 from google.cloud.bigtable.table import ClusterState
 
 
-class BigtableValidationMixin(object):
+class BigtableValidationMixin:
     """
     Common class for Cloud Bigtable operators for validating required fields.
     """

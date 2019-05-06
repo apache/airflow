@@ -1667,7 +1667,7 @@ def sync_perm(args):
             dag.access_control)
 
 
-class Arg(object):
+class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
         self.flags = flags
@@ -1680,7 +1680,7 @@ class Arg(object):
         self.metavar = metavar
 
 
-class CLIFactory(object):
+class CLIFactory:
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),
