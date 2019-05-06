@@ -71,18 +71,12 @@ class SSHOperator(BaseOperator):
             if self.ssh_conn_id:
                 if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
-                    
-                if self.remote_host is not None:
-                    self.ssh_hook.remote_host = self.remote_host
-
+                    if self.remote_host:
+                        self.ssh_hook.remote_host = self.remote_host
                 else:
                     self.log.info("ssh_hook is not provided or invalid. " +
                                   "Trying ssh_conn_id to create SSHHook.")
-                    if self.remote_host is not None:
-                        self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host
-                                                timeout=self.timeout)
-                    else: 
-                        self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
+                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host
                                                 timeout=self.timeout)
 
             if not self.ssh_hook:
