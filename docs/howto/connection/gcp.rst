@@ -66,11 +66,6 @@ Scopes (comma separated)
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
     authenticate with.
 
-    .. note::
-        Scopes are ignored when using application default credentials. See
-        issue `AIRFLOW-2522
-        <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
-
 Number of Retries
     Integer, number of times to retry with randomized
     exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
