@@ -82,7 +82,7 @@ class SSHOperator(BaseOperator):
             if not self.ssh_hook:
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
-            if self.remote_host is not None:
+            if self.remote_host:
                 self.log.info("remote_host is provided explicitly. " +
                               "It will replace the remote_host which was defined " +
                               "in ssh_hook or predefined in connection of ssh_conn_id.")
