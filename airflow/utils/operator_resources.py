@@ -28,7 +28,7 @@ PB = 1024 * TB
 EB = 1024 * PB
 
 
-class Resource(object):
+class Resource:
     """
     Represents a resource requirement in an execution environment for an operator.
 
@@ -90,7 +90,7 @@ class GpuResource(Resource):
         super().__init__('GPU', 'gpu(s)', qty)
 
 
-class Resources(object):
+class Resources:
     """
     The resources required by an operator. Resources that are not specified will use the
     default values from the airflow config.

@@ -32,7 +32,7 @@ from requests.exceptions import HTTPError
 from .kube_client import get_kube_client
 
 
-class PodStatus(object):
+class PodStatus:
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'

@@ -78,7 +78,7 @@ class BaseDag(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class BaseDagBag(object):
+class BaseDagBag:
     """
     Base object that both the SimpleDagBag and DagBag inherit.
     """

@@ -28,7 +28,7 @@ def _inherited(cls):
     )
 
 
-class DataSet(object):
+class DataSet:
     attributes = []  # type: List[str]
     type_name = "dataSet"
 

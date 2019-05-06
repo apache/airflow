@@ -137,7 +137,7 @@ class SimpleDag(BaseDag):
             return None
 
 
-class SimpleTaskInstance(object):
+class SimpleTaskInstance:
     def __init__(self, ti):
         self._dag_id = ti.dag_id
         self._task_id = ti.task_id

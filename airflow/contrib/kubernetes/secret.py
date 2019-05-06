@@ -17,7 +17,7 @@
 from airflow.exceptions import AirflowConfigException
 
 
-class Secret(object):
+class Secret:
     """Defines Kubernetes Secret Volume"""
 
     def __init__(self, deploy_type, deploy_target, secret, key=None):
