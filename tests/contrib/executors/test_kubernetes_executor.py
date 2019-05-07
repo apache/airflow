@@ -29,10 +29,10 @@ try:
     from kubernetes.client.rest import ApiException
     from airflow import configuration
     from airflow.configuration import conf
-    from airflow.contrib.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
-    from airflow.contrib.executors.kubernetes_executor import KubeConfig
-    from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
+    from airflow.contrib.executors.kubernetes_executor.kubernetes_executor import AirflowKubernetesScheduler
+    from airflow.contrib.executors.kubernetes_executor.kubernetes_executor import KubernetesExecutor
+    from airflow.contrib.executors.kubernetes_executor.kubernetes_executor import KubeConfig
+    from airflow.contrib.executors.kubernetes_executor.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.exceptions import AirflowConfigException
     from airflow.contrib.kubernetes.secret import Secret
