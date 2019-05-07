@@ -138,13 +138,13 @@ def configure_orm(disable_connection_pool=False):
         # It follows then that the total number of simultaneous connections
         # the pool will allow is pool_size + max_overflow,
         # and the total number of “sleeping” connections the pool will allow is pool_size.
-        # max_overflow can be set to -1 to indicate no overflow limit; no limit will be placed on the total number
+        # max_overflow can be set to -1 to indicate no overflow limit;
+        # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
         try:
             max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW')
         except conf.AirflowConfigException:
             max_overflow = 10
-
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
