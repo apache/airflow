@@ -25,7 +25,7 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Iterable, Optional, Dict, Callable, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
 import six
@@ -368,8 +368,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
