@@ -2220,7 +2220,7 @@ class HomeView(AirflowViewMixin, AdminIndexView):
             search_query=arg_search_query if arg_search_query else '',
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
-            num_dag_from=start + 1,
+            num_dag_from=min(start + 1, num_of_all_dags),
             num_dag_to=min(end, num_of_all_dags),
             num_of_all_dags=num_of_all_dags,
             paging=wwwutils.generate_pages(current_page, num_of_pages,
