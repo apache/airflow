@@ -28,8 +28,6 @@ from builtins import range
 from copy import deepcopy
 from six import iteritems
 
-from past.builtins import basestring
-
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -1952,7 +1950,7 @@ def _bind_parameters(operation, parameters):
     for (name, value) in iteritems(parameters):
         if value is None:
             string_parameters[name] = 'NULL'
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             string_parameters[name] = "'" + _escape(value) + "'"
         else:
             string_parameters[name] = str(value)
