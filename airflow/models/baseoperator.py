@@ -906,11 +906,11 @@ class BaseOperator(LoggingMixin):
             if dag and not task.has_dag():
                 task.dag = dag
             if upstream:
-                task.add_only_new(task._downstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
             else:
                 self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task._upstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
     def set_downstream(self, task_or_task_list):
         """
