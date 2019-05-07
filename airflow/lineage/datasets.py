@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import six
 
 from typing import List
@@ -62,7 +63,11 @@ class DataSet:
         if attr in self.attributes:
             if self.context:
                 env = Environment()
-                return env.from_string(self._data.get(attr)).render(**self.context)
+                # dump to json here in order to be able to manage dicts and lists
+                rendered = env.from_string(
+                    json.dumps(self._data.get(attr))
+                ).render(**self.context)
+                return json.loads(rendered)
 
             return self._data.get(attr)
 
@@ -82,7 +87,9 @@ class DataSet:
         env = Environment()
         if self.context:
             for key, value in six.iteritems(attributes):
-                attributes[key] = env.from_string(value).render(**self.context)
+                attributes[key] = json.loads(
+                    env.from_string(json.dumps(value)).render(**self.context)
+                )
 
         d = {
             "typeName": self.type_name,
