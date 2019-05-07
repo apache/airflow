@@ -163,7 +163,7 @@ class KubeConfig:
         if kube_client_request_args:
             self.kube_client_request_args = json.loads(kube_client_request_args)
             if self.kube_client_request_args['_request_timeout'] and \
-                isinstance(self.kube_client_request_args['_request_timeout'], list):
+                    isinstance(self.kube_client_request_args['_request_timeout'], list):
                 self.kube_client_request_args['_request_timeout'] = \
                     tuple(self.kube_client_request_args['_request_timeout'])
         else:
@@ -191,6 +191,7 @@ class KubeConfig:
                 'must be set for authentication through user credentials; '
                 'or `git_ssh_key_secret_name` must be set for authentication '
                 'through ssh key, but not both')
+
 
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,

@@ -27,7 +27,7 @@ from typing import NamedTuple
 from dateutil import parser
 from uuid import uuid4
 import kubernetes
-from kubernetes import watch, client
+from kubernetes import client
 from kubernetes.client.rest import ApiException
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
@@ -37,7 +37,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
-from typing import Dict, Tuple, Sequence
+from typing import Tuple
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -258,9 +258,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         with create_session() as session:
             tasks = (
-                session
-                    .query(TaskInstance)
-                    .filter_by(execution_date=ex_time).all()
+                session.query(TaskInstance).filter_by(execution_date=ex_time).all()
             )
             self.log.info(
                 'Checking %s task instances.',
