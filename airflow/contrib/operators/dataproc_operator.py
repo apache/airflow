@@ -742,7 +742,7 @@ class DataProcPigOperator(BaseOperator):
         an 8 character random string.
     :vartype dataproc_job_id: str
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars', 'dataproc_pig_jars']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
 
@@ -839,7 +839,7 @@ class DataProcHiveOperator(BaseOperator):
         an 8 character random string.
     :vartype dataproc_job_id: str
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars', 'dataproc_hive_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -937,7 +937,7 @@ class DataProcSparkSqlOperator(BaseOperator):
         an 8 character random string.
     :vartype dataproc_job_id: str
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars', 'dataproc_spark_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -1152,7 +1152,7 @@ class DataProcHadoopOperator(BaseOperator):
     :vartype dataproc_job_id: str
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars', 'dataproc_hadoop_jars']
     ui_color = '#0273d4'
 
     @apply_defaults
