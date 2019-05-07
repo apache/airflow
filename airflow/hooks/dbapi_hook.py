@@ -18,7 +18,6 @@
 # under the License.
 
 from builtins import str
-from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
 from typing import Optional
@@ -144,7 +143,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if isinstance(sql, basestring):
+        if isinstance(sql, str):
             sql = [sql]
 
         with closing(self.get_conn()) as conn:

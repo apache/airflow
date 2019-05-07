@@ -26,7 +26,6 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
-from past.builtins import basestring
 from six.moves import zip
 
 from airflow import configuration
@@ -794,7 +793,7 @@ class HiveServer2Hook(BaseHook):
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         from pyhive.exc import ProgrammingError
-        if isinstance(hql, basestring):
+        if isinstance(hql, str):
             hql = [hql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, \

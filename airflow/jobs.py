@@ -30,7 +30,6 @@ from datetime import timedelta
 from time import sleep
 
 import six
-from past.builtins import basestring
 from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
@@ -715,7 +714,7 @@ class SchedulerJob(BaseJob):
             emails = set()
             for task in dag.tasks:
                 if task.email:
-                    if isinstance(task.email, basestring):
+                    if isinstance(task.email, str):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)

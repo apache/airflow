@@ -30,7 +30,6 @@ import os
 import io
 
 from builtins import str
-from past.builtins import basestring
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -317,7 +316,7 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
 
 def render(obj, lexer):
     out = ""
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         out += pygment_html_render(obj, lexer)
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):

@@ -21,7 +21,6 @@ import cx_Oracle
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from builtins import str
-from past.builtins import basestring
 from datetime import datetime
 import numpy
 
@@ -152,7 +151,7 @@ class OracleHook(DbApiHook):
             i += 1
             lst = []
             for cell in row:
-                if isinstance(cell, basestring):
+                if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     lst.append('NULL')
