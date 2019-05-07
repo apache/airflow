@@ -37,12 +37,13 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
+from typing import Dict, Tuple, Sequence
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class TaskObject(NamedTuple):
-    key: (str, str, str, int)
+    key: Tuple[str, str, str, int]
     command: str
     kub_executor_config: KubernetesExecutorConfig
 

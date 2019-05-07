@@ -20,7 +20,7 @@ import multiprocessing
 from kubernetes import watch, client
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.contrib.kubernetes.kube_client import get_kube_client
-
+from airflow.utils.state import State
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
