@@ -39,7 +39,7 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         super(TestTaskHandlerWithCustomFormatter, self).setUp()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
             'class': TASK_HANDLER_CLASS,
-            'formatter': 'airflow', 
+            'formatter': 'airflow',
             'stream': 'sys.stdout'
         }
         conf.set('core', 'task_log_prefix_template', "{{ti.dag_id}}-{{ti.task_id}}")
