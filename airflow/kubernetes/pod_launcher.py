@@ -69,7 +69,11 @@ class PodLauncher(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def run_pod(self, pod: Pod, startup_timeout: int =120, get_logs: bool =True) -> Tuple[State, Optional[str]]:
+    def run_pod(
+            self,
+            pod: Pod,
+            startup_timeout: int = 120,
+            get_logs: bool = True) -> Tuple[State, Optional[str]]:
         """
         Launches the pod synchronously and waits for completion.
 
