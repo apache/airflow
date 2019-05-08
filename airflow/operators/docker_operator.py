@@ -72,9 +72,14 @@ class DockerOperator(BaseOperator):
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory
     :type host_tmp_dir: str
+<<<<<<< HEAD
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
+=======
+    :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
+        represents the limit in bytes, or a string like ``128m`` or ``1g``.
+>>>>>>> b0f9569cf55c7abc1270881e332ec390c212bee9
     :type mem_limit: float or str
     :param network_mode: Network mode for the container.
     :type network_mode: str
