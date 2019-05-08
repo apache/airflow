@@ -54,7 +54,7 @@ class DockerOperator(BaseOperator):
     :param force_pull: Pull the docker image on every run. Default is false.
     :type force_pull: bool
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
-        be mapped to tmp_dir
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory
     :type host_tmp_dir: str
     :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
         represents the limit in bytes, or a string like ``128m`` or ``1g``.
