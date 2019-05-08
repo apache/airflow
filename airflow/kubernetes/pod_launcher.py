@@ -58,7 +58,7 @@ class PodLauncher(LoggingMixin):
         except ApiException:
             self.log.exception('Exception when attempting to create Namespaced Pod.')
             raise
-        return resp
+        return resptest_k8s_process_on_kill
 
     def delete_pod(self, pod):
         try:
