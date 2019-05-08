@@ -162,6 +162,17 @@ class DAG(BaseDag, LoggingMixin):
     :type access_control: dict
     """
 
+    _comps = {
+        'dag_id',
+        'task_ids',
+        'parent_dag',
+        'start_date',
+        'schedule_interval',
+        'full_filepath',
+        'template_searchpath',
+        'last_loaded',
+    }
+
     def __init__(
         self,
         dag_id: str,
@@ -266,17 +277,6 @@ class DAG(BaseDag, LoggingMixin):
 
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
-
-        self._comps = {
-            'dag_id',
-            'task_ids',
-            'parent_dag',
-            'start_date',
-            'schedule_interval',
-            'full_filepath',
-            'template_searchpath',
-            'last_loaded',
-        }
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

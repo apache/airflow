@@ -27,6 +27,7 @@ import psutil
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import reap_process_group
+from airflow.utils.operator_resources import Resources
 
 
 class CgroupTaskRunner(BaseTaskRunner):
@@ -138,7 +139,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
         # Get the resource requirements from the task
         task = self._task_instance.task
-        resources = task.resources
+        resources = task.resources if task.resources is not None else Resources()
         cpus = resources.cpus.qty
         self._cpu_shares = cpus * 1024
         self._mem_mb_limit = resources.ram.qty
