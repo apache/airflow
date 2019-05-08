@@ -18,11 +18,11 @@
 # under the License.
 
 import logging
-import sys
 
 from logging import StreamHandler
 from airflow import configuration as conf
 from airflow.utils.helpers import parse_template_string
+
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
     def __init__(self, stream):
@@ -31,9 +31,9 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
     def set_context(self, ti):
         if ti.raw:
             return
-        prefix = conf.get('core','task_log_prefix_template')
-        
-        rendered_prefix=""
+        prefix = conf.get('core', 'task_log_prefix_template')
+
+        rendered_prefix = ""
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
             rendered_prefix = self._render_prefix(ti)

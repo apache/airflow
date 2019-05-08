@@ -20,28 +20,32 @@
 import logging
 import unittest
 
-from airflow.models import TaskInstance, DAG, DagRun
+from airflow.models import TaskInstance, DAG
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.log.logging_mixin import set_context
 from airflow import configuration as conf
-from airflow.contrib.utils.log.task_handler_with_custom_formatter import TaskHandlerWithCustomFormatter
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'
 TASK_HANDLER = 'task'
-TASK_HANDLER_CLASS = 'airflow.contrib.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter'
+TASK_HANDLER_CLASS = 'airflow.contrib.utils.log.task_handler_with_custom_formatter.' \
+                     'TaskHandlerWithCustomFormatter'
+
 
 class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
     def setUp(self):
         super(TestTaskHandlerWithCustomFormatter, self).setUp()
-        DEFAULT_LOGGING_CONFIG['handlers']['task'] = {'class': TASK_HANDLER_CLASS, 'formatter': 'airflow', 'stream': 'sys.stdout'}
-        conf.set('core','task_log_prefix_template',"{{ti.dag_id}}-{{ti.task_id}}")
+        DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
+            'class': TASK_HANDLER_CLASS,
+            'formatter': 'airflow', 
+            'stream': 'sys.stdout'
+        }
+        conf.set('core', 'task_log_prefix_template', "{{ti.dag_id}}-{{ti.task_id}}")
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
-
 
     def test_formatter(self):
         dag = DAG('test_dag', start_date=DEFAULT_DATE)
@@ -50,11 +54,10 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
 
         logger = ti.log
         ti.log.disabled = False
-        handler = next((handler for handler in logger.handlers
-            if handler.name == TASK_HANDLER), None)
+        handler = next((handler for handler in logger.handlers if handler.name == TASK_HANDLER), None)
         self.assertIsNotNone(handler)
 
         # setting the expected value of the formatter
-        expected_formatter_value = "test_dag-test_task:" + handler.formatter._fmt      
+        expected_formatter_value = "test_dag-test_task:" + handler.formatter._fmt
         set_context(logger, ti)
-        self.assertEqual(expected_formatter_value,handler.formatter._fmt)
+        self.assertEqual(expected_formatter_value, handler.formatter._fmt)
