@@ -159,7 +159,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             self.skipTest("kubernetes python package is not installed")
 
         self.resources = mock.patch(
-            'airflow.contrib.kubernetes.worker_configuration.Resources'
+            'airflow.kubernetes.worker_configuration.Resources'
         )
 
         for patcher in [self.resources]:
@@ -645,8 +645,8 @@ class TestKubernetesExecutor(unittest.TestCase):
     """
     @unittest.skipIf(AirflowKubernetesScheduler is None,
                      'kubernetes python package is not installed')
-    @mock.patch('airflow.contrib.executors.kubernetes_executor.KubernetesJobWatcher')
-    @mock.patch('airflow.contrib.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_run_next_exception(self, mock_get_kube_client, mock_kubernetes_job_watcher):
 
         # When a quota is exceeded this is the ApiException we get
