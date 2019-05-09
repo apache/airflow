@@ -54,7 +54,7 @@ class DagRun(Base, LoggingMixin):
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
-    conf = Column(PickleType)
+    conf = Column(PickleType, default={})
 
     dag = None
 
