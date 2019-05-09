@@ -21,9 +21,8 @@ from typing import Tuple, Optional
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from datetime import datetime as dt
-from airflow.contrib.kubernetes.pod import Pod
-from airflow.contrib.kubernetes.kubernetes_request_factory import \
-    pod_request_factory as pod_factory
+from airflow.kubernetes.pod import Pod
+from airflow.kubernetes.kubernetes_request_factory import pod_request_factory as pod_factory
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -70,14 +69,18 @@ class PodLauncher(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def run_pod(self, pod, startup_timeout=120, get_logs=True):
-        # type: (Pod, int, bool) -> Tuple[State, Optional[str]]
+    def run_pod(
+            self,
+            pod: Pod,
+            startup_timeout: int = 120,
+            get_logs: bool = True) -> Tuple[State, Optional[str]]:
         """
         Launches the pod synchronously and waits for completion.
-        Args:
-            pod (Pod):
-            startup_timeout (int): Timeout for startup of the pod (if pod is pending for
-             too long, considers task a failure
+
+        :param pod:
+        :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
+        :param get_logs:  whether to query k8s for logs
+        :return:
         """
         resp = self.run_pod_async(pod)
         curr_time = dt.now()

@@ -15,10 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.kubernetes.pod import Pod
+from airflow.kubernetes.pod import Pod
 import uuid
-from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
-from airflow.contrib.kubernetes.volume import Volume  # noqa
 
 
 class PodGenerator:
