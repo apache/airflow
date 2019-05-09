@@ -78,7 +78,7 @@ def _get_executor(executor_name):
         from airflow.executors.dask_executor import DaskExecutor
         return DaskExecutor()
     elif executor_name == Executors.KubernetesExecutor:
-        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        from airflow.executors.kubernetes_executor import KubernetesExecutor
         return KubernetesExecutor()
     else:
         # Loading plugins

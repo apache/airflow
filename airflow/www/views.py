@@ -762,7 +762,7 @@ class Airflow(AirflowBaseView):
             pass
 
         try:
-            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            from airflow.executors.kubernetes_executor import KubernetesExecutor
             valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
         except ImportError:
             pass

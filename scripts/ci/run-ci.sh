@@ -46,7 +46,7 @@ else
   fi
   sudo ln -s /home/airflow/.minikube /home/travis/.minikube
 
-  tox -e $TOX_ENV -- tests.contrib.minikube \
+  tox -e $TOX_ENV -- tests.minikube \
                      --with-coverage \
                      --cover-erase \
                      --cover-html \
