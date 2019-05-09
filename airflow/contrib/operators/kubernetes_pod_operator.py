@@ -67,6 +67,8 @@ class KubernetesPodOperator(BaseOperator):
     :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param resources: A dict containing a group of resources requests and limits
+    :type resources: dict
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
     :param node_selectors: A dict containing a group of scheduling rules
@@ -147,6 +149,13 @@ class KubernetesPodOperator(BaseOperator):
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
+    def _set_resources(self, resources):
+        inputResource = Resources()
+        if resources:
+            for item in resources.keys():
+                setattr(inputResource, item, resources[item])
+        return inputResource
+
     @apply_defaults
     def __init__(self,
                  namespace,
@@ -201,8 +210,7 @@ class KubernetesPodOperator(BaseOperator):
         self.do_xcom_push = do_xcom_push
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-
-        self.resources = resources or Resources()
+        self.resources = self._set_resources(resources)
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name

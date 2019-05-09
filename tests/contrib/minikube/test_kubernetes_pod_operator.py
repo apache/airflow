@@ -189,6 +189,25 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_resources():
+        resources = {
+            'limit_memory': 1,
+            'limit_cpu': 1,
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            resources=resources,
+            executor_config={'KubernetesExecutor': {'resources': resources}}
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_pod_affinity():
         affinity = {
             'nodeAffinity': {
