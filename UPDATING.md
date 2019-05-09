@@ -191,6 +191,12 @@ The `do_xcom_push` flag (a switch to push the result of an operator to xcom or n
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
 
+### Changes to Dataproc related Operators
+The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
+`dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
+and `dataproc_jars`respectively. 
+Arguments for dataproc_properties dataproc_jars 
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series

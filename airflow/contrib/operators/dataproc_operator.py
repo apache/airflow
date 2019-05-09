@@ -715,12 +715,12 @@ class DataProcPigOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: str
-    :param dataproc_pig_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the Pig properties. Ideal to put in
         default arguments
-    :type dataproc_pig_properties: dict
-    :param dataproc_pig_jars: HCFS URIs of jar files to add to the CLASSPATH of the Pig Client and Hadoop
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Pig Client and Hadoop
         MapReduce (MR) tasks. Can contain Pig UDFs. (templated)
-    :type dataproc_pig_jars: list
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -743,7 +743,7 @@ class DataProcPigOperator(BaseOperator):
     :vartype dataproc_job_id: str
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_pig_jars']
+                       'region', 'dataproc_jars']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
 
@@ -755,8 +755,8 @@ class DataProcPigOperator(BaseOperator):
             variables=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_pig_properties=None,
-            dataproc_pig_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -772,8 +772,8 @@ class DataProcPigOperator(BaseOperator):
         self.variables = variables
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_pig_properties
-        self.dataproc_jars = dataproc_pig_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
@@ -813,12 +813,12 @@ class DataProcHiveOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
-    :param dataproc_hive_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the Hive properties. Ideal to put in
         default arguments
-    :type dataproc_hive_properties: dict
-    :param dataproc_hive_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
-    :type dataproc_hive_jars: list
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -841,7 +841,7 @@ class DataProcHiveOperator(BaseOperator):
     :vartype dataproc_job_id: str
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_hive_jars']
+                       'region', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -853,8 +853,8 @@ class DataProcHiveOperator(BaseOperator):
             variables=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_hive_properties=None,
-            dataproc_hive_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -870,8 +870,8 @@ class DataProcHiveOperator(BaseOperator):
         self.variables = variables
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_hive_properties
-        self.dataproc_jars = dataproc_hive_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
@@ -913,11 +913,11 @@ class DataProcSparkSqlOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: str
-    :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the Spark properties. Ideal to put in
         default arguments
-    :type dataproc_spark_properties: dict
-    :param dataproc_spark_jars: HCFS URIs of jar files to be added to the Spark CLASSPATH. (templated)
-    :type dataproc_spark_jars: list
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of jar files to be added to the Spark CLASSPATH. (templated)
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -939,8 +939,7 @@ class DataProcSparkSqlOperator(BaseOperator):
         an 8 character random string.
     :vartype dataproc_job_id: str
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_spark_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -952,8 +951,8 @@ class DataProcSparkSqlOperator(BaseOperator):
             variables=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_spark_properties=None,
-            dataproc_spark_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -969,8 +968,8 @@ class DataProcSparkSqlOperator(BaseOperator):
         self.variables = variables
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_spark_properties
-        self.dataproc_jars = dataproc_spark_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
@@ -1019,12 +1018,12 @@ class DataProcSparkOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: str
-    :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the Spark properties. Ideal to put in
         default arguments
-    :type dataproc_spark_properties: dict
-    :param dataproc_spark_jars: HCFS URIs of files to be copied to the working directory of Spark drivers
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of files to be copied to the working directory of Spark drivers
         and distributed tasks. Useful for naively parallel tasks. (templated)
-    :type dataproc_spark_jars: list
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -1060,8 +1059,8 @@ class DataProcSparkOperator(BaseOperator):
             files=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_spark_properties=None,
-            dataproc_spark_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -1079,8 +1078,8 @@ class DataProcSparkOperator(BaseOperator):
         self.files = files
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_spark_properties
-        self.dataproc_jars = dataproc_spark_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
@@ -1127,12 +1126,12 @@ class DataProcHadoopOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: str
-    :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the Hadoop properties. Ideal to put in
         default arguments
-    :type dataproc_hadoop_properties: dict
-    :param dataproc_hadoop_jars: Jar file URIs to add to the CLASSPATHs of the Hadoop driver and
-        tasks. (tempplated)
-    :type dataproc_hadoop_jars: list
+    :type dataproc_properties: dict
+    :param dataproc_jars: Jar file URIs to add to the CLASSPATHs of the Hadoop driver and
+        tasks. (templated)
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -1155,8 +1154,7 @@ class DataProcHadoopOperator(BaseOperator):
     :vartype dataproc_job_id: str
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_hadoop_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     ui_color = '#0273d4'
 
     @apply_defaults
@@ -1169,8 +1167,8 @@ class DataProcHadoopOperator(BaseOperator):
             files=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_hadoop_properties=None,
-            dataproc_hadoop_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -1188,8 +1186,8 @@ class DataProcHadoopOperator(BaseOperator):
         self.files = files
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_hadoop_properties
-        self.dataproc_jars = dataproc_hadoop_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
@@ -1236,12 +1234,12 @@ class DataProcPySparkOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
-    :param dataproc_pyspark_properties: Map for the Pig properties. Ideal to put in
+    :param dataproc_properties: Map for the PySpark properties. Ideal to put in
         default arguments
-    :type dataproc_pyspark_properties: dict
-    :param dataproc_pyspark_jars: HCFS URIs of jar files to add to the CLASSPATHs of the Python
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATHs of the Python
         driver and tasks. (templated)
-    :type dataproc_pyspark_jars: list
+    :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -1304,8 +1302,8 @@ class DataProcPySparkOperator(BaseOperator):
             files=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             cluster_name='cluster-1',
-            dataproc_pyspark_properties=None,
-            dataproc_pyspark_jars=None,
+            dataproc_properties=None,
+            dataproc_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             region='global',
@@ -1323,8 +1321,8 @@ class DataProcPySparkOperator(BaseOperator):
         self.pyfiles = pyfiles
         self.job_name = job_name
         self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_pyspark_properties
-        self.dataproc_jars = dataproc_pyspark_jars
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
