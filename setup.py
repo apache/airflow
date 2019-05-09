@@ -225,6 +225,8 @@ ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
+papermill = ['papermill[all]>=1.0.0',
+             'nteract-scrapbook[all]>=0.2.1']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -284,7 +286,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce + cgroups)
+             atlas + azure + aws + salesforce + cgroups + papermill)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -389,6 +391,7 @@ def do_setup():
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'papermill': papermill,
             'password': password,
             'pinot': pinot,
             'postgres': postgres,
