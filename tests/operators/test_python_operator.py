@@ -84,10 +84,6 @@ class TestPythonOperator(unittest.TestCase):
         self.addCleanup(self.dag.clear)
         self.clear_run()
         self.addCleanup(self.clear_run)
-        try:
-            delattr(ClassWithCustomAttributes, 'template_fields')
-        except AttributeError:
-            pass
 
     def tearDown(self):
         super().tearDown()
@@ -99,6 +95,11 @@ class TestPythonOperator(unittest.TestCase):
         for var in TI_CONTEXT_ENV_VARS:
             if var in os.environ:
                 del os.environ[var]
+
+        try:
+            delattr(ClassWithCustomAttributes, 'template_fields')
+        except AttributeError:
+            pass
 
     def do_run(self):
         self.run = True
