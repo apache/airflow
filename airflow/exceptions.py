@@ -119,5 +119,10 @@ class NoAvailablePoolSlot(AirflowException):
 
 
 class DagConcurrencyLimitReached(AirflowException):
-    """Raise when concurrency limit is reached"""
+    """Raise when DAG concurrency limit is reached"""
+    pass
+
+
+class TaskConcurrencyLimitReached(AirflowException):
+    """Raise when task concurrency limit is reached"""
     pass
