@@ -963,5 +963,98 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
         )
 
 
+class TestBigQueryHookModelOperations(unittest.TestCase):
+    def test_bigquery_list_model(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+
+        mock_service = mock.Mock()
+        method = (mock_service.models.return_value.list)
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.list_model(project_id=project_id, dataset_id=dataset_id)
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id
+        )
+
+    def test_bigquery_get_model(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        model_id = 'test_model'
+
+        mock_service = mock.Mock()
+        method = (mock_service.models.return_value.get)
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.get_model(project_id=project_id,
+                         dataset_id=dataset_id,
+                         model_id=model_id)
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            modelId=model_id
+        )
+
+    def test_bigquery_patch_model(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        model_id = 'test_model'
+
+        body = {
+            'modelReference': {
+                'projectId': project_id,
+                'datasetId': dataset_id,
+                'modelId': model_id
+            },
+            'description': 'This is a test model.',
+            'friendlyName': 'Test Model',
+            'labels': {
+                'name': 'test'
+            },
+            'expirationTime': 2524608000000
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.models.return_value.patch)
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_model(project_id=project_id,
+                           dataset_id=dataset_id,
+                           model_id=model_id,
+                           description=body['description'],
+                           friendly_name=body['friendlyName'],
+                           labels=body['labels'],
+                           expiration_time=body['expirationTime'])
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            modelId=model_id,
+            body=body
+        )
+
+    def test_bigquery_delete_model(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        model_id = 'test_model'
+
+        mock_service = mock.Mock()
+        method = (mock_service.models.return_value.delete)
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.delete_model(project_id=project_id,
+                            dataset_id=dataset_id,
+                            model_id=model_id)
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            modelId=model_id
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

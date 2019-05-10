@@ -1776,6 +1776,178 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
+    def list_model(self, project_id, dataset_id):
+        """
+        Method to list all models in the specified dataset.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/models/list
+
+        :param project_id: The project ID of the models to list.
+        :type project_id: str
+        :param dataset_id: The dataset ID of the models to list.
+        :type dataset_id: str
+        """
+        project_id = project_id if project_id else self.project_id
+
+        self.log.info('Listing BigQuery models from project: %s  Dataset:%s',
+                      project_id, dataset_id)
+
+        try:
+            models = self.service.models().list(
+                projectId=project_id,
+                datasetId=dataset_id).execute(num_retries=self.num_retries)
+            self.log.info('BigQuery models listed successfully: In project %s '
+                          'Dataset %s', project_id, dataset_id)
+            return models
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery models failed to list. Error was: {}'.format(err.content)
+            )
+
+    def get_model(self, project_id, dataset_id, model_id):
+        """
+        Method to get the specified model resource by model_id.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/models/get
+
+        :param project_id: The project ID of the requested model.
+        :type project_id: str
+        :param dataset_id: The dataset ID of the requested model.
+        :type dataset_id: str
+        :param model_id: The model ID of the requested model.
+        :type model_id: str
+        """
+        if model_id is None:
+            raise ValueError('model_id cannot be None.')
+
+        project_id = project_id if project_id else self.project_id
+
+        self.log.info('Retrieving BigQuery model %s from project: %s  Dataset:%s',
+                      model_id, project_id, dataset_id)
+
+        try:
+            model = self.service.models().get(
+                projectId=project_id,
+                datasetId=dataset_id,
+                modelId=model_id).execute(num_retries=self.num_retries)
+            self.log.info('BigQuery model retrieved successfully: In project %s '
+                          'Dataset %s Model %s', project_id, dataset_id, model_id)
+            return model
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery models failed to retrieve. Error was: {}'.format(err.content)
+            )
+
+    def patch_model(self,
+                    project_id, dataset_id, model_id,
+                    description=None,
+                    friendly_name=None,
+                    labels=None,
+                    expiration_time=None):
+        """
+        Method to patch specific fields in the specified model.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/models/patch
+
+        :param project_id: The project ID of the model to patch.
+        :type project_id: str
+        :param dataset_id: The dataset ID of the model to patch.
+        :type dataset_id: str
+        :param model_id: The model ID of the model to patch.
+        :type model_id: str
+        :param description: The description of the model.
+        :type description: str
+        :param friendly_name: A descriptive name for this model.
+        :type friendly_name: str
+        :param labels: a dictionary containing labels for the table, passed to BigQuery.
+        :type labels: dict
+        :param expiration_time: The time when this model expires,
+            in milliseconds since the epoch. If not present,
+            the model will persist indefinitely.
+        :type expiration_time: int
+        """
+        if model_id is None:
+            raise ValueError('model_id cannot be None.')
+
+        project_id = project_id if project_id else self.project_id
+
+        body = {
+            'modelReference': {
+                'projectId': project_id,
+                'datasetId': dataset_id,
+                'modelId': model_id,
+            }
+        }
+
+        if description:
+            body['description'] = description
+
+        if friendly_name:
+            body['friendlyName'] = friendly_name
+
+        if labels:
+            body['labels'] = labels
+
+        if expiration_time:
+            body['expirationTime'] = expiration_time
+
+        self.log.info('Patching BigQuery model %s from project: %s  Dataset:%s',
+                      model_id, project_id, dataset_id)
+
+        try:
+            model = self.service.models().patch(
+                projectId=project_id,
+                datasetId=dataset_id,
+                modelId=model_id, body=body).execute(num_retries=self.num_retries)
+            self.log.info('BigQuery model %s patched successfully: In project %s '
+                          'Dataset %s', model_id, project_id, dataset_id)
+            return model
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery models failed to patch. Error was: {}'.format(err.content)
+            )
+
+    def delete_model(self, project_id, dataset_id, model_id):
+        """
+        Method to delete the model specified by model_id from the dataset.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/models/delete
+
+        :param project_id: The project ID of the model to delete.
+        :type project_id: str
+        :param dataset_id: The dataset ID of the model to delete.
+        :type dataset_id: str
+        :param model_id: The model ID of the model to delete.
+        :type model_id: str
+        """
+        if model_id is None:
+            raise ValueError('model_id cannot be None.')
+
+        project_id = project_id if project_id else self.project_id
+
+        self.log.info('Deleting BigQuery model %s from project: %s  Dataset:%s',
+                      model_id, project_id, dataset_id)
+
+        try:
+            self.service.models().delete(
+                projectId=project_id,
+                datasetId=dataset_id,
+                modelId=model_id).execute(num_retries=self.num_retries)
+            self.log.info('BigQuery model %s deleted successfully: In project %s '
+                          'Dataset %s', model_id, project_id, dataset_id)
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery models failed to delete. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
