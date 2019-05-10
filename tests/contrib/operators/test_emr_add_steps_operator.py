@@ -65,6 +65,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
+            region_name='ap-southeast-1',
             steps=self._config,
             dag=DAG('test_dag_id', default_args=args)
         )
