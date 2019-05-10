@@ -576,8 +576,6 @@ class DagRunTest(unittest.TestCase):
             external_trigger=True,
         )
 
-        self.assertEqual(dag_run.conf, {})
-
         session.add(dag_run)
 
         session.commit()
