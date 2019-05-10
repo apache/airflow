@@ -560,7 +560,7 @@ class DagRunTest(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
-        
+
     def test_dagrun_conf_is_empty_dict_by_default(self):
         session = settings.Session()
         now = timezone.utcnow()
