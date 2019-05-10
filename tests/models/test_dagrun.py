@@ -575,17 +575,15 @@ class DagRunTest(unittest.TestCase):
             state=State.RUNNING,
             external_trigger=True,
         )
-        
+
         self.assertEqual(dag_run.conf, {})
-        
+
         session.add(dag_run)
 
         session.commit()
-        
+
         dr_database = session.query(DagRun).filter(
             DagRun.run_id == dag_run_id
         ).one()
-        
+
         self.assertEqual(dr_database.conf, {})
-        
-            
