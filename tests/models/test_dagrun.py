@@ -560,3 +560,32 @@ class DagRunTest(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+        
+    def test_dagrun_conf_is_empty_dict_by_default(self):
+        session = settings.Session()
+        now = timezone.utcnow()
+
+        dag_id1 = "test_dagrun_conf_is_dict_on_create"
+        dag_run_id = "manual__" + now.isoformat()
+        dag_run = models.DagRun(
+            dag_id=dag_id1,
+            run_id=dag_run_id,
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        
+        self.assertEqual(dag_run.conf, {})
+        
+        session.add(dag_run)
+
+        session.commit()
+        
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == dag_run_id
+        ).one()
+        
+        self.assertEqual(dr_database.conf, {})
+        
+            
