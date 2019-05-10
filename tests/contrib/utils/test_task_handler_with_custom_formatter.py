@@ -32,6 +32,7 @@ TASK_LOGGER = 'airflow.task'
 TASK_HANDLER = 'task'
 TASK_HANDLER_CLASS = 'airflow.contrib.utils.log.task_handler_with_custom_formatter.' \
                      'TaskHandlerWithCustomFormatter'
+PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 
 
 class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
@@ -46,6 +47,10 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
+
+    def tearDown(self):
+        super().tearDown()
+        DEFAULT_LOGGING_CONFIG['handlers']['task'] = PREV_TASK_HANDLER
 
     def test_formatter(self):
         dag = DAG('test_dag', start_date=DEFAULT_DATE)
