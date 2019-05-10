@@ -42,16 +42,18 @@ class EmrAddStepsOperator(BaseOperator):
             self,
             job_flow_id,
             aws_conn_id='s3_default',
+            region_name=None,
             steps=None,
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         steps = steps or []
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
         self.steps = steps
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr = EmrHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).get_conn()
 
         self.log.info('Adding steps to %s', self.job_flow_id)
         response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
