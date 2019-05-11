@@ -31,11 +31,38 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
-from googleapiclient.errors import HttpError
 from airflow.utils import timezone
 
 
-class DataprocClusterCreateOperator(BaseOperator):
+class DataprocOperationBaseOperator(BaseOperator):
+    """The base class for operators that poll on a Dataproc Operation."""
+    @apply_defaults
+    def __init__(self,
+                 project_id,
+                 region='global',
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.project_id = project_id
+        self.region = region
+        self.hook = DataProcHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version='v1beta2'
+        )
+
+    def execute(self, context):
+        self.hook.wait(self.start())
+
+    def start(self, context):
+        raise AirflowException('Please submit an operation')
+
+
+class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
     creation is successful or an error occurs in the creation process.
@@ -143,8 +170,8 @@ class DataprocClusterCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 cluster_name,
                  project_id,
+                 cluster_name,
                  num_workers,
                  zone=None,
                  network_uri=None,
@@ -167,8 +194,6 @@ class DataprocClusterCreateOperator(BaseOperator):
                  num_preemptible_workers=0,
                  labels=None,
                  region='global',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
                  service_account=None,
                  service_account_scopes=None,
                  idle_delete_ttl=None,
@@ -178,11 +203,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
+        super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
-        self.project_id = project_id
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
         self.storage_bucket = storage_bucket
@@ -204,7 +226,6 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.subnetwork_uri = subnetwork_uri
         self.internal_ip_only = internal_ip_only
         self.tags = tags
-        self.region = region
         self.service_account = service_account
         self.service_account_scopes = service_account_scopes
         self.idle_delete_ttl = idle_delete_ttl
@@ -221,55 +242,6 @@ class DataprocClusterCreateOperator(BaseOperator):
                 self.single_node and self.num_preemptible_workers == 0
             )
         ), "num_workers == 0 means single node mode - no preemptibles allowed"
-
-    def _get_cluster_list_for_project(self, service):
-        result = service.projects().regions().clusters().list(
-            projectId=self.project_id,
-            region=self.region
-        ).execute()
-        return result.get('clusters', [])
-
-    def _get_cluster(self, service):
-        cluster_list = self._get_cluster_list_for_project(service)
-        cluster = [c for c in cluster_list if c['clusterName'] == self.cluster_name]
-        if cluster:
-            return cluster[0]
-        return None
-
-    def _get_cluster_state(self, service):
-        cluster = self._get_cluster(service)
-        if 'status' in cluster:
-            return cluster['status']['state']
-        else:
-            return None
-
-    def _cluster_ready(self, state, service):
-        if state == 'RUNNING':
-            return True
-        if state == 'ERROR':
-            cluster = self._get_cluster(service)
-            try:
-                error_details = cluster['status']['details']
-            except KeyError:
-                error_details = 'Unknown error in cluster creation, ' \
-                                'check Google Cloud console for details.'
-            raise Exception(error_details)
-        return False
-
-    def _wait_for_done(self, service):
-        while True:
-            state = self._get_cluster_state(service)
-            if state is None:
-                self.log.info("No state for cluster '%s'", self.cluster_name)
-                time.sleep(15)
-            else:
-                self.log.info("State for cluster '%s' is %s", self.cluster_name, state)
-                if self._cluster_ready(state, service):
-                    self.log.info(
-                        "Cluster '%s' successfully created", self.cluster_name
-                    )
-                    return
-                time.sleep(15)
 
     def _get_init_action_timeout(self):
         match = re.match(r"^(\d+)(s|m)$", self.init_action_timeout)
@@ -407,46 +379,20 @@ class DataprocClusterCreateOperator(BaseOperator):
                 {'gcePdKmsKeyName': self.customer_managed_key}
         return cluster_data
 
-    def execute(self, context):
+    def start(self):
         self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataProcHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
-        )
-        service = hook.get_conn()
-
-        if self._get_cluster(service):
-            self.log.info(
-                'Cluster %s already exists... Checking status...',
-                self.cluster_name
-            )
-            self._wait_for_done(service)
-            return True
-
         cluster_data = self._build_cluster_data()
-        try:
-            service.projects().regions().clusters().create(
+
+        return (
+            self.hook.get_conn().projects().regions().clusters().create(
                 projectId=self.project_id,
                 region=self.region,
-                body=cluster_data
-            ).execute()
-        except HttpError as e:
-            # probably two cluster start commands at the same time
-            time.sleep(10)
-            if self._get_cluster(service):
-                self.log.info(
-                    'Cluster {} already exists... Checking status...',
-                    self.cluster_name
-                )
-                self._wait_for_done(service)
-                return True
-            else:
-                raise e
-
-        self._wait_for_done(service)
+                body=cluster_data,
+                requestId=str(uuid.uuid4()),
+            ).execute())
 
 
-class DataprocClusterScaleOperator(BaseOperator):
+class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
     """
     Scale, up or down, a cluster on Google Cloud Dataproc.
     The operator will wait until the cluster is re-scaled.
@@ -495,19 +441,13 @@ class DataprocClusterScaleOperator(BaseOperator):
                  cluster_name,
                  project_id,
                  region='global',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
                  num_workers=2,
                  num_preemptible_workers=0,
                  graceful_decommission_timeout=None,
                  *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
+        super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
-        self.project_id = project_id
-        self.region = region
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
 
@@ -517,24 +457,6 @@ class DataprocClusterScaleOperator(BaseOperator):
             self.optional_arguments['gracefulDecommissionTimeout'] = \
                 self._get_graceful_decommission_timeout(
                     graceful_decommission_timeout)
-
-    def _wait_for_done(self, service, operation_name):
-        time.sleep(15)
-        while True:
-            try:
-                response = service.projects().regions().operations().get(
-                    name=operation_name
-                ).execute()
-
-                if 'done' in response and response['done']:
-                    if 'error' in response:
-                        raise Exception(str(response['error']))
-                    else:
-                        return
-                time.sleep(15)
-            except HttpError as e:
-                self.log.error("Operation not found.")
-                raise e
 
     def _build_scale_cluster_data(self):
         scale_data = {
@@ -570,32 +492,26 @@ class DataprocClusterScaleOperator(BaseOperator):
             " should be expressed in day, hours, minutes or seconds. "
             " i.e. 1d, 4h, 10m, 30s")
 
-    def execute(self, context):
+    def start(self):
         self.log.info("Scaling cluster: %s", self.cluster_name)
-        hook = DataProcHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
-        )
-        service = hook.get_conn()
 
         update_mask = "config.worker_config.num_instances," \
                       + "config.secondary_worker_config.num_instances"
         scaling_cluster_data = self._build_scale_cluster_data()
 
-        response = service.projects().regions().clusters().patch(
-            projectId=self.project_id,
-            region=self.region,
-            clusterName=self.cluster_name,
-            updateMask=update_mask,
-            body=scaling_cluster_data,
-            **self.optional_arguments
-        ).execute()
-        operation_name = response['name']
-        self.log.info("Cluster scale operation name: %s", operation_name)
-        self._wait_for_done(service, operation_name)
+        return (
+            self.hook.get_conn().projects().regions().clusters().patch(
+                projectId=self.project_id,
+                region=self.region,
+                clusterName=self.cluster_name,
+                updateMask=update_mask,
+                body=scaling_cluster_data,
+                requestId=str(uuid.uuid4()),
+                **self.optional_arguments
+            ).execute())
 
 
-class DataprocClusterDeleteOperator(BaseOperator):
+class DataprocClusterDeleteOperator(DataprocOperationBaseOperator):
     """
     Delete a cluster on Google Cloud Dataproc. The operator will wait until the
     cluster is destroyed.
@@ -622,49 +538,21 @@ class DataprocClusterDeleteOperator(BaseOperator):
                  cluster_name,
                  project_id,
                  region='global',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
                  *args,
                  **kwargs):
 
-        super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
+        super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
-        self.project_id = project_id
-        self.region = region
 
-    @staticmethod
-    def _wait_for_done(service, operation_name):
-        time.sleep(15)
-        while True:
-            response = service.projects().regions().operations().get(
-                name=operation_name
-            ).execute()
-
-            if 'done' in response and response['done']:
-                if 'error' in response:
-                    raise Exception(str(response['error']))
-                else:
-                    return
-            time.sleep(15)
-
-    def execute(self, context):
-        self.log.info('Deleting cluster: %s', self.cluster_name)
-        hook = DataProcHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
-        )
-        service = hook.get_conn()
-
-        response = service.projects().regions().clusters().delete(
-            projectId=self.project_id,
-            region=self.region,
-            clusterName=self.cluster_name
-        ).execute()
-        operation_name = response['name']
-        self.log.info("Cluster delete operation name: %s", operation_name)
-        self._wait_for_done(service, operation_name)
+    def start(self):
+        self.log.info('Deleting cluster: %s in %s', self.cluster_name, self.region)
+        return (
+            self.hook.get_conn().projects().regions().clusters().delete(
+                projectId=self.project_id,
+                region=self.region,
+                clusterName=self.cluster_name,
+                requestId=str(uuid.uuid4()),
+            ).execute())
 
 
 class DataProcPigOperator(BaseOperator):
@@ -1358,34 +1246,7 @@ class DataProcPySparkOperator(BaseOperator):
         hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
 
 
-class DataprocWorkflowTemplateBaseOperator(BaseOperator):
-    @apply_defaults
-    def __init__(self,
-                 project_id,
-                 region='global',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.project_id = project_id
-        self.region = region
-        self.hook = DataProcHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version='v1beta2'
-        )
-
-    def execute(self, context):
-        self.hook.wait(self.start())
-
-    def start(self, context):
-        raise AirflowException('Please start a workflow operation')
-
-
-class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOperator):
+class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator):
     """
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
@@ -1424,12 +1285,12 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
             .instantiate(
                 name=('projects/%s/regions/%s/workflowTemplates/%s' %
                       (self.project_id, self.region, self.template_id)),
-                body={'instanceId': str(uuid.uuid4())})
+                body={'requestId': str(uuid.uuid4())})
             .execute())
 
 
 class DataprocWorkflowTemplateInstantiateInlineOperator(
-        DataprocWorkflowTemplateBaseOperator):
+        DataprocOperationBaseOperator):
     """
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
@@ -1467,6 +1328,6 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
             self.hook.get_conn().projects().regions().workflowTemplates()
             .instantiateInline(
                 parent='projects/%s/regions/%s' % (self.project_id, self.region),
-                instanceId=str(uuid.uuid4()),
+                requestId=str(uuid.uuid4()),
                 body=self.template)
             .execute())
