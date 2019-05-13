@@ -603,6 +603,9 @@ Cloud Storage
     increase in the number of objects for situations when many objects
     are being uploaded to a bucket with no formal success signal.
 
+:class:`airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator`
+    Deletes objects from a Google Cloud Storage bucket.
+
 
 They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
 
