@@ -153,6 +153,7 @@ class TestEmrStepSensor(unittest.TestCase):
             job_flow_id='j-8989898989',
             step_id='s-VK57YR1Z9Z5N',
             aws_conn_id='aws_default',
+            region_name='ap-southeast-1'
         )
 
         mock_emr_session = MagicMock()

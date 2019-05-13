@@ -49,7 +49,8 @@ class TestEmrTerminateJobFlowOperator(unittest.TestCase):
             operator = EmrTerminateJobFlowOperator(
                 task_id='test_task',
                 job_flow_id='j-8989898989',
-                aws_conn_id='aws_default'
+                aws_conn_id='aws_default',
+                region_name='ap-southeast-1'
             )
 
             operator.execute(None)

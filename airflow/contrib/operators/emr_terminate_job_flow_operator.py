@@ -40,13 +40,15 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             self,
             job_flow_id,
             aws_conn_id='s3_default',
+            region_name=None,
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr = EmrHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).get_conn()
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])

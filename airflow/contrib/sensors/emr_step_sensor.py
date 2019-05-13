@@ -41,14 +41,16 @@ class EmrStepSensor(EmrBaseSensor):
     def __init__(self,
                  job_flow_id,
                  step_id,
+                 region_name=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
+        self.region_name = region_name
 
     def get_emr_response(self):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr = EmrHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).get_conn()
 
         self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
         return emr.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
