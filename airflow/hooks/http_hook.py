@@ -208,4 +208,4 @@ class HttpHook(BaseHook):
             **_retry_args
         )
 
-        self._retry_obj(self.run, *args, **kwargs)
+        return self._retry_obj(self.run, *args, **kwargs)
