@@ -23,7 +23,9 @@ body {
     font-family: "Sofia Regular";
 }
 .container {
-    width: 100%;
+    width: 98%;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 a.navbar-brand span {
     color: white;
