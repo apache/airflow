@@ -90,7 +90,7 @@ class S3FileTransformOperator(BaseOperator):
             dest_verify=None,
             replace=False,
             *args, **kwargs):
-        super(S3FileTransformOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
         self.source_verify = source_verify

@@ -17,22 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import os
 
-# inspect.signature is only available in Python 3. funcsigs.signature is
-# a backport.
-try:
-    import inspect
-    signature = inspect.signature
-except AttributeError:
-    import funcsigs
-    signature = funcsigs.signature
+import inspect
+import os
 
 from copy import copy
 from functools import wraps
 
 from airflow import settings
 from airflow.exceptions import AirflowException
+
+signature = inspect.signature
 
 
 def apply_defaults(func):
@@ -103,19 +98,3 @@ if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # flake8: noqa: F811
     # Monkey patch hook to get good function headers while building docs
     apply_defaults = lambda x: x
-
-
-class cached_property:
-    """
-    A decorator creating a property, the value of which is calculated only once and cached for later use.
-    """
-    def __init__(self, func):
-        self.func = func
-        self.__doc__ = getattr(func, '__doc__')
-
-    def __get__(self, instance, cls=None):
-        if instance is None:
-            return self
-        result = self.func(instance)
-        instance.__dict__[self.func.__name__] = result
-        return result

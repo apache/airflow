@@ -230,7 +230,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
         return project_id if project_id else self.project_id
 
-    class _Decorators(object):
+    class _Decorators:
         """A private inner class for keeping all decorator methods."""
 
         @staticmethod

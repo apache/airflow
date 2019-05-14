@@ -51,7 +51,7 @@ class MongoToS3Operator(BaseOperator):
                  mongo_db=None,
                  replace=False,
                  *args, **kwargs):
-        super(MongoToS3Operator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Conn Ids
         self.mongo_conn_id = mongo_conn_id
         self.s3_conn_id = s3_conn_id

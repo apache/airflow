@@ -16,13 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import json
+import unittest
 
 import requests
 import requests_mock
-
 import tenacity
 
 from airflow import configuration
@@ -52,6 +50,7 @@ def get_airflow_connection_with_port(conn_id=None):
 
 class TestHttpHook(unittest.TestCase):
     """Test get, post and raise_for_status"""
+
     def setUp(self):
         session = requests.Session()
         adapter = requests_mock.Adapter()
@@ -73,7 +72,6 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-
             resp = self.get_hook.run('v1/test')
             self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
@@ -207,7 +205,9 @@ class TestHttpHook(unittest.TestCase):
         retry_args = dict(
             wait=tenacity.wait_none(),
             stop=tenacity.stop_after_attempt(7),
-            retry=requests.exceptions.ConnectionError
+            retry=tenacity.retry_if_exception_type(
+                requests.exceptions.ConnectionError
+            )
         )
 
         def send_and_raise(request, **kwargs):
@@ -224,6 +224,31 @@ class TestHttpHook(unittest.TestCase):
             self.get_hook._retry_obj.stop.max_attempt_number + 1,
             mocked_session.call_count
         )
+
+    @requests_mock.mock()
+    def test_run_with_advanced_retry(self, m):
+
+        m.get(
+            u'http://test:8080/v1/test',
+            status_code=200,
+            reason=u'OK'
+        )
+
+        retry_args = dict(
+            wait=tenacity.wait_none(),
+            stop=tenacity.stop_after_attempt(3),
+            retry=tenacity.retry_if_exception_type(Exception),
+            reraise=True
+        )
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection
+        ):
+            response = self.get_hook.run_with_advanced_retry(
+                endpoint='v1/test',
+                _retry_args=retry_args
+            )
+            self.assertIsInstance(response, requests.Response)
 
     def test_header_from_extra_and_run_method_are_merged(self):
 
@@ -282,7 +307,3 @@ class TestHttpHook(unittest.TestCase):
 
 
 send_email_test = mock.Mock()
-
-
-if __name__ == '__main__':
-    unittest.main()

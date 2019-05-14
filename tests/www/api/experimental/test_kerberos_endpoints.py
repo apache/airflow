@@ -64,7 +64,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
-            class Request(object):
+            class Request:
                 headers = {}
 
             response.request = Request()

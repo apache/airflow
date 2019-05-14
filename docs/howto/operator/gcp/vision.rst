@@ -931,3 +931,252 @@ More information
 
 See `Google Cloud Vision Remove Product From Product Set documentation
 <https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.remove_product_from_product_set>`_.
+
+
+.. _howto/operator:CloudVisionDetectTextOperator:
+
+CloudVisionDetectTextOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run text detection for an image.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_annotate_image_url]
+      :end-before: [END howto_operator_vision_annotate_image_url]
+
+
+Using the operator
+""""""""""""""""""
+
+We are using the :class:`Retry` objects from
+Google libraries:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_text]
+      :end-before: [END howto_operator_vision_detect_text]
+
+The result can be extracted from XCOM:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_text_result]
+      :end-before: [END howto_operator_vision_detect_text_result]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_detect_text_set_template_fields]
+    :end-before: [END vision_detect_text_set_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Text Detection documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.text_detection>`_.
+
+.. _howto/operator:CloudVisionDetectDocumentTextOperator:
+
+CloudVisionDetectDocumentTextOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run document text detection for an image.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_annotate_image_url]
+      :end-before: [END howto_operator_vision_annotate_image_url]
+
+
+Using the operator
+""""""""""""""""""
+
+We are using the :class:`Retry` objects from
+Google libraries:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_document_detect_text]
+      :end-before: [END howto_operator_vision_document_detect_text]
+
+The result can be extracted from XCOM:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_document_detect_text_result]
+      :end-before: [END howto_operator_vision_document_detect_text_result]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_document_detect_text_set_template_fields]
+    :end-before: [END vision_document_detect_text_set_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Document Text Detection documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.document_text_detection>`_.
+
+.. _howto/operator:CloudVisionDetectImageLabelsOperator:
+
+CloudVisionDetectImageLabelsOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run image label detection for an image.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_annotate_image_url]
+      :end-before: [END howto_operator_vision_annotate_image_url]
+
+
+Using the operator
+""""""""""""""""""
+
+We are using the :class:`Retry` objects from
+Google libraries:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_labels]
+      :end-before: [END howto_operator_vision_detect_labels]
+
+The result can be extracted from XCOM:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_labels_result]
+      :end-before: [END howto_operator_vision_detect_labels_result]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_detect_labels_template_fields]
+    :end-before: [END vision_detect_labels_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Label Detection documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.label_detection>`_.
+
+.. _howto/operator:CloudVisionDetectImageSafeSearchOperator:
+
+CloudVisionDetectImageSafeSearchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run image label detection for an image.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_annotate_image_url]
+      :end-before: [END howto_operator_vision_annotate_image_url]
+
+
+Using the operator
+""""""""""""""""""
+
+We are using the :class:`Retry` objects from
+Google libraries:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_safe_search]
+      :end-before: [END howto_operator_vision_detect_safe_search]
+
+The result can be extracted from XCOM:
+
+.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_detect_safe_search_result]
+      :end-before: [END howto_operator_vision_detect_safe_search_result]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_detect_safe_search_template_fields]
+    :end-before: [END vision_detect_safe_search_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Safe Search Detection documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.safe_search_detection>`_.

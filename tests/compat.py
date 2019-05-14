@@ -16,10 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-try:
-    from unittest import mock  # noqa: F401
-except ImportError:
-    import mock  # type: ignore  # noqa: F401
+
+from unittest import mock  # noqa: F401
 
 patch = mock.patch
 Mock = mock.Mock

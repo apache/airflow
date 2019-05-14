@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import copy
 import functools
 import os
@@ -542,7 +540,13 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def owner(self):
-        return ", ".join(list(set([t.owner for t in self.tasks])))
+        """
+        Return list of all owners found in DAG tasks.
+
+        :return: Comma separated list of owners in DAG tasks
+        :rtype: str
+        """
+        return ", ".join({t.owner for t in self.tasks})
 
     @provide_session
     def _get_concurrency_reached(self, session=None):
@@ -1280,7 +1284,7 @@ class DAG(BaseDag, LoggingMixin):
         if not orm_dag:
             orm_dag = DagModel(dag_id=self.dag_id)
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.fileloc
+        orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
         orm_dag.is_subdag = self.is_subdag
         orm_dag.owners = owner
         orm_dag.is_active = True
@@ -1340,7 +1344,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids, states=None, session=None):
+    def get_num_task_instances(dag_id, task_ids=None, states=None, session=None):
         """
         Returns the number of task instances in the given DAG.
 
@@ -1356,7 +1360,12 @@ class DAG(BaseDag, LoggingMixin):
         """
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
-            TaskInstance.task_id.in_(task_ids))
+        )
+        if task_ids:
+            qry = qry.filter(
+                TaskInstance.task_id.in_(task_ids),
+            )
+
         if states is not None:
             if None in states:
                 qry = qry.filter(or_(

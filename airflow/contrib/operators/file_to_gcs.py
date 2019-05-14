@@ -56,7 +56,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
                  gzip=False,
                  *args,
                  **kwargs):
-        super(FileToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.src = src
         self.dst = dst
         self.bucket = bucket
@@ -74,8 +74,8 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
             delegate_to=self.delegate_to)
 
         hook.upload(
-            bucket=self.bucket,
-            object=self.dst,
+            bucket_name=self.bucket,
+            object_name=self.dst,
             mime_type=self.mime_type,
             filename=self.src,
             gzip=self.gzip,

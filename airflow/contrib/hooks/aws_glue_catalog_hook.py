@@ -38,7 +38,7 @@ class AwsGlueCatalogHook(AwsHook):
                  *args,
                  **kwargs):
         self.region_name = region_name
-        super(AwsGlueCatalogHook, self).__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
 
     def get_conn(self):
         """

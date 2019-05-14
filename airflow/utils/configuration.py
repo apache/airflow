@@ -16,8 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import unicode_literals
-from __future__ import absolute_import
 
 import os
 import json
@@ -26,7 +24,7 @@ from tempfile import mkstemp
 from airflow import configuration as conf
 
 
-def tmp_configuration_copy(chmod=0o600):
+def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
     """
     Returns a path for a temporary file including a full copy of the configuration
     settings.
@@ -36,6 +34,7 @@ def tmp_configuration_copy(chmod=0o600):
     temp_fd, cfg_path = mkstemp()
 
     with os.fdopen(temp_fd, 'w') as temp_file:
+        # Set the permissions before we write anything to it.
         if chmod is not None:
             os.fchmod(temp_fd, chmod)
         json.dump(cfg_dict, temp_file)

@@ -28,7 +28,7 @@ PB = 1024 * TB
 EB = 1024 * PB
 
 
-class Resource(object):
+class Resource:
     """
     Represents a resource requirement in an execution environment for an operator.
 
@@ -72,25 +72,25 @@ class Resource(object):
 
 class CpuResource(Resource):
     def __init__(self, qty):
-        super(CpuResource, self).__init__('CPU', 'core(s)', qty)
+        super().__init__('CPU', 'core(s)', qty)
 
 
 class RamResource(Resource):
     def __init__(self, qty):
-        super(RamResource, self).__init__('RAM', 'MB', qty)
+        super().__init__('RAM', 'MB', qty)
 
 
 class DiskResource(Resource):
     def __init__(self, qty):
-        super(DiskResource, self).__init__('Disk', 'MB', qty)
+        super().__init__('Disk', 'MB', qty)
 
 
 class GpuResource(Resource):
     def __init__(self, qty):
-        super(GpuResource, self).__init__('GPU', 'gpu(s)', qty)
+        super().__init__('GPU', 'gpu(s)', qty)
 
 
-class Resources(object):
+class Resources:
     """
     The resources required by an operator. Resources that are not specified will use the
     default values from the airflow config.

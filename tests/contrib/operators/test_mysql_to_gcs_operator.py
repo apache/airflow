@@ -17,14 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import unittest
 
 from airflow.contrib.operators.mysql_to_gcs import \
     MySqlToGoogleCloudStorageOperator
 from tests.compat import mock
-
-PY3 = sys.version_info[0] == 3
 
 TASK_ID = 'test-mysql-to-gcs'
 MYSQL_CONN_ID = 'mysql_conn_test'

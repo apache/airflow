@@ -17,20 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import contextlib
 import os
 import re
 import subprocess
 import time
+import socket
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import six
 import unicodecsv as csv
-from past.builtins import basestring
-from past.builtins import unicode
 from six.moves import zip
 
 from airflow import configuration
@@ -48,6 +44,7 @@ def get_context_from_env_var():
     """
     Extract context from env variable, e.g. dag_id, task_id and execution_date,
     so that they can be used inside BashOperator and PythonOperator.
+
     :return: The context of interest.
     """
     return {format_map['default']: os.environ.get(format_map['env_var_format'], '')
@@ -360,9 +357,7 @@ class HiveCliHook(BaseHook):
                     field_dict = _infer_field_types_from_df(df)
 
                 df.to_csv(path_or_buf=f,
-                          sep=(delimiter.encode(encoding)
-                               if six.PY2 and isinstance(delimiter, unicode)
-                               else delimiter),
+                          sep=delimiter,
                           header=False,
                           index=False,
                           encoding=encoding,
@@ -477,7 +472,7 @@ class HiveMetastoreHook(BaseHook):
     MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
-        self.metastore_conn = self.get_connection(metastore_conn_id)
+        self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self):
@@ -498,13 +493,20 @@ class HiveMetastoreHook(BaseHook):
         import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        ms = self.metastore_conn
+
+        ms = self._find_valid_server()
+
+        if ms is None:
+            raise AirflowException("Failed to locate the valid server.")
+
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
+
         if configuration.conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
 
-        socket = TSocket.TSocket(ms.host, ms.port)
+        conn_socket = TSocket.TSocket(ms.host, ms.port)
+
         if configuration.conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
@@ -520,13 +522,25 @@ class HiveMetastoreHook(BaseHook):
                 return sasl_client
 
             from thrift_sasl import TSaslClientTransport
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
+            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
         else:
-            transport = TTransport.TBufferedTransport(socket)
+            transport = TTransport.TBufferedTransport(conn_socket)
 
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
         return hmsclient.HMSClient(iprot=protocol)
+
+    def _find_valid_server(self):
+        conns = self.get_connections(self.conn_id)
+        for conn in conns:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
+            if host_socket.connect_ex((conn.host, conn.port)) == 0:
+                self.log.info("Connected to %s:%s", conn.host, conn.port)
+                host_socket.close()
+                return conn
+            else:
+                self.log.info("Could not connect to %s:%s", conn.host, conn.port)
 
     def get_conn(self):
         return self.metastore
@@ -754,8 +768,12 @@ class HiveServer2Hook(BaseHook):
     """
     Wrapper around the pyhive library
 
-    Note that the default authMechanism is PLAIN, to override it you
-    can specify it in the ``extra`` of your connection in the UI as in
+    Notes:
+    * the default authMechanism is PLAIN, to override it you
+    can specify it in the ``extra`` of your connection in the UI
+    * the default for run_set_variable_statements is true, if you
+    are using impala you may need to set it to false in the
+    ``extra`` of your connection in the UI
     """
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
@@ -795,18 +813,21 @@ class HiveServer2Hook(BaseHook):
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         from pyhive.exc import ProgrammingError
-        if isinstance(hql, basestring):
+        if isinstance(hql, str):
             hql = [hql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, \
                 contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            env_context = get_context_from_env_var()
-            if hive_conf:
-                env_context.update(hive_conf)
-            for k, v in env_context.items():
-                cur.execute("set {}={}".format(k, v))
+            # not all query services (e.g. impala AIRFLOW-4434) support the set command
+            db = self.get_connection(self.hiveserver2_conn_id)
+            if db.extra_dejson.get('run_set_variable_statements', True):
+                env_context = get_context_from_env_var()
+                if hive_conf:
+                    env_context.update(hive_conf)
+                for k, v in env_context.items():
+                    cur.execute("set {}={}".format(k, v))
 
             for statement in hql:
                 cur.execute(statement)

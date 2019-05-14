@@ -295,7 +295,7 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ret_value, json_obj)
 
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
-        class PickleRce(object):
+        class PickleRce:
             def __reduce__(self):
                 return os.system, ("ls -alt",)
 

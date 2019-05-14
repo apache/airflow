@@ -67,7 +67,7 @@ class SlackWebhookHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(SlackWebhookHook, self).__init__(http_conn_id=http_conn_id, *args, **kwargs)
+        super().__init__(http_conn_id=http_conn_id, *args, **kwargs)
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments

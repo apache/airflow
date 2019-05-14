@@ -163,7 +163,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  autodetect=False,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # GCS config
         if src_fmt_configs is None:

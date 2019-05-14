@@ -48,7 +48,7 @@ class SlackAPIOperator(BaseOperator):
                  method=None,
                  api_params=None,
                  *args, **kwargs):
-        super(SlackAPIOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if token is None and slack_conn_id is None:
             raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
@@ -125,8 +125,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments
-        super(SlackAPIPostOperator, self).__init__(method=self.method,
-                                                   *args, **kwargs)
+        super().__init__(method=self.method,
+                         *args, **kwargs)
 
     def construct_api_call_params(self):
         self.api_params = {

@@ -28,7 +28,7 @@ from tests.contrib.operators.test_gcp_speech_operator_system_helper import GCPTe
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
 class GCPTextToSpeechExampleDagSystemTest(DagGcpSystemTestCase):
     def setUp(self):
-        super(GCPTextToSpeechExampleDagSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         self.helper.create_target_bucket()
         self.gcp_authenticator.gcp_revoke_authentication()
@@ -37,10 +37,10 @@ class GCPTextToSpeechExampleDagSystemTest(DagGcpSystemTestCase):
         self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_target_bucket()
         self.gcp_authenticator.gcp_revoke_authentication()
-        super(GCPTextToSpeechExampleDagSystemTest, self).tearDown()
+        super().tearDown()
 
     def __init__(self, method_name="runTest"):
-        super(GCPTextToSpeechExampleDagSystemTest, self).__init__(
+        super().__init__(
             method_name, dag_id="example_gcp_speech", gcp_key=GCP_GCS_KEY
         )
         self.helper = GCPTextToSpeechTestHelper()

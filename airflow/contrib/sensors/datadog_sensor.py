@@ -48,7 +48,7 @@ class DatadogSensor(BaseSensorOperator):
             response_check=None,
             *args,
             **kwargs):
-        super(DatadogSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.datadog_conn_id = datadog_conn_id
         self.from_seconds_ago = from_seconds_ago
         self.up_to_seconds_from_now = up_to_seconds_from_now

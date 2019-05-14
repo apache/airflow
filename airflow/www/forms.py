@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from airflow.models import Connection
 from airflow.utils import timezone
@@ -138,6 +133,11 @@ class ConnectionForm(DynamicForm):
     extra__google_cloud_platform__scope = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+    extra__google_cloud_platform__num_retries = IntegerField(
+        lazy_gettext('Number of Retries'),
+        validators=[validators.NumberRange(min=0)],
+        widget=BS3TextFieldWidget(),
+        default=5)
     extra__grpc__auth_type = StringField(
         lazy_gettext('Grpc Auth Type'),
         widget=BS3TextFieldWidget())

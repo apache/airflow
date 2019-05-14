@@ -70,7 +70,7 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -125,7 +125,7 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -185,7 +185,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -261,7 +261,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -337,7 +337,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -405,7 +405,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':

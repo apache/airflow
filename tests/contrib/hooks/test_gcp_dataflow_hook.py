@@ -18,12 +18,12 @@
 # under the License.
 #
 
+import copy
 import unittest
 
-from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
-    _Dataflow, _DataflowJob
-from tests.compat import mock, MagicMock
-
+from airflow.contrib.hooks.gcp_dataflow_hook import (DataFlowHook, _Dataflow,
+                                                     _DataflowJob)
+from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
@@ -50,6 +50,22 @@ DATAFLOW_OPTIONS_TEMPLATE = {
     'project': 'test',
     'tempLocation': 'gs://test/temp',
     'zone': 'us-central1-f'
+}
+RUNTIME_ENV = {
+    'tempLocation': 'gs://test/temp',
+    'zone': 'us-central1-f',
+    'numWorkers': 2,
+    'maxWorkers': 10,
+    'serviceAccountEmail': 'test@apache.airflow',
+    'machineType': 'n1-standard-1',
+    'additionalExperiments': ['exp_flag1', 'exp_flag2'],
+    'network': 'default',
+    'subnetwork': 'regions/REGION/subnetworks/SUBNETWORK',
+    'additionalUserLabels': {
+        'name': 'wrench',
+        'mass': '1.3kg',
+        'count': '3'
+    }
 }
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
@@ -251,6 +267,38 @@ class DataFlowTemplateHookTest(unittest.TestCase):
         options_with_region.update(DATAFLOW_OPTIONS_TEMPLATE)
         internal_dataflow_mock.assert_called_once_with(
             mock.ANY, options_with_region, PARAMETERS, TEMPLATE)
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob):
+        dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
+        options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
+        options_with_runtime_env.update(dataflow_options_template)
+
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        method = (mock_conn.return_value
+                  .projects.return_value
+                  .locations.return_value
+                  .templates.return_value
+                  .launch)
+
+        self.dataflow_hook.start_template_dataflow(
+            job_name=JOB_NAME,
+            variables=options_with_runtime_env,
+            parameters=PARAMETERS,
+            dataflow_template=TEMPLATE
+        )
+        body = {"jobName": mock.ANY,
+                "parameters": PARAMETERS,
+                "environment": RUNTIME_ENV
+                }
+        method.assert_called_once_with(
+            projectId=options_with_runtime_env['project'],
+            location='us-central1',
+            gcsPath=TEMPLATE,
+            body=body,
+        )
 
 
 class DataFlowJobTest(unittest.TestCase):

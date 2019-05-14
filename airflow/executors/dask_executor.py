@@ -40,7 +40,7 @@ class DaskExecutor(BaseExecutor):
         self.tls_ca = configuration.get('dask', 'tls_ca')
         self.tls_key = configuration.get('dask', 'tls_key')
         self.tls_cert = configuration.get('dask', 'tls_cert')
-        super(DaskExecutor, self).__init__(parallelism=0)
+        super().__init__(parallelism=0)
 
     def start(self):
         if self.tls_ca or self.tls_key or self.tls_cert:

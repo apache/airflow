@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
 import mock
 import unittest
@@ -38,7 +36,7 @@ send_email_test = mock.Mock()
 class TestEmailOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestEmailOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
