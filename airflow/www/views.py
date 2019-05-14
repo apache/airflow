@@ -19,7 +19,6 @@
 #
 
 import copy
-from io import BytesIO
 import itertools
 import json
 import logging
@@ -36,7 +35,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, url_for)
+    make_response, flash, jsonify, url_for)
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
@@ -545,30 +544,49 @@ class Airflow(AirflowBaseView):
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
-        try:
+
+        def _get_logs_with_metadata(try_number, metadata):
             if ti is None:
                 logs = ["*** Task instance did not exist in the DB\n"]
                 metadata['end_of_log'] = True
             else:
-                dag = dagbag.get_dag(dag_id)
-                ti.task = dag.get_task(ti.task_id)
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
+            return logs, metadata
 
+        try:
+            if ti is not None:
+                dag = dagbag.get_dag(dag_id)
+                ti.task = dag.get_task(ti.task_id)
             if response_format == 'json':
+                logs, metadata = _get_logs_with_metadata(try_number, metadata)
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            file_obj = BytesIO(b'\n'.join(
-                log.encode('utf-8') for log in logs
-            ))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
             attachment_filename = render_log_filename(
                 ti=ti,
                 try_number="all" if try_number is None else try_number,
                 filename_template=filename_template)
-            return send_file(file_obj, as_attachment=True,
-                             attachment_filename=attachment_filename)
+            metadata['download_logs'] = True
+
+            def _generate_log_stream(try_number, metadata):
+                if try_number is None and ti is not None:
+                    next_try = ti.next_try_number
+                    try_numbers = list(range(1, next_try))
+                else:
+                    try_numbers = [try_number]
+                for try_number in try_numbers:
+                    metadata.pop('end_of_log', None)
+                    metadata.pop('max_offset', None)
+                    metadata.pop('offset', None)
+                    while 'end_of_log' not in metadata or not metadata['end_of_log']:
+                        logs, metadata = _get_logs_with_metadata(try_number, metadata)
+                        yield "\n".join(logs) + "\n"
+            return Response(_generate_log_stream(try_number, metadata),
+                            mimetype="text/plain",
+                            headers={"Content-Disposition": "attachment; filename={}".format(
+                                attachment_filename)})
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]

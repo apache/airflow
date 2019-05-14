@@ -741,6 +741,29 @@ class TestLogView(TestBase):
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
+    def test_get_logs_with_metadata_as_download_large_file(self):
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+            first_return = (['1st line'], [{}])
+            second_return = (['2nd line'], [{'end_of_log': False}])
+            third_return = (['3rd line'], [{'end_of_log': True}])
+            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+            url_template = "get_logs_with_metadata?dag_id={}&" \
+                           "task_id={}&execution_date={}&" \
+                           "try_number={}&metadata={}&format=file"
+            try_number = 1
+            url = url_template.format(self.DAG_ID,
+                                      self.TASK_ID,
+                                      quote_plus(self.DEFAULT_DATE.isoformat()),
+                                      try_number,
+                                      json.dumps({}))
+            response = self.client.get(url)
+
+            self.assertIn('1st line', response.data.decode('utf-8'))
+            self.assertIn('2nd line', response.data.decode('utf-8'))
+            self.assertIn('3rd line', response.data.decode('utf-8'))
+            self.assertNotIn('should never be read', response.data.decode('utf-8'))
+
     def test_get_logs_with_metadata(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
