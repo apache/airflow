@@ -97,7 +97,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         offset = metadata['offset']
         log_id = self._render_log_id(ti, try_number)
 
-        logs = self.es_read(log_id, offset)
+        logs = self.es_read(log_id, offset, metadata)
 
         next_offset = offset if not logs else logs[-1].offset
 
@@ -113,7 +113,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # delay before Elasticsearch makes the log available.
         if 'last_log_timestamp' in metadata:
             last_log_ts = timezone.parse(metadata['last_log_timestamp'])
-            if cur_ts.diff(last_log_ts).in_minutes() >= 5:
+            if cur_ts.diff(last_log_ts).in_minutes() >= 5 or 'max_offset' in metadata \
+                    and offset >= metadata['max_offset']:
                 metadata['end_of_log'] = True
 
         if offset != next_offset or 'last_log_timestamp' not in metadata:
@@ -123,7 +124,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         return message, metadata
 
-    def es_read(self, log_id, offset):
+    def es_read(self, log_id, offset, metadata):
         """
         Returns the logs matching log_id in Elasticsearch and next offset.
         Returns '' if no log is found or there was an error.
@@ -131,6 +132,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :type log_id: str
         :param offset: the offset start to read log from.
         :type offset: str
+        :param metadata: log metadata, used for steaming log download.
+        :type metadata: dict
         """
 
         # Offset is the unique key for sorting logs given log_id.
@@ -139,9 +142,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             .sort('offset')
 
         s = s.filter('range', offset={'gt': offset})
+        max_log_line = s.count()
+        if 'download_logs' in metadata and metadata['download_logs'] and 'max_offset' not in metadata:
+            try:
+                metadata['max_offset'] = s[max_log_line - 1].execute()[-1].offset if max_log_line > 0 else 0
+            except Exception:
+                self.log.exception('Could not get current log size with log_id: {}'.format(log_id))
 
         logs = []
-        if s.count() != 0:
+        if max_log_line != 0:
             try:
 
                 logs = s[self.MAX_LINE_PER_PAGE * self.PAGE:self.MAX_LINE_PER_PAGE] \
