@@ -23,6 +23,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to `SubDagOperator`
+
+`SubDagOperator` is changed to use Airflow scheduler instead of backfill
+to schedule tasks in the subdag. User no longer need to specify the executor
+in `SubDagOperator`.
 
 ### `pool` config option in Celery section to support different Celery pool implementation
 

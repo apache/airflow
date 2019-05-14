@@ -41,6 +41,7 @@ find . -name "*.py" \
 -not -path "./.eggs/*" \
 -not -path "./airflow/www/node_modules/*" \
 -not -path "./airflow/_vendor/*" \
+-not -path "./venv/*" \
 -not -path "./build/*" \
 -not -path "./tests/*" \
 -not -name 'webserver_config.py' | grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
