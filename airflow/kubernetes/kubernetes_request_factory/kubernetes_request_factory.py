@@ -19,13 +19,12 @@ from abc import ABCMeta, abstractmethod
 import six
 
 
-class KubernetesRequestFactory:
+class KubernetesRequestFactory(metaclass=ABCMeta):
     """
     Create requests to be sent to kube API.
     Extend this class to talk to kubernetes and generate your specific resources.
     This is equivalent of generating yaml files that can be used by `kubectl`
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def create(self, pod):

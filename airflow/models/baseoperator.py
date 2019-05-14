@@ -25,7 +25,7 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Iterable, Optional, Dict, Callable, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
 import six
@@ -368,8 +368,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -906,11 +906,11 @@ class BaseOperator(LoggingMixin):
             if dag and not task.has_dag():
                 task.dag = dag
             if upstream:
-                task.add_only_new(task._downstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
             else:
                 self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task._upstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
     def set_downstream(self, task_or_task_list):
         """
@@ -979,12 +979,10 @@ class BaseOperator(LoggingMixin):
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
 
 
-class BaseOperatorLink:
+class BaseOperatorLink(metaclass=ABCMeta):
     """
     Abstract base class that defines how we get an operator link.
     """
-
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod

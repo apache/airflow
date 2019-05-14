@@ -147,10 +147,21 @@ simple dictionary.
 
 .. code:: python
 
+    def create_dag(dag_id):
+        """
+        A function returning a DAG object.
+        """
+
+        return DAG(dag_id)
+
+
     for i in range(10):
-        dag_id = 'foo_{}'.format(i)
+        dag_id = f'foo_{i}'
         globals()[dag_id] = DAG(dag_id)
+
         # or better, call a function that returns a DAG object!
+        other_dag_id = f'bar_{i}'
+        globals()[other_dag_id] = create_dag(other_dag_id)
 
 What are all the ``airflow run`` commands in my process list?
 ---------------------------------------------------------------
@@ -172,12 +183,13 @@ There are many layers of ``airflow run`` commands, meaning it can call itself.
 How can my airflow dag run faster?
 ----------------------------------
 
-There are three variables we could control to improve airflow dag performance:
+There are a few variables we could control to improve airflow dag performance:
 
-- ``parallelism``: This variable controls the number of task instances that the airflow worker can run simultaneously. User could increase the parallelism variable in the ``airflow.cfg``.
-- ``concurrency``: The Airflow scheduler will run no more than ``$concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``concurrency``: The Airflow scheduler will run no more than ``concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``task_concurrency``: This variable controls the number of concurrent running task instances across ``dag_runs`` per task.
 - ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
-
+- ``pool``: This variable controls the number of concurrent running task instances assigned to the pool.
 
 How can we reduce the airflow UI page load time?
 ------------------------------------------------

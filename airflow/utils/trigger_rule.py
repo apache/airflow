@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import object
 from typing import Set
 
 
-class TriggerRule(object):
+class TriggerRule:
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'

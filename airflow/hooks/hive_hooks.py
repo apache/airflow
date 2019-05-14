@@ -22,11 +22,11 @@ import os
 import re
 import subprocess
 import time
+import socket
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
-from past.builtins import basestring
 from six.moves import zip
 
 from airflow import configuration
@@ -472,7 +472,7 @@ class HiveMetastoreHook(BaseHook):
     MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
-        self.metastore_conn = self.get_connection(metastore_conn_id)
+        self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self):
@@ -493,13 +493,20 @@ class HiveMetastoreHook(BaseHook):
         import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        ms = self.metastore_conn
+
+        ms = self._find_valid_server()
+
+        if ms is None:
+            raise AirflowException("Failed to locate the valid server.")
+
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
+
         if configuration.conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
 
-        socket = TSocket.TSocket(ms.host, ms.port)
+        conn_socket = TSocket.TSocket(ms.host, ms.port)
+
         if configuration.conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
@@ -515,13 +522,25 @@ class HiveMetastoreHook(BaseHook):
                 return sasl_client
 
             from thrift_sasl import TSaslClientTransport
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
+            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
         else:
-            transport = TTransport.TBufferedTransport(socket)
+            transport = TTransport.TBufferedTransport(conn_socket)
 
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
         return hmsclient.HMSClient(iprot=protocol)
+
+    def _find_valid_server(self):
+        conns = self.get_connections(self.conn_id)
+        for conn in conns:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
+            if host_socket.connect_ex((conn.host, conn.port)) == 0:
+                self.log.info("Connected to %s:%s", conn.host, conn.port)
+                host_socket.close()
+                return conn
+            else:
+                self.log.info("Could not connect to %s:%s", conn.host, conn.port)
 
     def get_conn(self):
         return self.metastore
@@ -794,7 +813,7 @@ class HiveServer2Hook(BaseHook):
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         from pyhive.exc import ProgrammingError
-        if isinstance(hql, basestring):
+        if isinstance(hql, str):
             hql = [hql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, \

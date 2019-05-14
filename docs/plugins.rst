@@ -73,7 +73,7 @@ looks like:
 
 .. code:: python
 
-    class AirflowPlugin(object):
+    class AirflowPlugin:
         # The name of your plugin (str)
         name = None
         # A list of class(es) derived from BaseOperator

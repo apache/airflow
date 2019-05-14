@@ -133,6 +133,14 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
+    def test_conf_as_dict_exclude_env(self):
+        # test display_sensitive
+        cfg_dict = conf.as_dict(include_env=False, display_sensitive=True)
+
+        # Since testsection is only created from env vars, it shouldn't be
+        # present at all if we don't ask for env vars to be included.
+        self.assertNotIn('testsection', cfg_dict)
+
     def test_command_precedence(self):
         TEST_CONFIG = '''[test]
 key1 = hello
@@ -178,6 +186,12 @@ key6 = value6
         cfg_dict = test_conf.as_dict(display_sensitive=True)
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
+
+        # If we exclude _cmds then we should still see the commands to run, not
+        # their values
+        cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
+        self.assertNotIn('key4', cfg_dict['test'])
+        self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""

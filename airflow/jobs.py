@@ -30,7 +30,6 @@ from datetime import timedelta
 from time import sleep
 
 import six
-from past.builtins import basestring
 from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
@@ -38,8 +37,13 @@ from typing import Any
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
-from airflow.exceptions import (AirflowException, DagConcurrencyLimitReached,
-                                NoAvailablePoolSlot, PoolNotFound)
+from airflow.exceptions import (
+    AirflowException,
+    DagConcurrencyLimitReached,
+    NoAvailablePoolSlot,
+    PoolNotFound,
+    TaskConcurrencyLimitReached,
+)
 from airflow.models import DAG, DagPickle, DagRun, SlaMiss, errors
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
@@ -715,7 +719,7 @@ class SchedulerJob(BaseJob):
             emails = set()
             for task in dag.tasks:
                 if task.email:
-                    if isinstance(task.email, basestring):
+                    if isinstance(task.email, str):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
@@ -1801,12 +1805,13 @@ class BackfillJob(BaseJob):
     """
     ID_PREFIX = 'backfill_'
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
+    STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
     __mapper_args__ = {
         'polymorphic_identity': 'BackfillJob'
     }
 
-    class _DagRunTaskStatus(object):
+    class _DagRunTaskStatus:
         """
         Internal status of the backfill job. This class is intended to be instantiated
         only within a BackfillJob instance and will track the execution of tasks,
@@ -2316,18 +2321,32 @@ class BackfillJob(BaseJob):
                                     "non_pooled_backfill_task_slot_count.")
                             non_pool_slots -= 1
 
-                        num_running_tasks = DAG.get_num_task_instances(
+                        num_running_task_instances_in_dag = DAG.get_num_task_instances(
                             self.dag_id,
-                            states=(State.QUEUED, State.RUNNING))
+                            states=self.STATES_COUNT_AS_RUNNING,
+                        )
 
-                        if num_running_tasks >= self.dag.concurrency:
+                        if num_running_task_instances_in_dag >= self.dag.concurrency:
                             raise DagConcurrencyLimitReached(
-                                "Not scheduling since concurrency limit "
+                                "Not scheduling since DAG concurrency limit "
                                 "is reached."
                             )
 
+                        if task.task_concurrency:
+                            num_running_task_instances_in_task = DAG.get_num_task_instances(
+                                dag_id=self.dag_id,
+                                task_ids=[task.task_id],
+                                states=self.STATES_COUNT_AS_RUNNING,
+                            )
+
+                            if num_running_task_instances_in_task >= task.task_concurrency:
+                                raise TaskConcurrencyLimitReached(
+                                    "Not scheduling since Task concurrency limit "
+                                    "is reached."
+                                )
+
                         _per_task_process(task, key, ti)
-            except (NoAvailablePoolSlot, DagConcurrencyLimitReached) as e:
+            except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
             # execute the tasks in the queue

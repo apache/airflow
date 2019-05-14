@@ -24,6 +24,7 @@ import doctest
 import mock
 import multiprocessing
 import os
+import pickle  # type: ignore
 import re
 import signal
 import sqlalchemy
@@ -65,7 +66,7 @@ from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 18
+NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -74,12 +75,6 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
 EXAMPLE_DAG_DEFAULT_DATE = days_ago(2)
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Python 3
-    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
@@ -626,7 +621,7 @@ class CoreTest(unittest.TestCase):
         Test templates can handle objects with no sense of truthiness
         """
 
-        class NonBoolObject(object):
+        class NonBoolObject:
             def __len__(self):
                 return NotImplemented
 
@@ -1940,7 +1935,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class FakeWebHDFSHook(object):
+class FakeWebHDFSHook:
     def __init__(self, conn_id):
         self.conn_id = conn_id
 
@@ -1955,7 +1950,7 @@ class FakeSnakeBiteClientException(Exception):
     pass
 
 
-class FakeSnakeBiteClient(object):
+class FakeSnakeBiteClient:
 
     def __init__(self):
         self.started = True
@@ -2094,7 +2089,7 @@ class FakeSnakeBiteClient(object):
             raise FakeSnakeBiteClientException
 
 
-class FakeHDFSHook(object):
+class FakeHDFSHook:
     def __init__(self, conn_id=None):
         self.conn_id = conn_id
 

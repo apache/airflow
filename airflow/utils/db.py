@@ -109,6 +109,10 @@ def initdb():
             schema='default',))
     merge_conn(
         Connection(
+            conn_id='pig_cli_default', conn_type='pig_cli',
+            schema='default',))
+    merge_conn(
+        Connection(
             conn_id='hiveserver2_default', conn_type='hiveserver2',
             host='localhost',
             schema='default', port=10000))
