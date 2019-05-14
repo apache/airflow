@@ -168,6 +168,7 @@ class GoogleCloudBaseHook(BaseHook):
         Function decorator that intercepts HTTP Errors and raises AirflowException
         with more informative message.
         """
+
         @functools.wraps(func)
         def wrapper_decorator(self, *args, **kwargs):
             try:
@@ -187,6 +188,7 @@ class GoogleCloudBaseHook(BaseHook):
             except HttpError as e:
                 self.log.error('The request failed:\n%s', str(e))
                 raise AirflowException(e)
+
         return wrapper_decorator
 
     @staticmethod
@@ -228,7 +230,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
         return project_id if project_id else self.project_id
 
-    class _Decorators(object):
+    class _Decorators:
         """A private inner class for keeping all decorator methods."""
 
         @staticmethod

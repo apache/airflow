@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.compat import mock
 
 
@@ -51,7 +48,7 @@ def get_airflow_connection_with_port():
     )
 
 
-class StubClass(object):
+class StubClass:
     def __init__(self, channel):
         pass
 

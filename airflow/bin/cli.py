@@ -18,7 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
 import importlib
 import logging
 
@@ -57,9 +56,9 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
-from airflow.models.connection import Connection
-from airflow.models.dagpickle import DagPickle
+from airflow.models import (
+    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
+)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
@@ -664,8 +663,6 @@ def list_jobs(args, dag=None):
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1181,8 +1178,6 @@ def connections(args):
             msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                    'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                            tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
             print(msg)
             return
 
@@ -1378,8 +1373,6 @@ def users(args):
         users = [[user.__getattribute__(field) for field in fields] for user in users]
         msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
         return
@@ -1562,7 +1555,7 @@ def _import_users(users_list):
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing ther username is not allowed - "
+                print("Error: Changing the username is not allowed - "
                       "please delete and recreate the user with "
                       "email '{}'".format(user['email']))
                 exit(1)
@@ -1606,8 +1599,6 @@ def roles(args):
         msg = tabulate(role_names,
                        headers=['Role'],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1676,7 +1667,7 @@ def sync_perm(args):
             dag.access_control)
 
 
-class Arg(object):
+class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
         self.flags = flags
@@ -1689,7 +1680,7 @@ class Arg(object):
         self.metavar = metavar
 
 
-class CLIFactory(object):
+class CLIFactory:
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),

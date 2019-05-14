@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import, division, print_function
-
 import copy
 import datetime
 import unittest
@@ -63,7 +61,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(MLEngineBatchPredictionOperatorTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

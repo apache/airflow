@@ -97,6 +97,7 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :type volumes: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
@@ -142,7 +143,7 @@ class DockerOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DockerOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command

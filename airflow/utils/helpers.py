@@ -16,18 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import errno
 
 import psutil
 
 from builtins import input
-from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
 import os
@@ -49,7 +43,7 @@ KEY_REGEX = re.compile(r'^[\w\-\.]+$')
 
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
@@ -109,7 +103,7 @@ def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
     """
-    return hasattr(obj, '__iter__') and not isinstance(obj, basestring)
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
 def as_tuple(obj):
@@ -153,6 +147,22 @@ def as_flattened_list(iterable):
     ['blue', 'red', 'green', 'yellow', 'pink']
     """
     return [e for i in iterable for e in i]
+
+
+def chain(*tasks):
+    """
+    Given a number of tasks, builds a dependency chain.
+
+    chain(task_1, task_2, task_3, task_4)
+
+    is equivalent to
+
+    task_1.set_downstream(task_2)
+    task_2.set_downstream(task_3)
+    task_3.set_downstream(task_4)
+    """
+    for up_task, down_task in zip(tasks[:-1], tasks[1:]):
+        up_task.set_downstream(down_task)
 
 
 def cross_downstream(from_tasks, to_tasks):
@@ -221,7 +231,7 @@ def pprinttable(rows):
     s += separator + '\n'
 
     def f(t):
-        return "{}".format(t) if isinstance(t, basestring) else t
+        return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'

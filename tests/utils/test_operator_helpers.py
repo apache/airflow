@@ -28,7 +28,7 @@ from airflow.utils import operator_helpers
 class TestOperatorHelpers(unittest.TestCase):
 
     def setUp(self):
-        super(TestOperatorHelpers, self).setUp()
+        super().setUp()
         self.dag_id = 'dag_id'
         self.task_id = 'task_id'
         self.execution_date = '2017-05-21T00:00:00'

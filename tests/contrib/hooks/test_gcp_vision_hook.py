@@ -16,12 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
 from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet, Product, ReferenceImage
+from google.cloud.vision_v1.proto.image_annotator_pb2 import (
+    AnnotateImageResponse,
+    EntityAnnotation,
+    SafeSearchAnnotation,
+)
 from google.protobuf.json_format import MessageToDict
 from parameterized import parameterized
 
@@ -57,6 +61,8 @@ REFERENCE_IMAGE_NAME_TEST = "projects/{}/locations/{}/products/{}/referenceImage
 )
 REFERENCE_IMAGE_TEST = ReferenceImage(name=REFERENCE_IMAGE_GEN_ID_TEST)
 REFERENCE_IMAGE_WITHOUT_ID_NAME = ReferenceImage()
+DETECT_TEST_IMAGE = {"source": {"image_uri": "https://foo.com/image.jpg"}}
+DETECT_TEST_ADDITIONAL_PROPERTIES = {"test-property-1": "test-value-1", "test-property-2": "test-value-2"}
 
 
 class TestGcpVisionHook(unittest.TestCase):
@@ -647,3 +653,211 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         self.assertIsNone(response)
         delete_product_method.assert_called_once_with(name=name, retry=None, timeout=None, metadata=None)
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_detect_text(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.text_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            text_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.text_detection(image=DETECT_TEST_IMAGE)
+
+        # Then
+        detect_text_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_detect_text_with_additional_properties(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.text_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            text_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.text_detection(
+            image=DETECT_TEST_IMAGE, additional_properties={"prop1": "test1", "prop2": "test2"}
+        )
+
+        # Then
+        detect_text_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_detect_text_with_error_response(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.text_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            error={"code": 3, "message": "test error message"}
+        )
+
+        # When
+        with self.assertRaises(AirflowException) as msg:
+            self.hook.text_detection(image=DETECT_TEST_IMAGE)
+
+        err = msg.exception
+        self.assertIn("test error message", str(err))
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_document_text_detection(self, annotator_client_mock):
+        # Given
+        document_text_detection_method = annotator_client_mock.document_text_detection
+        document_text_detection_method.return_value = AnnotateImageResponse(
+            text_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.document_text_detection(image=DETECT_TEST_IMAGE)
+
+        # Then
+        document_text_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_document_text_detection_with_additional_properties(self, annotator_client_mock):
+        # Given
+        document_text_detection_method = annotator_client_mock.document_text_detection
+        document_text_detection_method.return_value = AnnotateImageResponse(
+            text_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.document_text_detection(
+            image=DETECT_TEST_IMAGE, additional_properties={"prop1": "test1", "prop2": "test2"}
+        )
+
+        # Then
+        document_text_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_detect_document_text_with_error_response(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.document_text_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            error={"code": 3, "message": "test error message"}
+        )
+
+        # When
+        with self.assertRaises(AirflowException) as msg:
+            self.hook.document_text_detection(image=DETECT_TEST_IMAGE)
+
+        err = msg.exception
+        self.assertIn("test error message", str(err))
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_label_detection(self, annotator_client_mock):
+        # Given
+        label_detection_method = annotator_client_mock.label_detection
+        label_detection_method.return_value = AnnotateImageResponse(
+            label_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.label_detection(image=DETECT_TEST_IMAGE)
+
+        # Then
+        label_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_label_detection_with_additional_properties(self, annotator_client_mock):
+        # Given
+        label_detection_method = annotator_client_mock.label_detection
+        label_detection_method.return_value = AnnotateImageResponse(
+            label_annotations=[EntityAnnotation(description="test", score=0.5)]
+        )
+
+        # When
+        self.hook.label_detection(
+            image=DETECT_TEST_IMAGE, additional_properties={"prop1": "test1", "prop2": "test2"}
+        )
+
+        # Then
+        label_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_label_detection_with_error_response(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.label_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            error={"code": 3, "message": "test error message"}
+        )
+
+        # When
+        with self.assertRaises(AirflowException) as msg:
+            self.hook.label_detection(image=DETECT_TEST_IMAGE)
+
+        err = msg.exception
+        self.assertIn("test error message", str(err))
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_safe_search_detection(self, annotator_client_mock):
+        # Given
+        safe_search_detection_method = annotator_client_mock.safe_search_detection
+        safe_search_detection_method.return_value = AnnotateImageResponse(
+            safe_search_annotation=SafeSearchAnnotation(
+                adult="VERY_UNLIKELY",
+                spoof="VERY_UNLIKELY",
+                medical="VERY_UNLIKELY",
+                violence="VERY_UNLIKELY",
+                racy="VERY_UNLIKELY",
+            )
+        )
+
+        # When
+        self.hook.safe_search_detection(image=DETECT_TEST_IMAGE)
+
+        # Then
+        safe_search_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_safe_search_detection_with_additional_properties(self, annotator_client_mock):
+        # Given
+        safe_search_detection_method = annotator_client_mock.safe_search_detection
+        safe_search_detection_method.return_value = AnnotateImageResponse(
+            safe_search_annotation=SafeSearchAnnotation(
+                adult="VERY_UNLIKELY",
+                spoof="VERY_UNLIKELY",
+                medical="VERY_UNLIKELY",
+                violence="VERY_UNLIKELY",
+                racy="VERY_UNLIKELY",
+            )
+        )
+
+        # When
+        self.hook.safe_search_detection(
+            image=DETECT_TEST_IMAGE, additional_properties={"prop1": "test1", "prop2": "test2"}
+        )
+
+        # Then
+        safe_search_detection_method.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+        )
+
+    @mock.patch("airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client")
+    def test_safe_search_detection_with_error_response(self, annotator_client_mock):
+        # Given
+        detect_text_method = annotator_client_mock.safe_search_detection
+        detect_text_method.return_value = AnnotateImageResponse(
+            error={"code": 3, "message": "test error message"}
+        )
+
+        # When
+        with self.assertRaises(AirflowException) as msg:
+            self.hook.safe_search_detection(image=DETECT_TEST_IMAGE)
+
+        err = msg.exception
+        self.assertIn("test error message", str(err))

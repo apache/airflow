@@ -17,15 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
+from io import StringIO
+
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.exceptions import AirflowException
 from qds_sdk.commands import Command
-
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 
 COL_DELIM = '\t'
@@ -74,7 +72,7 @@ def parse_first_row(row_list):
 
 class QuboleCheckHook(QuboleHook):
     def __init__(self, context, *args, **kwargs):
-        super(QuboleCheckHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
         if 'results_parser_callable' in kwargs and \
                 kwargs['results_parser_callable'] is not None:

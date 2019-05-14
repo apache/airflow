@@ -25,7 +25,7 @@ import unittest
 import MySQLdb.cursors
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 SSL_DICT = {
     'cert': '/tmp/client-cert.pem',
@@ -37,7 +37,7 @@ SSL_DICT = {
 class TestMySqlHookConn(unittest.TestCase):
 
     def setUp(self):
-        super(TestMySqlHookConn, self).setUp()
+        super().setUp()
 
         self.connection = Connection(
             login='login',
@@ -129,7 +129,7 @@ class TestMySqlHookConn(unittest.TestCase):
 class TestMySqlHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestMySqlHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

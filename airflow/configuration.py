@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from base64 import b64encode
 from builtins import str
@@ -30,7 +25,6 @@ import errno
 from future import standard_library
 import os
 import shlex
-import six
 from six import iteritems
 import subprocess
 import sys
@@ -102,13 +96,8 @@ def run_command(command):
 def _read_default_config_file(file_name):
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    if six.PY2:
-        with open(file_path) as f:
-            config = f.read()
-            return config.decode('utf-8')
-    else:
-        with open(file_path, encoding='utf-8') as f:
-            return f.read()
+    with open(file_path, encoding='utf-8') as f:
+        return f.read()
 
 
 DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
@@ -157,7 +146,7 @@ class AirflowConfigParser(ConfigParser):
     }
 
     def __init__(self, default_config=None, *args, **kwargs):
-        super(AirflowConfigParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
@@ -209,10 +198,8 @@ class AirflowConfigParser(ConfigParser):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
         if (section, key) in self.as_command_stdout:
-            if super(AirflowConfigParser, self) \
-                    .has_option(section, fallback_key):
-                command = super(AirflowConfigParser, self) \
-                    .get(section, fallback_key)
+            if super().has_option(section, fallback_key):
+                command = super().get(section, fallback_key)
                 return run_command(command)
 
     def get(self, section, key, **kwargs):
@@ -232,15 +219,15 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the config file
-        if super(AirflowConfigParser, self).has_option(section, key):
+        if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.
             return expand_env_var(
-                super(AirflowConfigParser, self).get(section, key, **kwargs))
+                super().get(section, key, **kwargs))
         if deprecated_name:
-            if super(AirflowConfigParser, self).has_option(section, deprecated_name):
+            if super().has_option(section, deprecated_name):
                 self._warn_deprecate(section, key, deprecated_name)
-                return expand_env_var(super(AirflowConfigParser, self).get(
+                return expand_env_var(super().get(
                     section,
                     deprecated_name,
                     **kwargs
@@ -290,11 +277,11 @@ class AirflowConfigParser(ConfigParser):
         return float(self.get(section, key, **kwargs))
 
     def read(self, filenames, **kwargs):
-        super(AirflowConfigParser, self).read(filenames, **kwargs)
+        super().read(filenames, **kwargs)
         self._validate()
 
     def read_dict(self, *args, **kwargs):
-        super(AirflowConfigParser, self).read_dict(*args, **kwargs)
+        super().read_dict(*args, **kwargs)
         self._validate()
 
     def has_option(self, section, option):
@@ -313,8 +300,8 @@ class AirflowConfigParser(ConfigParser):
         default config. If both of config have the same option, this removes
         the option in both configs unless remove_default=False.
         """
-        if super(AirflowConfigParser, self).has_option(section, option):
-            super(AirflowConfigParser, self).remove_option(section, option)
+        if super().has_option(section, option):
+            super().remove_option(section, option)
 
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)
@@ -357,9 +344,11 @@ class AirflowConfigParser(ConfigParser):
         return _section
 
     def as_dict(
-            self, display_source=False, display_sensitive=False, raw=False):
+            self, display_source=False, display_sensitive=False, raw=False,
+            include_env=True, include_cmds=True):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
+
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
@@ -371,6 +360,13 @@ class AirflowConfigParser(ConfigParser):
         :param raw: Should the values be output as interpolated values, or the
             "raw" form that can be fed back in to ConfigParser
         :type raw: bool
+        :param include_env: Should the value of configuration from AIRFLOW__
+            environment variables be included or not
+        :type include_env: bool
+        :param include_cmds: Should the result of calling any *_cmd config be
+            set (True, default), or should the _cmd options be left as the
+            command to run (False)
+        :type include_cmds: bool
         """
         cfg = {}
         configs = [
@@ -387,33 +383,35 @@ class AirflowConfigParser(ConfigParser):
                     sect[k] = val
 
         # add env vars and overwrite because they have priority
-        for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
-            try:
-                _, section, key = ev.split('__')
-                opt = self._get_env_var_option(section, key)
-            except ValueError:
-                continue
-            if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
-                opt = '< hidden >'
-            elif raw:
-                opt = opt.replace('%', '%%')
-            if display_source:
-                opt = (opt, 'env var')
-            cfg.setdefault(section.lower(), OrderedDict()).update(
-                {key.lower(): opt})
-
-        # add bash commands
-        for (section, key) in self.as_command_stdout:
-            opt = self._get_cmd_option(section, key)
-            if opt:
-                if not display_sensitive:
+        if include_env:
+            for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
+                try:
+                    _, section, key = ev.split('__')
+                    opt = self._get_env_var_option(section, key)
+                except ValueError:
+                    continue
+                if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
                     opt = '< hidden >'
-                if display_source:
-                    opt = (opt, 'cmd')
                 elif raw:
                     opt = opt.replace('%', '%%')
-                cfg.setdefault(section, OrderedDict()).update({key: opt})
-                del cfg[section][key + '_cmd']
+                if display_source:
+                    opt = (opt, 'env var')
+                cfg.setdefault(section.lower(), OrderedDict()).update(
+                    {key.lower(): opt})
+
+        # add bash commands
+        if include_cmds:
+            for (section, key) in self.as_command_stdout:
+                opt = self._get_cmd_option(section, key)
+                if opt:
+                    if not display_sensitive:
+                        opt = '< hidden >'
+                    if display_source:
+                        opt = (opt, 'cmd')
+                    elif raw:
+                        opt = opt.replace('%', '%%')
+                    cfg.setdefault(section, OrderedDict()).update({key: opt})
+                    del cfg[section][key + '_cmd']
 
         return cfg
 
@@ -531,8 +529,6 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     with open(AIRFLOW_CONFIG, 'w') as f:
         cfg = parameterized_config(DEFAULT_CONFIG)
         cfg = cfg.split(TEMPLATE_START)[-1].strip()
-        if six.PY2:
-            cfg = cfg.encode('utf8')
         f.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)

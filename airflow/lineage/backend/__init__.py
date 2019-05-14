@@ -18,7 +18,7 @@
 #
 
 
-class LineageBackend(object):
+class LineageBackend:
     def send_lineage(self,
                      operator=None, inlets=None, outlets=None, context=None):
         """

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import mock
 import unittest
 import shutil
@@ -27,7 +25,7 @@ import pysftp
 
 from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
