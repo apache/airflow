@@ -1285,10 +1285,7 @@ class Airflow(AirflowBaseView):
                                              'num_runs': num_runs})
         return self.render_template(
             'airflow/tree.html',
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs)
@@ -1384,10 +1381,7 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
             blur=blur,
             root=root or '',
             task_instances=task_instances,
