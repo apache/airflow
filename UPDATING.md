@@ -23,6 +23,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to `SubDagOperator`
+
+`SubDagOperator` is changed to use Airflow scheduler instead of backfill
+to schedule tasks in the subdag. User no longer need to specify the executor
+in `SubDagOperator`.
+
 ### Variables removed from the task instance context
 
 The following variables were removed from the task instance context:

@@ -27,7 +27,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable, List
+from typing import Union, Optional, Iterable, Dict, Type, Callable, List, TYPE_CHECKING
 
 import jinja2
 import pendulum
@@ -51,6 +51,9 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -750,7 +753,7 @@ class DAG(BaseDag, LoggingMixin):
     def roots(self):
         return [t for t in self.tasks if not t.downstream_list]
 
-    def topological_sort(self):
+    def topological_sort(self, include_subdag_tasks: bool = False):
         """
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
@@ -758,13 +761,15 @@ class DAG(BaseDag, LoggingMixin):
         Heavily inspired by:
         http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
 
+        :param include_subdag_tasks: whether to include tasks in subdags, default to False
         :return: list of tasks in topological order
         """
+        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular import
 
         # convert into an OrderedDict to speedup lookup while keeping order the same
         graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
 
-        graph_sorted = []
+        graph_sorted = []  # type: List[BaseOperator]
 
         # special case
         if len(self.tasks) == 0:
@@ -794,6 +799,8 @@ class DAG(BaseDag, LoggingMixin):
                     acyclic = True
                     del graph_unsorted[node.task_id]
                     graph_sorted.append(node)
+                    if include_subdag_tasks and isinstance(node, SubDagOperator):
+                        graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
 
             if not acyclic:
                 raise AirflowException("A cyclic dependency occurred in dag: {}"
@@ -1037,9 +1044,13 @@ class DAG(BaseDag, LoggingMixin):
     def has_task(self, task_id):
         return task_id in (t.task_id for t in self.tasks)
 
-    def get_task(self, task_id):
+    def get_task(self, task_id, include_subdags=False):
         if task_id in self.task_dict:
             return self.task_dict[task_id]
+        if include_subdags:
+            for dag in self.subdags:
+                if task_id in dag.task_dict:
+                    return dag.task_dict[task_id]
         raise AirflowException("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):

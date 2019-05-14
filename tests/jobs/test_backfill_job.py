@@ -36,6 +36,7 @@ from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.compat import Mock, patch
@@ -1201,6 +1202,10 @@ class BackfillJobTest(unittest.TestCase):
                           donot_pickle=True)
         job.run()
 
+        subdag_op_task.pre_execute(context={'execution_date': start_date})
+        subdag_op_task.execute(context={'execution_date': start_date})
+        subdag_op_task.post_execute(context={'execution_date': start_date})
+
         history = executor.history
         subdag_history = history[0]
 
@@ -1209,6 +1214,18 @@ class BackfillJobTest(unittest.TestCase):
         for sdh in subdag_history:
             ti = sdh[3]
             self.assertIn('section-1-task-', ti.task_id)
+
+        with create_session() as session:
+            successful_subdag_runs = (
+                session
+                .query(DagRun)
+                .filter(DagRun.dag_id == subdag.dag_id)
+                .filter(DagRun.execution_date == start_date)
+                .filter(DagRun.state == State.SUCCESS)
+                .count()
+            )
+
+            self.assertEqual(1, successful_subdag_runs)
 
         subdag.clear()
         dag.clear()

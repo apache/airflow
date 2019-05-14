@@ -2684,3 +2684,52 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+    def test_process_dags_not_create_dagrun_for_subdags(self):
+        dag = self.dagbag.get_dag('test_subdag_operator')
+
+        scheduler = SchedulerJob()
+        scheduler._process_task_instances = mock.MagicMock()
+        scheduler.manage_slas = mock.MagicMock()
+
+        scheduler._process_dags(self.dagbag, [dag] + dag.subdags, None)
+
+        with create_session() as session:
+            sub_dagruns = (
+                session
+                .query(DagRun)
+                .filter(DagRun.dag_id == dag.subdags[0].dag_id)
+                .count()
+            )
+
+            self.assertEqual(0, sub_dagruns)
+
+            parent_dagruns = (
+                session
+                .query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id)
+                .count()
+            )
+
+            self.assertGreater(parent_dagruns, 0)
+
+    def test_find_dags_to_run_includes_subdags(self):
+        dag = self.dagbag.get_dag('test_subdag_operator')
+        print(self.dagbag.dag_ids)
+        print(self.dagbag.dag_folder)
+        self.assertGreater(len(dag.subdags), 0)
+        scheduler = SchedulerJob()
+        dags = scheduler._find_dags_to_process(self.dagbag.dags.values(), paused_dag_ids=())
+
+        self.assertIn(dag, dags)
+        for subdag in dag.subdags:
+            self.assertIn(subdag, dags)
+
+    def test_find_dags_to_run_skip_paused_dags(self):
+        dagbag = DagBag(include_examples=False)
+
+        dag = dagbag.get_dag('test_subdag_operator')
+        scheduler = SchedulerJob()
+        dags = scheduler._find_dags_to_process(dagbag.dags.values(), paused_dag_ids=[dag.dag_id])
+
+        self.assertNotIn(dag, dags)
