@@ -38,6 +38,8 @@ class PigOperator(BaseOperator):
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
     :type pigparams_jinja_translate: bool
+    :param pig_opts: pig options, such as: -x tez, -useHCatalog, ...
+    :type pig_opts: str
     """
 
     template_fields = ('pig',)
@@ -49,12 +51,14 @@ class PigOperator(BaseOperator):
             self, pig,
             pig_cli_conn_id='pig_cli_default',
             pigparams_jinja_translate=False,
+            pig_opts=None,
             *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
+        self.pig_opts = pig_opts
 
     def get_hook(self):
         return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
@@ -67,7 +71,7 @@ class PigOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s', self.pig)
         self.hook = self.get_hook()
-        self.hook.run_cli(pig=self.pig)
+        self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):
         self.hook.kill()
