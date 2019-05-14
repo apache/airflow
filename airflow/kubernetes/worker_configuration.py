@@ -64,10 +64,13 @@ class WorkerConfiguration(LoggingMixin):
             'value': self.kube_config.git_sync_dest
         }, {
             'name': 'GIT_SYNC_DEPTH',
-            'value': '1'
+            'value': self.kube_config.git_sync_depth if self.kube_config.git_sync_depth else '1'
         }, {
             'name': 'GIT_SYNC_ONE_TIME',
             'value': 'true'
+        }, {
+            'name': 'GIT_SYNC_REV',
+            'value': self.kube_config.git_sync_rev if self.kube_config.git_sync_rev else 'HEAD'
         }]
         if self.kube_config.git_user:
             init_environment.append({
