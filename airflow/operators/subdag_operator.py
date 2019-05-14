@@ -17,12 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import time
+
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.models import BaseOperator, Pool
+from airflow.models import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.db import provide_session
+from airflow.utils.db import create_session, provide_session
 
 
 class SubDagOperator(BaseOperator):
@@ -31,12 +35,7 @@ class SubDagOperator(BaseOperator):
     should be prefixed by its parent and a dot. As in `parent.child`.
 
     :param subdag: the DAG object to run as a subdag of the current DAG.
-    :type subdag: airflow.models.DAG
-    :param dag: the parent DAG for the subdag.
-    :type dag: airflow.models.DAG
-    :param executor: the executor for this subdag. Default to use SequentialExecutor.
-        Please find AIRFLOW-74 for more details.
-    :type executor: airflow.executors.base_executor.BaseExecutor
+    :param poke_interval: how often we check if the subdag is finished
     """
 
     ui_color = '#555'
@@ -46,15 +45,17 @@ class SubDagOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            subdag,
-            executor=SequentialExecutor(),
+            subdag: DAG,
+            poke_interval: int=10,
             *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.poke_interval = poke_interval
+        self.subdag = subdag
         dag = kwargs.get('dag') or settings.CONTEXT_MANAGER_DAG
         if not dag:
             raise AirflowException('Please pass in the `dag` param or call '
                                    'within a DAG context manager')
-        session = kwargs.pop('session')
-        super().__init__(*args, **kwargs)
 
         # validate subdag name
         if dag.dag_id + '.' + kwargs['task_id'] != subdag.dag_id:
@@ -64,39 +65,48 @@ class SubDagOperator(BaseOperator):
                 "'{d}.{t}'; received '{rcvd}'.".format(
                     d=dag.dag_id, t=kwargs['task_id'], rcvd=subdag.dag_id))
 
-        # validate that subdag operator and subdag tasks don't have a
-        # pool conflict
         if self.pool:
-            conflicts = [t for t in subdag.tasks if t.pool == self.pool]
-            if conflicts:
-                # only query for pool conflicts if one may exist
-                pool = (
-                    session
-                    .query(Pool)
-                    .filter(Pool.slots == 1)
-                    .filter(Pool.pool == self.pool)
-                    .first()
-                )
-                if pool and any(t.pool == self.pool for t in subdag.tasks):
-                    raise AirflowException(
-                        'SubDagOperator {sd} and subdag task{plural} {t} both '
-                        'use pool {p}, but the pool only has 1 slot. The '
-                        'subdag tasks will never run.'.format(
-                            sd=self.task_id,
-                            plural=len(conflicts) > 1,
-                            t=', '.join(t.task_id for t in conflicts),
-                            p=self.pool
-                        )
-                    )
+            raise AirflowException("SubDagOperator should not occupy pool slots.")
 
-        self.subdag = subdag
-        # Airflow pool is not honored by SubDagOperator.
-        # Hence resources could be consumed by SubdagOperators
-        # Use other executor with your own risk.
-        self.executor = executor
+    @provide_session
+    def _get_dagrun(self, execution_date, session=None):
+        return (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == self.subdag.dag_id)
+            .filter(DagRun.execution_date == execution_date)
+            .first()
+        )
 
     def execute(self, context):
-        ed = context['execution_date']
-        self.subdag.run(
-            start_date=ed, end_date=ed, donot_pickle=True,
-            executor=self.executor)
+        execution_date = context['execution_date']
+        with create_session() as session:
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == self.subdag.dag_id)
+                .filter(DagRun.execution_date == execution_date)
+                .first()
+            )
+
+            if dag_run is None:
+                dag_run = self.subdag.create_dagrun(
+                    run_id="scheduled__{}".format(execution_date.isoformat()),
+                    execution_date=execution_date,
+                    state=State.RUNNING,
+                    external_trigger=True,
+                )
+
+                self.log.info("Created DagRun: %s", dag_run.run_id)
+            else:
+                self.log.info("Found existing DagRun: %s", dag_run.run_id)
+
+            while dag_run.state == State.RUNNING:
+                self.log.info("dag run is still running...")
+                time.sleep(self.poke_interval)
+                dag_run = self._get_dagrun(execution_date=execution_date)
+
+        self.log.info("Execution finished. State is %s", dag_run.state)
+
+        if dag_run.state != State.SUCCESS:
+            raise AirflowException(
+                "Expected state: SUCCESS. Actual state: {}".format(dag_run.state))
+

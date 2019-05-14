@@ -1184,14 +1184,16 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Processing %s", dag.dag_id)
 
-            dag_run = self.create_dag_run(dag)
-            if dag_run:
-                expected_start_date = dag.following_schedule(dag_run.execution_date)
-                if expected_start_date:
-                    schedule_delay = dag_run.start_date - expected_start_date
-                    Stats.timing(
-                        'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
-                        schedule_delay)
+            # DagRun of subdag is created when SubDagOperator executes
+            if not dag.is_subdag:
+                dag_run = self.create_dag_run(dag)
+                if dag_run:
+                    expected_start_date = dag.following_schedule(dag_run.execution_date)
+                    if expected_start_date:
+                        schedule_delay = dag_run.start_date - expected_start_date
+                        Stats.timing(
+                            'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                            schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
@@ -1492,8 +1494,7 @@ class SchedulerJob(BaseJob):
                     dag.dag_id not in paused_dag_ids]
         else:
             dags = [dag for dag in dagbag.dags.values()
-                    if not dag.parent_dag and
-                    dag.dag_id not in paused_dag_ids]
+                    if dag.dag_id not in paused_dag_ids]
 
         # Not using multiprocessing.Queue() since it's no longer a separate
         # process and due to some unusual behavior. (empty() incorrectly
