@@ -53,5 +53,6 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
         )
         mock_s3_hook.return_value.load_bytes.assert_called_once_with(
             bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],
-            key=self.kwargs['s3_key']
+            key=self.kwargs['s3_key'],
+            replace=self.kwargs['s3_overwrite']
         )
