@@ -24,6 +24,7 @@ import unittest
 import logging
 
 from airflow import jobs, models
+from airflow.configuration import conf
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -137,6 +138,8 @@ class ImpersonationTest(unittest.TestCase):
             'exec_python_fn'
         )
 
+    @unittest.skipIf(conf.get('core', 'executor') == 'SequentialExecutor',
+                     'SubDagOperator does not support SequentialExecutor.')
     def test_impersonation_subdag(self):
         """
         Tests that impersonation using a subdag correctly passes the right configuration

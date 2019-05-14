@@ -43,6 +43,19 @@ from tests.models import DEFAULT_DATE
 
 class DagTest(unittest.TestCase):
 
+    def _occur_before(self, a, b, list_):
+        """
+        Assert that a occurs before b in the list.
+        """
+        a_index = -1
+        b_index = -1
+        for i, e in enumerate(list_):
+            if e.task_id == a:
+                a_index = i
+            if e.task_id == b:
+                b_index = i
+        return 0 <= a_index and 0 <= b_index and a_index < b_index
+
     def test_params_not_passed_is_empty_dict(self):
         """
         Test that when 'params' is _not_ passed to a new Dag, that the params
@@ -127,6 +140,39 @@ class DagTest(unittest.TestCase):
         self.assertEqual(op7.dag, dag)
         self.assertEqual(op8.dag, dag)
         self.assertEqual(op9.dag, dag2)
+
+    def test_dag_topological_sort_include_subdag_tasks(self):
+        child_dag = DAG(
+            'parent_dag.child_dag',
+            schedule_interval='@daily',
+            start_date=DEFAULT_DATE,
+        )
+
+        with child_dag:
+            DummyOperator(task_id='a_child')
+            DummyOperator(task_id='b_child')
+
+        parent_dag = DAG(
+            'parent_dag',
+            schedule_interval='@daily',
+            start_date=DEFAULT_DATE,
+        )
+
+        # a_parent -> child_dag -> (a_child | b_child) -> b_parent
+        with parent_dag:
+            op1 = DummyOperator(task_id='a_parent')
+            op2 = SubDagOperator(task_id='child_dag', subdag=child_dag)
+            op3 = DummyOperator(task_id='b_parent')
+
+            op1 >> op2 >> op3
+
+        topological_list = parent_dag.topological_sort(include_subdag_tasks=True)
+
+        self.assertTrue(self._occur_before('a_parent', 'child_dag', topological_list))
+        self.assertTrue(self._occur_before('child_dag', 'a_child', topological_list))
+        self.assertTrue(self._occur_before('child_dag', 'b_child', topological_list))
+        self.assertTrue(self._occur_before('a_child', 'b_parent', topological_list))
+        self.assertTrue(self._occur_before('b_child', 'b_parent', topological_list))
 
     def test_dag_topological_sort(self):
         dag = DAG(
