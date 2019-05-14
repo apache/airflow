@@ -190,6 +190,22 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(0, metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
 
+    def test_read_as_download_logs(self):
+        ts = pendulum.now()
+        logs, metadatas = self.es_task_handler.read(self.ti,
+                                                    1,
+                                                    {'offset': 0,
+                                                     'last_log_timestamp': str(ts),
+                                                     'download_logs': True,
+                                                     'end_of_log': False})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual(self.test_message, logs[0])
+        self.assertFalse(metadatas[0]['end_of_log'])
+        self.assertTrue(metadatas[0]['download_logs'])
+        self.assertEqual(1, metadatas[0]['offset'])
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+
     def test_read_raises(self):
         with mock.patch.object(self.es_task_handler.log, 'exception') as mock_exception:
             with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
