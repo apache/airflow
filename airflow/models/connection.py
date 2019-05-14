@@ -73,6 +73,7 @@ class Connection(Base, LoggingMixin):
         ('google_cloud_platform', 'Google Cloud Platform'),
         ('hdfs', 'HDFS',),
         ('http', 'HTTP',),
+        ('pig_cli', 'Pig Client Wrapper',),
         ('hive_cli', 'Hive Client Wrapper',),
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
@@ -209,6 +210,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'postgres':
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
+        elif self.conn_type == 'pig_cli':
+            from airflow.hooks.pig_hook import PigCliHook
+            return PigCliHook(pig_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.hooks.hive_hooks import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
