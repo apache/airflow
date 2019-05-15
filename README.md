@@ -308,6 +308,7 @@ Currently **officially** using Airflow:
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
 1. [Scaleway](https://scaleway.com) [[@kdeldycke](https://github.com/kdeldycke)]
+1. [Secret Escapes](https://www.secretescapes.com) [[@secretescapes](https://github.com/secretescapes)]
 1. [Semantics3](https://www.semantics3.com) [[@abishekk92](https://github.com/abishekk92)]
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
