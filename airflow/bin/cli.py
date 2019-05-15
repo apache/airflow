@@ -401,24 +401,23 @@ def export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args, dag=None):
-    set_is_paused(True, args, dag)
+def pause(args):
+    set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args, dag=None):
-    set_is_paused(False, args, dag)
+def unpause(args):
+    set_is_paused(False, args)
 
 
-def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+def set_is_paused(is_paused, args):
+    DagModel.set_is_paused(
+        dag_id=args.dag_id,
+        is_paused=is_paused,
+        subdir=process_subdir(args.subdir),
+    )
 
-    with db.create_session() as session:
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-        dm.is_paused = is_paused
-        session.commit()
-
-    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
+    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
 def _run(args, dag, ti):
