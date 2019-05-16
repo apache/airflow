@@ -75,6 +75,15 @@ else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
 
+def is_checked(form, key):
+    """
+    Handle multiple checkbox values. Will return false if the key is not
+    present, or is only present as a non-"true" value. Will return true if at
+    least one form value contains "true" for that input.
+    """
+    return any(map(lambda k: k == "true", form.getlist(key)))
+
+
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     dttm = request.args.get('execution_date')
     if dttm:
@@ -764,9 +773,9 @@ class Airflow(AirflowBaseView):
 
         execution_date = request.form.get('execution_date')
         execution_date = pendulum.parse(execution_date)
-        ignore_all_deps = request.form.get('ignore_all_deps') == "true"
-        ignore_task_deps = request.form.get('ignore_task_deps') == "true"
-        ignore_ti_state = request.form.get('ignore_ti_state') == "true"
+        ignore_all_deps = is_checked(request.form, 'ignore_all_deps')
+        ignore_task_deps = is_checked(request.form, 'ignore_task_deps')
+        ignore_ti_state = is_checked(request.form, 'ignore_ti_state')
 
         from airflow.executors import get_default_executor
         executor = get_default_executor()
@@ -929,12 +938,12 @@ class Airflow(AirflowBaseView):
 
         execution_date = request.form.get('execution_date')
         execution_date = pendulum.parse(execution_date)
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('upstream') == "true"
-        downstream = request.form.get('downstream') == "true"
-        future = request.form.get('future') == "true"
-        past = request.form.get('past') == "true"
-        recursive = request.form.get('recursive') == "true"
+        confirmed = is_checked(request.form, 'confirmed')
+        upstream = is_checked(request.form, 'upstream')
+        downstream = is_checked(request.form, 'downstream')
+        future = is_checked(request.form, 'future')
+        past = is_checked(request.form, 'past')
+        recursive = is_checked(request.form, 'recursive')
 
         dag = dag.sub_dag(
             task_regex=r"^{0}$".format(task_id),
@@ -1128,11 +1137,11 @@ class Airflow(AirflowBaseView):
         origin = request.form.get('origin')
         execution_date = request.form.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('upstream') == "true"
-        downstream = request.form.get('downstream') == "true"
-        future = request.form.get('future') == "true"
-        past = request.form.get('past') == "true"
+        confirmed = is_checked(request.form, 'confirmed')
+        upstream = is_checked(request.form, 'upstream')
+        downstream = is_checked(request.form, 'downstream')
+        future = is_checked(request.form, 'future')
+        past = is_checked(request.form, 'past')
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
@@ -1148,11 +1157,11 @@ class Airflow(AirflowBaseView):
         origin = request.form.get('origin')
         execution_date = request.form.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('upstream') == "true"
-        downstream = request.form.get('downstream') == "true"
-        future = request.form.get('future') == "true"
-        past = request.form.get('past') == "true"
+        confirmed = is_checked(request.form, 'confirmed')
+        upstream = is_checked(request.form, 'upstream')
+        downstream = is_checked(request.form, 'downstream')
+        future = is_checked(request.form, 'future')
+        past = is_checked(request.form, 'past')
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
