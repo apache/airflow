@@ -857,21 +857,31 @@ def webserver(args):
     if ssl_cert and not ssl_key:
         raise AirflowException(
             'An SSL key must also be provided for use with ' + ssl_cert)
+    flask_web_config = conf.getsection('flask_web')
+    if flask_web_config:
+        flask_web_upper_update = {}
+        for k in flask_web_config:
+            K = k.upper()
+            if k != K:
+                flask_web_upper_update[k] = K
+        for k in flask_web_upper_update:
+            flask_web_config[flask_web_upper_update[k]] = flask_web_config[k]
+            del flask_web_config[k]
 
     if args.debug:
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
         if settings.RBAC:
-            app, _ = create_app_rbac(None, testing=conf.get('core', 'unit_test_mode'))
+            app, _ = create_app_rbac(flask_web_config, testing=conf.get('core', 'unit_test_mode'))
         else:
-            app = create_app(None, testing=conf.get('core', 'unit_test_mode'))
+            app = create_app(flask_web_config, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app_rbac(None) if settings.RBAC else cached_app(None)
+        app = cached_app_rbac(flask_web_config) if settings.RBAC else cached_app(flask_web_config)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')

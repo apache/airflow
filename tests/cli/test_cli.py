@@ -188,6 +188,20 @@ class TestCLI(unittest.TestCase):
         p.terminate()
         p.wait()
 
+    def test_cli_webserver_flask_debug(self):
+        env = os.environ.copy()
+        env['AIRFLOW__WEBSERVER__RBAC'] = 'True'
+        env['AIRFLOW__FLASK_WEB__PREFERRED_URL_SCHEME'] = 'https'
+        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        sleep(3)  # wait for webserver to start
+        return_code = p.poll()
+        self.assertEqual(
+            None,
+            return_code,
+            "webserver terminated with return code {} in debug mode".format(return_code))
+        p.terminate()
+        p.wait()
+
     def test_local_run(self):
         args = create_mock_args(
             task_id='print_the_context',
