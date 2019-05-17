@@ -22,7 +22,7 @@ import six
 import unittest
 from itertools import dropwhile
 
-from mock import patch, call
+from unittest.mock import patch, call
 
 from airflow import configuration
 from airflow.models import Connection

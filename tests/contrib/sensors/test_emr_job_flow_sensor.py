@@ -20,7 +20,7 @@
 import unittest
 import datetime
 from dateutil.tz import tzlocal
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from airflow import configuration
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor

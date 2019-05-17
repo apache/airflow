@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow import DAG, configuration, settings
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,

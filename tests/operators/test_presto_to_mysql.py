@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
 

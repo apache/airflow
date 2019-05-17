@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import patch
+from unittest.mock import patch
 
 from airflow.contrib.sensors.celery_queue_sensor import CeleryQueueSensor
 

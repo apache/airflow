@@ -23,8 +23,8 @@ from airflow.contrib.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
 from airflow.version import version
 
-from mock import ANY
-from mock import patch
+from unittest.mock import ANY
+from unittest.mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))

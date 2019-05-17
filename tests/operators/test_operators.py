@@ -23,7 +23,7 @@ from airflow.utils import timezone
 from collections import OrderedDict
 
 import os
-import mock
+from unittest import mock
 import unittest
 
 configuration.load_test_config()

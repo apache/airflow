@@ -24,7 +24,7 @@ import urllib
 
 import pendulum
 from freezegun import freeze_time
-from mock import patch, mock_open
+from unittest.mock import patch, mock_open
 from parameterized import parameterized
 
 from airflow import models, settings, configuration

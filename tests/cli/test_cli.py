@@ -23,7 +23,7 @@ import sys
 import unittest
 
 from datetime import datetime, timedelta, time
-from mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock, MagicMock
 from time import sleep
 import psutil
 import pytz

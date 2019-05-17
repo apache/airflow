@@ -21,7 +21,7 @@ import datetime
 import unittest
 
 import pendulum
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance as TI

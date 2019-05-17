@@ -19,7 +19,7 @@
 
 import unittest
 from datetime import datetime
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 from dateutil.tz import tzlocal
 
 from airflow import configuration, AirflowException

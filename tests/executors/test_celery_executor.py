@@ -22,7 +22,7 @@ import unittest
 import contextlib
 from multiprocessing import Pool
 
-import mock
+from unittest import mock
 
 from celery import Celery
 from celery import states as celery_states

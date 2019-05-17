@@ -20,7 +20,7 @@
 import unittest
 
 from ftplib import error_perm
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from airflow.contrib.hooks.ftp_hook import FTPHook
 from airflow.contrib.sensors.ftp_sensor import FTPSensor

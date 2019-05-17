@@ -24,7 +24,7 @@ try:
     import pymssql
 except ImportError:
     pymssql = None
-from mock import patch, PropertyMock, Mock
+from unittest.mock import patch, PropertyMock, Mock
 
 from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 

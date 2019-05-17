@@ -76,8 +76,9 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
     @requests_mock.mock()
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_get_request_with_port(self, m, request_mock):
+    def test_get_request_with_port(self, m, request_mock, session_mock):
         from requests.exceptions import MissingSchema
 
         with mock.patch(

@@ -27,7 +27,7 @@ import unittest
 from tempfile import mkdtemp
 
 import boto3
-import mock
+from unittest import mock
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException

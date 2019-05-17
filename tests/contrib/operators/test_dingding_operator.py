@@ -19,7 +19,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.dingding_operator import DingdingOperator
@@ -68,4 +68,4 @@ class TestDingdingOperator(unittest.TestCase):
             self._config['at_mobiles'],
             self._config['at_all']
         )
-        mock_hook.return_value.send.assert_called_once()
+        mock_hook.return_value.send.assert_called_once_with()

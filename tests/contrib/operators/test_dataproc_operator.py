@@ -39,8 +39,8 @@ from tests.compat import mock
 
 from copy import deepcopy
 
-from mock import MagicMock, Mock
-from mock import patch
+from unittest.mock import MagicMock, Mock
+from unittest.mock import patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'

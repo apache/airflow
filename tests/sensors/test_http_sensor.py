@@ -19,7 +19,7 @@
 import unittest
 
 import requests
-from mock import patch
+from unittest.mock import patch
 
 from airflow import DAG, configuration
 from airflow.exceptions import AirflowException, AirflowSensorTimeout

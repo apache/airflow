@@ -20,7 +20,7 @@
 import unittest
 from datetime import timedelta
 from freezegun import freeze_time
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep

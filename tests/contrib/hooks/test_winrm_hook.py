@@ -20,7 +20,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow.contrib.hooks.winrm_hook import WinRMHook

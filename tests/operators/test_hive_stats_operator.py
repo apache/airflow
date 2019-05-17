@@ -20,7 +20,7 @@
 import unittest
 from collections import OrderedDict
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator

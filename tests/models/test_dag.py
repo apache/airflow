@@ -28,7 +28,7 @@ from tempfile import NamedTemporaryFile
 import jinja2
 import pendulum
 import six
-from mock import patch
+from unittest.mock import patch
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException

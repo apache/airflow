@@ -19,7 +19,7 @@
 
 import unittest
 from datetime import timedelta
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext

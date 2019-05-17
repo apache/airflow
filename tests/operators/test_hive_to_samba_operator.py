@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch, PropertyMock, Mock
+from unittest.mock import patch, PropertyMock, Mock
 
 from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars

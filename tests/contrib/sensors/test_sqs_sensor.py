@@ -22,7 +22,7 @@ import unittest
 from airflow import DAG, configuration
 from airflow.contrib.sensors.aws_sqs_sensor import SQSSensor
 from airflow.utils import timezone
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 from airflow.exceptions import AirflowException
 from moto import mock_sqs
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
