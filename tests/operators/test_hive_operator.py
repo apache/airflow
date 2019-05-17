@@ -21,7 +21,7 @@ import datetime
 import os
 import unittest
 
-import mock
+from unittest import mock
 import nose
 
 from airflow import DAG, configuration, operators

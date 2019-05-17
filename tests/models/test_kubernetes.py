@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow import settings
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier

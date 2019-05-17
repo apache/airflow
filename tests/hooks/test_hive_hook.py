@@ -26,7 +26,7 @@ import sys
 import unittest
 from collections import OrderedDict
 
-import mock
+from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 

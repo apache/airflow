@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 

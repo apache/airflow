@@ -21,7 +21,7 @@ import unittest
 from datetime import datetime
 from urllib.parse import parse_qs
 
-import mock
+from unittest import mock
 from bs4 import BeautifulSoup
 
 from airflow.www import utils
@@ -153,17 +153,9 @@ class UtilsTest(unittest.TestCase):
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
-        mocked_is_zipfile.assert_called_once()
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        mocked_ZipFile.assert_called_once()
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        instance.open.assert_called_once()
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
+        mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
+        mocked_ZipFile.assert_called_once_with('/path/to/archive.zip', mode='r')
+        instance.open.assert_called_once_with('deep/path/to/file.txt')
 
     def test_state_token(self):
         # It's shouldn't possible to set these odd values anymore, but lets

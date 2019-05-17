@@ -18,7 +18,7 @@
 # under the License.
 #
 
-import mock
+from unittest import mock
 import unittest
 
 from boto3.session import Session

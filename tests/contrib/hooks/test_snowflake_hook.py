@@ -19,7 +19,7 @@
 #
 import os
 
-import mock
+from unittest import mock
 import unittest
 
 from cryptography.hazmat.primitives import serialization

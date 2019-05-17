@@ -260,7 +260,6 @@ devel = [
     'flake8>=3.6.0',
     'freezegun',
     'jira',
-    'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.5',
     'nose',

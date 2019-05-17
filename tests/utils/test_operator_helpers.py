@@ -20,7 +20,7 @@
 import unittest
 from datetime import datetime
 
-import mock
+from unittest import mock
 
 from airflow.utils import operator_helpers
 

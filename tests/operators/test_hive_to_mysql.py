@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch, PropertyMock
+from unittest.mock import patch, PropertyMock
 
 from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.utils.operator_helpers import context_to_airflow_vars

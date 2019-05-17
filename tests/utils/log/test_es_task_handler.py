@@ -22,7 +22,7 @@ import shutil
 import unittest
 
 import elasticsearch
-import mock
+from unittest import mock
 import pendulum
 
 from airflow import configuration

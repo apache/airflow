@@ -21,10 +21,10 @@ import os
 import sys
 import tempfile
 import unittest
-import mock
+from unittest import mock
 from datetime import timedelta
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p

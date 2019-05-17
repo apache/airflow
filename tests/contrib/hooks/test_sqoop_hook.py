@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
 
-from mock import patch, call
+from unittest.mock import patch, call
 
 from io import StringIO
 

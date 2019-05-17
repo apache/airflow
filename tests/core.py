@@ -21,7 +21,7 @@ import json
 import unittest
 
 import doctest
-import mock
+from unittest import mock
 import multiprocessing
 import os
 import pickle  # type: ignore

@@ -30,7 +30,7 @@ import urllib
 from datetime import timedelta
 from urllib.parse import quote_plus
 
-import mock
+from unittest import mock
 import jinja2
 from flask import Markup, url_for
 from parameterized import parameterized

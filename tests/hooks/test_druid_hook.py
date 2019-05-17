@@ -18,7 +18,7 @@
 # under the License.
 #
 
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 import requests
 import requests_mock
 import unittest

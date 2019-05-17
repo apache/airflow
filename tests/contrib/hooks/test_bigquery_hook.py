@@ -22,7 +22,7 @@ import unittest
 from typing import List
 
 from google.auth.exceptions import GoogleAuthError
-import mock
+from unittest import mock
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook

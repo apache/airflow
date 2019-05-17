@@ -19,7 +19,7 @@
 #
 
 import json
-import mock
+from unittest import mock
 import unittest
 
 import MySQLdb.cursors

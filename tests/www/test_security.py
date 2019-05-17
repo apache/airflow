@@ -19,7 +19,7 @@
 
 import unittest
 import logging
-import mock
+from unittest import mock
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose

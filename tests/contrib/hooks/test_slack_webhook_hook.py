@@ -20,12 +20,12 @@
 import json
 from requests.exceptions import MissingSchema
 import unittest
+from unittest import mock
 
 from airflow import configuration
 from airflow.models import Connection
 from airflow.utils import db
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
-from tests.compat import mock
 
 
 class TestSlackWebhookHook(unittest.TestCase):
@@ -104,8 +104,9 @@ class TestSlackWebhookHook(unittest.TestCase):
         # Then
         self.assertEqual(self.expected_message, message)
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id(self, request_mock):
+    def test_url_generated_by_http_conn_id(self, request_mock, session_mock):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-url')
         try:
             hook.execute()
@@ -119,8 +120,9 @@ class TestSlackWebhookHook(unittest.TestCase):
         )
         request_mock.reset_mock()
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_endpoint(self, request_mock):
+    def test_url_generated_by_endpoint(self, request_mock, session_mock):
         hook = SlackWebhookHook(webhook_token=self.expected_url)
         try:
             hook.execute()
@@ -134,8 +136,9 @@ class TestSlackWebhookHook(unittest.TestCase):
         )
         request_mock.reset_mock()
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock):
+    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock, session_mock):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-host',
                                 webhook_token='B000/XXX')
         try:

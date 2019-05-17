@@ -24,7 +24,7 @@ import textwrap
 import unittest
 from tempfile import mkdtemp, NamedTemporaryFile
 
-from mock import patch, ANY
+from unittest.mock import patch, ANY
 
 from airflow import models, configuration
 from airflow.models import DagModel, DagBag, TaskInstance as TI
@@ -128,7 +128,7 @@ class DagBagTest(unittest.TestCase):
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        from mock import Mock
+        from unittest.mock import Mock
         with patch('airflow.models.DagBag.log') as log_mock:
             log_mock.info = Mock()
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")

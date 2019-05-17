@@ -19,7 +19,7 @@
 
 from contextlib import ContextDecorator
 
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow import conf
 

@@ -21,8 +21,8 @@
 import unittest
 import json
 
-from mock import Mock
-from mock import patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from airflow import configuration
 from airflow.hooks.jdbc_hook import JdbcHook
