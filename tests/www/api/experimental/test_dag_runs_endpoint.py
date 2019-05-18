@@ -21,7 +21,7 @@ import unittest
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagRun
+from airflow.models import DagBag, DagRun
 from airflow.settings import Session
 from airflow.www import app as application
 
@@ -35,6 +35,9 @@ class TestDagRunsEndpoint(unittest.TestCase):
         session.query(DagRun).delete()
         session.commit()
         session.close()
+        dagbag = DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
 
     def setUp(self):
         super().setUp()
