@@ -185,7 +185,7 @@ class BackfillJob(BaseJob):
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
         """
-        for key, ti in list(ti_status.running.items()):
+        for key, ti in ti_status.running.items():
             ti.refresh_from_db()
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
@@ -236,7 +236,7 @@ class BackfillJob(BaseJob):
         """
         executor = self.executor
 
-        for key, state in list(executor.get_event_buffer().items()):
+        for key, state in executor.get_event_buffer().items():
             if key not in running:
                 self.log.warning(
                     "%s state %s not in running=%s",
@@ -546,7 +546,7 @@ class BackfillJob(BaseJob):
 
             try:
                 for task in self.dag.topological_sort():
-                    for key, ti in list(ti_status.to_run.items()):
+                    for key, ti in ti_status.to_run.items():
                         if task.task_id != ti.task_id:
                             continue
                         if task.pool:

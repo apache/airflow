@@ -126,7 +126,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         exprs = {
             ('', 'count'): 'COUNT(*)'
         }
-        for col, col_type in list(field_types.items()):
+        for col, col_type in field_types.items():
             exprs.update(hive_stats_collection_operator.get_default_exprs(col, col_type))
         exprs = OrderedDict(exprs)
         rows = [(hive_stats_collection_operator.ds,
@@ -176,7 +176,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         exprs = {
             ('', 'count'): 'COUNT(*)'
         }
-        for col, col_type in list(field_types.items()):
+        for col, col_type in field_types.items():
             exprs.update(hive_stats_collection_operator.assignment_func(col, col_type))
         exprs = OrderedDict(exprs)
         rows = [(hive_stats_collection_operator.ds,
@@ -224,7 +224,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         exprs = {
             ('', 'count'): 'COUNT(*)'
         }
-        for col, col_type in list(field_types.items()):
+        for col, col_type in field_types.items():
             exprs.update(hive_stats_collection_operator.get_default_exprs(col, col_type))
         exprs = OrderedDict(exprs)
         rows = [(hive_stats_collection_operator.ds,

@@ -55,7 +55,7 @@ class reset_warning_registry:
         # that match the 'reset' pattern.
         pattern = self._pattern
         backup = self._backup = {}
-        for name, mod in list(sys.modules.items()):
+        for name, mod in sys.modules.items():
             if pattern.match(name):
                 reg = getattr(mod, "__warningregistry__", None)
                 if reg:
@@ -80,7 +80,7 @@ class reset_warning_registry:
 
         # clear all registry entries that we didn't archive
         pattern = self._pattern
-        for name, mod in list(modules.items()):
+        for name, mod in modules.items():
             if pattern.match(name) and name not in backup:
                 reg = getattr(mod, "__warningregistry__", None)
                 if reg:

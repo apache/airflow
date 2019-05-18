@@ -650,9 +650,7 @@ class BaseOperator(LoggingMixin):
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
-            result = {
-                k: rt("{}[{}]".format(attr, k), v, context)
-                for k, v in list(content.items())}
+            result = {k: rt("{}[{}]".format(attr, k), v, context) for k, v in content.items()}
         else:
             result = content
         return result
