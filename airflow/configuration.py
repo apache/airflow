@@ -21,9 +21,9 @@ from base64 import b64encode
 from builtins import str
 from collections import OrderedDict
 import copy
-import errno
 from future import standard_library
 import os
+import pathlib
 import shlex
 from six import iteritems
 import subprocess
@@ -441,17 +441,6 @@ class AirflowConfigParser(ConfigParser):
         )
 
 
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise AirflowConfigException(
-                'Error creating {}: {}'.format(path, exc.strerror))
-
-
 def get_airflow_home():
     return expand_env_var(os.environ.get('AIRFLOW_HOME', '~/airflow'))
 
@@ -467,7 +456,7 @@ def get_airflow_config(airflow_home):
 
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
-mkdir_p(AIRFLOW_HOME)
+pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
 
 
 # Set up dags folder for unit tests

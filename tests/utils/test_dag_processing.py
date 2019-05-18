@@ -18,6 +18,7 @@
 # under the License.
 
 import os
+import pathlib
 import sys
 import tempfile
 import unittest
@@ -27,7 +28,6 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 from airflow import configuration as conf
-from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
@@ -100,7 +100,7 @@ class settings_context:
 
             # Create the directory structure
             dir_path = os.path.join(self.settings_root, dir)
-            mkdir_p(dir_path)
+            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
