@@ -133,7 +133,7 @@ Kubernetes Operator
                               labels={"foo": "bar"},
                               secrets=[secret_file, secret_env, secret_all_keys],
                               volumes=[volume],
-                              volume_mounts=[volume_mount]
+                              volume_mounts=[volume_mount],
                               name="test",
                               task_id="task",
                               affinity=affinity,
