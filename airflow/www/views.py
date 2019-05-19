@@ -446,21 +446,6 @@ class Airflow(AirflowBaseView):
             'airflow/dag_details.html',
             dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
 
-    @expose('/pickle_info')
-    @has_access
-    def pickle_info(self):
-        d = {}
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-        if not filter_dag_ids:
-            return wwwutils.json_response({})
-        dag_id = request.args.get('dag_id')
-        dags = [dagbag.dags.get(dag_id)] if dag_id else dagbag.dags.values()
-        for dag in dags:
-            if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
-                if not dag.is_subdag:
-                    d[dag.dag_id] = dag.pickle_info()
-        return wwwutils.json_response(d)
-
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
     @has_access

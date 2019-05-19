@@ -43,6 +43,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
     #                               VIEW MENUS
     ###########################################################################
+    # [START security_viewer_vms]
     VIEWER_VMS = {
         'Airflow',
         'DagModelView',
@@ -64,9 +65,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Version',
         'VersionView',
     }
+    # [END security_viewer_vms]
 
     USER_VMS = VIEWER_VMS
 
+    # [START security_op_vms]
     OP_VMS = {
         'Admin',
         'Configurations',
@@ -80,11 +83,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'XComs',
         'XComModelView',
     }
+    # [END security_op_vms]
 
     ###########################################################################
     #                               PERMISSIONS
     ###########################################################################
-
+    # [START security_viewer_perms]
     VIEWER_PERMS = {
         'menu_access',
         'can_index',
@@ -108,10 +112,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_duration',
         'can_blocked',
         'can_rendered',
-        'can_pickle_info',
         'can_version',
     }
+    # [END security_viewer_perms]
 
+    # [START security_user_perms]
     USER_PERMS = {
         'can_dagrun_clear',
         'can_run',
@@ -129,11 +134,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'clear',
         'can_clear',
     }
+    # [END security_user_perms]
 
+    # [START security_op_perms]
     OP_PERMS = {
         'can_conf',
         'can_varimport',
     }
+    # [END security_op_perms]
 
     # global view-menu for dag-level access
     DAG_VMS = {

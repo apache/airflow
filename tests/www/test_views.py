@@ -456,11 +456,6 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
 
-    def test_pickle_info(self):
-        url = 'pickle_info?dag_id=example_bash_operator'
-        resp = self.client.get(url, follow_redirects=True)
-        self.assertEqual(resp.status_code, 200)
-
     def test_blocked(self):
         url = 'blocked'
         resp = self.client.get(url, follow_redirects=True)
@@ -1361,13 +1356,6 @@ class TestDagACLView(TestBase):
         url = 'dag_details?dag_id=example_subdag_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_subdag_operator', resp)
-
-    def test_pickle_info_success(self):
-        self.logout()
-        self.login()
-        url = 'pickle_info?dag_id=example_bash_operator'
-        resp = self.client.get(url, follow_redirects=True)
-        self.assertEqual(resp.status_code, 200)
 
     def test_rendered_success(self):
         self.logout()
