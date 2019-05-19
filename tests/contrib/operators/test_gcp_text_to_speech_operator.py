@@ -25,14 +25,7 @@ from airflow import AirflowException
 
 from airflow.contrib.operators.gcp_text_to_speech_operator import GcpTextToSpeechSynthesizeOperator
 
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"

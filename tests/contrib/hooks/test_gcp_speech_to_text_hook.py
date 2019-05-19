@@ -23,13 +23,7 @@ import unittest
 from airflow.contrib.hooks.gcp_speech_to_text_hook import GCPSpeechToTextHook
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-try:
-    from unittest import mock
-except ImportError:  # pragma: no cover
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PROJECT_ID = "project-id"
 CONFIG = {"ecryption": "LINEAR16"}
