@@ -59,7 +59,7 @@ Extra (optional)
 
        {
           "charset": "utf8",
-          "cursorclass": "sscursor",
+          "cursor": "sscursor",
           "local_infile": true,
           "unix_socket": "/var/socket",
           "ssl": {
@@ -75,7 +75,7 @@ Extra (optional)
 
        {
           "charset": "utf8",
-          "cursorclass": "sscursor",
+          "cursor": "sscursor",
           "local_infile": true,
           "unix_socket": "/var/socket",
           "ssl": "{\"cert\": \"/tmp/client-cert.pem\", \"ca\": \"/tmp/server-ca.pem\", \"key\": \"/tmp/client-key.pem\"}"
