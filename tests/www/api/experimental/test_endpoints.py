@@ -41,6 +41,10 @@ class TestApiExperimental(unittest.TestCase):
         session.commit()
         session.close()
 
+        dagbag = DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
     def setUp(self):
         super(TestApiExperimental, self).setUp()
         configuration.load_test_config()

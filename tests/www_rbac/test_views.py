@@ -317,6 +317,13 @@ class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
     run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
+    @classmethod
+    def setUpClass(cls):
+        super(TestAirflowBaseViews, cls).setUpClass()
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
     def setUp(self):
         super(TestAirflowBaseViews, self).setUp()
         self.logout()
@@ -1042,6 +1049,9 @@ class TestDagACLView(TestBase):
     @classmethod
     def setUpClass(cls):
         super(TestDagACLView, cls).setUpClass()
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
 
     def cleanup_dagruns(self):
         DR = models.DagRun
