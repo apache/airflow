@@ -24,6 +24,8 @@ from tempfile import mkdtemp
 
 from contextlib import contextmanager
 
+from zope import deprecation
+
 
 @contextmanager
 def TemporaryDirectory(suffix='', prefix=None, dir=None):
@@ -39,6 +41,8 @@ def TemporaryDirectory(suffix='', prefix=None, dir=None):
                 raise e
 
 
+@deprecation.deprecate(msg="airflow.utils.file.mkdirs will be removed in Airflow 2.0. "
+                           "The pathlib module (Python >=3.4) provides the same functionality.")
 def mkdirs(path, mode):
     """
     Creates the directory specified by path, creating intermediate directories

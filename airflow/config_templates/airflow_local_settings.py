@@ -18,10 +18,10 @@
 # under the License.
 
 import os
+import pathlib
 from typing import Dict, Any
 
 from airflow import configuration as conf
-from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -189,7 +189,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     processor_manager_handler_config = DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers'][
         'processor_manager']
     directory = os.path.dirname(processor_manager_handler_config['filename'])
-    mkdirs(directory, 0o755)
+    pathlib.Path(directory).mkdir(mode=0o755, parents=True, exist_ok=True)
 
 if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
     DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])

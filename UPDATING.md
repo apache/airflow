@@ -24,6 +24,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### airflow.utils.file.mkdirs deprecated
+
+`airflow.utils.file.mkdirs()` is deprecated in favour of Pathlib, the native Python module for dealing with the filesystem.
+
+JIRA: https://issues.apache.org/jira/browse/AIRFLOW-4541
+
 ### Removal of Mesos Executor
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
 

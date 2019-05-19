@@ -19,11 +19,12 @@
 
 import logging
 import os
+import pathlib
+
 import requests
 
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
-from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
 
 
@@ -194,10 +195,7 @@ class FileTaskHandler(logging.Handler):
         # operator is not compatible with impersonation (e.g. if a Celery executor is used
         # for a SubDag operator and the SubDag operator has a different owner than the
         # parent DAG)
-        if not os.path.exists(directory):
-            # Create the directory as globally writable using custom mkdirs
-            # as os.makedirs doesn't set mode properly.
-            mkdirs(directory, 0o777)
+        pathlib.Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
