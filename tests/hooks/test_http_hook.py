@@ -56,6 +56,7 @@ class TestHttpHook(unittest.TestCase):
         adapter = requests_mock.Adapter()
         session.mount('mock', adapter)
         self.get_hook = HttpHook(method='GET')
+        self.get_lowercase_hook = HttpHook(method='get')
         self.post_hook = HttpHook(method='POST')
         configuration.load_test_config()
 
@@ -129,6 +130,26 @@ class TestHttpHook(unittest.TestCase):
             conn = self.get_hook.get_conn()
             self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
             self.assertEqual(conn.headers.get('bareer'), 'test')
+
+    @requests_mock.mock()
+    @mock.patch('requests.Request')
+    def test_hook_with_method_in_lowercase(self, m, request_mock):
+        from requests.exceptions import MissingSchema
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection_with_port
+        ):
+            data = "test params"
+            try:
+                self.get_lowercase_hook.run('v1/test', data=data)
+            except MissingSchema:
+                pass
+            request_mock.assert_called_once_with(
+                mock.ANY,
+                mock.ANY,
+                headers=mock.ANY,
+                params=data
+            )
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, m):
@@ -305,6 +326,9 @@ class TestHttpHook(unittest.TestCase):
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'https://localhost')
+
+    def test_method_converted_to_uppercase_when_created_in_lowercase(self):
+        self.assertEqual(self.get_lowercase_hook.method, 'GET')
 
 
 send_email_test = mock.Mock()
