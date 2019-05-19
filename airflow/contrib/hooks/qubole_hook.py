@@ -19,6 +19,7 @@
 #
 
 import os
+import pathlib
 import time
 import datetime
 import six
@@ -177,7 +178,7 @@ class QuboleHook(BaseHook):
                 configuration.conf.get('core', 'BASE_LOG_FOLDER')
             )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
-            configuration.mkdir_p(resultpath)
+            pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')
 
         if self.cmd is None:
