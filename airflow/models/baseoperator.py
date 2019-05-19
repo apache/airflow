@@ -620,7 +620,7 @@ class BaseOperator(LoggingMixin):
 
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
-        for k, v in list(self.__dict__.items()):
+        for k, v in self.__dict__.items():
             if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
