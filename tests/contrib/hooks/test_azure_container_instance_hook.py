@@ -20,10 +20,10 @@
 import json
 import unittest
 from collections import namedtuple
-from mock import patch
+from unittest.mock import patch
 
 from airflow import configuration
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.utils import db
 

@@ -27,7 +27,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
     DagGcpSystemTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
 class CloudStorageExampleDagsSystemTest(DagGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
-        super(CloudStorageExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcs_acl',
             gcp_key=GCP_GCS_KEY)

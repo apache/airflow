@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow import configuration as conf
@@ -25,7 +25,7 @@ from importlib import import_module
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-api_auth = None
+api_auth = None  # type: Any
 
 log = LoggingMixin().log
 

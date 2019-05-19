@@ -40,7 +40,7 @@ class FileTaskHandler(logging.Handler):
         :param base_log_folder: Base log folder to place logs.
         :param filename_template: template filename string
         """
-        super(FileTaskHandler, self).__init__()
+        super().__init__()
         self.handler = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = \
@@ -171,7 +171,7 @@ class FileTaskHandler(logging.Handler):
         """
         Create log directory and give it correct permissions.
         :param ti: task instance object
-        :return relative log path of the given task instance
+        :return: relative log path of the given task instance
         """
         # To handle log writing when tasks are impersonated, the log files need to
         # be writable by the user that runs the Airflow command and the user

@@ -19,7 +19,7 @@
 
 import unittest
 from datetime import datetime
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.utils.state import State

@@ -16,25 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import unittest
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.contrib.operators.postgres_to_gcs_operator import \
     PostgresToGoogleCloudStorageOperator
-
-try:
-    from unittest.mock import patch
-except ImportError:
-    try:
-        from mock import patch
-    except ImportError:
-        mock = None
+from tests.compat import patch
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
 

@@ -16,18 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import errno
 
 import psutil
 
 from builtins import input
-from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
 import os
@@ -45,17 +39,19 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
+KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
             "The key has to be less than {0} characters".format(max_length))
-    elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
+    elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(**locals()))
+            "dots and underscores exclusively".format(k=k))
     else:
         return True
 
@@ -76,8 +72,8 @@ def alchemy_to_dict(obj):
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -107,7 +103,7 @@ def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
     """
-    return hasattr(obj, '__iter__') and not isinstance(obj, basestring)
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
 def as_tuple(obj):
@@ -235,7 +231,7 @@ def pprinttable(rows):
     s += separator + '\n'
 
     def f(t):
-        return "{}".format(t) if isinstance(t, basestring) else t
+        return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'

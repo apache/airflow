@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
 import google.api_core.exceptions
 
 from airflow import AirflowException
@@ -28,12 +29,12 @@ from google.cloud.bigtable_admin_v2 import enums
 from google.cloud.bigtable.table import ClusterState
 
 
-class BigtableValidationMixin(object):
+class BigtableValidationMixin:
     """
     Common class for Cloud Bigtable operators for validating required fields.
     """
 
-    REQUIRED_ATTRIBUTES = []
+    REQUIRED_ATTRIBUTES = []  # type: Iterable[str]
 
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:
@@ -51,6 +52,10 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
     For more details about instance creation have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.create
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableInstanceCreateOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
     :type main_cluster_id: str
@@ -65,7 +70,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
     :param replica_cluster_id: (optional) The ID for replica cluster for the new instance.
     :type replica_cluster_zone: str
     :param replica_cluster_zone: (optional)  The zone for replica cluster.
-    :type instance_type: IntEnum
+    :type instance_type: enums.IntEnum
     :param instance_type: (optional) The type of the instance.
     :type instance_display_name: str
     :param instance_display_name: (optional) Human-readable name of the instance. Defaults
@@ -75,7 +80,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         with the instance.
     :type cluster_nodes: int
     :param cluster_nodes: (optional) Number of nodes for cluster.
-    :type cluster_storage_type: IntEnum
+    :type cluster_storage_type: enums.IntEnum
     :param cluster_storage_type: (optional) The type of storage.
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.
@@ -116,7 +121,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         self.timeout = timeout
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -157,6 +162,10 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
     For more details about deleting instance have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.delete
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableInstanceDeleteOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
     :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
@@ -175,7 +184,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.instance_id = instance_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         try:
@@ -199,6 +208,10 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
     For more details about creating table have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.create
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableCreateOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
         hold the new table.
@@ -213,7 +226,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
     :type column_families: dict
     :param column_families: (Optional) A map columns to create.
                             The key is the column_id str and the value is a
-                            GarbageCollectionRule
+                            :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`
     """
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
     template_fields = ['project_id', 'instance_id', 'table_id']
@@ -234,7 +247,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self._validate_inputs()
         self.hook = BigtableHook()
         self.instance = None
-        super(BigtableTableCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _compare_column_families(self):
         table_column_families = self.hook.get_column_families_for_table(self.instance,
@@ -290,6 +303,10 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
     For more details about deleting table have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.delete
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableDeleteOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
     :type table_id: str
@@ -316,7 +333,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.app_profile_id = app_profile_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -348,6 +365,10 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
     have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/cluster.html#google.cloud.bigtable.cluster.Cluster.update
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableClusterUpdateOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
     :type cluster_id: str
@@ -373,7 +394,7 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
         self.nodes = nodes
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableClusterUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -405,6 +426,10 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
     For more details about cluster states for a table, have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.get_cluster_states
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableWaitForReplicationSensor`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
     :type table_id: str
@@ -426,7 +451,7 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
         self.table_id = table_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableWaitForReplicationSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,

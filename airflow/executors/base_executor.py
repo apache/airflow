@@ -18,10 +18,12 @@
 # under the License.
 
 from builtins import range
+from collections import OrderedDict
 
 # To avoid circular imports
 import airflow.utils.dag_processing
 from airflow import configuration
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -33,14 +35,14 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism=PARALLELISM):
         """
         Class to derive in order to interface with executor-type systems
-        like Celery, Mesos, Yarn and the likes.
+        like Celery, Yarn and the likes.
 
         :param parallelism: how many jobs should run at one time. Set to
             ``0`` for infinity
         :type parallelism: int
         """
         self.parallelism = parallelism
-        self.queued_tasks = {}
+        self.queued_tasks = OrderedDict()
         self.running = {}
         self.event_buffer = {}
 
@@ -57,7 +59,7 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[key] = (command, priority, queue, simple_task_instance)
         else:
-            self.log.info("could not queue task {}".format(key))
+            self.log.info("could not queue task %s", key)
 
     def queue_task_instance(
             self,
@@ -116,9 +118,16 @@ class BaseExecutor(LoggingMixin):
         else:
             open_slots = self.parallelism - len(self.running)
 
-        self.log.debug("%s running task instances", len(self.running))
-        self.log.debug("%s in queue", len(self.queued_tasks))
+        num_running_tasks = len(self.running)
+        num_queued_tasks = len(self.queued_tasks)
+
+        self.log.debug("%s running task instances", num_running_tasks)
+        self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
+
+        Stats.gauge('executor.open_slots', open_slots)
+        Stats.gauge('executor.queued_tasks', num_queued_tasks)
+        Stats.gauge('executor.running_tasks', num_running_tasks)
 
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
@@ -138,7 +147,7 @@ class BaseExecutor(LoggingMixin):
         self.sync()
 
     def change_state(self, key, state):
-        self.log.debug("Changing state: {}".format(key))
+        self.log.debug("Changing state: %s", key)
         self.running.pop(key, None)
         self.event_buffer[key] = state
 

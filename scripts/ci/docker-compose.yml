@@ -22,6 +22,7 @@ services:
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
+      - MYSQL_DATABASE=airflow
     volumes:
       - ./mysql/conf.d:/etc/mysql/conf.d
 
@@ -70,9 +71,9 @@ services:
     init: true
     environment:
       - USER=airflow
+      - INSIDE_DOCKER_CONTAINER=true
       - ADDITIONAL_PATH=~/.local/bin
       - TOX_ENV
-      - PYTHON_VERSION
       - CI
       - TRAVIS
       - TRAVIS_BRANCH

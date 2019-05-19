@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.s3_to_gcs_operator import \
     S3ToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'

@@ -38,7 +38,7 @@ class BigtableHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(BigtableHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def _get_client(self, project_id):
         if not self._client:
@@ -185,7 +185,8 @@ class BigtableHook(GoogleCloudBaseHook):
             initially split the table.
         :type column_families: dict
         :param column_families: (Optional) A map of columns to create. The key is the
-            column_id str, and the value is a ``GarbageCollectionRule``.
+            column_id str, and the value is a
+            :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`.
         """
         if column_families is None:
             column_families = {}

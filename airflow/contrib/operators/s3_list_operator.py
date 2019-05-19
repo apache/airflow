@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
+
 from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -64,7 +66,7 @@ class S3ListOperator(BaseOperator):
                 aws_conn_id='aws_customers_conn'
             )
     """
-    template_fields = ('bucket', 'prefix', 'delimiter')
+    template_fields = ('bucket', 'prefix', 'delimiter')  # type: Iterable[str]
     ui_color = '#ffd700'
 
     @apply_defaults
@@ -76,7 +78,7 @@ class S3ListOperator(BaseOperator):
                  verify=None,
                  *args,
                  **kwargs):
-        super(S3ListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
@@ -87,8 +89,9 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: {0} in prefix: {1} (Delimiter {2})'.
-            format(self.bucket, self.prefix, self.delimiter))
+            'Getting the list of files from bucket: %s in prefix: %s (Delimiter {%s)',
+            self.bucket, self.prefix, self.delimiter
+        )
 
         return hook.list_keys(
             bucket_name=self.bucket,

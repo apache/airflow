@@ -30,6 +30,81 @@ function displayTime() {
   setTimeout(displayTime, 1000);
 }
 
+var el = document.createElement("span");
+
+export function escapeHtml(text) {
+  el.textContent = text;
+  return el.innerHTML;
+}
+
+window.escapeHtml = escapeHtml;
+
+export function convertSecsToHumanReadable(seconds) {
+   var oriSeconds = seconds
+   var floatingPart = oriSeconds- Math.floor(oriSeconds)
+
+   seconds = Math.floor(seconds)
+
+   var secondsPerHour = 60 * 60;
+   var secondsPerMinute = 60;
+
+   var hours = Math.floor(seconds / secondsPerHour);
+   seconds = seconds - hours * secondsPerHour;
+
+   var minutes = Math.floor(seconds / secondsPerMinute);
+   seconds = seconds - minutes * secondsPerMinute;
+
+   var readableFormat = ''
+   if (hours > 0) {
+     readableFormat += hours + "Hours ";
+   }
+   if (minutes > 0) {
+     readableFormat += minutes + "Min ";
+   }
+   if (seconds + floatingPart > 0) {
+     if (Math.floor(oriSeconds) === oriSeconds) {
+       readableFormat += seconds + "Sec";
+     } else {
+       seconds += floatingPart
+       readableFormat += seconds.toFixed(3) + "Sec";
+     }
+   }
+   return readableFormat
+}
+window.convertSecsToHumanReadable = convertSecsToHumanReadable;
+
+function postAsForm(url, parameters) {
+  var form = $("<form></form>");
+
+  form.attr("method", "POST");
+  form.attr("action", url);
+
+  $.each(parameters || {}, function(key, value) {
+    var field = $('<input></input>');
+
+    field.attr("type", "hidden");
+    field.attr("name", key);
+    field.attr("value", value);
+
+    form.append(field);
+  });
+
+  var field = $('<input></input>');
+
+  field.attr("type", "hidden");
+  field.attr("name", "csrf_token");
+  field.attr("value", csrfToken);
+
+  form.append(field);
+
+  // The form needs to be a part of the document in order for us to be able
+  // to submit it.
+  $(document.body).append(form);
+  form.submit();
+}
+
+window.postAsForm = postAsForm;
+
 $(document).ready(function () {
   displayTime();
   $('span').tooltip();

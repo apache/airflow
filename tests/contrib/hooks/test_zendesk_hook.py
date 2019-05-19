@@ -20,7 +20,7 @@
 
 import unittest
 
-import mock
+from unittest import mock
 
 from airflow.hooks.zendesk_hook import ZendeskHook
 from zdesk import RateLimitError

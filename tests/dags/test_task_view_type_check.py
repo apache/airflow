@@ -35,7 +35,7 @@ default_args = dict(
     owner='airflow')
 
 
-class CallableClass(object):
+class CallableClass:
     def __call__(self):
         """ A __call__ method """
         pass

@@ -19,13 +19,20 @@ Running Airflow with systemd
 ============================
 
 Airflow can integrate with systemd based systems. This makes watching your
-daemons easy as systemd can take care of restarting a daemon on failure.
-In the ``scripts/systemd`` directory you can find unit files that
-have been tested on Redhat based systems. You can copy those to
-``/usr/lib/systemd/system``. It is assumed that Airflow will run under
-``airflow:airflow``. If not (or if you are running on a non Redhat
-based system) you probably need to adjust the unit files.
+daemons easy as `systemd` can take care of restarting a daemon on failures.
 
-Environment configuration is picked up from ``/etc/sysconfig/airflow``.
-An example file is supplied. You
-can also define here, for example, ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.
+In the ``scripts/systemd`` directory, you can find unit files that
+have been tested on Redhat based systems. These files can be used as-is by copying them over to
+``/usr/lib/systemd/system``.
+
+The following **assumptions** have been made while creating these unit files:
+
+#. Airflow runs as the following `user:group` ``airflow:airflow``.
+#. Airflow runs on a Redhat based system.
+
+If this is not the case, appropriate changes will need to be made.
+
+Please **note** that environment configuration is picked up from ``/etc/sysconfig/airflow``.
+
+An example file is supplied within ``scripts/systemd``.
+You can also define configuration at ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.

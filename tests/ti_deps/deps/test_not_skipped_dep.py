@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
 from airflow.utils.state import State

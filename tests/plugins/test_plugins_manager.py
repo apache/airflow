@@ -17,11 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import unittest
 
 
@@ -66,3 +61,10 @@ class PluginsTestRBAC(unittest.TestCase):
         link = links[0]
         self.assertEqual(link.name, appbuilder_mitem['category'])
         self.assertEqual(link.childs[0].name, appbuilder_mitem['name'])
+
+    def test_app_blueprints(self):
+        from tests.plugins.test_plugin import bp
+
+        # Blueprint should be present in the app
+        self.assertTrue('test_plugin' in self.app.blueprints)
+        self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)

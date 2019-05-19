@@ -23,14 +23,7 @@ import unittest
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.wasb_delete_blob_operator import WasbDeleteBlobOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestWasbDeleteBlobOperator(unittest.TestCase):

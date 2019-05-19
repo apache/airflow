@@ -44,7 +44,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
                  print_log=True,
                  *args,
                  **kwargs):
-        super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.print_log = print_log
         self.positions = {}
@@ -91,7 +91,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
             billable_time = \
                 (self.last_description['TrainingEndTime'] - self.last_description['TrainingStartTime']) * \
                 self.last_description['ResourceConfig']['InstanceCount']
-            self.log.info('Billable seconds:{}'.format(int(billable_time.total_seconds()) + 1))
+            self.log.info('Billable seconds: %s', int(billable_time.total_seconds()) + 1)
 
         return self.last_description
 
