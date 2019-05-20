@@ -104,8 +104,9 @@ class TestSlackWebhookHook(unittest.TestCase):
         # Then
         self.assertEqual(self.expected_message, message)
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id(self, request_mock):
+    def test_url_generated_by_http_conn_id(self, request_mock, session_mock):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-url')
         try:
             hook.execute()
@@ -118,9 +119,11 @@ class TestSlackWebhookHook(unittest.TestCase):
             data=mock.ANY
         )
         request_mock.reset_mock()
+        session_mock.reset_mock()
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_endpoint(self, request_mock):
+    def test_url_generated_by_endpoint(self, request_mock, session_mock):
         hook = SlackWebhookHook(webhook_token=self.expected_url)
         try:
             hook.execute()
@@ -133,9 +136,11 @@ class TestSlackWebhookHook(unittest.TestCase):
             data=mock.ANY
         )
         request_mock.reset_mock()
+        session_mock.reset_mock()
 
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock):
+    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock, session_mock):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-host',
                                 webhook_token='B000/XXX')
         try:
@@ -149,6 +154,7 @@ class TestSlackWebhookHook(unittest.TestCase):
             data=mock.ANY
         )
         request_mock.reset_mock()
+        session_mock.reset_mock()
 
 
 if __name__ == '__main__':
