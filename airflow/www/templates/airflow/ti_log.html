@@ -29,6 +29,9 @@ limitations under the License.
     </a>
   </li>
   {% endfor %}
+  <li class="active" style="float: right">
+    <a onclick='scrollBottom()'>Jump to end</a>
+  </li>
 </ul>
 <div class="tab-content">
   {% for log in logs %}
@@ -68,6 +71,10 @@ limitations under the License.
       console.debug($(document).height())
       return $(window).scrollTop() != 0
              && ($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET);
+    }
+
+    function scrollBottom() {
+      $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
     }
 
     // Streaming log with auto-tailing.
@@ -110,7 +117,7 @@ limitations under the License.
             document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
-              $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+              scrollBottom();
             }
           }
 
