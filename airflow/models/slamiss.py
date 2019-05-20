@@ -19,7 +19,7 @@
 
 from sqlalchemy import Boolean, Column, String, Index, Text
 
-from airflow.models import Base, ID_LEN
+from airflow.models.base import Base, ID_LEN
 from airflow.utils.sqlalchemy import UtcDateTime
 
 

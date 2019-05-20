@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import with_statement
 from alembic import context
 from logging.config import fileConfig
 
 from airflow import settings
-from airflow.jobs import models
+from airflow import models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -78,6 +77,7 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
         )

@@ -30,9 +30,9 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     Users may specify up to 1000 keys to delete.
 
-    :param bucket: Name of the bucket in which you are going to delete object(s)
+    :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :type bucket: str
-    :param keys: The key(s) to delete from S3 bucket.
+    :param keys: The key(s) to delete from S3 bucket. (templated)
 
         When ``keys`` is a string, it's supposed to be the key name of
         the single object to delete.
@@ -58,6 +58,8 @@ class S3DeleteObjectsOperator(BaseOperator):
     :type verify: bool or str
     """
 
+    template_fields = ('keys', 'bucket')
+
     @apply_defaults
     def __init__(
             self,
@@ -66,7 +68,7 @@ class S3DeleteObjectsOperator(BaseOperator):
             aws_conn_id='aws_default',
             verify=None,
             *args, **kwargs):
-        super(S3DeleteObjectsOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.keys = keys
         self.aws_conn_id = aws_conn_id
@@ -78,7 +80,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
 
         deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
-        self.log.info("Deleted: {}".format(deleted_keys))
+        self.log.info("Deleted: %s", deleted_keys)
 
         if "Errors" in response:
             errors_keys = [x['Key'] for x in response.get("Errors", [])]

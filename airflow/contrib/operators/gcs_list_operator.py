@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
+
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -58,7 +60,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                 google_cloud_storage_conn_id=google_cloud_conn_id
             )
     """
-    template_fields = ('bucket', 'prefix', 'delimiter')
+    template_fields = ('bucket', 'prefix', 'delimiter')  # type: Iterable[str]
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -70,7 +72,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
@@ -87,6 +89,6 @@ class GoogleCloudStorageListOperator(BaseOperator):
         self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
                       self.bucket, self.delimiter, self.prefix)
 
-        return hook.list(bucket=self.bucket,
+        return hook.list(bucket_name=self.bucket,
                          prefix=self.prefix,
                          delimiter=self.delimiter)

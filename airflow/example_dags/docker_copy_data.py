@@ -26,7 +26,6 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-# from __future__ import print_function
 #
 # from airflow import DAG
 # import airflow
@@ -58,7 +57,7 @@ TODO: Review the workflow, change it accordingly to
 # t_view = BashOperator(
 #         task_id='view_file',
 #         bash_command=locate_file_cmd,
-#         xcom_push=True,
+#         do_xcom_push=True,
 #         params={'source_location': '/your/input_dir/path'},
 #         dag=dag)
 #
@@ -84,7 +83,7 @@ TODO: Review the workflow, change it accordingly to
 #                  '/your/host/output_dir/path:/your/output_dir/path'],
 #         command='./entrypoint.sh',
 #         task_id='move_data',
-#         xcom_push=True,
+#         do_xcom_push=True,
 #         params={'source_location': '/your/input_dir/path',
 #                 'target_location': '/your/output_dir/path'},
 #         dag=dag)

@@ -23,13 +23,14 @@
 # SOFTWARE.
 
 from functools import wraps
+from typing import Dict
 
 from elasticsearch.client import _normalize_hosts
-from mock import patch
+from tests.compat import patch
 
 from .fake_elasticsearch import FakeElasticsearch
 
-ELASTIC_INSTANCES = {}
+ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 
 
 def _get_elasticmock(hosts=None, *args, **kwargs):

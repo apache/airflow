@@ -16,20 +16,17 @@
 # under the License.
 
 import json
-import mock
 import unittest
 
-try:  # python 2
-    from urlparse import urlparse, parse_qsl
-except ImportError:  # python 3
-    from urllib.parse import urlparse, parse_qsl
+from unittest import mock
+import requests
+from google.auth.exceptions import GoogleAuthError
+from googleapiclient.discovery import build_from_document
+from googleapiclient.errors import HttpError
+from googleapiclient.http import HttpMockSequence
+from urllib.parse import urlparse, parse_qsl
 
 from airflow.contrib.hooks import gcp_mlengine_hook as hook
-from googleapiclient.errors import HttpError
-from googleapiclient.discovery import build_from_document
-from googleapiclient.http import HttpMockSequence
-from google.auth.exceptions import GoogleAuthError
-import requests
 
 cml_available = True
 try:
@@ -38,7 +35,7 @@ except GoogleAuthError:
     cml_available = False
 
 
-class _TestMLEngineHook(object):
+class _TestMLEngineHook:
 
     def __init__(self, test_cls, responses, expected_requests):
         """

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 import unittest
 
 from airflow.www import validators
@@ -26,7 +26,7 @@ from airflow.www import validators
 class TestGreaterEqualThan(unittest.TestCase):
 
     def setUp(self):
-        super(TestGreaterEqualThan, self).setUp()
+        super().setUp()
         self.form_field_mock = mock.MagicMock(data='2017-05-06')
         self.form_field_mock.gettext.side_effect = lambda msg: msg
         self.other_field_mock = mock.MagicMock(data='2017-05-05')

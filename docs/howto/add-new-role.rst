@@ -28,7 +28,12 @@ and click ``List Roles`` in the new UI.
 .. image:: ../img/add-role.png
 .. image:: ../img/new-role.png
 
+The image shows the creation of a role which can only write to
+``example_python_operator``. You can also create roles via the CLI
+using the ``airflow roles`` command, e.g.:
 
-The image shows a role which could only write to example_python_operator is created.
-And we could assign the given role to a new user using ``airflow users --add-role`` cli command.
-Default roles(Admin, User, Viewer, Op) shiped with RBAC could view the details for every dag.
+    airflow roles --create Role1 Role2
+
+And we could assign the given role to a new user using the ``airflow
+users --add-role`` CLI command.  Default roles(Admin, User, Viewer,
+Op) shipped with RBAC could view the details for every dag.

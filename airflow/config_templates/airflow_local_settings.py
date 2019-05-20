@@ -18,6 +18,7 @@
 # under the License.
 
 import os
+from typing import Dict, Any
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
@@ -107,7 +108,7 @@ DEFAULT_LOGGING_CONFIG = {
         'handlers': ['console'],
         'level': LOG_LEVEL,
     }
-}
+}  # type: Dict[str, Any]
 
 DEFAULT_DAG_PARSING_LOGGING_CONFIG = {
     'handlers': {
@@ -138,13 +139,6 @@ REMOTE_HANDLERS = {
             's3_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
         },
-        'processor': {
-            'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            's3_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
-        },
     },
     'gcs': {
         'task': {
@@ -153,13 +147,6 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
-        },
-        'processor': {
-            'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
         },
     },
     'wasb': {
@@ -170,15 +157,6 @@ REMOTE_HANDLERS = {
             'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
             'wasb_container': 'airflow-logs',
             'filename_template': FILENAME_TEMPLATE,
-            'delete_local_copy': False,
-        },
-        'processor': {
-            'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',
-            'formatter': 'airflow',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
-            'wasb_container': 'airflow-logs',
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
             'delete_local_copy': False,
         },
     },
@@ -195,7 +173,7 @@ REMOTE_HANDLERS = {
     },
 }
 
-REMOTE_LOGGING = conf.get('core', 'remote_logging')
+REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
@@ -214,10 +192,10 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     mkdirs(directory, 0o755)
 
 if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
 elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])

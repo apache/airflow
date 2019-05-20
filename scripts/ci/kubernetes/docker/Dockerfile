@@ -15,15 +15,12 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-FROM ubuntu:16.04
+FROM python:3.6-slim
 
 # install deps
 RUN apt-get update -y && apt-get install -y \
         wget \
-        python-dev \
-        python-pip \
         libczmq-dev \
-        libcurlpp-dev \
         curl \
         libssl-dev \
         git \
@@ -31,6 +28,7 @@ RUN apt-get update -y && apt-get install -y \
         bind9utils \
         zip \
         unzip \
+        gcc \
     && apt-get clean
 
 RUN pip install --upgrade pip

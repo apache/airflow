@@ -35,7 +35,7 @@ class ImapHook(BaseHook):
     """
 
     def __init__(self, imap_conn_id='imap_default'):
-        super(ImapHook, self).__init__(imap_conn_id)
+        super().__init__(imap_conn_id)
         self.conn = self.get_connection(imap_conn_id)
         self.mail_client = imaplib.IMAP4_SSL(self.conn.host)
 
@@ -141,11 +141,11 @@ class ImapHook(BaseHook):
         self._create_files(mail_attachments, local_output_directory)
 
     def _handle_not_found_mode(self, not_found_mode):
-        if not_found_mode is 'raise':
+        if not_found_mode == 'raise':
             raise AirflowException('No mail attachments found!')
-        elif not_found_mode is 'warn':
+        elif not_found_mode == 'warn':
             self.log.warning('No mail attachments found!')
-        elif not_found_mode is 'ignore':
+        elif not_found_mode == 'ignore':
             pass  # Do not notify if the attachment has not been found.
         else:
             self.log.error('Invalid "not_found_mode" %s', not_found_mode)
@@ -221,7 +221,7 @@ class Mail(LoggingMixin):
     """
 
     def __init__(self, mail_body):
-        super(Mail, self).__init__()
+        super().__init__()
         self.mail = email.message_from_string(mail_body)
 
     def has_attachments(self):

@@ -83,6 +83,10 @@ class GcfFunctionDeployOperator(BaseOperator):
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeployOperator`
+
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
@@ -135,7 +139,7 @@ class GcfFunctionDeployOperator(BaseOperator):
                                                           api_version=api_version)
         self._hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_inputs()
-        super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.location:
@@ -274,6 +278,10 @@ class GcfFunctionDeleteOperator(BaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeleteOperator`
+
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
     :type name: str
@@ -297,7 +305,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
         self.api_version = api_version
         self._validate_inputs()
         self.hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
-        super(GcfFunctionDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.name:
