@@ -186,7 +186,7 @@ gcp = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
-    'google-cloud-bigtable==0.31.0',
+    'google-cloud-bigtable==0.33.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
