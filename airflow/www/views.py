@@ -34,6 +34,8 @@ from datetime import timedelta
 from functools import wraps
 from textwrap import dedent
 
+from six.moves.urllib.parse import quote
+
 import markdown
 import pendulum
 import sqlalchemy as sqla
@@ -890,6 +892,23 @@ class Airflow(AirflowViewMixin, BaseView):
             execution_date=execution_date, form=form,
             root=root)
 
+    @expose('/elasticsearch')
+    @login_required
+    @wwwutils.action_logging
+    @provide_session
+    def elasticsearch(self, session=None):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        try_number = request.args.get('try_number', 1)
+        elasticsearch_frontend = conf.get('elasticsearch', 'elasticsearch_frontend')
+        log_id_template = conf.get('elasticsearch', 'elasticsearch_log_id_template')
+        log_id = log_id_template.format(
+            dag_id=dag_id, task_id=task_id,
+            execution_date=execution_date, try_number=try_number)
+        url = 'https://' + elasticsearch_frontend.format(log_id=quote(log_id))
+        return redirect(url)
+
     @expose('/task')
     @login_required
     @wwwutils.action_logging
@@ -1538,12 +1557,14 @@ class Airflow(AirflowViewMixin, BaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
+        external_logs = conf.get('elasticsearch', 'elasticsearch_frontend')
         return self.render(
             'airflow/tree.html',
             operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
             root=root,
             form=form,
-            dag=dag, data=data, blur=blur, num_runs=num_runs)
+            dag=dag, data=data, blur=blur, num_runs=num_runs,
+            show_external_logs=bool(external_logs))
 
     @expose('/graph')
     @login_required
@@ -1621,6 +1642,7 @@ class Airflow(AirflowViewMixin, BaseView):
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
+        external_logs = conf.get('elasticsearch', 'elasticsearch_frontend')
         return self.render(
             'airflow/graph.html',
             dag=dag,
@@ -1637,7 +1659,8 @@ class Airflow(AirflowViewMixin, BaseView):
             task_instances=task_instances,
             tasks=tasks,
             nodes=nodes,
-            edges=edges)
+            edges=edges,
+            show_external_logs=bool(external_logs))
 
     @expose('/duration')
     @login_required
