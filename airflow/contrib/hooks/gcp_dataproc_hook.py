@@ -246,6 +246,23 @@ class DataProcHook(GoogleCloudBaseHook):
                                        self.num_retries)
         submitted.wait_for_done()
 
+    def cancel(self, project_id, job_id, region='global'):
+        """
+        Cancel a Google Cloud DataProc job.
+        :param project_id: Name of the project the job belongs to
+        :type project_id: str
+        :param job_id: Identifier of the job to cancel
+        :type job_id: int
+        :param region: Region used for the job
+        :type region: str
+        :returns A Job json dictionary representing the canceled job
+        """
+        return self.get_conn().projects().regions().jobs().cancel(
+            projectId=project_id,
+            region=region,
+            jobId=job_id
+        )
+
 
 setattr(
     DataProcHook,

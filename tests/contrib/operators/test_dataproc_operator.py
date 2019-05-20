@@ -23,6 +23,8 @@ import re
 import unittest
 from typing import Dict
 
+import time
+
 from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
     DataprocClusterCreateOperator, \
@@ -33,7 +35,9 @@ from airflow.contrib.operators.dataproc_operator import \
     DataProcSparkOperator, \
     DataprocWorkflowTemplateInstantiateInlineOperator, \
     DataprocWorkflowTemplateInstantiateOperator, \
-    DataprocClusterScaleOperator
+    DataprocClusterScaleOperator, DataProcJobBaseOperator
+from airflow.exceptions import AirflowTaskTimeout
+from airflow.utils.timezone import make_aware
 from airflow.version import version
 from tests.compat import mock
 
@@ -528,6 +532,39 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
                 clusterName=CLUSTER_NAME,
                 requestId=mock.ANY)
             hook.wait.assert_called_once_with(self.operation)
+
+
+class DataProcJobBaseOperatorTest(unittest.TestCase):
+
+    def setUp(self):
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+            },
+            schedule_interval='@daily')
+
+    def test_timeout_kills_job(self):
+        def submit_side_effect(_1, _2, _3, _4):
+            time.sleep(10)
+        job_id = 1
+        with patch(HOOK) as MockHook:
+            mock_hook = MockHook()
+            mock_hook.submit.side_effect = submit_side_effect
+            mock_hook.create_job_template().build.return_value = {'job': {'reference': {'jobId': job_id}}}
+
+            task = DataProcJobBaseOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                execution_timeout=datetime.timedelta(seconds=1),
+                dag=self.dag
+            )
+            task.create_job_template()
+
+            with self.assertRaises(AirflowTaskTimeout):
+                task.run(start_date=make_aware(DEFAULT_DATE), end_date=make_aware(DEFAULT_DATE))
+            mock_hook.cancel.assert_called_once_with(mock.ANY, job_id, GCP_REGION)
 
 
 class DataProcHadoopOperatorTest(unittest.TestCase):
