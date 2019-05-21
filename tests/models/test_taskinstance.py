@@ -34,6 +34,7 @@ from airflow.models import DAG, TaskFail, TaskInstance as TI, TaskReschedule, Da
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import create_session
@@ -515,26 +516,33 @@ class TaskInstanceTest(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    def test_depends_on_past(self):
-        dagbag = models.DagBag()
-        dag = dagbag.get_dag('test_depends_on_past')
-        dag.clear()
-        task = dag.tasks[0]
-        run_date = task.start_date + datetime.timedelta(days=5)
-        ti = TI(task, run_date)
+    def test_respects_prev_dagrun_dep(self):
+        dag = models.DAG(dag_id='test_dag')
+        task = DummyOperator(dag=dag, task_id='test_task', start_date=DEFAULT_DATE)
+        ti = TI(task, DEFAULT_DATE)
+        failing_status = [TIDepStatus('test fail status name', False, 'test fail reason')]
+        passing_status = [TIDepStatus('test pass status name', True, 'test passing reason')]
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=failing_status):
+            self.assertFalse(ti.are_dependencies_met())
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=passing_status):
+            self.assertTrue(ti.are_dependencies_met())
 
-        # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date)
-        ti.refresh_from_db()
-        self.assertIs(ti.state, None)
-
-        # ignore first depends_on_past to allow the run
-        task.run(
-            start_date=run_date,
-            end_date=run_date,
-            ignore_first_depends_on_past=True)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+    def test_are_dependents_done(self):
+        dag = models.DAG(dag_id='test_dag')
+        upstream_task = DummyOperator(dag=dag, task_id='upstream_task', start_date=DEFAULT_DATE)
+        downstream_task = DummyOperator(dag=dag, task_id='downstream_task', start_date=DEFAULT_DATE)
+        upstream_task.set_downstream(downstream_task)
+        uti = TI(upstream_task, DEFAULT_DATE)
+        dti = TI(downstream_task, DEFAULT_DATE)
+        self.assertFalse(uti.are_dependents_done())
+        dti.set_state(State.SKIPPED)
+        self.assertTrue(uti.are_dependents_done())
+        dti.set_state(State.FAILED)
+        self.assertFalse(uti.are_dependents_done())
+        dti.set_state(State.SUCCESS)
+        self.assertTrue(uti.are_dependents_done())
 
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances

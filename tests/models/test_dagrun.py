@@ -21,6 +21,7 @@ import datetime
 import unittest
 
 from airflow import settings, models
+from airflow.exceptions import AirflowException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, DagRun, clear_task_instances
 from airflow.models import TaskInstance as TI
@@ -29,6 +30,7 @@ from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from tests.executors.test_executor import TestExecutor
 from tests.models import DEFAULT_DATE
 
 
@@ -560,3 +562,89 @@ class DagRunTest(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    def test_depends_on_past(self):
+
+        dag_id = 'test_depends_on_past'
+        dag = models.DagBag().get_dag(dag_id)
+        task = dag.tasks[0]
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        ti1 = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
+        ti2 = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
+
+        def run_2nd_dagrun():
+            dag.run(
+                start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+                end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+                executor=TestExecutor()
+            )
+
+        # 2nd run of task fails by itself
+        self.assertRaises(AirflowException, run_2nd_dagrun)
+        ti2.refresh_from_db()
+        self.assertEquals(ti2.state, State.SCHEDULED)
+
+        # 2nd run af task fails if 1st run of task failed
+        ti1.set_state(State.FAILED)
+        self.assertRaises(AirflowException, run_2nd_dagrun)
+        ti2.refresh_from_db()
+        self.assertEquals(ti2.state, State.SCHEDULED)
+
+        # but it works after 1st instance of task is marked as skipped
+        ti1.set_state(State.SKIPPED)
+        run_2nd_dagrun()
+        ti2.refresh_from_db()
+        self.assertEquals(ti2.state, State.SUCCESS)
+
+        # and it also works if 1st instance is success
+        ti2.set_state(State.NONE)
+        ti1.set_state(State.SUCCESS)
+        run_2nd_dagrun()
+        ti2.refresh_from_db()
+        self.assertEquals(ti2.state, State.SUCCESS)
+
+    def test_wait_for_downstream(self):
+        dag_id = 'test_wait_for_downstream'
+        dag = models.DagBag().get_dag(dag_id)
+
+        # ti.previous_ti requires a dagrun to exist
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        upstream, downstream = dag.tasks
+
+        def run_2nd_dagrun():
+            dag.run(
+                start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+                end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+                executor=TestExecutor()
+            )
+
+        # doesn't run if downstream task for previous day has a null state
+        uti_2 = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        uti_2.previous_ti.set_state(State.SUCCESS)
+        self.assertEqual(uti_2.previous_ti.state, State.SUCCESS)
+        self.assertRaises(AirflowException, run_2nd_dagrun)
+        uti_2.refresh_from_db()
+        self.assertEquals(uti_2.state, State.SCHEDULED)
+
+        # doesn't run if downstream task for previous day has a failed state
+        dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        dti_1.set_state(State.FAILED)
+        self.assertRaises(AirflowException, run_2nd_dagrun)
+        uti_2.refresh_from_db()
+        self.assertEquals(uti_2.state, State.SCHEDULED)
+
+        # runs if downstream task for previous day has a skipped state
+        dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        dti_1.set_state(State.SKIPPED)
+        run_2nd_dagrun()
+        uti_2.refresh_from_db()
+        self.assertEqual(uti_2.state, State.SUCCESS)
+
+        # runs if downstream task for previous day has a success state
+        uti_2.set_state(State.NONE)
+        dti_1.set_state(State.SUCCESS)
+        run_2nd_dagrun()
+        uti_2.refresh_from_db()
+        self.assertEqual(uti_2.state, State.SUCCESS)
