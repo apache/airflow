@@ -555,7 +555,104 @@ class DataprocClusterDeleteOperator(DataprocOperationBaseOperator):
             ).execute())
 
 
-class DataProcPigOperator(BaseOperator):
+class DataProcJobBaseOperator(BaseOperator):
+    """
+    The base class for operators that launch job on DataProc.
+
+    :param job_name: The job name used in the DataProc cluster. This name by default
+        is the task_id appended with the execution data, but can be templated. The
+        name will always be appended with a random number to avoid name clashes.
+    :type job_name: str
+    :param cluster_name: The name of the DataProc cluster.
+    :type cluster_name: str
+    :param dataproc_properties: Map for the Hive properties. Ideal to put in
+        default arguments
+    :type dataproc_properties: dict
+    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
+        MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
+    :type dataproc_jars: list
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param region: The specified region where the dataproc cluster is created.
+    :type region: str
+    :param job_error_states: Job states that should be considered error states.
+        Any states in this set will result in an error being raised and failure of the
+        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
+        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
+        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
+        ``{'ERROR'}``.
+    :type job_error_states: set
+    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
+        This is useful for identifying or linking to the job in the Google Cloud Console
+        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
+        an 8 character random string.
+    :vartype dataproc_job_id: str
+    """
+    job_type = ""
+
+    @apply_defaults
+    def __init__(self,
+                 job_name='{{task.task_id}}_{{ds_nodash}}',
+                 cluster_name="cluster-1",
+                 dataproc_properties=None,
+                 dataproc_jars=None,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 region='global',
+                 job_error_states=None,
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.job_name = job_name
+        self.cluster_name = cluster_name
+        self.dataproc_properties = dataproc_properties
+        self.dataproc_jars = dataproc_jars
+        self.region = region
+        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
+
+        self.hook = DataProcHook(gcp_conn_id=gcp_conn_id,
+                                 delegate_to=delegate_to)
+        self.job_template = None
+        self.job = None
+        self.dataproc_job_id = None
+
+    def create_job_template(self):
+        """
+        Initialize `self.job_template` with default values
+        """
+        self.job_template = self.hook.create_job_template(self.task_id, self.cluster_name, self.job_type,
+                                                          self.dataproc_properties)
+        self.job_template.add_jar_file_uris(self.dataproc_jars)
+        self.job_template.set_job_name(self.job_name)
+
+    def execute(self, context):
+        """
+        Build `self.job` based on the job template, and submit it.
+        :raises AirflowException if no template has been initialized (see create_job_template)
+        """
+        if self.job_template:
+            self.job = self.job_template.build()
+            self.dataproc_job_id = self.job["job"]["reference"]["jobId"]
+            self.hook.submit(self.hook.project_id, self.job, self.region, self.job_error_states)
+        else:
+            raise AirflowException("Create a job template before")
+
+    def on_kill(self):
+        """
+        Callback called when the operator is killed.
+        Cancel any running job.
+        """
+        if self.dataproc_job_id:
+            self.hook.cancel(self.hook.project_id, self.dataproc_job_id, self.region)
+
+
+class DataProcPigOperator(DataProcJobBaseOperator):
     """
     Start a Pig query Job on a Cloud DataProc cluster. The parameters of the operation
     will be passed to the cluster.
@@ -596,44 +693,12 @@ class DataProcPigOperator(BaseOperator):
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
-    :param job_name: The job name used in the DataProc cluster. This
-        name by default is the task_id appended with the execution data, but can
-        be templated. The name will always be appended with a random number to
-        avoid name clashes. (templated)
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster. (templated)
-    :type cluster_name: str
-    :param dataproc_properties: Map for the Pig properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Pig Client and Hadoop
-        MapReduce (MR) tasks. Can contain Pig UDFs. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
+    job_type = 'pigJob'
 
     @apply_defaults
     def __init__(
@@ -641,51 +706,27 @@ class DataProcPigOperator(BaseOperator):
             query=None,
             query_uri=None,
             variables=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-        job = hook.create_job_template(self.task_id, self.cluster_name, "pigJob",
-                                       self.dataproc_properties)
+        self.create_job_template()
 
         if self.query is None:
-            job.add_query_uri(self.query_uri)
+            self.job_template.add_query_uri(self.query_uri)
         else:
-            job.add_query(self.query)
-        job.add_variables(self.variables)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.set_job_name(self.job_name)
+            self.job_template.add_query(self.query)
+        self.job_template.add_variables(self.variables)
 
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        self.execute(context)
 
 
-class DataProcHiveOperator(BaseOperator):
+class DataProcHiveOperator(DataProcJobBaseOperator):
     """
     Start a Hive query Job on a Cloud DataProc cluster.
 
@@ -695,43 +736,12 @@ class DataProcHiveOperator(BaseOperator):
     :type query_uri: str
     :param variables: Map of named parameters for the query.
     :type variables: dict
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster.
-    :type cluster_name: str
-    :param dataproc_properties: Map for the Hive properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
-        MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
+    job_type = 'hiveJob'
 
     @apply_defaults
     def __init__(
@@ -739,52 +749,26 @@ class DataProcHiveOperator(BaseOperator):
             query=None,
             query_uri=None,
             variables=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-
-        job = hook.create_job_template(self.task_id, self.cluster_name, "hiveJob",
-                                       self.dataproc_properties)
-
+        self.create_job_template()
         if self.query is None:
-            job.add_query_uri(self.query_uri)
+            self.job_template.add_query_uri(self.query_uri)
         else:
-            job.add_query(self.query)
-        job.add_variables(self.variables)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.set_job_name(self.job_name)
+            self.job_template.add_query(self.query)
+        self.job_template.add_variables(self.variables)
 
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        super().execute(context)
 
 
-class DataProcSparkSqlOperator(BaseOperator):
+class DataProcSparkSqlOperator(DataProcJobBaseOperator):
     """
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
@@ -794,42 +778,11 @@ class DataProcSparkSqlOperator(BaseOperator):
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
-    :param job_name: The job name used in the DataProc cluster. This
-        name by default is the task_id appended with the execution data, but can
-        be templated. The name will always be appended with a random number to
-        avoid name clashes. (templated)
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster. (templated)
-    :type cluster_name: str
-    :param dataproc_properties: Map for the Spark properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: HCFS URIs of jar files to be added to the Spark CLASSPATH. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
+    job_type = 'sparkSqlJob'
 
     @apply_defaults
     def __init__(
@@ -837,52 +790,26 @@ class DataProcSparkSqlOperator(BaseOperator):
             query=None,
             query_uri=None,
             variables=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-
-        job = hook.create_job_template(self.task_id, self.cluster_name, "sparkSqlJob",
-                                       self.dataproc_properties)
-
+        self.create_job_template()
         if self.query is None:
-            job.add_query_uri(self.query_uri)
+            self.job_template.add_query_uri(self.query_uri)
         else:
-            job.add_query(self.query)
-        job.add_variables(self.variables)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.set_job_name(self.job_name)
+            self.job_template.add_query(self.query)
+        self.job_template.add_variables(self.variables)
 
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        super().execute(context)
 
 
-class DataProcSparkOperator(BaseOperator):
+class DataProcSparkOperator(DataProcJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
@@ -899,43 +826,11 @@ class DataProcSparkOperator(BaseOperator):
     :type archives: list
     :param files: List of files to be copied to the working directory
     :type files: list
-    :param job_name: The job name used in the DataProc cluster. This
-        name by default is the task_id appended with the execution data, but can
-        be templated. The name will always be appended with a random number to
-        avoid name clashes. (templated)
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster. (templated)
-    :type cluster_name: str
-    :param dataproc_properties: Map for the Spark properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: HCFS URIs of files to be copied to the working directory of Spark drivers
-        and distributed tasks. Useful for naively parallel tasks. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     ui_color = '#0273d4'
+    job_type = 'sparkJob'
 
     @apply_defaults
     def __init__(
@@ -945,52 +840,27 @@ class DataProcSparkOperator(BaseOperator):
             arguments=None,
             archives=None,
             files=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
         self.archives = archives
         self.files = files
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-        job = hook.create_job_template(self.task_id, self.cluster_name, "sparkJob",
-                                       self.dataproc_properties)
+        self.create_job_template()
+        self.job_template.set_main(self.main_jar, self.main_class)
+        self.job_template.add_args(self.arguments)
+        self.job_template.add_archive_uris(self.archives)
+        self.job_template.add_file_uris(self.files)
 
-        job.set_main(self.main_jar, self.main_class)
-        job.add_args(self.arguments)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.add_archive_uris(self.archives)
-        job.add_file_uris(self.files)
-        job.set_job_name(self.job_name)
-
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        super().execute(context)
 
 
-class DataProcHadoopOperator(BaseOperator):
+class DataProcHadoopOperator(DataProcJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
@@ -1007,43 +877,11 @@ class DataProcHadoopOperator(BaseOperator):
     :type archives: list
     :param files: List of files to be copied to the working directory
     :type files: list
-    :param job_name: The job name used in the DataProc cluster. This
-        name by default is the task_id appended with the execution data, but can
-        be templated. The name will always be appended with a random number to
-        avoid name clashes. (templated)
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster. (templated)
-    :type cluster_name: str
-    :param dataproc_properties: Map for the Hadoop properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: Jar file URIs to add to the CLASSPATHs of the Hadoop driver and
-        tasks. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     ui_color = '#0273d4'
+    job_type = 'hadoopJob'
 
     @apply_defaults
     def __init__(
@@ -1053,52 +891,27 @@ class DataProcHadoopOperator(BaseOperator):
             arguments=None,
             archives=None,
             files=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
         self.archives = archives
         self.files = files
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-        job = hook.create_job_template(self.task_id, self.cluster_name, "hadoopJob",
-                                       self.dataproc_properties)
+        self.create_job_template()
+        self.job_template.set_main(self.main_jar, self.main_class)
+        self.job_template.add_args(self.arguments)
+        self.job_template.add_archive_uris(self.archives)
+        self.job_template.add_file_uris(self.files)
 
-        job.set_main(self.main_jar, self.main_class)
-        job.add_args(self.arguments)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.add_archive_uris(self.archives)
-        job.add_file_uris(self.files)
-        job.set_job_name(self.job_name)
-
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        super().execute(context)
 
 
-class DataProcPySparkOperator(BaseOperator):
+class DataProcPySparkOperator(DataProcJobBaseOperator):
     """
     Start a PySpark Job on a Cloud DataProc cluster.
 
@@ -1115,43 +928,11 @@ class DataProcPySparkOperator(BaseOperator):
     :param pyfiles: List of Python files to pass to the PySpark framework.
         Supported file types: .py, .egg, and .zip
     :type pyfiles: list
-    :param job_name: The job name used in the DataProc cluster. This
-        name by default is the task_id appended with the execution data, but can
-        be templated. The name will always be appended with a random number to
-        avoid name clashes. (templated)
-    :type job_name: str
-    :param cluster_name: The name of the DataProc cluster.
-    :type cluster_name: str
-    :param dataproc_properties: Map for the PySpark properties. Ideal to put in
-        default arguments
-    :type dataproc_properties: dict
-    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATHs of the Python
-        driver and tasks. (templated)
-    :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :type delegate_to: str
-    :param region: The specified region where the dataproc cluster is created.
-    :type region: str
-    :param job_error_states: Job states that should be considered error states.
-        Any states in this set will result in an error being raised and failure of the
-        task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
-        pass in ``{'ERROR', 'CANCELLED'}``. Possible values are currently only
-        ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
-        ``{'ERROR'}``.
-    :type job_error_states: set
-    :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
-        This is useful for identifying or linking to the job in the Google Cloud Console
-        Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
-        an 8 character random string.
-    :vartype dataproc_job_id: str
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
     ui_color = '#0273d4'
+    job_type = 'pysparkJob'
 
     @staticmethod
     def _generate_temp_filename(filename):
@@ -1188,62 +969,35 @@ class DataProcPySparkOperator(BaseOperator):
             archives=None,
             pyfiles=None,
             files=None,
-            job_name='{{task.task_id}}_{{ds_nodash}}',
-            cluster_name='cluster-1',
-            dataproc_properties=None,
-            dataproc_jars=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            region='global',
-            job_error_states=None,
             *args,
             **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.main = main
         self.arguments = arguments
         self.archives = archives
         self.files = files
         self.pyfiles = pyfiles
-        self.job_name = job_name
-        self.cluster_name = cluster_name
-        self.dataproc_properties = dataproc_properties
-        self.dataproc_jars = dataproc_jars
-        self.region = region
-        self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
     def execute(self, context):
-        hook = DataProcHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
-        )
-        job = hook.create_job_template(
-            self.task_id, self.cluster_name, "pysparkJob", self.dataproc_properties)
-
+        self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
-            cluster_info = hook.get_cluster(
-                project_id=hook.project_id,
+            cluster_info = self.hook.get_cluster(
+                project_id=self.hook.project_id,
                 region=self.region,
                 cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['configBucket']
             self.main = self._upload_file_temp(bucket, self.main)
-        job.set_python_main(self.main)
+        self.job_template.set_python_main(self.main)
 
-        job.add_args(self.arguments)
-        job.add_jar_file_uris(self.dataproc_jars)
-        job.add_archive_uris(self.archives)
-        job.add_file_uris(self.files)
-        job.add_python_file_uris(self.pyfiles)
-        job.set_job_name(self.job_name)
+        self.job_template.add_args(self.arguments)
+        self.job_template.add_archive_uris(self.archives)
+        self.job_template.add_file_uris(self.files)
+        self.job_template.add_python_file_uris(self.pyfiles)
 
-        job_to_submit = job.build()
-        self.dataproc_job_id = job_to_submit["job"]["reference"]["jobId"]
-
-        hook.submit(hook.project_id, job_to_submit, self.region, self.job_error_states)
+        super().execute(context)
 
 
 class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator):
