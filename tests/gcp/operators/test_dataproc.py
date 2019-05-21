@@ -399,10 +399,12 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         self.operation = {'name': 'operation', 'done': True}
         self.mock_execute = Mock()
         self.mock_execute.execute.return_value = self.operation
-        # Clusters should be iterable
-        self.mock_clusters = [Mock()]
-        for m in self.mock_clusters:
-            m.create.return_value = self.mock_execute
+        self.mock_list = Mock()
+        self.mock_list_execute = {}
+        self.mock_list.execute.return_value = self.mock_list_execute
+        self.mock_clusters = Mock()
+        self.mock_clusters.create.return_value = self.mock_execute
+        self.mock_clusters.list.return_value = self.mock_list
         self.mock_regions = Mock()
         self.mock_regions.clusters.return_value = self.mock_clusters
         self.mock_projects = Mock()
