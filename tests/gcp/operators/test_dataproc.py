@@ -534,7 +534,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         self.mock_execute = Mock()
         self.mock_execute.execute.return_value = self.operation
         self.mock_list = Mock()
-        self.mock_list_execute = {'clusters':[{'clusterName': CLUSTER_NAME,'status': {'state':'ERROR'}}]}
+        self.mock_list_execute = {'clusters': [{'clusterName': CLUSTER_NAME, 'status': {'state': 'ERROR'}}]}
         self.mock_list.execute.return_value = self.mock_list_execute
         self.mock_clusters = Mock()
         self.mock_clusters.create.return_value = self.mock_execute
