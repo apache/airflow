@@ -56,6 +56,16 @@ ANNOTATE_IMAGE_REQUEST = {
     'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
     'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
 }
+BATCH_ANNOTATE_IMAGE_REQUEST = [
+    {
+        'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
+        'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    },
+    {
+        'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
+        'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    }
+]
 REFERENCE_IMAGE_NAME_TEST = "projects/{}/locations/{}/products/{}/referenceImages/{}".format(
     PROJECT_ID_TEST, LOC_ID_TEST, PRODUCTSET_ID_TEST, REFERENCE_IMAGE_ID_TEST
 )
@@ -429,6 +439,19 @@ class TestGcpVisionHook(unittest.TestCase):
         # Product ID was provided explicitly in the method call above, should be returned from the method
         annotate_image_method.assert_called_once_with(
             request=ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
+        )
+
+    @mock.patch('airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client')
+    def test_batch_annotate_images(self, annotator_client_mock):
+        # Given
+        batch_annotate_images_method = annotator_client_mock.batch_annotate_images
+
+        # When
+        self.hook.batch_annotate_images(requests=BATCH_ANNOTATE_IMAGE_REQUEST)
+        # Then
+        # Product ID was provided explicitly in the method call above, should be returned from the method
+        batch_annotate_images_method.assert_called_once_with(
+            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
         )
 
     @mock.patch('airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.get_conn')
