@@ -1739,7 +1739,7 @@ class Airflow(AirflowBaseView):
         for ti in tis:
             end_date = ti.end_date or timezone.utcnow()
             try_count = ti.try_number
-            if ti.state == State.FAILED or ti.state == State.SUCCESS:
+            if ti.state != State.RUNNING:
                 try_count = ti.try_number - 1
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
 
@@ -1750,6 +1750,8 @@ class Airflow(AirflowBaseView):
             end_date = tf.end_date or timezone.utcnow()
             if tf_count != 0 and tf.task_id == prev_task_id:
                 try_count = try_count + 1
+            else:
+                try_count = 1
             prev_task_id = tf.task_id
             gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
