@@ -31,6 +31,7 @@ except ImportError:
 
 from tests.compat import mock
 
+
 class SingularityOperatorTestCase(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.singularity_operator.Client')
     def test_execute(self, client_mock):
