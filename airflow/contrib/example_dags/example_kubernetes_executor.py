@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import print_function
+
 import airflow
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG

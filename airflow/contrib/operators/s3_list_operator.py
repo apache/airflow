@@ -78,7 +78,7 @@ class S3ListOperator(BaseOperator):
                  verify=None,
                  *args,
                  **kwargs):
-        super(S3ListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter

@@ -18,7 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
 import importlib
 import logging
 
@@ -1556,7 +1555,7 @@ def _import_users(users_list):
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing ther username is not allowed - "
+                print("Error: Changing the username is not allowed - "
                       "please delete and recreate the user with "
                       "email '{}'".format(user['email']))
                 exit(1)
@@ -1668,7 +1667,7 @@ def sync_perm(args):
             dag.access_control)
 
 
-class Arg(object):
+class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
         self.flags = flags
@@ -1681,7 +1680,7 @@ class Arg(object):
         self.metavar = metavar
 
 
-class CLIFactory(object):
+class CLIFactory:
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),

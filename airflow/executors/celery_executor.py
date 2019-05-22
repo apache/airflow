@@ -72,7 +72,7 @@ def execute_command(command_to_exec):
         raise AirflowException('Celery command failed')
 
 
-class ExceptionWithTraceback(object):
+class ExceptionWithTraceback:
     """
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
@@ -135,7 +135,7 @@ class CeleryExecutor(BaseExecutor):
     """
 
     def __init__(self):
-        super(CeleryExecutor, self).__init__()
+        super().__init__()
 
         # Celery doesn't support querying the state of multiple tasks in parallel
         # (which can become a bottleneck on bigger clusters) so we use

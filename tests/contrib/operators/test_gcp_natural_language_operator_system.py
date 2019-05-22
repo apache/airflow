@@ -25,7 +25,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
 class CloudNaturalLanguageExampleDagsTest(DagGcpSystemTestCase):
     def __init__(self, method_name="runTest"):
-        super(CloudNaturalLanguageExampleDagsTest, self).__init__(
+        super().__init__(
             method_name, dag_id="example_gcp_natural_language", gcp_key=GCP_AI_KEY
         )
 

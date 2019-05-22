@@ -18,7 +18,7 @@
 # under the License.
 
 import json
-import mock
+from unittest import mock
 import os
 import socket
 import unittest
@@ -64,7 +64,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
-            class Request(object):
+            class Request:
                 headers = {}
 
             response.request = Request()

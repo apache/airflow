@@ -87,7 +87,7 @@ class PythonOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(PythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
@@ -133,7 +133,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
     def execute(self, context):
-        branch = super(BranchPythonOperator, self).execute(context)
+        branch = super().execute(context)
         if isinstance(branch, six.string_types):
             branch = [branch]
         self.log.info("Following branch %s", branch)
@@ -172,7 +172,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
     def execute(self, context):
-        condition = super(ShortCircuitOperator, self).execute(context)
+        condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
         if condition:
@@ -260,7 +260,7 @@ class PythonVirtualenvOperator(PythonOperator):
         *args,
         **kwargs
     ):
-        super(PythonVirtualenvOperator, self).__init__(
+        super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,

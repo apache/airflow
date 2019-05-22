@@ -19,7 +19,7 @@
 import unittest
 
 import requests
-from mock import patch
+from unittest.mock import patch
 
 from airflow import DAG, configuration
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
@@ -129,7 +129,7 @@ class HttpSensorTests(unittest.TestCase):
             mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
 
 
-class FakeSession(object):
+class FakeSession:
     def __init__(self):
         self.response = requests.Response()
         self.response.status_code = 200

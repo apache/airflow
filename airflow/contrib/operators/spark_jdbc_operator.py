@@ -144,7 +144,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
                  create_table_column_types=None,
                  *args,
                  **kwargs):
-        super(SparkJDBCOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._spark_app_name = spark_app_name
         self._spark_conn_id = spark_conn_id
         self._spark_conf = spark_conf

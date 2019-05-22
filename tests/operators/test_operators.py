@@ -17,15 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 
 from collections import OrderedDict
 
 import os
-import mock
+from unittest import mock
 import unittest
 
 configuration.load_test_config()

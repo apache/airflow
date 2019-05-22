@@ -18,7 +18,7 @@
 # under the License.
 #
 
-import mock
+from unittest import mock
 import unittest
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -27,7 +27,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class TestDbApiHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDbApiHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

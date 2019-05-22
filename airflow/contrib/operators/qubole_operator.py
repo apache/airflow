@@ -26,6 +26,8 @@ from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_A
 
 class QDSLink(BaseOperatorLink):
 
+    name = 'Go to QDS'
+
     def get_link(self, operator, dttm):
         return operator.get_hook().get_extra_links(operator, dttm)
 
@@ -155,9 +157,9 @@ class QuboleOperator(BaseOperator):
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
 
-    operator_extra_link_dict = {
-        'Go to QDS': QDSLink(),
-    }
+    operator_extra_links = (
+        QDSLink(),
+    )
 
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
@@ -166,7 +168,7 @@ class QuboleOperator(BaseOperator):
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         self.hook = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
-        super(QuboleOperator, self).__init__(*args, **filtered_base_kwargs)
+        super().__init__(*args, **filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry

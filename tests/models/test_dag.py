@@ -28,7 +28,7 @@ from tempfile import NamedTemporaryFile
 import jinja2
 import pendulum
 import six
-from mock import patch
+from unittest.mock import patch
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException
@@ -872,6 +872,7 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
         self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
+        self.assertEqual(orm_subdag.fileloc, orm_dag.fileloc)
 
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db_default_view(self, mock_now):

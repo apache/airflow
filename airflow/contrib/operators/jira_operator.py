@@ -54,7 +54,7 @@ class JiraOperator(BaseOperator):
                  get_jira_resource_method=None,
                  *args,
                  **kwargs):
-        super(JiraOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.jira_conn_id = jira_conn_id
         self.method_name = jira_method
         self.jira_method_args = jira_method_args

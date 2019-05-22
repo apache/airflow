@@ -26,7 +26,7 @@ from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionO
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
-from six.moves.urllib.parse import urlsplit
+from urllib.parse import urlsplit
 
 
 def create_evaluate_ops(task_prefix,

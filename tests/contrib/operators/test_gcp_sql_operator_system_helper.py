@@ -27,7 +27,7 @@ from threading import Thread
 
 import time
 
-from six.moves.urllib.parse import urlsplit
+from urllib.parse import urlsplit
 
 from tests.contrib.utils.base_gcp_system_test_case import RetrieveVariables
 from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUDSQL_KEY

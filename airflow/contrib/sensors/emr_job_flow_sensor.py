@@ -41,7 +41,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
                  job_flow_id,
                  *args,
                  **kwargs):
-        super(EmrJobFlowSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
 
     def get_emr_response(self):

@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow import DAG, configuration, settings
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
@@ -44,7 +44,7 @@ SENSOR_OP = 'sensor_op'
 
 class DummySensor(BaseSensorOperator):
     def __init__(self, return_value=False, **kwargs):
-        super(DummySensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.return_value = return_value
 
     def poke(self, context):

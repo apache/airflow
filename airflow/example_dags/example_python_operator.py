@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import time
 from builtins import range
 from pprint import pprint

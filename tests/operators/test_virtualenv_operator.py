@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
 
 import funcsigs
@@ -42,7 +40,7 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestPythonVirtualenvOperator, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

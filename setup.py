@@ -186,12 +186,13 @@ gcp = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
-    'google-cloud-bigtable==0.31.0',
+    'google-cloud-bigtable==0.33.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
     'google-cloud-storage~=1.14',
     'google-cloud-translate>=1.3.3',
+    'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',
@@ -224,6 +225,8 @@ ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
+papermill = ['papermill[all]>=1.0.0',
+             'nteract-scrapbook[all]>=0.2.1']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -237,7 +240,7 @@ salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
-slack = ['slackclient>=1.0.0']
+slack = ['slackclient>=1.0.0,<2.0.0']
 singularity = ['spython>=0.0.56']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
@@ -258,7 +261,6 @@ devel = [
     'flake8>=3.6.0',
     'freezegun',
     'jira',
-    'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.5',
     'nose',
@@ -284,7 +286,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc + singularity +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce)
+             atlas + azure + aws + salesforce + cgroups + papermill)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -315,7 +317,6 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
-            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
@@ -390,6 +391,7 @@ def do_setup():
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'papermill': papermill,
             'password': password,
             'pinot': pinot,
             'postgres': postgres,

@@ -18,13 +18,14 @@
 # under the License.
 
 from abc import ABCMeta, abstractmethod
+from cached_property import cached_property
 import copy
 import functools
 import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Iterable, Optional, Dict, Callable, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
 import six
@@ -232,7 +233,7 @@ class BaseOperator(LoggingMixin):
     shallow_copy_attrs = ()  # type: Iterable[str]
 
     # Defines the operator level extra links
-    operator_extra_link_dict = {}  # type: Dict[str, BaseOperatorLink]
+    operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
 
     @apply_defaults
     def __init__(
@@ -367,8 +368,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -564,6 +565,15 @@ class BaseOperator(LoggingMixin):
                 self.get_flat_relative_ids(upstream=upstream))
         )
 
+    @cached_property
+    def operator_extra_link_dict(self):
+        return {link.name: link for link in self.operator_extra_links}
+
+    @cached_property
+    def global_operator_extra_link_dict(self):
+        from airflow.plugins_manager import global_operator_extra_links
+        return {link.name: link for link in global_operator_extra_links}
+
     @prepare_lineage
     def pre_execute(self, context):
         """
@@ -610,7 +620,7 @@ class BaseOperator(LoggingMixin):
 
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
-        for k, v in list(self.__dict__.items()):
+        for k, v in self.__dict__.items():
             if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
@@ -896,11 +906,11 @@ class BaseOperator(LoggingMixin):
             if dag and not task.has_dag():
                 task.dag = dag
             if upstream:
-                task.add_only_new(task._downstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
             else:
                 self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task._upstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
     def set_downstream(self, task_or_task_list):
         """
@@ -946,10 +956,11 @@ class BaseOperator(LoggingMixin):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
-    @property
+    @cached_property
     def extra_links(self):
         # type: () -> Iterable[str]
-        return list(self.operator_extra_link_dict.keys())
+        return list(set(self.operator_extra_link_dict.keys())
+                    .union(self.global_operator_extra_link_dict.keys()))
 
     def get_extra_links(self, dttm, link_name):
         """
@@ -964,15 +975,34 @@ class BaseOperator(LoggingMixin):
         """
         if link_name in self.operator_extra_link_dict:
             return self.operator_extra_link_dict[link_name].get_link(self, dttm)
+        elif link_name in self.global_operator_extra_link_dict:
+            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
 
 
-class BaseOperatorLink:
+class BaseOperatorLink(metaclass=ABCMeta):
     """
     Abstract base class that defines how we get an operator link.
     """
 
-    __metaclass__ = ABCMeta
+    @property
+    @abstractmethod
+    def name(self):
+        # type: () -> str
+        """
+        Name of the link. This will be the button name on the task UI.
+
+        :return: link name
+        """
+        pass
 
     @abstractmethod
     def get_link(self, operator, dttm):
+        # type: (BaseOperator, datetime) -> str
+        """
+        Link to external system.
+
+        :param operator: airflow operator
+        :param dttm: datetime
+        :return: link to external system
+        """
         pass

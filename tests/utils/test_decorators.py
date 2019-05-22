@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 
 
 # Essentially similar to airflow.models.BaseOperator
-class DummyClass(object):
+class DummyClass:
     @apply_defaults
     def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
@@ -33,7 +33,7 @@ class DummyClass(object):
 class DummySubClass(DummyClass):
     @apply_defaults
     def __init__(self, test_sub_param, *args, **kwargs):
-        super(DummySubClass, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.test_sub_param = test_sub_param
 
 

@@ -46,11 +46,17 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 ### Changes to GoogleCloudStorageHook
 
 * the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
-* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
   
   The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
-* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name` 
+  
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Changes to CloudantHook
 
@@ -184,6 +190,12 @@ airflow users --remove-role --username jondoe --role Public
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+### Changes to Dataproc related Operators
+The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
+`dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
+and `dataproc_jars`respectively. 
+Arguments for dataproc_properties dataproc_jars 
 
 ## Airflow 1.10.3
 

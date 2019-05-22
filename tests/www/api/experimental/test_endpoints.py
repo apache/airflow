@@ -28,7 +28,7 @@ from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
-from airflow.utils.timezone import datetime, utcnow
+from airflow.utils.timezone import datetime, utcnow, parse as parse_datetime
 from airflow.www import app as application
 
 
@@ -56,8 +56,12 @@ class TestApiExperimental(TestBase):
         session.commit()
         session.close()
 
+        dagbag = DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
     def setUp(self):
-        super(TestApiExperimental, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         session = Session()
@@ -65,7 +69,7 @@ class TestApiExperimental(TestBase):
         session.query(TaskInstance).delete()
         session.commit()
         session.close()
-        super(TestApiExperimental, self).tearDown()
+        super().tearDown()
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
@@ -122,13 +126,20 @@ class TestApiExperimental(TestBase):
 
     def test_trigger_dag(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
+        run_id = 'my_run' + utcnow().isoformat()
         response = self.client.post(
             url_template.format('example_bash_operator'),
-            data=json.dumps({'run_id': 'my_run' + utcnow().isoformat()}),
+            data=json.dumps({'run_id': run_id}),
             content_type="application/json"
         )
 
         self.assertEqual(200, response.status_code)
+        # Check execution_date is correct
+        response = json.loads(response.data.decode('utf-8'))
+        dagbag = DagBag()
+        dag = dagbag.get_dag('example_bash_operator')
+        dag_run = dag.get_dagrun(parse_datetime(response['execution_date']))
+        self.assertEqual(run_id, dag_run.run_id)
 
         response = self.client.post(
             url_template.format('does_not_exist_dag'),
@@ -154,6 +165,7 @@ class TestApiExperimental(TestBase):
             content_type="application/json"
         )
         self.assertEqual(200, response.status_code)
+        self.assertEqual(datetime_string, json.loads(response.data.decode('utf-8'))['execution_date'])
 
         dagbag = DagBag()
         dag = dagbag.get_dag(dag_id)
@@ -285,7 +297,7 @@ class TestPoolApiExperimental(TestBase):
         session.close()
 
     def setUp(self):
-        super(TestPoolApiExperimental, self).setUp()
+        super().setUp()
 
         self.pools = []
         for i in range(2):
@@ -304,7 +316,7 @@ class TestPoolApiExperimental(TestBase):
         self.session.query(Pool).delete()
         self.session.commit()
         self.session.close()
-        super(TestPoolApiExperimental, self).tearDown()
+        super().tearDown()
 
     def _get_pool_count(self):
         response = self.client.get('/api/experimental/pools')

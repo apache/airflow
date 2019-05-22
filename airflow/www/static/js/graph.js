@@ -42,7 +42,7 @@ function update_nodes_states(task_instances) {
           tt += "run_id: <nobr>" + escapeHtml(task.run_id) + "</nobr><br>";
         }
         tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
-        tt += "Duration: " + escapeHtml(ti.duration) + "<br>";
+        tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
         tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
         tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
         return tt;

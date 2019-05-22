@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from functools import wraps
 
@@ -111,6 +106,10 @@ def initdb():
         Connection(
             conn_id='hive_cli_default', conn_type='hive_cli', port=10000,
             host='localhost', extra='{"use_beeline": true, "auth": ""}',
+            schema='default',))
+    merge_conn(
+        Connection(
+            conn_id='pig_cli_default', conn_type='pig_cli',
             schema='default',))
     merge_conn(
         Connection(

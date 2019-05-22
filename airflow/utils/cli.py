@@ -20,7 +20,6 @@
 """
 Utilities module for cli
 """
-from __future__ import absolute_import
 
 import functools
 import getpass

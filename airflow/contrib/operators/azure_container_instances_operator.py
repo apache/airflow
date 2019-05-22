@@ -110,7 +110,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     def __init__(self, ci_conn_id, registry_conn_id, resource_group, name, image, region,
                  environment_variables=None, volumes=None, memory_in_gb=None, cpu=None,
                  command=None, remove_on_error=True, fail_if_exists=True, *args, **kwargs):
-        super(AzureContainerInstancesOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.ci_conn_id = ci_conn_id
         self.resource_group = resource_group

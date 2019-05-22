@@ -19,7 +19,5 @@
 
 # flake8: noqa
 
-from __future__ import absolute_import
-
 from .api import *  # type: ignore
 from .core import *  # type: ignore

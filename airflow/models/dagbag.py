@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import division
-from __future__ import unicode_literals
-
 import hashlib
 import imp
 import importlib
@@ -39,7 +36,7 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_processing import list_py_file_paths
+from airflow.utils.dag_processing import list_py_file_paths, correct_maybe_zipped
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -173,7 +170,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         mods = []
         is_zipfile = zipfile.is_zipfile(filepath)
         if not is_zipfile:
-            if safe_mode and os.path.isfile(filepath):
+            if safe_mode:
                 with open(filepath, 'rb') as f:
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
@@ -363,6 +360,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
+
+        dag_folder = correct_maybe_zipped(dag_folder)
 
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):

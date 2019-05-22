@@ -60,12 +60,12 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 @unittest.skipIf(not enable_cloudsql_query_test, SKIP_CLOUDSQL_QUERY_WARNING)
 class CloudSqlProxySystemTest(BaseGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
-        super(CloudSqlProxySystemTest, self).__init__(
+        super().__init__(
             method_name,
             gcp_key='gcp_cloudsql.json')
 
     def setUp(self):
-        super(CloudSqlProxySystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
         self.gcp_authenticator.gcp_revoke_authentication()
@@ -130,13 +130,13 @@ class CloudSqlProxySystemTest(BaseGcpSystemTestCase):
 class CloudSqlQueryExampleDagsSystemTest(DagGcpSystemTestCase):
 
     def __init__(self, method_name='runTest'):
-        super(CloudSqlQueryExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_sql_query',
             gcp_key=GCP_CLOUDSQL_KEY)
 
     def setUp(self):
-        super(CloudSqlQueryExampleDagsSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
         SQL_QUERY_TEST_HELPER.setup_instances(instance_suffix="_QUERY")

@@ -85,7 +85,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         exists_method.return_value = True
 
         # When
-        response = self.gcs_hook.exists(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
 
         # Then
         self.assertTrue(response)
@@ -105,7 +105,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         exists_method.return_value = False
 
         # When
-        response = self.gcs_hook.exists(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
 
         # Then
         self.assertFalse(response)
@@ -274,7 +274,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
         self.assertIsNone(response)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -288,7 +288,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method.side_effect = exceptions.NotFound(message="Not Found")
 
         with self.assertRaises(exceptions.NotFound):
-            self.gcs_hook.delete(bucket=test_bucket, object=test_object)
+            self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_object_get_size(self, mock_service):
@@ -300,7 +300,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.size = returned_file_size
 
-        response = self.gcs_hook.get_size(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.get_size(bucket_name=test_bucket,
+                                          object_name=test_object)
 
         self.assertEquals(response, returned_file_size)
         get_blob_method.return_value.reload.assert_called_once_with()
@@ -315,7 +316,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.crc32c = returned_file_crc32c
 
-        response = self.gcs_hook.get_crc32c(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.get_crc32c(bucket_name=test_bucket,
+                                            object_name=test_object)
 
         self.assertEquals(response, returned_file_crc32c)
 
@@ -332,7 +334,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.md5_hash = returned_file_md5hash
 
-        response = self.gcs_hook.get_md5hash(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.get_md5hash(bucket_name=test_bucket,
+                                             object_name=test_object)
 
         self.assertEquals(response, returned_file_md5hash)
 
@@ -421,7 +424,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             .return_value.compose
 
         self.gcs_hook.compose(
-            bucket=test_bucket,
+            bucket_name=test_bucket,
             source_objects=test_source_objects,
             destination_object=test_destination_object
         )
@@ -439,7 +442,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         with self.assertRaises(ValueError) as e:
             self.gcs_hook.compose(
-                bucket=test_bucket,
+                bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object
             )
@@ -457,14 +460,14 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         with self.assertRaises(ValueError) as e:
             self.gcs_hook.compose(
-                bucket=test_bucket,
+                bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object
             )
 
         self.assertEqual(
             str(e.exception),
-            'bucket and destination_object cannot be empty.'
+            'bucket_name and destination_object cannot be empty.'
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -475,30 +478,15 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         with self.assertRaises(ValueError) as e:
             self.gcs_hook.compose(
-                bucket=test_bucket,
+                bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object
             )
 
         self.assertEqual(
             str(e.exception),
-            'bucket and destination_object cannot be empty.'
+            'bucket_name and destination_object cannot be empty.'
         )
-
-    # Test Deprecation warnings for deprecated parameters
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_deprecated_params(self, mock_service):
-        test_bucket = 'test_bucket'
-        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
-        test_destination_object = 'test_object_composed'
-
-        with self.assertWarns(DeprecationWarning):
-            self.gcs_hook.compose(
-                bucket=test_bucket,
-                source_objects=test_source_objects,
-                destination_object=test_destination_object,
-                num_retries=5
-            )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_download_as_string(self, mock_service):
@@ -510,8 +498,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             .blob.return_value.download_as_string
         download_method.return_value = test_object_bytes
 
-        response = self.gcs_hook.download(bucket=test_bucket,
-                                          object=test_object,
+        response = self.gcs_hook.download(bucket_name=test_bucket,
+                                          object_name=test_object,
                                           filename=None)
 
         self.assertEquals(response, test_object_bytes)
@@ -532,8 +520,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             .blob.return_value.download_as_string
         download_as_a_string_method.return_value = test_object_bytes
 
-        response = self.gcs_hook.download(bucket=test_bucket,
-                                          object=test_object,
+        response = self.gcs_hook.download(bucket_name=test_bucket,
+                                          object_name=test_object,
                                           filename=test_file)
 
         self.assertEquals(response, test_object_bytes)
@@ -589,24 +577,3 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                                         gzip=True)
         self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
         self.assertIsNone(response)
-
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_deprecated_params(self, mock_service):
-        test_bucket = 'test_bucket'
-        test_object = 'test_object'
-
-        upload_method = mock_service.return_value.get_bucket.return_value\
-            .blob.return_value.upload_from_filename
-        upload_method.return_value = None
-
-        with self.assertWarns(DeprecationWarning):
-            self.gcs_hook.upload(test_bucket,
-                                 test_object,
-                                 self.testfile.name,
-                                 multipart=True)
-
-        with self.assertWarns(DeprecationWarning):
-            self.gcs_hook.upload(test_bucket,
-                                 test_object,
-                                 self.testfile.name,
-                                 num_retries=2)

@@ -20,7 +20,7 @@
 ARG APT_DEPS_IMAGE="airflow-apt-deps"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim"
 ############################################################################################################
-# This is base image with APT dependencies needed by Airflow. It is based on a python slim image
+# This is the base image with APT dependencies needed by Airflow. It is based on a python slim image
 # Parameters:
 #    PYTHON_BASE_IMAGE - base python image (python:x.y-slim)
 ############################################################################################################
@@ -40,7 +40,7 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Make sure noninteractie debian install is used and language variab1les set
+# Make sure noninteractie debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
@@ -49,7 +49,7 @@ ARG DEPENDENCIES_EPOCH_NUMBER="1"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
-# Install curl and gnupg2 - needed to download nodejs in next step
+# Install curl and gnupg2 - needed to download nodejs in the next step
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
            curl gnupg2 \
@@ -77,7 +77,7 @@ RUN adduser airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
 ############################################################################################################
-# This is the target image - it installs PIP and NPN dependencies including efficient caching
+# This is the target image - it installs PIP and NPM dependencies including efficient caching
 # mechanisms - it might be used to build the bare airflow build or CI build
 # Parameters:
 #    APT_DEPS_IMAGE - image with APT dependencies. It might either be base deps image with airflow
@@ -113,7 +113,7 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 ENV CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
 
-# By default PIP install is run without cache to make image smaller
+# By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
 ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
@@ -125,7 +125,7 @@ RUN echo "Pip version: ${PIP_VERSION}"
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
-# Airflow sources change frequently but dependency onfiguration won't change that often
+# Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
 # This way cache here will only be invalidated if any of the
 # version/setup configuration change but not when airflow sources change

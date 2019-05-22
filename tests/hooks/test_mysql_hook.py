@@ -19,7 +19,7 @@
 #
 
 import json
-import mock
+from unittest import mock
 import unittest
 
 import MySQLdb.cursors
@@ -37,7 +37,7 @@ SSL_DICT = {
 class TestMySqlHookConn(unittest.TestCase):
 
     def setUp(self):
-        super(TestMySqlHookConn, self).setUp()
+        super().setUp()
 
         self.connection = Connection(
             login='login',
@@ -129,7 +129,7 @@ class TestMySqlHookConn(unittest.TestCase):
 class TestMySqlHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestMySqlHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

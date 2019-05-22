@@ -17,9 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
-import mock
+from unittest import mock
 import unittest
 import shutil
 import os
