@@ -48,7 +48,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, render_log_filename
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -362,10 +362,13 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def log_filepath(self):
-        iso = self.execution_date.isoformat()
-        log = os.path.expanduser(configuration.conf.get('core', 'BASE_LOG_FOLDER'))
-        return ("{log}/{dag_id}/{task_id}/{iso}.log".format(
-            log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
+        log_base_dir = os.path.expanduser(configuration.conf.get('core', 'BASE_LOG_FOLDER'))
+        filename_template = configuration.conf.get('core', 'LOG_FILENAME_TEMPLATE')
+        filename = render_log_filename(
+            ti=self,
+            try_number=self.try_number,
+            filename_template=filename_template)
+        return "{log_base_dir}/{filename}".format(log_base_dir=log_base_dir, filename=filename)
 
     @property
     def log_url(self):
@@ -376,7 +379,8 @@ class TaskInstance(Base, LoggingMixin):
             "execution_date={iso}"
             "&task_id={task_id}"
             "&dag_id={dag_id}"
-        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+            "&try_number={try_number}"
+        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id, try_number=self.try_number)
 
     @property
     def mark_success_url(self):

@@ -23,7 +23,7 @@ limitations under the License.
 <h4>{{ title }}</h4>
 <ul class="nav nav-pills" role="tablist">
   {% for log in logs %}
-  <li role="presentation" class="{{ 'active' if loop.last else '' }}">
+  <li role="presentation" class="{{ 'active' if loop.index == try_number | int() else '' }}">
     <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
       {{ loop.index }}
     </a>
@@ -35,7 +35,7 @@ limitations under the License.
 </ul>
 <div class="tab-content">
   {% for log in logs %}
-  <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
+  <div role="tabpanel" class="tab-pane {{ 'active' if loop.index == try_number | int() else '' }}" id="{{ loop.index }}">
     <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
          alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
     <pre><code id="try-{{ loop.index }}">{{ log }}</code></pre>

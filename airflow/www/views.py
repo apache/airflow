@@ -604,12 +604,13 @@ class Airflow(AirflowBaseView):
                 num_logs += 1
         logs = [''] * num_logs
         root = request.args.get('root', '')
+        try_number = request.args.get('try_number', num_logs)
         return self.render_template(
             'airflow/ti_log.html',
             logs=logs, dag=dag_model, title="Log by attempts",
             dag_id=dag_id, task_id=task_id,
             execution_date=execution_date, form=form,
-            root=root)
+            root=root, try_number=try_number)
 
     @expose('/elasticsearch')
     @has_dag_access(can_dag_read=True)

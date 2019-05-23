@@ -846,7 +846,18 @@ class TaskInstanceTest(unittest.TestCase):
             'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
             '&task_id=op'
             '&dag_id=dag'
+            '&try_number=1'
         )
+        self.assertEqual(ti.log_url, expected_url)
+
+        expected_url = (
+            'http://localhost:8080/log?'
+            'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+            '&task_id=op'
+            '&dag_id=dag'
+            '&try_number=42'
+        )
+        ti.try_number = 41
         self.assertEqual(ti.log_url, expected_url)
 
     def test_mark_success_url(self):
