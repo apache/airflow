@@ -63,7 +63,7 @@ fi
 # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
 # (which contains /usr/local/bin).  Some test environments, like the docker instructions, won't have sudo and
 # are probably running as root anyway
-if which sudo > /dev/null; then
+if command -v sudo > /dev/null; then
   sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
 else
   ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
