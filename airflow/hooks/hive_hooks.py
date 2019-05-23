@@ -211,7 +211,7 @@ class HiveCliHook(BaseHook):
                          'mapred.job.queue.name={}'
                          .format(self.mapred_queue),
                          '-hiveconf',
-                         'tez.job.queue.name={}'
+                         'tez.queue.name={}'
                          .format(self.mapred_queue)
                          ])
 
