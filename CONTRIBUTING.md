@@ -127,13 +127,12 @@ There are three ways to setup an Apache Airflow development environment.
   # Start docker in your Airflow directory
   docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:3 bash
 
-  # Install Airflow with all the required dependencies,
-  # including the devel which will provide the development tools
-  pip install -e '.[hdfs,hive,druid,devel]'
-
-  # Install any other dependencies for specific test groups you might need
-  # e.g.:
-  #       pip install -e '.[gcp]'
+  # To install all of airflows dependencies to run all tests (this is a lot)
+  pip install -e .
+  
+  # To run only certain tests install the devel requirements and whatever is required
+  # for your test.  See setup.py for the possible requirements. For example:
+  pip install -e '.[gcp,devel]'
 
   # Init the database
   airflow initdb
