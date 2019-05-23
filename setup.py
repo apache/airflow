@@ -213,7 +213,7 @@ def do_setup():
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             # 'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
-            'jinja2>=2.7.3, <=2.9.5',
+            'jinja2>=2.10, <3.0',
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'paramiko>=2.1',
