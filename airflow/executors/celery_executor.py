@@ -31,6 +31,7 @@ from airflow import configuration
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
@@ -175,17 +176,13 @@ class CeleryExecutor(BaseExecutor):
         return max(1,
                    int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
 
-    def heartbeat(self):
-        # Triggering new jobs
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+    def trigger_tasks(self, open_slots):
+        """
+        Overwrite trigger_tasks function from BaseExecutor
 
-        self.log.debug("%s running task instances", len(self.running))
-        self.log.debug("%s in queue", len(self.queued_tasks))
-        self.log.debug("%s open slots", open_slots)
-
+        :param open_slots: Number of open slots
+        :return:
+        """
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
@@ -235,10 +232,6 @@ class CeleryExecutor(BaseExecutor):
                     self.running[key] = command
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
-
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
 
     def sync(self):
         num_processes = min(len(self.tasks), self._sync_parallelism)
