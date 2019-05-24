@@ -137,7 +137,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots):
         """
-        Trigger tasks. This function is overwritten in CeleryExecutor
+        Trigger tasks
 
         :param open_slots: Number of open slots
         :return:
