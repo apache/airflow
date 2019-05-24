@@ -51,9 +51,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
+        Parameter must be defined if 'schema_object' is null and autodetect is False.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
+        Parameter must be defined if 'schema_fields' is null and autodetect is False.
     :type schema_object: str
     :param source_format: File format to export.
     :type source_format: str
@@ -125,7 +127,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Not applicable for external tables.
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
-        options and schema for CSV and JSON sources. (Default: ``False``)
+        options and schema for CSV and JSON sources. (Default: ``False``).
+        Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
+        It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
     """
     template_fields = ('bucket', 'source_objects',
