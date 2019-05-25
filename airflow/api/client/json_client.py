@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future.moves.urllib.parse import urljoin
+from urllib.parse import urljoin
+
 import requests
 
 from airflow.api.client import api_client
