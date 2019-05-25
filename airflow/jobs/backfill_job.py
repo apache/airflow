@@ -341,13 +341,17 @@ class BackfillJob(BaseJob):
         dag_run.refresh_from_db()
         make_transient(dag_run)
 
-        # TODO(edgarRd): AIRFLOW-1464 change to batch query to improve perf
-        for ti in dag_run.get_task_instances():
-            # all tasks part of the backfill are scheduled to run
-            if ti.state == State.NONE:
-                ti.set_state(State.SCHEDULED, session=session)
-            if ti.state != State.REMOVED:
-                tasks_to_run[ti.key] = ti
+        try:
+            for ti in dag_run.get_task_instances():
+                # all tasks part of the backfill are scheduled to run
+                if ti.state == State.NONE:
+                    ti.set_state(State.SCHEDULED, session=session, commit=False)
+                if ti.state != State.REMOVED:
+                    tasks_to_run[ti.key] = ti
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
         return tasks_to_run
 
