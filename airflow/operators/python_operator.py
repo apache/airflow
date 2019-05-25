@@ -78,12 +78,12 @@ class PythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        op_args=None,  # type: Optional[Iterable]
-        op_kwargs=None,  # type: Optional[Dict]
-        provide_context=False,  # type: bool
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        op_args: Optional[Iterable] = None,
+        op_kwargs: Optional[Dict] = None,
+        provide_context: bool = False,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
@@ -246,17 +246,17 @@ class PythonVirtualenvOperator(PythonOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        requirements=None,  # type: Optional[Iterable[str]]
-        python_version=None,  # type: Optional[str]
-        use_dill=False,  # type: bool
-        system_site_packages=True,  # type: bool
-        op_args=None,  # type: Iterable
-        op_kwargs=None,  # type: Dict
-        provide_context=False,  # type: bool
-        string_args=None,  # type: Optional[Iterable[str]]
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        requirements: Optional[Iterable[str]] = None,
+        python_version: Optional[str] = None,
+        use_dill: bool = False,
+        system_site_packages: bool = True,
+        op_args: Iterable = None,
+        op_kwargs: Dict = None,
+        provide_context: bool = False,
+        string_args: Optional[Iterable[str]] = None,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
