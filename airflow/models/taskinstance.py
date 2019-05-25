@@ -474,12 +474,13 @@ class TaskInstance(Base, LoggingMixin):
         return self.dag_id, self.task_id, self.execution_date, self.try_number
 
     @provide_session
-    def set_state(self, state, session=None):
+    def set_state(self, state, session=None, commit=True):
         self.state = state
         self.start_date = timezone.utcnow()
         self.end_date = timezone.utcnow()
         session.merge(self)
-        session.commit()
+        if commit:
+            session.commit()
 
     @property
     def is_premature(self):
