@@ -23,12 +23,7 @@ import unittest
 import requests_mock
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.exceptions import AirflowException
-
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from tests.compat import mock
 
 
 class SimpleHttpOpTests(unittest.TestCase):
@@ -59,7 +54,7 @@ class SimpleHttpOpTests(unittest.TestCase):
     def test_response_in_logs_after_failed_check(self, m):
         """
         Test that when using SimpleHttpOperator with log_response=True,
-        the reponse is logged even if request_check fails
+        the response is logged even if request_check fails
         """
 
         def response_check(response):

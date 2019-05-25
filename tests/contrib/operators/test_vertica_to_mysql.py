@@ -19,7 +19,7 @@
 
 import datetime
 
-import mock
+from unittest import mock
 import unittest
 
 from airflow import DAG, configuration

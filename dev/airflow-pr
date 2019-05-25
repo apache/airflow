@@ -29,21 +29,13 @@
 # This tool is based on the Spark merge_spark_pr script:
 # https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
 
-from __future__ import print_function
 import json
 import os
 import re
 import subprocess
 import sys
 import textwrap
-
-# Python 3 compatibility
-try:
-    import urllib2 as urllib
-except ImportError:
-    import urllib.request as urllib
-if sys.version_info[0] == 3:
-    raw_input = input
+import urllib.request as urllib
 
 try:
     import click
@@ -316,7 +308,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        merge_message_flags.append(u'--author="{}"'.format(primary_author))
+        merge_message_flags.append('--author="{}"'.format(primary_author))
 
     else:
         # This will mark the PR as merged

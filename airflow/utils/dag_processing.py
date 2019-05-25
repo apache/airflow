@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import logging
 import multiprocessing
@@ -36,9 +31,10 @@ from collections import namedtuple
 from datetime import timedelta
 from importlib import import_module
 import enum
+from queue import Empty
 
 import psutil
-from six.moves import range, reload_module
+from six.moves import reload_module
 from sqlalchemy import or_
 from tabulate import tabulate
 
@@ -48,7 +44,6 @@ from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
-from airflow.settings import logging_class_path
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -142,7 +137,7 @@ class SimpleDag(BaseDag):
             return None
 
 
-class SimpleTaskInstance(object):
+class SimpleTaskInstance:
     def __init__(self, ti):
         self._dag_id = ti.dag_id
         self._task_id = ti.task_id
@@ -278,6 +273,20 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
+def correct_maybe_zipped(fileloc):
+    """
+    If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive and path to zip is returned.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return archive
+    else:
+        return fileloc
+
+
 def list_py_file_paths(directory, safe_mode=True,
                        include_examples=None):
     """
@@ -357,11 +366,10 @@ def list_py_file_paths(directory, safe_mode=True,
     return file_paths
 
 
-class AbstractDagFileProcessor(object):
+class AbstractDagFileProcessor(metaclass=ABCMeta):
     """
     Processes a DAG file. See SchedulerJob.process_file() for more details.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def start(self):
@@ -493,8 +501,9 @@ class DagFileProcessorAgent(LoggingMixin):
         # Pipe for communicating signals
         self._parent_signal_conn, self._child_signal_conn = multiprocessing.Pipe()
         # Pipe for communicating DagParsingStat
-        self._stat_queue = multiprocessing.Queue()
-        self._result_queue = multiprocessing.Queue()
+        self._manager = multiprocessing.Manager()
+        self._stat_queue = self._manager.Queue()
+        self._result_queue = self._manager.Queue()
         self._process = None
         self._done = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
@@ -548,8 +557,9 @@ class DagFileProcessorAgent(LoggingMixin):
             os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
             # Replicating the behavior of how logging module was loaded
             # in logging_config.py
-            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
+            reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
             reload_module(airflow.settings)
+            airflow.settings.initialize()
             del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
             processor_manager = DagFileProcessorManager(dag_directory,
                                                         file_paths,
@@ -580,13 +590,15 @@ class DagFileProcessorAgent(LoggingMixin):
         # if it processed all files for max_run times and exit normally.
         self._heartbeat_manager()
         simple_dags = []
-        # multiprocessing.Queue().qsize will not work on MacOS.
-        if sys.platform == "darwin":
-            qsize = self._result_count
-        else:
-            qsize = self._result_queue.qsize()
-        for _ in range(qsize):
-            simple_dags.append(self._result_queue.get())
+        while True:
+            try:
+                result = self._result_queue.get_nowait()
+                try:
+                    simple_dags.append(result)
+                finally:
+                    self._result_queue.task_done()
+            except Empty:
+                break
 
         self._result_count = 0
 
@@ -668,6 +680,10 @@ class DagFileProcessorAgent(LoggingMixin):
             self.log.info("Killing manager process: %s", manager_process.pid)
             manager_process.kill()
             manager_process.wait()
+        # TODO: bring it back once we replace process termination above with multiprocess-friendly
+        #       way (https://issues.apache.org/jira/browse/AIRFLOW-4440)
+        # self._result_queue.join()
+        self._manager.shutdown()
 
 
 class DagFileProcessorManager(LoggingMixin):

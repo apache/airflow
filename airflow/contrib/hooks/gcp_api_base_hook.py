@@ -28,6 +28,7 @@ import os
 import tempfile
 
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
+from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -163,6 +164,11 @@ class GoogleCloudBaseHook(BaseHook):
 
     @staticmethod
     def catch_http_exception(func):
+        """
+        Function decorator that intercepts HTTP Errors and raises AirflowException
+        with more informative message.
+        """
+
         @functools.wraps(func)
         def wrapper_decorator(self, *args, **kwargs):
             try:
@@ -178,6 +184,9 @@ class GoogleCloudBaseHook(BaseHook):
                 raise AirflowException(e)
             except ValueError as e:
                 self.log.error('The request failed, the parameters are invalid.')
+                raise AirflowException(e)
+            except HttpError as e:
+                self.log.error('The request failed:\n%s', str(e))
                 raise AirflowException(e)
 
         return wrapper_decorator
@@ -221,7 +230,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
         return project_id if project_id else self.project_id
 
-    class _Decorators(object):
+    class _Decorators:
         """A private inner class for keeping all decorator methods."""
 
         @staticmethod

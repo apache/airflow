@@ -28,7 +28,7 @@ class AwsSnsHook(AwsHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super(AwsSnsHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         """

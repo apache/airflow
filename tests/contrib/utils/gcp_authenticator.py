@@ -23,7 +23,7 @@ import subprocess
 from airflow import settings, AirflowException
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 GCP_COMPUTE_KEY = 'gcp_compute.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'
@@ -32,6 +32,7 @@ GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_AI_KEY = 'gcp_ai.json'
+GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
@@ -59,7 +60,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         :param project_extra: optional extra project parameter passed to google cloud
                connection
         """
-        super(GcpAuthenticator, self).__init__()
+        super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra
         self.project_id = self.get_project_id()

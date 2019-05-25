@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import contextlib
 import os
 import warnings
@@ -30,11 +27,7 @@ import six
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
-if six.PY2:
-    # Need `assertWarns` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
+import unittest
 
 
 @contextlib.contextmanager
@@ -140,6 +133,14 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
+    def test_conf_as_dict_exclude_env(self):
+        # test display_sensitive
+        cfg_dict = conf.as_dict(include_env=False, display_sensitive=True)
+
+        # Since testsection is only created from env vars, it shouldn't be
+        # present at all if we don't ask for env vars to be included.
+        self.assertNotIn('testsection', cfg_dict)
+
     def test_command_precedence(self):
         TEST_CONFIG = '''[test]
 key1 = hello
@@ -185,6 +186,12 @@ key6 = value6
         cfg_dict = test_conf.as_dict(display_sensitive=True)
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
+
+        # If we exclude _cmds then we should still see the commands to run, not
+        # their values
+        cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
+        self.assertNotIn('key4', cfg_dict['test'])
+        self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""

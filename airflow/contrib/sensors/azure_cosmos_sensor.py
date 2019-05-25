@@ -55,7 +55,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
         :type azure_cosmos_conn_id: str
         """
-        super(AzureCosmosDocumentSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
         self.database_name = database_name
         self.collection_name = collection_name

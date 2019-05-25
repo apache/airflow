@@ -19,10 +19,10 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow import settings
-from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 
 
 class TestKubeResourceVersion(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestKubeResourceVersion(unittest.TestCase):
 
 class TestKubeWorkerIdentifier(unittest.TestCase):
 
-    @patch('airflow.models.uuid.uuid4')
+    @patch('airflow.models.kubernetes.uuid.uuid4')
     def test_get_or_create_not_exist(self, mock_uuid):
         session = settings.Session()
         session.query(KubeWorkerIdentifier).update({

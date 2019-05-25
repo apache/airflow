@@ -29,7 +29,6 @@ Make sure you have checked _all_ steps below.
 ### Documentation
 
 - [ ] In case of new functionality, my PR adds documentation that describes how to use it.
-  - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
   - All the public functions and the classes in the PR contain docstrings that explain what it does
   - If you implement backwards incompatible changes, please leave a note in the [Updating.md](https://github.com/apache/airflow/blob/master/UPDATING.md) so we can assign it to a appropriate release
 

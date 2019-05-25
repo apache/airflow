@@ -22,7 +22,7 @@ import json
 import unittest
 import datetime
 
-import mock
+from unittest import mock
 import pandas as pd
 
 from airflow import configuration, DAG

@@ -95,7 +95,7 @@ class linePlusBarChart(TemplateMixin, NVD3Chart):
     template_chart_nvd3 = NVD3Chart.template_environment.get_template(CHART_FILENAME)
 
     def __init__(self, **kwargs):
-        super(linePlusBarChart, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.model = 'linePlusBarChart'
 
         height = kwargs.get('height', 450)

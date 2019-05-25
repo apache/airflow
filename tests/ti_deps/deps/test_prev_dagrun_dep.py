@@ -19,7 +19,7 @@
 
 import unittest
 from datetime import datetime
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext

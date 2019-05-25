@@ -25,10 +25,10 @@ import unittest
 from airflow import configuration
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
-from mock import patch, call
+from unittest.mock import patch, call
 
 from io import StringIO
 
@@ -98,11 +98,11 @@ class TestSqoopHook(unittest.TestCase):
     @patch('subprocess.Popen')
     def test_popen(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = StringIO(u'stdout')
-        mock_popen.return_value.stderr = StringIO(u'stderr')
+        mock_popen.return_value.stdout = StringIO('stdout')
+        mock_popen.return_value.stderr = StringIO('stderr')
         mock_popen.return_value.returncode = 0
         mock_popen.return_value.communicate.return_value = \
-            [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
+            [StringIO('stdout\nstdout'), StringIO('stderr\nstderr')]
 
         # When
         hook = SqoopHook(conn_id='sqoop_test')

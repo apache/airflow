@@ -272,7 +272,7 @@ class S3Hook(AwsHook):
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization)
 
-        return ''.join(event['Records']['Payload']
+        return ''.join(event['Records']['Payload'].decode('utf-8')
                        for event in response['Payload']
                        if 'Records' in event)
 

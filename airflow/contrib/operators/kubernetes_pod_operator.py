@@ -18,12 +18,9 @@
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.contrib.kubernetes.pod import Resources
+from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes.pod import Resources
 from airflow.utils.state import State
-from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
-from airflow.contrib.kubernetes.volume import Volume  # noqa
-from airflow.contrib.kubernetes.secret import Secret  # noqa
 
 
 class KubernetesPodOperator(BaseOperator):
@@ -70,11 +67,14 @@ class KubernetesPodOperator(BaseOperator):
     :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param resources: A dict containing a group of resources requests and limits
+    :type resources: dict
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
     :param node_selectors: A dict containing a group of scheduling rules
     :type node_selectors: dict
-    :param config_file: The path to the Kubernetes config file
+    :param config_file: The path to the Kubernetes config file.
+        If not specified, default value is ``~/.kube/config``
     :type config_file: str
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
@@ -88,6 +88,9 @@ class KubernetesPodOperator(BaseOperator):
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list tolerations
+    :param configmaps: A list of configmap names objects that we
+        want mount as env variables
+    :type configmaps: list[str]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -123,6 +126,8 @@ class KubernetesPodOperator(BaseOperator):
             pod.node_selectors = self.node_selectors
             pod.hostnetwork = self.hostnetwork
             pod.tolerations = self.tolerations
+            pod.configmaps = self.configmaps
+            pod.security_context = self.security_context
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -143,6 +148,13 @@ class KubernetesPodOperator(BaseOperator):
             return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
+
+    def _set_resources(self, resources):
+        inputResource = Resources()
+        if resources:
+            for item in resources.keys():
+                setattr(inputResource, item, resources[item])
+        return inputResource
 
     @apply_defaults
     def __init__(self,
@@ -172,9 +184,11 @@ class KubernetesPodOperator(BaseOperator):
                  is_delete_operator_pod=False,
                  hostnetwork=False,
                  tolerations=None,
+                 configmaps=None,
+                 security_context=None,
                  *args,
                  **kwargs):
-        super(KubernetesPodOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []
@@ -196,11 +210,12 @@ class KubernetesPodOperator(BaseOperator):
         self.do_xcom_push = do_xcom_push
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-
-        self.resources = resources or Resources()
+        self.resources = self._set_resources(resources)
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
+        self.configmaps = configmaps or []
+        self.security_context = security_context or {}

@@ -52,7 +52,7 @@ class HivePartitionSensor(BaseSensorOperator):
                  poke_interval=60 * 3,
                  *args,
                  **kwargs):
-        super(HivePartitionSensor, self).__init__(
+        super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
         if not partition:
             partition = "ds='{{ ds }}'"

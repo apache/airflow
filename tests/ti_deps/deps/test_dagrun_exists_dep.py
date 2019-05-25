@@ -19,7 +19,7 @@
 
 import unittest
 from airflow.utils.state import State
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep

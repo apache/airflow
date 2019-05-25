@@ -37,13 +37,12 @@ from airflow import settings, configuration as conf
 from airflow.models import DAG
 from airflow.exceptions import AirflowException
 
-if settings.DAGS_FOLDER not in sys.path:
-    sys.path.append(settings.DAGS_FOLDER)  # type: ignore
+settings.initialize()
 
 login = None
 
 
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
     def __init__(self, namespace):
         self.namespace = namespace
 
