@@ -24,8 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from future.standard_library import install_aliases
-
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 import kerberos
@@ -42,8 +40,6 @@ from functools import wraps
 
 from requests_kerberos import HTTPKerberosAuth
 from socket import getfqdn
-
-install_aliases()
 
 client_auth = HTTPKerberosAuth(service='airflow')
 

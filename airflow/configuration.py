@@ -21,7 +21,6 @@ from base64 import b64encode
 from builtins import str
 from collections import OrderedDict
 import copy
-from future import standard_library
 import os
 import pathlib
 import shlex
@@ -35,8 +34,6 @@ from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-standard_library.install_aliases()
 
 log = LoggingMixin().log
 

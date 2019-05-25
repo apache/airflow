@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
-
 import inspect
 import json
 import time

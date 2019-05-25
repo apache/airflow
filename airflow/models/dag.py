@@ -34,7 +34,6 @@ import pendulum
 import six
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from future.standard_library import install_aliases
 from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
 
 from airflow import configuration, settings, utils
@@ -53,8 +52,6 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.state import State
-
-install_aliases()
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
