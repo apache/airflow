@@ -194,8 +194,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     :type api_version: str
 
     """
-    def __init__(self, validation_specs, api_version):
-        # type: (Sequence[Dict], str) -> None
+    def __init__(self, validation_specs: Sequence[str], api_version: str) -> None:
         super().__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version
@@ -207,9 +206,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         return field_name
 
     @staticmethod
-    def _sanity_checks(children_validation_specs, field_type, full_field_path,
-                       regexp, allow_empty, custom_validation, value):
-        # type: (dict, str, str, str, Callable, object) -> None
+    def _sanity_checks(children_validation_specs: Dict, field_type: str, full_field_path: str,
+                       regexp: str, allow_empty: bool, custom_validation: Callable, value) -> None:
         if value is None and field_type != 'union':
             raise GcpFieldValidationException(
                 "The required body field '{}' is missing. Please add it.".
@@ -236,8 +234,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 format(full_field_path))
 
     @staticmethod
-    def _validate_regexp(full_field_path, regexp, value):
-        # type: (str, str, str) -> None
+    def _validate_regexp(full_field_path: str, regexp: str, value: str) -> None:
         if not re.match(regexp, value):
             # Note matching of only the beginning as we assume the regexps all-or-nothing
             raise GcpFieldValidationException(
@@ -246,15 +243,13 @@ class GcpBodyFieldValidator(LoggingMixin):
                 format(full_field_path, value, regexp))
 
     @staticmethod
-    def _validate_is_empty(full_field_path, value):
-        # type: (str, str) -> None
+    def _validate_is_empty(full_field_path: str, value: str) -> None:
         if not value:
             raise GcpFieldValidationException(
                 "The body field '{}' can't be empty. Please provide a value."
                 .format(full_field_path, value))
 
-    def _validate_dict(self, children_validation_specs, full_field_path, value):
-        # type: (dict, str, dict) -> None
+    def _validate_dict(self, children_validation_specs: Dict, full_field_path: str, value: Dict) -> None:
         for child_validation_spec in children_validation_specs:
             self._validate_field(validation_spec=child_validation_spec,
                                  dictionary_to_validate=value,
@@ -272,9 +267,8 @@ class GcpBodyFieldValidator(LoggingMixin):
                     self._get_field_name_with_parent(field_name, full_field_path),
                     children_validation_specs)
 
-    def _validate_union(self, children_validation_specs, full_field_path,
-                        dictionary_to_validate):
-        # type: (dict, str, dict) -> None
+    def _validate_union(self, children_validation_specs: Dict, full_field_path: str,
+                        dictionary_to_validate: Dict) -> None:
         field_found = False
         found_field_name = None
         for child_validation_spec in children_validation_specs:

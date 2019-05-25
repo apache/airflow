@@ -164,30 +164,29 @@ class DAG(BaseDag, LoggingMixin):
 
     def __init__(
         self,
-        dag_id,  # type: str
-        description='',  # type: str
-        schedule_interval=timedelta(days=1),  # type: Optional[ScheduleInterval]
-        start_date=None,  # type: Optional[datetime]
-        end_date=None,  # type: Optional[datetime]
-        full_filepath=None,  # type: Optional[str]
-        template_searchpath=None,  # type: Optional[Union[str, Iterable[str]]]
-        template_undefined=jinja2.Undefined,  # type: Type[jinja2.Undefined]
-        user_defined_macros=None,  # type: Optional[Dict]
-        user_defined_filters=None,  # type: Optional[Dict]
-        default_args=None,  # type: Optional[Dict]
-        concurrency=configuration.conf.getint('core', 'dag_concurrency'),  # type: int
-        max_active_runs=configuration.conf.getint(
-            'core', 'max_active_runs_per_dag'),  # type: int
-        dagrun_timeout=None,  # type: Optional[timedelta]
-        sla_miss_callback=None,  # type: Optional[Callable]
-        default_view=None,  # type: Optional[str]
-        orientation=configuration.conf.get('webserver', 'dag_orientation'),  # type: str
-        catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),  # type: bool
-        on_success_callback=None,  # type: Optional[Callable]
-        on_failure_callback=None,  # type: Optional[Callable]
-        doc_md=None,  # type: Optional[str]
-        params=None,  # type: Optional[Dict]
-        access_control=None  # type: Optional[Dict]
+        dag_id: str,
+        description: str = '',
+        schedule_interval: Optional[ScheduleInterval] = timedelta(days=1),
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        full_filepath: Optional[str] = None,
+        template_searchpath: Optional[Union[str, Iterable[str]]] = None,
+        template_undefined: Type[jinja2.Undefined] = jinja2.Undefined,
+        user_defined_macros: Optional[Dict] = None,
+        user_defined_filters: Optional[Dict] = None,
+        default_args: Optional[Dict] = None,
+        concurrency: int = configuration.conf.getint('core', 'dag_concurrency'),
+        max_active_runs: int = configuration.conf.getint('core', 'max_active_runs_per_dag'),
+        dagrun_timeout: Optional[timedelta] = None,
+        sla_miss_callback: Optional[Callable] = None,
+        default_view: Optional[str] = None,
+        orientation: str = configuration.conf.get('webserver', 'dag_orientation'),
+        catchup: bool = configuration.conf.getboolean('scheduler', 'catchup_by_default'),
+        on_success_callback: Optional[Callable] = None,
+        on_failure_callback: Optional[Callable] = None,
+        doc_md: Optional[str] = None,
+        params: Optional[Dict] = None,
+        access_control: Optional[Dict] = None
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
