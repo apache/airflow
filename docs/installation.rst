@@ -112,7 +112,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                            ||
+| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | mssql               | ``pip install 'apache-airflow[mssql]'``             | Microsoft SQL Server operators and hook,                             |
 |                     |                                                     | support as an Airflow backend                                        |
