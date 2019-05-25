@@ -27,8 +27,8 @@ from elasticsearch_dsl import Search
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.json_formatter import create_formatter
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
