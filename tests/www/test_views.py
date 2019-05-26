@@ -647,6 +647,9 @@ class TestLogView(TestBase):
                                                         execution_date=DEFAULT_DATE)
 
     def setUp(self):
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
         conf.load_test_config()
 
         # Create a custom logging configuration
@@ -688,6 +691,12 @@ class TestLogView(TestBase):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         self.clear_table(TaskInstance)
 
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
+
+        sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
         conf.set('core', 'logging_config_class', '')
 

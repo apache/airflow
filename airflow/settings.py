@@ -251,16 +251,27 @@ def prepare_syspath():
         sys.path.append(PLUGINS_FOLDER)
 
 
-try:
-    from airflow_local_settings import *  # noqa F403 F401
-    log.info("Loaded airflow_local_settings.")
-except Exception:
-    pass
+def import_local_settings():
+    try:
+        import airflow_local_settings
+
+        if hasattr(airflow_local_settings, "__all__"):
+            for i in airflow_local_settings.__all__:
+                globals()[i] = getattr(airflow_local_settings, i)
+        else:
+            for k, v in airflow_local_settings.__dict__.items():
+                if not k.startswith("__"):
+                    globals()[k] = v
+
+        log.info("Loaded airflow_local_settings from " + airflow_local_settings.__file__ + ".")
+    except ImportError:
+        log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
 
 def initialize():
     configure_vars()
     prepare_syspath()
+    import_local_settings()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
     configure_adapters()
