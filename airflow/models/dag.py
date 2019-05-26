@@ -29,7 +29,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable
+from typing import Union, Optional, Iterable, Dict, Type, Callable, List
 
 import jinja2
 import pendulum
@@ -1521,3 +1521,30 @@ class DagModel(Base):
                                             external_trigger=external_trigger,
                                             conf=conf,
                                             session=session)
+
+    @provide_session
+    def set_is_paused(self,
+                      is_paused,  # type: bool
+                      including_subdags=True,  # type: bool
+                      session=None,
+                      ):
+        # type: (...) -> None
+        """
+        Pause/Un-pause a DAG.
+
+        :param is_paused: Is the DAG paused
+        :param including_subdags: whether to include the DAG's subdags
+        :param session: session
+        """
+        dag_ids = [self.dag_id]  # type: List[str]
+        if including_subdags:
+            subdags = self.get_dag().subdags
+            dag_ids.extend([subdag.dag_id for subdag in subdags])
+        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
+        try:
+            for dag_model in dag_models:
+                dag_model.is_paused = is_paused
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
