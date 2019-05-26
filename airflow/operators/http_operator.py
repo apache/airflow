@@ -54,7 +54,7 @@ class SimpleHttpOperator(BaseOperator):
     :type log_response: bool
     """
 
-    template_fields = ('endpoint', 'data',)
+    template_fields = ['endpoint', 'data', 'headers', ]
     template_ext = ()
     ui_color = '#f4a460'
 
