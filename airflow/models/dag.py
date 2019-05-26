@@ -27,7 +27,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable
+from typing import Union, Optional, Iterable, Dict, Type, Callable, List
 
 import jinja2
 import pendulum
@@ -1518,3 +1518,46 @@ class DagModel(Base):
                                             external_trigger=external_trigger,
                                             conf=conf,
                                             session=session)
+
+    @classmethod
+    def _find_dag_ids_including_subdags(cls, dag: DAG):
+        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular imports
+        dag_ids = [dag.dag_id]
+        for task in dag.tasks:
+            if isinstance(task, SubDagOperator):
+                subdag = task.subdag
+                dag_ids.extend(cls._find_dag_ids_including_subdags(subdag))
+        return dag_ids
+
+    @classmethod
+    @provide_session
+    def set_is_paused(cls,
+                      dag_id: str,
+                      is_paused: bool,
+                      including_subdags: bool = True,
+                      subdir: str = None,
+                      session=None) -> None:
+        """
+        Pause/Un-pause a DAG.
+
+        :param dag_id: DAG ID
+        :param is_paused: Is the DAG paused
+        :param including_subdags: whether to include the DAG's subdags
+        :param subdir: where to find the DAG files
+        :param session: session
+        """
+        dag_ids = []  # type: List[str]
+        if including_subdags:
+            dagbag = DagBag(dag_folder=subdir)
+            dag_ids.extend(cls._find_dag_ids_including_subdags(dagbag.get_dag(dag_id)))
+        else:
+            dag_ids.append(dag_id)
+
+        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
+        try:
+            for dag_model in dag_models:
+                dag_model.is_paused = is_paused
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise

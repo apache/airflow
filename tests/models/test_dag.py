@@ -899,3 +899,54 @@ class DagTest(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(), "graph")
+
+    @patch('airflow.models.dag.DagBag')
+    def test_is_paused_subdag(self, mock_dag_bag):
+        subdag_id = 'dag.subdag'
+        subdag = DAG(
+            subdag_id,
+            start_date=DEFAULT_DATE,
+        )
+        with subdag:
+            DummyOperator(
+                task_id='dummy_task',
+            )
+
+        dag_id = 'dag'
+        dag = DAG(
+            dag_id,
+            start_date=DEFAULT_DATE,
+        )
+
+        with dag:
+            SubDagOperator(
+                task_id='subdag',
+                subdag=subdag
+            )
+
+        mock_dag_bag.return_value.get_dag.return_value = dag
+
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        unpaused_dags = session.query(
+            DagModel
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).filter(
+            DagModel.is_paused.is_(False)
+        ).count()
+
+        self.assertEquals(2, unpaused_dags)
+
+        DagModel.set_is_paused(dag.dag_id, is_paused=True)
+
+        paused_dags = session.query(
+            DagModel
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).filter(
+            DagModel.is_paused.is_(True)
+        ).count()
+
+        self.assertEquals(2, paused_dags)

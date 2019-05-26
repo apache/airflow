@@ -30,7 +30,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
 from airflow.www.app import csrf
 from airflow import models
-from airflow.utils.db import create_session
 
 from flask import g, Blueprint, jsonify, request, url_for
 
@@ -175,18 +174,12 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    DagModel = models.DagModel
-    with create_session() as session:
-        orm_dag = (
-            session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
-        )
-        if paused == 'true':
-            orm_dag.is_paused = True
-        else:
-            orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+    is_paused = True if paused == 'true' else False
+
+    models.DagModel.set_is_paused(
+        dag_id=dag_id,
+        is_paused=is_paused,
+    )
 
     return jsonify({'response': 'ok'})
 
