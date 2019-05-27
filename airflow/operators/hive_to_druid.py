@@ -97,7 +97,7 @@ class HiveToDruidTransfer(BaseOperator):
         self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
-        self.hive_tblproperties = hive_tblproperties
+        self.hive_tblproperties = hive_tblproperties or {}
         self.job_properties = job_properties
 
     def execute(self, context):
