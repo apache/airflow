@@ -210,7 +210,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(self.test_message, logs[0])
         self.assertFalse(metadatas[0]['end_of_log'])
         self.assertTrue(metadatas[0]['download_logs'])
-        self.assertEqual(1, metadatas[0]['offset'])
+        self.assertEqual('1', metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
 
     def test_read_raises(self):
