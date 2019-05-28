@@ -30,7 +30,19 @@ class TestJSONFormatter(unittest.TestCase):
         json_fmt = JSONFormatter()
         self.assertIsNotNone(json_fmt)
 
+    def test__merge_dicts(self):
+        d1 = {'a': 1, 'b': 2, 'c': 3}
+        d2 = {'a': 1, 'b': 3, 'd': 42}
+        json_fmt = JSONFormatter()
+        merged = json_fmt._merge_dicts(d1, d2)
+        self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
+
     def test_format(self):
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"])
         self.assertEqual(json_fmt.format(log_record), '{"label": "value"}')
+
+    def test_format_with_extras(self):
+        log_record = makeLogRecord({"label": "value"})
+        json_fmt = JSONFormatter(json_fields=["label"], extras={'pod_extra': 'useful_message'})
+        self.assertEqual(json_fmt.format(log_record), '{"label": "value", "pod_extra": "useful_message"}')
