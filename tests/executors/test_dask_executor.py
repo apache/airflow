@@ -157,6 +157,7 @@ class DaskExecutorTLSTest(BaseDaskTest):
                 configuration.set('dask', 'tls_key', '')
                 configuration.set('dask', 'tls_cert', '')
 
+    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
     @mock.patch('airflow.stats.Stats.gauge')
