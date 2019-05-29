@@ -58,6 +58,9 @@ class PoolTest(unittest.TestCase):
         session.close()
 
         self.assertEqual(3, pool.open_slots())
+        self.assertEqual(1, pool.used_slots())
+        self.assertEqual(1, pool.queued_slots())
+        self.assertEqual(2, pool.occupied_slots())
 
     @mock_conf_get('core', 'non_pooled_task_slot_count', 5)
     def test_default_pool_open_slots(self):

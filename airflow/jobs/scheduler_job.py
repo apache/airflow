@@ -976,6 +976,10 @@ class SchedulerJob(BaseJob):
 
             Stats.gauge('pool.starving_tasks.{pool_name}'.format(pool_name=pool_name),
                         num_starving_tasks)
+            Stats.gauge('pool.open_slots.{pool_name}'.format(pool_name=pool_name),
+                        pools[pool].open_slots())
+            Stats.gauge('pool.used_slots.{pool_name}'.format(pool_name=pool_name),
+                        pools[pool].occupied_slots())
 
         task_instance_str = "\n\t".join(
             [repr(x) for x in executable_tis])

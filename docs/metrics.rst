@@ -66,9 +66,11 @@ dagbag_import_errors                            DAG import errors
 dagbag_size                                     DAG bag size
 dag_processing.last_runtime.<dag_file>          Seconds spent processing <dag_file> (in most recent iteration)
 dag_processing.last_run.seconds_ago.<dag_file>  Seconds since <dag_file> was last processed
-executor.open_slots                             Number of of open slots on executor
+executor.open_slots                             Number of open slots on executor
 executor.queued_tasks                           Number of queued tasks on executor
 executor.running_tasks                          Number of running tasks on executor
+pool.open_slots.<pool_name>                     Number of open slots in the pool
+pool.used_slots.<pool_name>                     Number of used slots in the pool
 pool.starving_tasks.<pool_name>                 Number of starving tasks in the pool
 =============================================== ========================================================================
 
