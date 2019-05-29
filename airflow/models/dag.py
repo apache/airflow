@@ -738,7 +738,7 @@ class DAG(BaseDag, LoggingMixin):
     def roots(self):
         return [t for t in self.tasks if not t.downstream_list]
 
-    def topological_sort(self):
+    def topological_sort(self, include_subdag_tasks: bool=False):
         """
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
@@ -746,8 +746,10 @@ class DAG(BaseDag, LoggingMixin):
         Heavily inspired by:
         http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
 
+        :param include_subdag_tasks: whether to include tasks in subdags, default to False
         :return: list of tasks in topological order
         """
+        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular import
 
         # convert into an OrderedDict to speedup lookup while keeping order the same
         graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
@@ -782,6 +784,8 @@ class DAG(BaseDag, LoggingMixin):
                     acyclic = True
                     del graph_unsorted[node.task_id]
                     graph_sorted.append(node)
+                    if include_subdag_tasks and isinstance(node, SubDagOperator):
+                        graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
 
             if not acyclic:
                 raise AirflowException("A cyclic dependency occurred in dag: {}"
