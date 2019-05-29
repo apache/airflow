@@ -490,6 +490,10 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('runme_1', resp)
 
+    def test_last_dagruns(self):
+        resp = self.client.get('last_dagruns', follow_redirects=True)
+        self.check_content_in_response('example_bash_operator', resp)
+
     def test_tree(self):
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
