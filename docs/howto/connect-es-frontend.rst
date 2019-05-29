@@ -26,7 +26,7 @@ multiple logs (not just one task instance).
 
 In that case, you can just provide the frontend client link as follows :
 
-.. code-block:: bash
+.. code-block:: none
 
     [elasticsearch]
     elasticsearch_frontend = <Domain>/_plugin/kibana/app/kibana#/discover?_g=()&_a=(filters:!((query:(match:(log_id:(query:'{log_id}',type:phrase))))))
