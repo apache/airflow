@@ -146,6 +146,8 @@ class KubeConfig:
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
+        self.worker_mount_dag_volume_read_only = conf.getboolean(
+            self.kubernetes_section, 'worker_mount_dag_volume_read_only')
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(

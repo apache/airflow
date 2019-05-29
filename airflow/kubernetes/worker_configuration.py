@@ -241,7 +241,7 @@ class WorkerConfiguration(LoggingMixin):
             self.dags_volume_name: {
                 'name': self.dags_volume_name,
                 'mountPath': self.generate_dag_volume_mount_path(),
-                'readOnly': True,
+                'readOnly': self.kube_config.worker_mount_dag_volume_read_only,
             },
             self.logs_volume_name: {
                 'name': self.logs_volume_name,
