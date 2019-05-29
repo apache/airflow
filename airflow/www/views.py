@@ -40,9 +40,10 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+import lazy_object_proxy
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, or_, desc, and_, union_all
+from sqlalchemy import or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
@@ -150,6 +151,19 @@ def show_traceback(error):
 class AirflowBaseView(BaseView):
     route_base = ''
 
+    # Make our macros available to our UI templates too.
+    extra_args = {
+        'macros': airflow.macros,
+    }
+
+    def render_template(self, *args, **kwargs):
+        return super().render_template(
+            *args,
+            # Cache this at most once per request, not for the lifetime of the view instance
+            scheduler_job=lazy_object_proxy.Proxy(jobs.SchedulerJob.most_recent_job),
+            **kwargs
+        )
+
 
 class Airflow(AirflowBaseView):
     @expose('/health')
@@ -160,31 +174,25 @@ class Airflow(AirflowBaseView):
         including metadatabase and scheduler.
         """
 
-        BJ = jobs.BaseJob
-        payload = {}
-        scheduler_health_check_threshold = timedelta(seconds=conf.getint('scheduler',
-                                                                         'scheduler_health_check_threshold'
-                                                                         ))
+        payload = {
+            'metadatabase': {'status': 'unhealthy'}
+        }
 
         latest_scheduler_heartbeat = None
+        scheduler_status = 'unhealthy'
         payload['metadatabase'] = {'status': 'healthy'}
         try:
-            latest_scheduler_heartbeat = session.query(func.max(BJ.latest_heartbeat)).\
-                filter(BJ.state == 'running', BJ.job_type == 'SchedulerJob').\
-                scalar()
+            scheduler_job = jobs.SchedulerJob.most_recent_job()
+
+            if scheduler_job:
+                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+                if scheduler_job.is_alive():
+                    scheduler_status = 'healthy'
         except Exception:
             payload['metadatabase']['status'] = 'unhealthy'
 
-        if not latest_scheduler_heartbeat:
-            scheduler_status = 'unhealthy'
-        else:
-            if timezone.utcnow() - latest_scheduler_heartbeat <= scheduler_health_check_threshold:
-                scheduler_status = 'healthy'
-            else:
-                scheduler_status = 'unhealthy'
-
         payload['scheduler'] = {'status': scheduler_status,
-                                'latest_scheduler_heartbeat': str(latest_scheduler_heartbeat)}
+                                'latest_scheduler_heartbeat': latest_scheduler_heartbeat}
 
         return wwwutils.json_response(payload)
 

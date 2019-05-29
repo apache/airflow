@@ -96,6 +96,20 @@ class SchedulerJobTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.patcher.stop()
 
+    def test_is_alive(self):
+        job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+        self.assertFalse(job.is_alive())
+
+        job.state = State.SUCCESS
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
+
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):
         """
         Utility function that runs a single scheduler loop without actually

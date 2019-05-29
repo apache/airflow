@@ -293,6 +293,7 @@ class SchedulerJob(BaseJob):
     __mapper_args__ = {
         'polymorphic_identity': 'SchedulerJob'
     }
+    heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
     def __init__(
             self,
@@ -336,7 +337,6 @@ class SchedulerJob(BaseJob):
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
-        self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
 
         if log:
@@ -361,6 +361,27 @@ class SchedulerJob(BaseJob):
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def is_alive(self, grace_multiplier=None):
+        """
+        Is this SchedulerJob alive?
+
+        We define alive as in a state of running and a heartbeat within the
+        threshold defined in the ``scheduler_health_check_threshold`` config
+        setting.
+
+        ``grace_multiplier`` is accepted for compatibility with the parent class.
+
+        :rtype: boolean
+        """
+        if grace_multiplier is not None:
+            # Accept the same behaviour as superclass
+            return super().is_alive(grace_multiplier=grace_multiplier)
+        scheduler_health_check_threshold = conf.getint('scheduler', 'scheduler_health_check_threshold')
+        return (
+            self.state == State.RUNNING and
+            (timezone.utcnow() - self.latest_heartbeat).seconds < scheduler_health_check_threshold
+        )
 
     @provide_session
     def manage_slas(self, dag, session=None):

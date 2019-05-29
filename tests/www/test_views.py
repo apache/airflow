@@ -383,7 +383,7 @@ class TestAirflowBaseViews(TestBase):
 
         self.assertEqual('healthy', resp_json['metadatabase']['status'])
         self.assertEqual('healthy', resp_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
+        self.assertEqual(last_scheduler_heartbeat_for_testing_1.isoformat(),
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
         self.session.query(BaseJob).\
@@ -408,7 +408,7 @@ class TestAirflowBaseViews(TestBase):
 
         self.assertEqual('healthy', resp_json['metadatabase']['status'])
         self.assertEqual('unhealthy', resp_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
+        self.assertEqual(last_scheduler_heartbeat_for_testing_2.isoformat(),
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
         self.session.query(BaseJob).\
@@ -429,8 +429,7 @@ class TestAirflowBaseViews(TestBase):
 
         self.assertEqual('healthy', resp_json['metadatabase']['status'])
         self.assertEqual('unhealthy', resp_json['scheduler']['status'])
-        self.assertEqual('None',
-                         resp_json['scheduler']['latest_scheduler_heartbeat'])
+        self.assertIsNone(None, resp_json['scheduler']['latest_scheduler_heartbeat'])
 
     def test_home(self):
         resp = self.client.get('home', follow_redirects=True)

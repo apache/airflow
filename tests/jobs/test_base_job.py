@@ -18,11 +18,14 @@
 # under the License.
 #
 
+import datetime
 import unittest
 
 from airflow import configuration
 from airflow.jobs import BaseJob
+from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.db import create_session
 
 configuration.load_test_config()
 
@@ -33,9 +36,9 @@ class BaseJobTest(unittest.TestCase):
             'polymorphic_identity': 'TestJob'
         }
 
-        def __init__(self, cb):
+        def __init__(self, cb, **kwargs):
             self.cb = cb
-            super().__init__()
+            super().__init__(**kwargs)
 
         def _execute(self):
             return self.cb()
@@ -65,3 +68,34 @@ class BaseJobTest(unittest.TestCase):
 
         self.assertEqual(job.state, State.FAILED)
         self.assertIsNotNone(job.end_date)
+
+    def test_most_recent_job(self):
+
+        with create_session() as session:
+            old_job = self.TestJob(None, heartrate=10)
+            old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(seconds=20)
+            job = self.TestJob(None, heartrate=10)
+            session.add(job)
+            session.add(old_job)
+            session.flush()
+
+            self.assertEqual(
+                self.TestJob.most_recent_job(session=session),
+                job
+            )
+
+            session.rollback()
+
+    def test_is_alive(self):
+        job = self.TestJob(None, heartrate=10, state=State.RUNNING)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
+        self.assertFalse(job.is_alive())
+
+        job.state = State.SUCCESS
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
