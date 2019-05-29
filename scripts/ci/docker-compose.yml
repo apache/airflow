@@ -22,6 +22,7 @@ services:
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
+      - MYSQL_DATABASE=airflow
     volumes:
       - ./mysql/conf.d:/etc/mysql/conf.d
 
@@ -45,6 +46,10 @@ services:
     image: rabbitmq:3.7
     restart: always
 
+  redis:
+    image: redis:5.0.1
+    restart: always
+
   openldap:
     image: osixia/openldap:1.2.0
     restart: always
@@ -66,9 +71,9 @@ services:
     init: true
     environment:
       - USER=airflow
-      - SLUGIFY_USES_TEXT_UNIDECODE=yes
+      - INSIDE_DOCKER_CONTAINER=true
+      - ADDITIONAL_PATH=~/.local/bin
       - TOX_ENV
-      - PYTHON_VERSION
       - CI
       - TRAVIS
       - TRAVIS_BRANCH
@@ -86,6 +91,7 @@ services:
       - mongo
       - cassandra
       - rabbitmq
+      - redis
       - openldap
       - krb5-kdc-server
     volumes:

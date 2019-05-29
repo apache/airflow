@@ -19,13 +19,13 @@
 
 import json
 import unittest
-
-from mock import patch
+from typing import List
 
 from airflow import configuration
-from airflow import models
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
+from airflow.models import Connection
 from airflow.utils import db
+from tests.compat import patch
 
 at_least_one_event = [{'alert_type': 'info',
                        'comments': [],
@@ -56,7 +56,7 @@ at_least_one_event = [{'alert_type': 'info',
                        'title': 'Something big happened!',
                        'url': '/event/jump_to?event_id=2603387619536318141'}]
 
-zero_events = []
+zero_events = []  # type: List
 
 
 class TestDatadogSensor(unittest.TestCase):
@@ -64,7 +64,7 @@ class TestDatadogSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='datadog_default', conn_type='datadog',
                 login='login', password='password',
                 extra=json.dumps({'api_key': 'api_key', 'app_key': 'app_key'})

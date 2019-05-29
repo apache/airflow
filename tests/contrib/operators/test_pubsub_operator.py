@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import unicode_literals
-
 from base64 import b64encode as b64e
 import unittest
 
@@ -26,15 +24,7 @@ from airflow.contrib.operators.pubsub_operator import (
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
     PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubPublishOperator)
-
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'
@@ -101,7 +91,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, None,
             10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.contrib.operators.pubsub_operator.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
@@ -116,7 +106,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, another_project,
             10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.contrib.operators.pubsub_operator.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
@@ -127,7 +117,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, None, None, 10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
 
 class PubSubSubscriptionDeleteOperatorTest(unittest.TestCase):

@@ -54,8 +54,6 @@ class DatastoreExportOperator(BaseOperator):
     :param overwrite_existing: if the storage bucket + namespace is not empty, it will be
         emptied prior to exports. This enables overwriting existing backups.
     :type overwrite_existing: bool
-    :param xcom_push: push operation name to xcom for reference
-    :type xcom_push: bool
     """
 
     @apply_defaults
@@ -69,10 +67,9 @@ class DatastoreExportOperator(BaseOperator):
                  labels=None,
                  polling_interval_in_seconds=10,
                  overwrite_existing=False,
-                 xcom_push=False,
                  *args,
                  **kwargs):
-        super(DatastoreExportOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
         self.delegate_to = delegate_to
@@ -82,7 +79,8 @@ class DatastoreExportOperator(BaseOperator):
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
         self.overwrite_existing = overwrite_existing
-        self.xcom_push = xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         self.log.info('Exporting data to Cloud Storage bucket ' + self.bucket)
@@ -106,5 +104,4 @@ class DatastoreExportOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
-        if self.xcom_push:
-            return result
+        return result

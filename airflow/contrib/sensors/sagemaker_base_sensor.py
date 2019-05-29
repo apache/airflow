@@ -28,14 +28,14 @@ class SageMakerBaseSensor(BaseSensorOperator):
     and state_from_response() methods.
     Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.
     """
-    ui_color = '#66c3ff'
+    ui_color = '#ededed'
 
     @apply_defaults
     def __init__(
             self,
             aws_conn_id='aws_default',
             *args, **kwargs):
-        super(SageMakerBaseSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
@@ -54,23 +54,21 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            raise AirflowException("Sagemaker job failed for the following reason: %s"
+            raise AirflowException('Sagemaker job failed for the following reason: %s'
                                    % failed_reason)
         return True
 
     def non_terminal_states(self):
-        raise AirflowException("Non Terminal States need to be specified in subclass")
+        raise NotImplementedError('Please implement non_terminal_states() in subclass')
 
     def failed_states(self):
-        raise AirflowException("Failed States need to be specified in subclass")
+        raise NotImplementedError('Please implement failed_states() in subclass')
 
     def get_sagemaker_response(self):
-        raise AirflowException(
-            "Method get_sagemaker_response()not implemented.")
+        raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
     def get_failed_reason_from_response(self, response):
         return 'Unknown'
 
     def state_from_response(self, response):
-        raise AirflowException(
-            "Method state_from_response()not implemented.")
+        raise NotImplementedError('Please implement state_from_response() in subclass')

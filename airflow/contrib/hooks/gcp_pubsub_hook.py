@@ -19,8 +19,8 @@
 
 from uuid import uuid4
 
-from apiclient.discovery import build
-from apiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
@@ -45,12 +45,13 @@ class PubSubHook(GoogleCloudBaseHook):
     """
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        super(PubSubHook, self).__init__(gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(gcp_conn_id, delegate_to=delegate_to)
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """Returns a Pub/Sub service object.
 
-        :rtype: apiclient.discovery.Resource
+        :rtype: googleapiclient.discovery.Resource
         """
         http_authorized = self._authorize()
         return build(
@@ -74,8 +75,8 @@ class PubSubHook(GoogleCloudBaseHook):
         request = self.get_conn().projects().topics().publish(
             topic=full_topic, body=body)
         try:
-            request.execute()
-        except errors.HttpError as e:
+            request.execute(num_retries=self.num_retries)
+        except HttpError as e:
             raise PubSubException(
                 'Error publishing to topic {}'.format(full_topic), e)
 
@@ -96,8 +97,8 @@ class PubSubHook(GoogleCloudBaseHook):
         full_topic = _format_topic(project, topic)
         try:
             service.projects().topics().create(
-                name=full_topic, body={}).execute()
-        except errors.HttpError as e:
+                name=full_topic, body={}).execute(num_retries=self.num_retries)
+        except HttpError as e:
             # Status code 409 indicates that the topic already exists.
             if str(e.resp['status']) == '409':
                 message = 'Topic already exists: {}'.format(full_topic)
@@ -123,8 +124,8 @@ class PubSubHook(GoogleCloudBaseHook):
         service = self.get_conn()
         full_topic = _format_topic(project, topic)
         try:
-            service.projects().topics().delete(topic=full_topic).execute()
-        except errors.HttpError as e:
+            service.projects().topics().delete(topic=full_topic).execute(num_retries=self.num_retries)
+        except HttpError as e:
             # Status code 409 indicates that the topic was not found
             if str(e.resp['status']) == '404':
                 message = 'Topic does not exist: {}'.format(full_topic)
@@ -177,8 +178,8 @@ class PubSubHook(GoogleCloudBaseHook):
         }
         try:
             service.projects().subscriptions().create(
-                name=full_subscription, body=body).execute()
-        except errors.HttpError as e:
+                name=full_subscription, body=body).execute(num_retries=self.num_retries)
+        except HttpError as e:
             # Status code 409 indicates that the subscription already exists.
             if str(e.resp['status']) == '409':
                 message = 'Subscription already exists: {}'.format(
@@ -209,8 +210,8 @@ class PubSubHook(GoogleCloudBaseHook):
         full_subscription = _format_subscription(project, subscription)
         try:
             service.projects().subscriptions().delete(
-                subscription=full_subscription).execute()
-        except errors.HttpError as e:
+                subscription=full_subscription).execute(num_retries=self.num_retries)
+        except HttpError as e:
             # Status code 404 indicates that the subscription was not found
             if str(e.resp['status']) == '404':
                 message = 'Subscription does not exist: {}'.format(
@@ -239,11 +240,10 @@ class PubSubHook(GoogleCloudBaseHook):
             return if no messages are available. Otherwise, the request will
             block for an undisclosed, but bounded period of time
         :type return_immediately: bool
-        :return A list of Pub/Sub ReceivedMessage objects each containing
+        :return: A list of Pub/Sub ReceivedMessage objects each containing
             an ``ackId`` property and a ``message`` property, which includes
             the base64-encoded message content. See
-            https://cloud.google.com/pubsub/docs/reference/rest/v1/\
-                projects.subscriptions/pull#ReceivedMessage
+            https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         service = self.get_conn()
         full_subscription = _format_subscription(project, subscription)
@@ -253,9 +253,9 @@ class PubSubHook(GoogleCloudBaseHook):
         }
         try:
             response = service.projects().subscriptions().pull(
-                subscription=full_subscription, body=body).execute()
+                subscription=full_subscription, body=body).execute(num_retries=self.num_retries)
             return response.get('receivedMessages', [])
-        except errors.HttpError as e:
+        except HttpError as e:
             raise PubSubException(
                 'Error pulling messages from subscription {}'.format(
                     full_subscription), e)
@@ -278,8 +278,8 @@ class PubSubHook(GoogleCloudBaseHook):
         try:
             service.projects().subscriptions().acknowledge(
                 subscription=full_subscription, body={'ackIds': ack_ids}
-            ).execute()
-        except errors.HttpError as e:
+            ).execute(num_retries=self.num_retries)
+        except HttpError as e:
             raise PubSubException(
                 'Error acknowledging {} messages pulled from subscription {}'
                 .format(len(ack_ids), full_subscription), e)

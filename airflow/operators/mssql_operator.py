@@ -26,11 +26,16 @@ class MsSqlOperator(BaseOperator):
     """
     Executes sql code in a specific Microsoft SQL database
 
-    :param mssql_conn_id: reference to a specific mssql database
-    :type mssql_conn_id: str
     :param sql: the sql code to be executed
     :type sql: str or string pointing to a template file with .sql
         extension. (templated)
+    :param mssql_conn_id: reference to a specific mssql database
+    :type mssql_conn_id: str
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: mapping or iterable
+    :param autocommit: if True, each command is automatically committed.
+        (default value: False)
+    :type autocommit: bool
     :param database: name of database which overwrite defined one in connection
     :type database: str
     """
@@ -43,7 +48,7 @@ class MsSqlOperator(BaseOperator):
     def __init__(
             self, sql, mssql_conn_id='mssql_default', parameters=None,
             autocommit=False, database=None, *args, **kwargs):
-        super(MsSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters

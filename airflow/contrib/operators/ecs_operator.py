@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -66,7 +67,7 @@ class ECSOperator(BaseOperator):
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, **kwargs):
-        super(ECSOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
@@ -99,8 +100,10 @@ class ECSOperator(BaseOperator):
             'overrides': self.overrides,
             'startedBy': self.owner,
             'launchType': self.launch_type,
-            'platformVersion': self.platform_version,
         }
+
+        if self.launch_type == 'FARGATE':
+            run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
@@ -139,6 +142,15 @@ class ECSOperator(BaseOperator):
             raise AirflowException(response)
 
         for task in response['tasks']:
+            # This is a `stoppedReason` that indicates a task has not
+            # successfully finished, but there is no other indication of failure
+            # in the response.
+            # See, https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html # noqa E501
+            if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
+                        task.get('stoppedReason', '')):
+                raise AirflowException(
+                    'The task was stopped because the host instance terminated: {}'.
+                    format(task.get('stoppedReason', '')))
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and \

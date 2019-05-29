@@ -29,21 +29,21 @@ class S3CopyObjectOperator(BaseOperator):
     Note: the S3 connection used here needs to have access to both
     source and destination bucket/key.
 
-    :param source_bucket_key: The key of the source object.
+    :param source_bucket_key: The key of the source object. (templated)
 
         It can be either full s3:// style url or relative path from root level.
 
         When it's specified as a full s3:// url, please omit source_bucket_name.
     :type source_bucket_key: str
-    :param dest_bucket_key: The key of the object to copy to.
+    :param dest_bucket_key: The key of the object to copy to. (templated)
 
         The convention to specify `dest_bucket_key` is the same as `source_bucket_key`.
     :type dest_bucket_key: str
-    :param source_bucket_name: Name of the S3 bucket where the source object is in.
+    :param source_bucket_name: Name of the S3 bucket where the source object is in. (templated)
 
         It should be omitted when `source_bucket_key` is provided as a full s3:// url.
     :type source_bucket_name: str
-    :param dest_bucket_name: Name of the S3 bucket to where the object is copied.
+    :param dest_bucket_name: Name of the S3 bucket to where the object is copied. (templated)
 
         It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
     :type dest_bucket_name: str
@@ -65,6 +65,9 @@ class S3CopyObjectOperator(BaseOperator):
     :type verify: bool or str
     """
 
+    template_fields = ('source_bucket_key', 'dest_bucket_key',
+                       'source_bucket_name', 'dest_bucket_name')
+
     @apply_defaults
     def __init__(
             self,
@@ -76,7 +79,7 @@ class S3CopyObjectOperator(BaseOperator):
             aws_conn_id='aws_default',
             verify=None,
             *args, **kwargs):
-        super(S3CopyObjectOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.source_bucket_key = source_bucket_key
         self.dest_bucket_key = dest_bucket_key

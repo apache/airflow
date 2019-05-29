@@ -17,10 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import unicode_literals
-
-from sys import version_info
-
 import base64
 import flask_login
 from flask_login import login_required, current_user, logout_user  # noqa: F401
@@ -35,9 +31,8 @@ from flask_bcrypt import generate_password_hash, check_password_hash
 from sqlalchemy import Column, String
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from airflow import settings
 from airflow import models
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
@@ -45,7 +40,9 @@ login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
 log = LoggingMixin().log
-PY3 = version_info[0] == 3
+
+
+client_auth = None
 
 
 class AuthenticationError(Exception):
@@ -64,21 +61,22 @@ class PasswordUser(models.User):
 
     @password.setter
     def password(self, plaintext):
-        self._password = generate_password_hash(plaintext, 12)
-        if PY3:
-            self._password = str(self._password, 'utf-8')
+        self._password = str(generate_password_hash(plaintext, 12), 'utf-8')
 
     def authenticate(self, plaintext):
         return check_password_hash(self._password, plaintext)
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -92,8 +90,7 @@ class PasswordUser(models.User):
         return True
 
     def is_superuser(self):
-        """Access all the things"""
-        return True
+        return hasattr(self, 'user') and self.user.is_superuser()
 
 
 @login_manager.user_loader
@@ -137,7 +134,7 @@ def authenticate(session, username, password):
 
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
 
@@ -160,9 +157,6 @@ def login(self, request, session=None):
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
-    finally:
-        session.commit()
-        session.close()
 
 
 class LoginForm(Form):
@@ -196,19 +190,16 @@ def requires_authentication(function):
             userpass = ''.join(header.split()[1:])
             username, password = base64.b64decode(userpass).decode("utf-8").split(":", 1)
 
-            session = settings.Session()
-            try:
-                authenticate(session, username, password)
+            with create_session() as session:
+                try:
+                    authenticate(session, username, password)
 
-                response = function(*args, **kwargs)
-                response = make_response(response)
-                return response
+                    response = function(*args, **kwargs)
+                    response = make_response(response)
+                    return response
 
-            except AuthenticationError:
-                return _forbidden()
+                except AuthenticationError:
+                    return _forbidden()
 
-            finally:
-                session.commit()
-                session.close()
         return _unauthorized()
     return decorated

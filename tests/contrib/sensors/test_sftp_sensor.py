@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import patch
+from unittest.mock import patch
 from paramiko import SFTP_NO_SUCH_FILE, SFTP_FAILURE
 from airflow.contrib.sensors.sftp_sensor import SFTPSensor
 

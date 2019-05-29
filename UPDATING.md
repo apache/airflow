@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
@@ -5,12 +24,363 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of Mesos Executor
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
+
+### Increase standard Dataproc disk sizes
+
+It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
+https://cloud.google.com/compute/docs/disks/performance
+
+Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator has beeen changes from 500GB to 1TB.
+
+### Changes to SalesforceHook
+
+* renamed `sign_in` function to `get_conn` 
+
+### HTTPHook verify default value changed from False to True.
+
+The HTTPHook is now secured by default: `verify=True`.
+This can be overwriten by using the extra_options param as `{'verify': False}`.
+
+### Changes to GoogleCloudStorageHook
+
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
+  
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
+
+* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name` 
+  
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
+
+### Changes to CloudantHook
+
+* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
+* removed the use of the `schema` attribute in the connection
+* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
+
+For example:
+```python
+from airflow.contrib.hooks.cloudant_hook import CloudantHook
+
+with CloudantHook().get_conn() as cloudant_session:
+    database = cloudant_session['database_name']
+```
+
+See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
+
+### Changes to DatastoreHook
+
+* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
+* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
+
+### Unify default conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use
+``google_cloud_default`` as a default conn_id. There is currently one default
+variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
+``google_cloud_datastore_default`` have been deprecated. The configuration of
+existing relevant connections in the database have been preserved. To use those
+deprecated GCP conn_id, you need to explicitly pass their conn_id into
+operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
+by default.
+
+### Viewer won't have edit permissions on DAG view.
+
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
+
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator`
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator`
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
+### Renamed "extra" requirements for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
+```
+you should execute `pip install 'apache-airflow[azure]'`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
+
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
+The old way will work until the release of Airflow 2.1.
+
+### Deprecate legacy UI in favor of FAB RBAC UI
+Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+RBAC UI explicitly in the configuration now as this is the only default UI.
+Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
+
+
+#### Remove run_duration
+
+We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
+
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
+### min_file_parsing_loop_time config option temporarily disabled
+
+The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
+some bugs.
+
+### CLI Changes
+
+The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+
+Example Usage:
+
+To create a new user:
+```bash
+airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+```
+
+To list users:
+```bash
+airflow users --list
+```
+
+To delete a user:
+```bash
+airflow users --delete --username jondoe
+```
+
+To add a user to a role:
+```bash
+airflow users --add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users --remove-role --username jondoe --role Public
+```
+
+### Unification of `do_xcom_push` flag
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+### Changes to Dataproc related Operators
+The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
+`dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
+and `dataproc_jars`respectively. 
+Arguments for dataproc_properties dataproc_jars 
+
+## Airflow 1.10.3
+
+### RedisPy dependency updated to v3 series
+If you are using the Redis Sensor or Hook you may have to update your code. See
+[redis-py porting instructions] to check if your code might be affected (MSET,
+MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
+
+[redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
+### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
+
+It is no longer required to set one of the environment variables to avoid
+a GPL dependency. Airflow will now always use text-unidecode if unidecode
+was not installed before.
+
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
 ### Rename of BashTaskRunner to StandardTaskRunner
 
 BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
 so you might need to update your config.
 
 `task_runner = StandardTaskRunner`
+
+### Modification to config file discovery
+
+If the `AIRFLOW_CONFIG` environment variable was not set and the
+`~/airflow/airflow.cfg` file existed, airflow previously used
+`~/airflow/airflow.cfg` instead of `$AIRFLOW_HOME/airflow.cfg`. Now airflow
+will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
+environment variables rather than checking for the presence of a file.
+
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
+
+### Changes in Google Cloud Platform related operators
+
+Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
+the project id configured in
+[GCP Connection](https://airflow.apache.org/howto/manage-connections.html#connection-type-gcp) is used.
+There will be an `AirflowException` thrown in case `PROJECT_ID` parameter is not specified and the
+connection used has no project id defined. This change should be  backwards compatible as earlier version
+of the operators had `PROJECT_ID` mandatory.
+
+Operators involved:
+
+  * GCP Compute Operators
+    * GceInstanceStartOperator
+    * GceInstanceStopOperator
+    * GceSetMachineTypeOperator
+  * GCP Function Operators
+    * GcfFunctionDeployOperator
+  * GCP Cloud SQL Operators
+    * CloudSqlInstanceCreateOperator
+    * CloudSqlInstancePatchOperator
+    * CloudSqlInstanceDeleteOperator
+    * CloudSqlInstanceDatabaseCreateOperator
+    * CloudSqlInstanceDatabasePatchOperator
+    * CloudSqlInstanceDatabaseDeleteOperator
+
+Other GCP operators are unaffected.
+
+### Changes in Google Cloud Platform related hooks
+
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Hooks involved:
+
+  * GceHook
+  * GcfHook
+  * CloudSqlHook
+
+Other GCP hooks are unaffected.
+
+### Changed behaviour of using default value when accessing variables
+It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
+
+```python
+foo = Variable.get("foo", default_var=None)
+if foo is None:
+    handle_missing_foo()
+```
+
+(Note: there is already `Variable.setdefault()` which me be helpful in some cases.)
+
+This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument.
+
+### Removal of `airflow_home` config setting
+
+There were previously two ways of specifying the Airflow "home" directory
+(`~/airflow` by default): the `AIRFLOW_HOME` environment variable, and the
+`airflow_home` config setting in the `[core]` section.
+
+If they had two different values different parts of the code base would end up
+with different values. The config setting has been deprecated, and you should
+remove the value from the config file and set `AIRFLOW_HOME` environment
+variable if you need to use a non default value for this.
+
+(Since this setting is used to calculate what config file to load, it is not
+possible to keep just the config option)
+
+### Change of two methods signatures in `GCPTransferServiceHook`
+
+The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
+class has changed. The change does not change the behavior of the method.
+
+Old signature:
+```python
+def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
+```
+New signature:
+```python
+def create_transfer_job(self, body):
+```
+
+It is necessary to rewrite calls to method. The new call looks like this:
+```python
+body = {
+  'status': 'ENABLED',
+  'projectId': project_id,
+  'description': description,
+  'transferSpec': transfer_spec,
+  'schedule': schedule,
+}
+gct_hook.create_transfer_job(body)
+```
+The change results from the unification of all hooks and adjust to
+[the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
+for the Google Cloud Platform.
+
+The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
+
+Old signature:
+```python
+def wait_for_transfer_job(self, job):
+```
+New signature:
+```python
+def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
+```
+
+The behavior of `wait_for_transfer_job` has changed:
+
+Old behavior:
+
+`wait_for_transfer_job` would wait for the SUCCESS status in specified jobs operations.
+
+New behavior:
+
+You can now specify an array of expected statuses. `wait_for_transfer_job` now waits for any of them.
+
+The default value of `expected_statuses` is SUCCESS so that change is backwards compatible.
+
+### Moved two classes to different modules
+
+The class `GoogleCloudStorageToGoogleCloudStorageTransferOperator` has been moved from
+`airflow.contrib.operators.gcs_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+the class `S3ToGoogleCloudStorageTransferOperator` has been moved from
+`airflow.contrib.operators.s3_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+The change was made to keep all the operators related to GCS Transfer Services in one file.
+
+The previous imports will continue to work until Airflow 2.0
+
+### Fixed typo in --driver-class-path in SparkSubmitHook
+
+The `driver_classapth` argument  to SparkSubmit Hook and Operator was
+generating `--driver-classpath` on the spark command line, but this isn't a
+valid option to spark.
+
+The argument has been renamed to `driver_class_path`  and  the option it
+generates has been fixed.
+
+
+## Airflow 1.10.2
 
 ### DAG level Access Control for new RBAC UI
 
@@ -20,16 +390,101 @@ that he has permissions on. If a new role wants to access all the dags, the admi
 
 We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
-### min_file_parsing_loop_time config option temporarily disabled
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
 
-The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
-some bugs.
+### Semantics of next_ds/prev_ds changed for manually triggered runs
 
-### new `sync_parallelism` config option in celery section
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
 
-The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
-fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+### User model changes
+This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
+
+For example, open a Python shell and
+```python
+from airflow import models, settings
+
+session = settings.Session()
+users = session.query(models.User).all()  # [admin, regular_user]
+
+users[1].superuser  # False
+
+admin = users[0]
+admin.superuser = True
+session.add(admin)
+session.commit()
+```
+
+### Custom auth backends interface change
+
+We have updated the version of flask-login we depend upon, and as a result any
+custom auth backends might need a small change: `is_active`,
+`is_authenticated`, and `is_anonymous` should now be properties. What this means is if
+previously you had this in your user class
+
+    def is_active(self):
+      return self.active
+
+then you need to change it like this
+
+    @property
+    def is_active(self):
+      return self.active
+      
+### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
+
+GoogleCloudStorageToBigQueryOperator is now support schema auto-detection is available when you load data into BigQuery. Unfortunately, changes can be required.
+
+If BigQuery tables are created outside of airflow and the schema is not defined in the task, multiple options are available:
+
+define a schema_fields:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_fields={...})
+      
+or define a schema_object:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_object='path/to/schema/object)
+
+or enabled autodetect of schema:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      autodetect=True)
+
+## Airflow 1.10.1
+
+### StatsD Metrics
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
+
+### EMRHook now passes all of connection's extra to CreateJobFlow API
+
+EMRHook.create_job_flow has been changed to pass all keys to the create_job_flow API, rather than
+just specific known keys for greater flexibility.
+
+However prior to this release the "emr_default" sample connection that was created had invalid
+configuration, so creating EMR clusters might fail until your connection is updated. (Ec2KeyName,
+Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
+should be inside the "Instances" dict)
+
+### LDAP Auth Backend now requires TLS
+
+Connecting to an LDAP server over plain text is not supported anymore. The
+certificate presented by the LDAP server must be signed by a trusted
+certificate, or you must provide the `cacert` option under `[ldap]` in the
+config file.
+
+If you want to use LDAP auth backend without TLS then you will have to create a
+custom-auth backend based on
+https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
 
 ## Airflow 1.10
 
@@ -45,7 +500,7 @@ The method name was changed to be compatible with the Python 3.7 async/await key
 
 ### Add a configuration variable(default_dag_run_display_number) to control numbers of dag run for display
 
-Add a configuration variable(default_dag_run_display_number) under webserver section to control num of dag run to show in UI.
+Add a configuration variable(default_dag_run_display_number) under webserver section to control the number of dag runs to show in UI.
 
 ### Default executor for SubDagOperator is changed to SequentialExecutor
 
@@ -78,9 +533,10 @@ There are five roles created for Airflow by default: Admin, User, Op, Viewer, an
 - AWS Batch Operator renamed property queue to job_queue to prevent conflict with the internal queue from CeleryExecutor - AIRFLOW-2542
 - Users created and stored in the old users table will not be migrated automatically. FAB's built-in authentication support must be reconfigured.
 - Airflow dag home page is now `/home` (instead of `/admin`).
-- All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the url path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
+- All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the URL path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
 - Due to security concerns, the new webserver will no longer support the features in the `Data Profiling` menu of old UI, including `Ad Hoc Query`, `Charts`, and `Known Events`.
 - HiveServer2Hook.get_results() always returns a list of tuples, even when a single column is queried, as per Python API 2.
+- **UTC is now the default timezone**: Either reconfigure your workflows scheduling in UTC or set `default_timezone` as explained in https://airflow.apache.org/timezone.html#default-time-zone
 
 ### airflow.contrib.sensors.hdfs_sensors renamed to airflow.contrib.sensors.hdfs_sensor
 
@@ -134,11 +590,11 @@ With Airflow 1.9 or lower, `FILENAME_TEMPLATE`, `PROCESSOR_FILENAME_TEMPLATE`, `
 ```
 [core]
 fab_logging_level = WARN
-log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log
-log_processor_filename_template = {{ filename }}.log
+log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log
+log_processor_filename_template = {{{{ filename }}}}.log
 
 [elasticsearch]
-elasticsearch_log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
+elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
@@ -161,7 +617,7 @@ SSH Hook now uses the Paramiko library to create an ssh client connection, inste
 
 - update SSHHook constructor
 - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
-- SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py.py for usage info.
+- SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py for usage info.
 - No updates are required if you are using ftpHook, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
@@ -191,7 +647,7 @@ Once a logger has determined that a message needs to be processed, it is passed 
 
 #### Changes in Airflow Logging
 
-Airflow's logging mechanism has been refactored to use Python’s builtin `logging` module to perform logging of the application. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. Also the `BaseHook` and `BaseOperator` already extend this class, so it is easily available to do logging.
+Airflow's logging mechanism has been refactored to use Python’s built-in `logging` module to perform logging of the application. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. Also the `BaseHook` and `BaseOperator` already extend this class, so it is easily available to do logging.
 
 The main benefit is easier configuration of the logging by setting a single centralized python file. Disclaimer; there is still some inline configuration, but this will be removed eventually. The new logging class is defined by setting the dotted classpath in your `~/airflow/airflow.cfg` file:
 
@@ -209,17 +665,22 @@ The config can be taken from `airflow/config_templates/airflow_local_settings.py
 ```
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import os
 
@@ -344,14 +805,14 @@ The `file_task_handler` logger has been made more flexible. The default format c
 
 #### I'm using S3Log or GCSLogs, what do I do!?
 
-If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.incubator.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
+If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
 
-- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
 - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
 - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
-- Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
+- Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your `PYTHONPATH`, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
 
 ### New Features
 
@@ -502,7 +963,7 @@ supported and will be removed entirely in Airflow 2.0
 - Operators no longer accept arbitrary arguments
 
   Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without
-  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
+  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/airflow/pull/1285)
 
 - The config value secure_mode will default to True which will disable some insecure endpoints/features
 

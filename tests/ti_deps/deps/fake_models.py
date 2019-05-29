@@ -20,13 +20,13 @@
 # A collection of fake models used for unit testing
 
 
-class FakeTI(object):
+class FakeTI:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
     def pool_full(self):
-        # Allow users of this fake to set pool_filled in the contructor to make this
+        # Allow users of this fake to set pool_filled in the constructor to make this
         # return True
         try:
             return self.pool_filled
@@ -41,13 +41,13 @@ class FakeTI(object):
         return self.dependents_done
 
 
-class FakeTask(object):
+class FakeTask:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
 
-class FakeDag(object):
+class FakeDag:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -56,7 +56,7 @@ class FakeDag(object):
         return self.running_dagruns
 
 
-class FakeContext(object):
+class FakeContext:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

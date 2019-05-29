@@ -19,13 +19,13 @@
 
 #!/usr/bin/env bash
 
-set -x
+set -ex
 
 _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 # Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
 _KUBERNETES_VERSION="${KUBERNETES_VERSION}"
-_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.28.2}"
+_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.34.1}"
 
 echo "setting up kubernetes ${_KUBERNETES_VERSION}, using minikube ${_MINIKUBE_VERSION}"
 
@@ -52,7 +52,9 @@ source _k8s.sh
 rm -rf tmp
 mkdir -p bin tmp
 
-sudo mkdir -p /usr/local/bin
+if [[ ! -d /usr/local/bin ]]; then
+    sudo mkdir -p /usr/local/bin
+fi
 
 if [[ ! -x /usr/local/bin/kubectl ]]; then
   echo Downloading kubectl, which is a requirement for using minikube.
@@ -103,9 +105,12 @@ echo "your path is ${PATH}"
 
 _MINIKUBE="sudo -E PATH=$PATH minikube"
 
-$_MINIKUBE config set bootstrapper localkube
 $_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
 $_MINIKUBE update-context
+
+if [[ "${TRAVIS}" == true ]]; then
+  sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
+fi
 
 # Wait for Kubernetes to be up and ready.
 k8s_single_node_ready

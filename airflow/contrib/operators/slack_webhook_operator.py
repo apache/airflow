@@ -26,7 +26,8 @@ class SlackWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
-    If both supplied, Slack webhook token will be used.
+    If both supplied, http_conn_id will be used as base_url,
+    and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -37,6 +38,9 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type webhook_token: str
     :param message: The message you want to send on Slack
     :type message: str
+    :param attachments: The attachments to send on Slack. Should be a list of
+                        dictionaries representing Slack attachments.
+    :type attachments: list
     :param channel: The channel the message should be posted to
     :type channel: str
     :param username: The username to post to slack with
@@ -55,6 +59,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
+                 attachments=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
@@ -62,12 +67,13 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  proxy=None,
                  *args,
                  **kwargs):
-        super(SlackWebhookOperator, self).__init__(endpoint=webhook_token,
-                                                   *args,
-                                                   **kwargs)
+        super().__init__(endpoint=webhook_token,
+                         *args,
+                         **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message
+        self.attachments = attachments
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
@@ -77,12 +83,13 @@ class SlackWebhookOperator(SimpleHttpOperator):
 
     def execute(self, context):
         """
-        Call the SparkSqlHook to run the provided sql query
+        Call the SlackWebhookHook to post the provided Slack message
         """
         self.hook = SlackWebhookHook(
             self.http_conn_id,
             self.webhook_token,
             self.message,
+            self.attachments,
             self.channel,
             self.username,
             self.icon_emoji,

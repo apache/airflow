@@ -34,7 +34,7 @@ class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
     Documentation for Apache Sqoop can be found here:
-        https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html.
+    https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html
     """
     template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir',
                        'file_type', 'columns', 'split_by',
@@ -129,7 +129,7 @@ class SqoopOperator(BaseOperator):
             If a key doesn't have a value, just pass an empty string to it.
             Don't include prefix of -- for sqoop options.
         """
-        super(SqoopOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.cmd_type = cmd_type
         self.table = table

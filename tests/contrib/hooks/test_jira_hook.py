@@ -20,16 +20,16 @@
 
 import unittest
 
-from mock import Mock
-from mock import patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.jira_hook import JiraHook
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
 
 jira_client_mock = Mock(
-        name="jira_client"
+    name="jira_client"
 )
 
 
@@ -37,10 +37,10 @@ class TestJiraHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-                models.Connection(
-                        conn_id='jira_default', conn_type='jira',
-                        host='https://localhost/jira/', port=443,
-                        extra='{"verify": "False", "project": "AIRFLOW"}'))
+            Connection(
+                conn_id='jira_default', conn_type='jira',
+                host='https://localhost/jira/', port=443,
+                extra='{"verify": "False", "project": "AIRFLOW"}'))
 
     @patch("airflow.contrib.hooks.jira_hook.JIRA", autospec=True,
            return_value=jira_client_mock)

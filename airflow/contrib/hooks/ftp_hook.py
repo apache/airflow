@@ -22,9 +22,6 @@ import datetime
 import ftplib
 import os.path
 from airflow.hooks.base_hook import BaseHook
-from past.builtins import basestring
-
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def mlsd(conn, path="", facts=None):
@@ -60,12 +57,13 @@ def mlsd(conn, path="", facts=None):
         yield (name, entry)
 
 
-class FTPHook(BaseHook, LoggingMixin):
+class FTPHook(BaseHook):
     """
     Interact with FTP.
 
-    Errors that may occur throughout but should be handled
-    downstream.
+    Errors that may occur throughout but should be handled downstream.
+    You can specify mode for data transfers in the extra field of your
+    connection as ``{"passive": "true"}``.
     """
 
     def __init__(self, ftp_conn_id='ftp_default'):
@@ -85,7 +83,9 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
             self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn.set_pasv(pasv)
 
         return self.conn
 
@@ -148,7 +148,11 @@ class FTPHook(BaseHook, LoggingMixin):
         conn = self.get_conn()
         conn.rmd(path)
 
-    def retrieve_file(self, remote_full_path, local_full_path_or_buffer):
+    def retrieve_file(
+            self,
+            remote_full_path,
+            local_full_path_or_buffer,
+            callback=None):
         """
         Transfers the remote file to a local location.
 
@@ -161,23 +165,60 @@ class FTPHook(BaseHook, LoggingMixin):
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
         :type local_full_path_or_buffer: str or file-like buffer
+        :param callback: callback which is called each time a block of data
+            is read. if you do not use a callback, these blocks will be written
+            to the file or buffer passed in. if you do pass in a callback, note
+            that writing to a file or buffer will need to be handled inside the
+            callback.
+            [default: output_handle.write()]
+        :type callback: callable
+
+        :Example::
+
+            hook = FTPHook(ftp_conn_id='my_conn')
+
+            remote_path = '/path/to/remote/file'
+            local_path = '/path/to/local/file'
+
+            # with a custom callback (in this case displaying progress on each read)
+            def print_progress(percent_progress):
+                self.log.info('Percent Downloaded: %s%%' % percent_progress)
+
+            total_downloaded = 0
+            total_file_size = hook.get_size(remote_path)
+            output_handle = open(local_path, 'wb')
+            def write_to_file_with_progress(data):
+                total_downloaded += len(data)
+                output_handle.write(data)
+                percent_progress = (total_downloaded / total_file_size) * 100
+                print_progress(percent_progress)
+            hook.retrieve_file(remote_path, None, callback=write_to_file_with_progress)
+
+            # without a custom callback data is written to the local_path
+            hook.retrieve_file(remote_path, local_path)
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
-        if is_path:
-            output_handle = open(local_full_path_or_buffer, 'wb')
+        # without a callback, default to writing to a user-provided file or
+        # file-like buffer
+        if not callback:
+            if is_path:
+                output_handle = open(local_full_path_or_buffer, 'wb')
+            else:
+                output_handle = local_full_path_or_buffer
+            callback = output_handle.write
         else:
-            output_handle = local_full_path_or_buffer
+            output_handle = None
 
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
         self.log.info('Retrieving file from FTP: %s', remote_full_path)
-        conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
+        conn.retrbinary('RETR %s' % remote_file_name, callback)
         self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
-        if is_path:
+        if is_path and output_handle:
             output_handle.close()
 
     def store_file(self, remote_full_path, local_full_path_or_buffer):
@@ -196,7 +237,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
             input_handle = open(local_full_path_or_buffer, 'rb')
@@ -230,6 +271,12 @@ class FTPHook(BaseHook, LoggingMixin):
         return conn.rename(from_name, to_name)
 
     def get_mod_time(self, path):
+        """
+        Returns a datetime object representing the last time the file was modified
+
+        :param path: remote file path
+        :type path: string
+        """
         conn = self.get_conn()
         ftp_mdtm = conn.sendcmd('MDTM ' + path)
         time_val = ftp_mdtm[4:]
@@ -238,6 +285,16 @@ class FTPHook(BaseHook, LoggingMixin):
             return datetime.datetime.strptime(time_val, "%Y%m%d%H%M%S.%f")
         except ValueError:
             return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
+
+    def get_size(self, path):
+        """
+        Returns the size of a file (in bytes)
+
+        :param path: remote file path
+        :type path: string
+        """
+        conn = self.get_conn()
+        return conn.size(path)
 
 
 class FTPSHook(FTPHook):
@@ -248,6 +305,7 @@ class FTPSHook(FTPHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
@@ -255,5 +313,6 @@ class FTPSHook(FTPHook):
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password
             )
+            self.conn.set_pasv(pasv)
 
         return self.conn

@@ -18,7 +18,7 @@
 # under the License.
 #
 
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 import requests
 import requests_mock
 import unittest
@@ -30,7 +30,7 @@ from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook
 class TestDruidHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDruidHook, self).setUp()
+        super().setUp()
         session = requests.Session()
         adapter = requests_mock.Adapter()
         session.mount('mock', adapter)
@@ -132,13 +132,13 @@ class TestDruidHook(unittest.TestCase):
         get_conn_value.extra_dejson = {'endpoint': 'ingest'}
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
-        self.assertEquals(hook.get_conn_url(), 'https://test_host:1/ingest')
+        self.assertEqual(hook.get_conn_url(), 'https://test_host:1/ingest')
 
 
 class TestDruidDbApiHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDruidDbApiHook, self).setUp()
+        super().setUp()
         self.cur = MagicMock()
         self.conn = conn = MagicMock()
         self.conn.host = 'host'
@@ -158,7 +158,7 @@ class TestDruidDbApiHook(unittest.TestCase):
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        self.assertEquals('druid://host:1000/druid/v2/sql', db_hook.get_uri())
+        self.assertEqual('druid://host:1000/druid/v2/sql', db_hook.get_uri())
 
     def test_get_first_record(self):
         statement = 'SQL'
@@ -166,8 +166,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchone.return_value = result_sets[0]
 
         self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
@@ -176,8 +176,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
 
         self.assertEqual(result_sets, self.db_hook().get_records(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
 

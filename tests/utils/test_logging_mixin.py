@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 import unittest
 import warnings
 
@@ -120,4 +120,3 @@ class TestStreamLogWriter(unittest.TestCase):
 
         log = StreamLogWriter(logger, 1)
         self.assertFalse(log.encoding)
-

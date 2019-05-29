@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Lineage
 =======
 
@@ -47,10 +64,19 @@ works.
     run_this.set_downstream(run_this_last)
 
 
-Tasks take the parameters `inlets` and `outlets`. Inlets can be manually defined by a list of dataset `{"datasets":
-[dataset1, dataset2]}` or can be configured to look for outlets from upstream tasks `{"task_ids": ["task_id1", "task_id2"]}`
-or can be configured to pick up outlets from direct upstream tasks `{"auto": True}` or a combination of them. Outlets 
-are defined as list of dataset `{"datasets": [dataset1, dataset2]}`. Any fields for the dataset are templated with 
+Tasks take the parameters `inlets` and `outlets`.
+
+Inlets can be manually defined by the following options:
+
+- by a list of dataset ``{"datasets": [dataset1, dataset2]}``
+
+- can be configured to look for outlets from upstream tasks ``{"task_ids": ["task_id1", "task_id2"]}``
+
+- can be configured to pick up outlets from direct upstream tasks ``{"auto": True}``
+
+- a combination of them
+
+Outlets are defined as list of dataset ``{"datasets": [dataset1, dataset2]}``. Any fields for the dataset are templated with
 the context when the task is being executed. 
 
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
@@ -68,12 +94,12 @@ Apache Atlas
 ------------
 
 Airflow can send its lineage metadata to Apache Atlas. You need to enable the `atlas` backend and configure it 
-properly, e.g. in your `airflow.cfg`:
+properly, e.g. in your ``airflow.cfg``:
 
 .. code:: python
 
     [lineage]
-    backend = airflow.lineage.backend.atlas
+    backend = airflow.lineage.backend.atlas.AtlasBackend
 
     [atlas]
     username = my_username

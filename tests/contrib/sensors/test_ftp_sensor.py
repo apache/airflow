@@ -20,7 +20,7 @@
 import unittest
 
 from ftplib import error_perm
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from airflow.contrib.hooks.ftp_hook import FTPHook
 from airflow.contrib.sensors.ftp_sensor import FTPSensor
@@ -28,7 +28,7 @@ from airflow.contrib.sensors.ftp_sensor import FTPSensor
 
 class TestFTPSensor(unittest.TestCase):
     def setUp(self):
-        super(TestFTPSensor, self).setUp()
+        super().setUp()
         self._create_hook_orig = FTPSensor._create_hook
         self.hook_mock = MagicMock(spec=FTPHook)
 
@@ -42,15 +42,20 @@ class TestFTPSensor(unittest.TestCase):
 
     def tearDown(self):
         FTPSensor._create_hook = self._create_hook_orig
-        super(TestFTPSensor, self).tearDown()
+        super().tearDown()
 
     def test_poke(self):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
                        task_id="test_task")
 
         self.hook_mock.get_mod_time.side_effect = \
-            [error_perm("550: Can't check for file existence"), None]
+            [error_perm("550: Can't check for file existence"),
+                error_perm("550: Directory or file does not exist"),
+                error_perm("550 - Directory or file does not exist"),
+                None]
 
+        self.assertFalse(op.poke(None))
+        self.assertFalse(op.poke(None))
         self.assertFalse(op.poke(None))
         self.assertTrue(op.poke(None))
 
@@ -65,6 +70,28 @@ class TestFTPSensor(unittest.TestCase):
             op.execute(None)
 
         self.assertTrue("530" in str(context.exception))
+
+    def test_poke_fail_on_transient_error(self):
+        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
+                       task_id="test_task")
+
+        self.hook_mock.get_mod_time.side_effect = \
+            error_perm("434: Host unavailable")
+
+        with self.assertRaises(error_perm) as context:
+            op.execute(None)
+
+        self.assertTrue("434" in str(context.exception))
+
+    def test_poke_ignore_transient_error(self):
+        op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
+                       task_id="test_task", fail_on_transient_errors=False)
+
+        self.hook_mock.get_mod_time.side_effect = \
+            [error_perm("434: Host unavailable"), None]
+
+        self.assertFalse(op.poke(None))
+        self.assertTrue(op.poke(None))
 
 
 if __name__ == '__main__':

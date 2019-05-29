@@ -18,15 +18,15 @@
 # under the License.
 
 import json
-import mock
+from unittest import mock
 import os
+import socket
 import unittest
 
 from datetime import datetime
 
 from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import client_auth
-from airflow.utils.net import get_hostname
 from airflow.www import app as application
 
 
@@ -37,20 +37,20 @@ class ApiKerberosTests(unittest.TestCase):
         configuration.load_test_config()
         try:
             configuration.conf.add_section("api")
-        except:
+        except Exception:
             pass
         configuration.conf.set("api",
                                "auth_backend",
                                "airflow.api.auth.backend.kerberos_auth")
         try:
             configuration.conf.add_section("kerberos")
-        except:
+        except Exception:
             pass
         configuration.conf.set("kerberos",
                                "keytab",
                                os.environ['KRB5_KTNAME'])
 
-        self.app = application.create_app(testing=True)
+        self.app, _ = application.create_app(testing=True)
 
     def test_trigger_dag(self):
         with self.app.test_client() as c:
@@ -62,7 +62,7 @@ class ApiKerberosTests(unittest.TestCase):
             )
             self.assertEqual(401, response.status_code)
 
-            response.url = 'http://{}'.format(get_hostname())
+            response.url = 'http://{}'.format(socket.getfqdn())
 
             class Request:
                 headers = {}
@@ -77,7 +77,7 @@ class ApiKerberosTests(unittest.TestCase):
             client_auth.mutual_authentication = 3
 
             # case can influence the results
-            client_auth.hostname_override = get_hostname()
+            client_auth.hostname_override = socket.getfqdn()
 
             client_auth.handle_response(response)
             self.assertIn('Authorization', response.request.headers)

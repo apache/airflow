@@ -24,8 +24,8 @@ import unittest
 from airflow.utils import timezone
 
 CET = pendulum.timezone("Europe/Paris")
-EAT = pendulum.timezone('Africa/Nairobi')      # Africa/Nairobi
-ICT = pendulum.timezone('Asia/Bangkok')      # Asia/Bangkok
+EAT = pendulum.timezone('Africa/Nairobi')  # Africa/Nairobi
+ICT = pendulum.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 
@@ -41,16 +41,16 @@ class TimezoneTest(unittest.TestCase):
     def test_utcnow(self):
         now = timezone.utcnow()
         self.assertTrue(timezone.is_localized(now))
-        self.assertEquals(now.replace(tzinfo=None), now.astimezone(UTC).replace(tzinfo=None))
+        self.assertEqual(now.replace(tzinfo=None), now.astimezone(UTC).replace(tzinfo=None))
 
     def test_convert_to_utc(self):
         naive = datetime.datetime(2011, 9, 1, 13, 20, 30)
         utc = datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=UTC)
-        self.assertEquals(utc, timezone.convert_to_utc(naive))
+        self.assertEqual(utc, timezone.convert_to_utc(naive))
 
         eat = datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)
         utc = datetime.datetime(2011, 9, 1, 10, 20, 30, tzinfo=UTC)
-        self.assertEquals(utc, timezone.convert_to_utc(eat))
+        self.assertEqual(utc, timezone.convert_to_utc(eat))
 
     def test_make_naive(self):
         self.assertEqual(
@@ -69,4 +69,3 @@ class TimezoneTest(unittest.TestCase):
             datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
         with self.assertRaises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
-

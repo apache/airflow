@@ -1,0 +1,57 @@
+{#
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
+{% macro menu_item(item) %}
+    <a tabindex="-1" href="{{item.get_url()}}">
+       {% if item.icon %}
+        <i class="fa fa-fw {{item.icon}}"></i>&nbsp;
+    {% endif %}
+    {{_(item.label)}}</a>
+{% endmacro %}
+
+<li class="dropdown"><a href="{{ url_for('Airflow.index') }}">DAGs</a></li>
+
+{% for item1 in menu.get_list() %}
+    {% if item1 | is_menu_visible %}
+        {% if item1.childs %}
+            <li class="dropdown">
+            <a class="dropdown-toggle" data-toggle="dropdown" href="javascript:void(0)">
+            {% if item1.icon %}
+                <i class="fa {{item1.icon}}"></i>&nbsp;
+            {% endif %}
+            {{_(item1.label)}}<b class="caret"></b></a>
+            <ul class="dropdown-menu">
+            {% for item2 in item1.childs %}
+                {% if item2 %}
+                    {% if item2.name == '-' %}
+                        {% if not loop.last %}
+                          <li class="divider"></li>
+                        {% endif %}
+                    {% elif item2 | is_menu_visible %}
+                        <li>{{ menu_item(item2) }}</li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            </ul></li>
+        {% else %}
+            <li>
+                {{ menu_item(item1) }}
+            </li>
+        {% endif %}
+    {% endif %}
+{% endfor %}
+

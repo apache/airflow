@@ -35,47 +35,26 @@ import sys
 # flake8: noqa: F401
 from airflow import settings, configuration as conf
 from airflow.models import DAG
-from flask_admin import BaseView
-from importlib import import_module
 from airflow.exceptions import AirflowException
 
-if settings.DAGS_FOLDER not in sys.path:
-    sys.path.append(settings.DAGS_FOLDER)
+settings.initialize()
 
 login = None
 
 
-def load_login():
-    log = LoggingMixin().log
-
-    auth_backend = 'airflow.default_login'
-    try:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            auth_backend = conf.get('webserver', 'auth_backend')
-    except conf.AirflowConfigException:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            log.warning(
-                "auth_backend not found in webserver config reverting to "
-                "*deprecated*  behavior of importing airflow_login")
-            auth_backend = "airflow_login"
-
-    try:
-        global login
-        login = import_module(auth_backend)
-    except ImportError as err:
-        log.critical(
-            "Cannot import authentication module %s. "
-            "Please correct your authentication backend or disable authentication: %s",
-            auth_backend, err
-        )
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            raise AirflowException("Failed to import authentication backend")
-
-
-class AirflowViewPlugin(BaseView):
-    pass
-
-
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
     def __init__(self, namespace):
         self.namespace = namespace
+
+
+from airflow import operators  # noqa: E402
+from airflow import sensors  # noqa: E402
+from airflow import hooks  # noqa: E402
+from airflow import executors  # noqa: E402
+from airflow import macros  # noqa: E402
+
+operators._integrate_plugins()
+sensors._integrate_plugins()  # noqa: E402
+hooks._integrate_plugins()
+executors._integrate_plugins()
+macros._integrate_plugins()

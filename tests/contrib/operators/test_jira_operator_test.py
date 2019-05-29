@@ -20,18 +20,18 @@
 
 import unittest
 
-from mock import Mock
-from mock import patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(
-        name="jira_client_for_test"
+    name="jira_client_for_test"
 )
 
 minimal_test_ticket = {
@@ -54,14 +54,14 @@ class TestJiraOperator(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
-            }
+        }
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         db.merge_conn(
-                models.Connection(
-                        conn_id='jira_default', conn_type='jira',
-                        host='https://localhost/jira/', port=443,
-                        extra='{"verify": "False", "project": "AIRFLOW"}'))
+            Connection(
+                conn_id='jira_default', conn_type='jira',
+                host='https://localhost/jira/', port=443,
+                extra='{"verify": "False", "project": "AIRFLOW"}'))
 
     @patch("airflow.contrib.hooks.jira_hook.JIRA",
            autospec=True, return_value=jira_client_mock)

@@ -18,8 +18,6 @@
 # under the License.
 
 import unittest
-import mock
-from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
@@ -27,20 +25,21 @@ from cassandra.cluster import Cluster
 from cassandra.policies import (
     TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
 )
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
+from tests.compat import mock, patch
 
 
 class CassandraHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='cassandra_test', conn_type='cassandra',
                 host='host-1,host-2', port='9042', schema='test_keyspace',
                 extra='{"load_balancing_policy":"TokenAwarePolicy"}'))
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='cassandra_default_with_schema', conn_type='cassandra',
                 host='cassandra', port='9042', schema='s'))
 
@@ -65,7 +64,7 @@ class CassandraHookTest(unittest.TestCase):
             mock_connect.return_value = 'session'
             hook = CassandraHook(cassandra_conn_id='cassandra_test')
             hook.get_conn()
-            mock_getaddrinfo.assert_called()
+            assert mock_getaddrinfo.called
             mock_connect.assert_called_once_with('test_keyspace')
 
             cluster = hook.get_cluster()

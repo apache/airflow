@@ -77,7 +77,7 @@ class AzureDataLakeHook(BaseHook):
             are not supported.
         :type local_path: str
         :param remote_path: Remote path to upload to; if multiple files, this is the
-            dircetory root to write within.
+            directory root to write within.
         :type remote_path: str
         :param nthreads: Number of threads to use. If None, uses the number of cores.
         :type nthreads: int
@@ -139,3 +139,15 @@ class AzureDataLakeHook(BaseHook):
                                   overwrite=overwrite,
                                   buffersize=buffersize,
                                   blocksize=blocksize)
+
+    def list(self, path):
+        """
+        List files in Azure Data Lake Storage
+
+        :param path: full path/globstring to use to list files in ADLS
+        :type path: str
+        """
+        if "*" in path:
+            return self.connection.glob(path)
+        else:
+            return self.connection.walk(path)

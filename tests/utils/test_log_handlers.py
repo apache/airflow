@@ -46,7 +46,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
             session.query(TaskInstance).delete()
 
     def setUp(self):
-        super(TestFileTaskLogHandler, self).setUp()
+        super().setUp()
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
         self.cleanUp()
@@ -54,7 +54,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
     def tearDown(self):
         self.cleanUp()
-        super(TestFileTaskLogHandler, self).tearDown()
+        super().tearDown()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
@@ -169,14 +169,18 @@ class TestFilenameRendering(unittest.TestCase):
         self.ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
     def test_python_formatting(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         rendered_filename = fth._render_filename(self.ti, 42)
         self.assertEqual(expected_filename, rendered_filename)
 
     def test_jinja_rendering(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
         rendered_filename = fth._render_filename(self.ti, 42)

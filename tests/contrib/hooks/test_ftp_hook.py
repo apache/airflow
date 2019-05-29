@@ -18,7 +18,8 @@
 # under the License.
 #
 
-import mock
+from unittest import mock
+import six
 import unittest
 
 from airflow.contrib.hooks import ftp_hook as fh
@@ -27,7 +28,7 @@ from airflow.contrib.hooks import ftp_hook as fh
 class TestFTPHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestFTPHook, self).setUp()
+        super().setUp()
         self.path = '/some/path'
         self.conn_mock = mock.MagicMock(name='conn')
         self.get_conn_orig = fh.FTPHook.get_conn
@@ -40,7 +41,7 @@ class TestFTPHook(unittest.TestCase):
 
     def tearDown(self):
         fh.FTPHook.get_conn = self.get_conn_orig
-        super(TestFTPHook, self).tearDown()
+        super().tearDown()
 
     def test_close_conn(self):
         ftp_hook = fh.FTPHook()
@@ -100,6 +101,73 @@ class TestFTPHook(unittest.TestCase):
             ftp_hook.get_mod_time(path)
 
         self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
+
+    def test_get_size(self):
+        self.conn_mock.size.return_value = 1942
+
+        path = '/path/file'
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.get_size(path)
+
+        self.conn_mock.size.assert_called_once_with(path)
+
+    def test_retrieve_file(self):
+        _buffer = six.StringIO('buffer')
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.retrieve_file(self.path, _buffer)
+        self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
+
+    def test_retrieve_file_with_callback(self):
+        func = mock.Mock()
+        _buffer = six.StringIO('buffer')
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.retrieve_file(self.path, _buffer, callback=func)
+        self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
+
+
+class TestIntegrationFTPHook(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        from airflow import configuration
+        from airflow.utils import db
+        from airflow.models import Connection
+
+        configuration.load_test_config()
+        db.merge_conn(
+            Connection(
+                conn_id='ftp_passive', conn_type='ftp',
+                host='localhost', extra='{"passive": true}'))
+
+        db.merge_conn(
+            Connection(
+                conn_id='ftp_active', conn_type='ftp',
+                host='localhost', extra='{"passive": false}'))
+
+    def _test_mode(self, hook_type, connection_id, expected_mode):
+        hook = hook_type(connection_id)
+        conn = hook.get_conn()
+        conn.set_pasv.assert_called_with(expected_mode)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_passive_mode(self, ftp_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPHook
+        self._test_mode(FTPHook, "ftp_passive", True)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_active_mode(self, ftp_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPHook
+        self._test_mode(FTPHook, "ftp_active", False)
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_passive_mode(self, ftps_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPSHook
+        self._test_mode(FTPSHook, "ftp_passive", True)
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_active_mode(self, ftps_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPSHook
+        self._test_mode(FTPSHook, "ftp_active", False)
 
 
 if __name__ == '__main__':

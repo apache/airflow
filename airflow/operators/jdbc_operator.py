@@ -28,12 +28,17 @@ class JdbcOperator(BaseOperator):
 
     Requires jaydebeapi.
 
-    :param jdbc_conn_id: reference to a predefined database
-    :type jdbc_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+    :param jdbc_conn_id: reference to a predefined database
+    :type jdbc_conn_id: str
+    :param autocommit: if True, each command is automatically committed.
+        (default value: False)
+    :type autocommit: bool
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: mapping or iterable
     """
 
     template_fields = ('sql',)
@@ -41,13 +46,14 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(
-            self, sql,
-            jdbc_conn_id='jdbc_default', autocommit=False, parameters=None,
-            *args, **kwargs):
-        super(JdbcOperator, self).__init__(*args, **kwargs)
+    def __init__(self,
+                 sql,
+                 jdbc_conn_id='jdbc_default',
+                 autocommit=False,
+                 parameters=None,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.parameters = parameters
-
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit

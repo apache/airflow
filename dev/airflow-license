@@ -15,8 +15,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-from __future__ import print_function
 
 import os
 import re
@@ -32,7 +30,7 @@ _licenses = {'MIT': ['Permission is hereby granted free of charge', 'The above c
 
 def get_notices():
     license_file = open("../LICENSE", "r")
-    regex = ur"\((.+?)\) (.+?) \((http.+?)\)"
+    regex = r"\((.+?)\) (.+?) \((http.+?)\)"
 
     return list(filter(None, [re.findall(regex, line) for line in license_file]))
 

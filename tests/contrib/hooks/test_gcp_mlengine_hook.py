@@ -16,20 +16,17 @@
 # under the License.
 
 import json
-import mock
 import unittest
 
-try:  # python 2
-    from urlparse import urlparse, parse_qsl
-except ImportError:  # python 3
-    from urllib.parse import urlparse, parse_qsl
+from unittest import mock
+import requests
+from google.auth.exceptions import GoogleAuthError
+from googleapiclient.discovery import build_from_document
+from googleapiclient.errors import HttpError
+from googleapiclient.http import HttpMockSequence
+from urllib.parse import urlparse, parse_qsl
 
 from airflow.contrib.hooks import gcp_mlengine_hook as hook
-from apiclient import errors
-from apiclient.discovery import build_from_document
-from apiclient.http import HttpMockSequence
-from google.auth.exceptions import GoogleAuthError
-import requests
 
 cml_available = True
 try:
@@ -38,7 +35,7 @@ except GoogleAuthError:
     cml_available = False
 
 
-class _TestMLEngineHook(object):
+class _TestMLEngineHook:
 
     def __init__(self, test_cls, responses, expected_requests):
         """
@@ -90,7 +87,7 @@ class _TestMLEngineHook(object):
         # Propogating exceptions here since assert will silence them.
         if any(args):
             return None
-        self._test_cls.assertEquals(
+        self._test_cls.assertEqual(
             [self._normalize_requests_for_comparison(x[0], x[1], x[2])
                 for x in self._actual_requests],
             self._expected_requests)
@@ -132,7 +129,7 @@ class TestMLEngineHook(unittest.TestCase):
             create_version_response = cml_hook.create_version(
                 project_id=project, model_name=model_name,
                 version_spec=version)
-            self.assertEquals(create_version_response, response_body)
+            self.assertEqual(create_version_response, response_body)
 
     @_SKIP_IF
     def test_set_default_version(self):
@@ -158,7 +155,7 @@ class TestMLEngineHook(unittest.TestCase):
             set_default_version_response = cml_hook.set_default_version(
                 project_id=project, model_name=model_name,
                 version_name=version)
-            self.assertEquals(set_default_version_response, response_body)
+            self.assertEqual(set_default_version_response, response_body)
 
     @_SKIP_IF
     def test_list_versions(self):
@@ -185,8 +182,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}'
-             '&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]
@@ -197,7 +193,7 @@ class TestMLEngineHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             list_versions_response = cml_hook.list_versions(
                 project_id=project, model_name=model_name)
-            self.assertEquals(list_versions_response, versions)
+            self.assertEqual(list_versions_response, versions)
 
     @_SKIP_IF
     def test_delete_version(self):
@@ -231,7 +227,7 @@ class TestMLEngineHook(unittest.TestCase):
             delete_version_response = cml_hook.delete_version(
                 project_id=project, model_name=model_name,
                 version_name=version)
-            self.assertEquals(delete_version_response, done_response_body)
+            self.assertEqual(delete_version_response, done_response_body)
 
     @_SKIP_IF
     def test_create_model(self):
@@ -255,7 +251,7 @@ class TestMLEngineHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             create_model_response = cml_hook.create_model(
                 project_id=project, model=model)
-            self.assertEquals(create_model_response, response_body)
+            self.assertEqual(create_model_response, response_body)
 
     @_SKIP_IF
     def test_get_model(self):
@@ -276,7 +272,7 @@ class TestMLEngineHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             get_model_response = cml_hook.get_model(
                 project_id=project, model_name=model_name)
-            self.assertEquals(get_model_response, response_body)
+            self.assertEqual(get_model_response, response_body)
 
     @_SKIP_IF
     def test_create_mlengine_job(self):
@@ -312,7 +308,7 @@ class TestMLEngineHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
                 project_id=project, job=my_job)
-            self.assertEquals(create_job_response, my_job)
+            self.assertEqual(create_job_response, my_job)
 
     @_SKIP_IF
     def test_create_mlengine_job_reuse_existing_job_by_default(self):
@@ -344,7 +340,7 @@ class TestMLEngineHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
                 project_id=project, job=my_job)
-            self.assertEquals(create_job_response, my_job)
+            self.assertEqual(create_job_response, my_job)
 
     @_SKIP_IF
     def test_create_mlengine_job_check_existing_job(self):
@@ -393,7 +389,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
-            with self.assertRaises(errors.HttpError):
+            with self.assertRaises(HttpError):
                 cml_hook.create_job(
                     project_id=project, job=my_job,
                     use_existing_job_fn=check_input)
@@ -415,7 +411,7 @@ class TestMLEngineHook(unittest.TestCase):
             create_job_response = cml_hook.create_job(
                 project_id=project, job=my_job,
                 use_existing_job_fn=check_input)
-            self.assertEquals(create_job_response, my_job)
+            self.assertEqual(create_job_response, my_job)
 
 
 if __name__ == '__main__':

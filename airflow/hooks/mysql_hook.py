@@ -19,6 +19,8 @@
 
 import MySQLdb
 import MySQLdb.cursors
+import json
+import six
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -37,7 +39,7 @@ class MySqlHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs):
-        super(MySqlHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def set_autocommit(self, conn, autocommit):
@@ -49,10 +51,11 @@ class MySqlHook(DbApiHook):
     def get_autocommit(self, conn):
         """
         MySql connection gets autocommit in a different way.
+
         :param conn: connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting
-        :rtype bool
+        :rtype: bool
         """
         return conn.get_autocommit()
 
@@ -87,7 +90,15 @@ class MySqlHook(DbApiHook):
                 conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
         local_infile = conn.extra_dejson.get('local_infile', False)
         if conn.extra_dejson.get('ssl', False):
-            conn_config['ssl'] = conn.extra_dejson['ssl']
+            # SSL parameter for MySQL has to be a dictionary and in case
+            # of extra/dejson we can get string if extra is passed via
+            # URL parameters
+            dejson_ssl = conn.extra_dejson['ssl']
+            if isinstance(dejson_ssl, six.string_types):
+                dejson_ssl = json.loads(dejson_ssl)
+            conn_config['ssl'] = dejson_ssl
+        if conn.extra_dejson.get('unix_socket'):
+            conn_config['unix_socket'] = conn.extra_dejson['unix_socket']
         if local_infile:
             conn_config["local_infile"] = 1
         conn = MySQLdb.connect(**conn_config)
@@ -102,7 +113,7 @@ class MySqlHook(DbApiHook):
         cur.execute("""
             LOAD DATA LOCAL INFILE '{tmp_file}'
             INTO TABLE {table}
-            """.format(**locals()))
+            """.format(tmp_file=tmp_file, table=table))
         conn.commit()
 
     def bulk_dump(self, table, tmp_file):
@@ -114,7 +125,7 @@ class MySqlHook(DbApiHook):
         cur.execute("""
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
-            """.format(**locals()))
+            """.format(tmp_file=tmp_file, table=table))
         conn.commit()
 
     @staticmethod

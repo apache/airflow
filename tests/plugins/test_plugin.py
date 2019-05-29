@@ -21,18 +21,19 @@
 from airflow.plugins_manager import AirflowPlugin
 
 from flask import Blueprint
-from flask_admin import BaseView, expose
-from flask_admin.base import MenuLink
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
+
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
 class PluginHook(BaseHook):
     pass
+
 
 # Will show up under airflow.operators.test_plugin.PluginOperator
 class PluginOperator(BaseOperator):
@@ -48,29 +49,57 @@ class PluginSensorOperator(BaseSensorOperator):
 class PluginExecutor(BaseExecutor):
     pass
 
+
 # Will show up under airflow.macros.test_plugin.plugin_macro
 def plugin_macro():
     pass
 
-# Creating a flask admin BaseView
-class TestView(BaseView):
-    @expose('/')
+
+# Creating a flask appbuilder BaseView
+class PluginTestAppBuilderBaseView(AppBuilderBaseView):
+    default_view = "test"
+
+    @expose("/")
     def test(self):
-        # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
         return self.render("test_plugin/test.html", content="Hello galaxy!")
-v = TestView(category="Test Plugin", name="Test View")
+
+
+v_appbuilder_view = PluginTestAppBuilderBaseView()
+v_appbuilder_package = {"name": "Test View",
+                        "category": "Test Plugin",
+                        "view": v_appbuilder_view}
+
+# Creating a flask appbuilder Menu Item
+appbuilder_mitem = {"name": "Google",
+                    "category": "Search",
+                    "category_icon": "fa-th",
+                    "href": "https://www.google.com"}
 
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
-    template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
+    template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
     static_folder='static',
     static_url_path='/static/test_plugin')
 
-ml = MenuLink(
-    category='Test Plugin',
-    name='Test Menu Link',
-    url='https://airflow.incubator.apache.org/')
+
+# Create a handler to validate statsd stat name
+def stat_name_dummy_handler(stat_name):
+    return stat_name
+
+
+class AirflowLink(BaseOperatorLink):
+    name = 'airflow'
+
+    def get_link(self, operator, dttm):
+        return 'should_be_overridden'
+
+
+class GithubLink(BaseOperatorLink):
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'
 
 
 # Defining the plugin class
@@ -81,6 +110,23 @@ class AirflowTestPlugin(AirflowPlugin):
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]
-    admin_views = [v]
     flask_blueprints = [bp]
-    menu_links = [ml]
+    appbuilder_views = [v_appbuilder_package]
+    appbuilder_menu_items = [appbuilder_mitem]
+    stat_name_handler = staticmethod(stat_name_dummy_handler)
+    global_operator_extra_links = [
+        AirflowLink(),
+        GithubLink(),
+    ]
+
+
+class MockPluginA(AirflowPlugin):
+    name = 'plugin-a'
+
+
+class MockPluginB(AirflowPlugin):
+    name = 'plugin-b'
+
+
+class MockPluginC(AirflowPlugin):
+    name = 'plugin-c'

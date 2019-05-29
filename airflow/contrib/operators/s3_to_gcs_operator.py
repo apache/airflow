@@ -41,13 +41,14 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :type delimiter: str
     :param aws_conn_id: The source S3 connection
     :type aws_conn_id: str
-    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
@@ -100,7 +101,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  *args,
                  **kwargs):
 
-        super(S3ToGoogleCloudStorageOperator, self).__init__(
+        super().__init__(
             bucket=bucket,
             prefix=prefix,
             delimiter=delimiter,
@@ -123,7 +124,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
     def execute(self, context):
         # use the super method to list all the files in an S3 bucket/key
-        files = super(S3ToGoogleCloudStorageOperator, self).execute(context)
+        files = super().execute(context)
 
         gcs_hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.dest_gcs_conn_id,
@@ -151,10 +152,11 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     else:
                         existing_files.append(f)
 
-            files = set(files) - set(existing_files)
+            files = list(set(files) - set(existing_files))
             if len(files) > 0:
-                self.log.info('{0} files are going to be synced: {1}.'.format(
-                    len(files), files))
+                self.log.info(
+                    '%s files are going to be synced: %s.', len(files), files
+                )
             else:
                 self.log.info(
                     'There are no new files to sync. Have a nice day!')

@@ -27,14 +27,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 from airflow.contrib.operators.databricks_operator import DatabricksRunNowOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -132,9 +125,9 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the initializer with a specified run_name.
         """
         json = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
-          'run_name': RUN_NAME
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+            'run_name': RUN_NAME
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = databricks_operator._deep_string_coerce({
@@ -167,8 +160,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
 
     def test_init_with_templating(self):
         json = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': TEMPLATED_NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': TEMPLATED_NOTEBOOK_TASK,
         }
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
@@ -185,8 +178,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
             'test': datetime.now()
         }
         # Looks a bit weird since we have to escape regex reserved symbols.
-        exception_message = 'Type \<(type|class) \'datetime.datetime\'\> used ' + \
-                            'for parameter json\[test\] is not a number or a string'
+        exception_message = r'Type \<(type|class) \'datetime.datetime\'\> used ' + \
+                            r'for parameter json\[test\] is not a number or a string'
         with self.assertRaisesRegexp(AirflowException, exception_message):
             DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
@@ -196,8 +189,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the execute function in case where the run is successful.
         """
         run = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
@@ -219,7 +212,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
@@ -227,8 +220,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the execute function in case where the run failed.
         """
         run = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
@@ -250,7 +243,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_on_kill(self, db_mock_class):
@@ -352,8 +345,8 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
             'test': datetime.now()
         }
         # Looks a bit weird since we have to escape regex reserved symbols.
-        exception_message = 'Type \<(type|class) \'datetime.datetime\'\> used ' + \
-                            'for parameter json\[test\] is not a number or a string'
+        exception_message = r'Type \<(type|class) \'datetime.datetime\'\> used ' + \
+                            r'for parameter json\[test\] is not a number or a string'
         with self.assertRaisesRegexp(AirflowException, exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
 
@@ -388,7 +381,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
@@ -421,7 +414,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_on_kill(self, db_mock_class):
