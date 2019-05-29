@@ -303,7 +303,7 @@ See :ref:`write-logs-gcp`.
 GoogleCloudBaseHook
 '''''''''''''''''''
 
-All hooks is based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`.
 
 
 BigQuery
@@ -982,6 +982,20 @@ Google Natural Language
     Deploys a model.
 
 They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
+
+Google Discovery API
+''''''''''''''''''''
+
+Airflow also has support for requesting data from any Google Service via Google's Discovery API.
+
+:class:`airflow.contrib.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer`
+    Transfers data from any Google Service into an AWS S3 Bucket.
+
+They also use :class:`airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook` to communicate with
+Google Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
+Please note that this library is in maintenance mode. Therefore it is recommended that you use the custom GCP Service
+Operators for working with the Google Cloud Platform.
+
 
 .. _Qubole:
 
