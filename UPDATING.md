@@ -23,6 +23,15 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+
+`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+are removed in favor of a real pool, e.g. `default_pool`.
+
+By default tasks are running in `default_pool`.
+`default_pool` is initialized with 128 slots and user can change the
+number of slots through UI/CLI. `default_pool` cannot be removed.
+
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
 has been renamed to `request_filter`.

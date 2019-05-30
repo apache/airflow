@@ -23,6 +23,7 @@ import os
 import contextlib
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -75,6 +76,20 @@ def merge_conn(conn, session=None):
     from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
+        session.commit()
+
+
+@provide_session
+def add_default_pool_if_not_exists(session=None):
+    from airflow.models.pool import Pool
+    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+        default_pool = Pool(
+            pool=Pool.DEFAULT_POOL_NAME,
+            slots=conf.getint(section='core', key='non_pooled_task_slot_count',
+                              fallback=128),
+            description="Default pool",
+        )
+        session.add(default_pool)
         session.commit()
 
 
@@ -311,6 +326,7 @@ def upgradedb():
     config.set_main_option('script_location', directory.replace('%', '%%'))
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
+    add_default_pool_if_not_exists()
 
 
 def resetdb():
