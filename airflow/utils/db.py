@@ -24,7 +24,6 @@ import contextlib
 
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.configuration import conf
 
 log = LoggingMixin().log
 

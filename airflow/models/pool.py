@@ -103,11 +103,10 @@ class Pool(Base):
 
 
 @provide_session
-def reset_default_pool(session=None) -> None:
+def reset_default_pool(session=None):
     """
     Add a default pool if default pool does not exist, else update
     the slots of default pool based on configuration.
-    :param session: Session
     """
     default_pool = session.query(Pool).filter(Pool.pool == Pool.default_pool_name).first()
     default_slots = conf.getint('core', 'non_pooled_task_slot_count')
