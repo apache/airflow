@@ -23,7 +23,7 @@ from typing import List
 
 from airflow import configuration
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import patch
 

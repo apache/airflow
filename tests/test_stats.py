@@ -20,7 +20,7 @@
 import unittest
 
 from airflow.stats import SafeStatsdLogger
-from mock import Mock
+from unittest.mock import Mock
 
 
 class TestStats(unittest.TestCase):

@@ -80,7 +80,7 @@ class VerticaToHiveTransfer(BaseOperator):
             vertica_conn_id='vertica_default',
             hive_cli_conn_id='hive_cli_default',
             *args, **kwargs):
-        super(VerticaToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

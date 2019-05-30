@@ -159,6 +159,7 @@ var svg = d3.select("svg")
   }
 
 update(root = data);
+
 function update(source) {
 
   // Compute the flattened node list. TODO use d3.layout.hierarchy.
@@ -235,9 +236,10 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, d.try_number, true);
+            // I'm pretty sure that true is not a valid subdag id, which is what call_modal wants
+            call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, true);
         else
-            call_modal(d.task_id, d.execution_date, d.try_number);
+            call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, undefined);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")
@@ -262,7 +264,7 @@ function update(source) {
           s += "Started: " + escapeHtml(d.start_date) + "<br>";
           s += "Ended: " + escapeHtml(d.end_date) + "<br>";
           if (d.duration != undefined) {
-            s += "Duration: " + escapeHtml(d.duration) + "<br>";
+            s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";
           }
           s += "State: " + escapeHtml(d.state) + "<br>";
         }

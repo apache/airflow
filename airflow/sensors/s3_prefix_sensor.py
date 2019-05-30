@@ -63,7 +63,7 @@ class S3PrefixSensor(BaseSensorOperator):
                  verify=None,
                  *args,
                  **kwargs):
-        super(S3PrefixSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Parse
         self.bucket_name = bucket_name
         self.prefix = prefix

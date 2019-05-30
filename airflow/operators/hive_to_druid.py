@@ -81,7 +81,7 @@ class HiveToDruidTransfer(BaseOperator):
             hive_tblproperties=None,
             job_properties=None,
             *args, **kwargs):
-        super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim
@@ -97,7 +97,7 @@ class HiveToDruidTransfer(BaseOperator):
         self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
-        self.hive_tblproperties = hive_tblproperties
+        self.hive_tblproperties = hive_tblproperties or {}
         self.job_properties = job_properties
 
     def execute(self, context):

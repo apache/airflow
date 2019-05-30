@@ -19,7 +19,7 @@
 #
 import os
 
-import mock
+from unittest import mock
 import unittest
 
 from cryptography.hazmat.primitives import serialization
@@ -32,7 +32,7 @@ from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
 class TestSnowflakeHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestSnowflakeHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = conn = mock.MagicMock()

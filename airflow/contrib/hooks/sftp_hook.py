@@ -45,7 +45,7 @@ class SFTPHook(SSHHook):
 
     def __init__(self, ftp_conn_id='sftp_default', *args, **kwargs):
         kwargs['ssh_conn_id'] = ftp_conn_id
-        super(SFTPHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.conn = None
         self.private_key_pass = None

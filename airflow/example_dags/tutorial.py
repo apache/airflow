@@ -50,7 +50,8 @@ default_args = {
     # 'on_failure_callback': some_function,
     # 'on_success_callback': some_other_function,
     # 'on_retry_callback': another_function,
-    # 'trigger_rule': u'all_success'
+    # 'sla_miss_callback': yet_another_function,
+    # 'trigger_rule': 'all_success'
 }
 
 dag = DAG(

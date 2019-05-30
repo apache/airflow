@@ -35,7 +35,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
             self,
             aws_conn_id='aws_default',
             *args, **kwargs):
-        super(SageMakerBaseSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):

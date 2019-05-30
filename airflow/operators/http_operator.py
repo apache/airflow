@@ -50,7 +50,7 @@ class SimpleHttpOperator(BaseOperator):
     :type log_response: bool
     """
 
-    template_fields = ('endpoint', 'data',)
+    template_fields = ['endpoint', 'data', 'headers', ]
     template_ext = ()
     ui_color = '#f4a460'
 
@@ -65,7 +65,7 @@ class SimpleHttpOperator(BaseOperator):
                  http_conn_id='http_default',
                  log_response=False,
                  *args, **kwargs):
-        super(SimpleHttpOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint

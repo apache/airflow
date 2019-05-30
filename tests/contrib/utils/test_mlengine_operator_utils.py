@@ -15,10 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import datetime
 import unittest
 
@@ -27,8 +23,8 @@ from airflow.contrib.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
 from airflow.version import version
 
-from mock import ANY
-from mock import patch
+from unittest.mock import ANY
+from unittest.mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
@@ -54,7 +50,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(CreateEvaluateOpsTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

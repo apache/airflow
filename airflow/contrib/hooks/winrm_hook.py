@@ -108,7 +108,7 @@ class WinRMHook(BaseHook):
                  message_encryption='auto',
                  credssp_disable_tlsv1_2=False,
                  send_cbt=True):
-        super(WinRMHook, self).__init__(ssh_conn_id)
+        super().__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
         self.remote_host = remote_host

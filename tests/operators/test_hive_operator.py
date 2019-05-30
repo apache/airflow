@@ -17,13 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import datetime
 import os
 import unittest
 
-import mock
+from unittest import mock
 import nose
 
 from airflow import DAG, configuration, operators

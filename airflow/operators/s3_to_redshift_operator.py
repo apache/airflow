@@ -72,7 +72,7 @@ class S3ToRedshiftTransfer(BaseOperator):
             autocommit=False,
             parameters=None,
             *args, **kwargs):
-        super(S3ToRedshiftTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = schema
         self.table = table
         self.s3_bucket = s3_bucket

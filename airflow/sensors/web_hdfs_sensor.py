@@ -33,7 +33,7 @@ class WebHdfsSensor(BaseSensorOperator):
                  webhdfs_conn_id='webhdfs_default',
                  *args,
                  **kwargs):
-        super(WebHdfsSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id
 

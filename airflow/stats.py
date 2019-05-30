@@ -32,7 +32,7 @@ from airflow.exceptions import InvalidStatsNameException
 log = logging.getLogger(__name__)
 
 
-class DummyStatsLogger(object):
+class DummyStatsLogger:
     @classmethod
     def incr(cls, stat, count=1, rate=1):
         pass
@@ -89,7 +89,7 @@ def validate_stat(f):
     return wrapper
 
 
-class SafeStatsdLogger(object):
+class SafeStatsdLogger:
 
     def __init__(self, statsd_client):
         self.statsd = statsd_client

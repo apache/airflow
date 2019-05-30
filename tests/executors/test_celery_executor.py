@@ -22,7 +22,7 @@ import unittest
 import contextlib
 from multiprocessing import Pool
 
-import mock
+from unittest import mock
 
 from celery import Celery
 from celery import states as celery_states
@@ -160,6 +160,17 @@ class CeleryExecutorTest(unittest.TestCase):
         # to the error log.
         self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, args[0])
         self.assertIn('AttributeError', args[1])
+
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.sync')
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.trigger_tasks')
+    @mock.patch('airflow.stats.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = celery_executor.CeleryExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

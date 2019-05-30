@@ -99,7 +99,7 @@ properly, e.g. in your ``airflow.cfg``:
 .. code:: python
 
     [lineage]
-    backend = airflow.lineage.backend.atlas
+    backend = airflow.lineage.backend.atlas.AtlasBackend
 
     [atlas]
     username = my_username

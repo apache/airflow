@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from copy import deepcopy
+from typing import Dict
 
 from googleapiclient.errors import HttpError
 
@@ -49,7 +50,7 @@ class GceBaseOperator(BaseOperator):
         self.api_version = api_version
         self._validate_inputs()
         self._hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
-        super(GceBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -100,7 +101,7 @@ class GceInstanceStartOperator(GceBaseOperator):
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  *args, **kwargs):
-        super(GceInstanceStartOperator, self).__init__(
+        super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
@@ -147,7 +148,7 @@ class GceInstanceStopOperator(GceBaseOperator):
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  *args, **kwargs):
-        super(GceInstanceStopOperator, self).__init__(
+        super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
@@ -211,7 +212,7 @@ class GceSetMachineTypeOperator(GceBaseOperator):
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
                 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version)
-        super(GceSetMachineTypeOperator, self).__init__(
+        super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
@@ -339,7 +340,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version)
         self._field_sanitizer = GcpBodyFieldSanitizer(
             GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
-        super(GceInstanceTemplateCopyOperator, self).__init__(
+        super().__init__(
             project_id=project_id, zone='global', resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
@@ -448,12 +449,11 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             raise AirflowException("Api version v1 does not have update/patch "
                                    "operations for Instance Group Managers. Use beta"
                                    " api version or above")
-        super(GceInstanceGroupManagerUpdateTemplateOperator, self).__init__(
+        super().__init__(
             project_id=project_id, zone=self.zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
-    def _possibly_replace_template(self, dictionary):
-        # type: (dict) -> None
+    def _possibly_replace_template(self, dictionary: Dict) -> None:
         if dictionary.get('instanceTemplate') == self.source_template:
             dictionary['instanceTemplate'] = self.destination_template
             self._change_performed = True

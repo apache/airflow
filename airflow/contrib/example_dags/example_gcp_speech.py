@@ -21,7 +21,6 @@
 Example Airflow DAG that runs speech synthesizing and stores output in Google Cloud Storage
 
 This DAG relies on the following OS environment variables
-https://airflow.apache.org/concepts.html#variables
 * GCP_PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
 * GCP_SPEECH_TEST_BUCKET - Name of the bucket in which the output file should be stored.
 """
@@ -32,6 +31,7 @@ from airflow.utils import dates
 from airflow import models
 from airflow.contrib.operators.gcp_text_to_speech_operator import GcpTextToSpeechSynthesizeOperator
 from airflow.contrib.operators.gcp_speech_to_text_operator import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.contrib.operators.gcp_translate_speech_operator import GcpTranslateSpeechOperator
 
 # [START howto_operator_text_to_speech_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -43,7 +43,7 @@ FILENAME = "gcp-speech-test-file"
 # [END howto_operator_text_to_speech_gcp_filename]
 
 # [START howto_operator_text_to_speech_api_arguments]
-INPUT = {"text": "This is just a test"}
+INPUT = {"text": "Sample text for demo purposes"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
 AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 # [END howto_operator_text_to_speech_api_arguments]
@@ -52,6 +52,13 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
 AUDIO = {"uri": "gs://{bucket}/{object}".format(bucket=BUCKET_NAME, object=FILENAME)}
 # [END howto_operator_speech_to_text_api_arguments]
+
+# [START howto_operator_translate_speech_arguments]
+TARGET_LANGUAGE = 'pl'
+FORMAT = 'text'
+MODEL = 'base'
+SOURCE_LANGUAGE = None
+# [END howto_operator_translate_speech_arguments]
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -78,3 +85,18 @@ with models.DAG(
     # [END howto_operator_speech_to_text_recognize]
 
     text_to_speech_synthesize_task >> speech_to_text_recognize_task
+
+    # [START howto_operator_translate_speech]
+    translate_speech_task = GcpTranslateSpeechOperator(
+        project_id=GCP_PROJECT_ID,
+        audio=AUDIO,
+        config=CONFIG,
+        target_language=TARGET_LANGUAGE,
+        format_=FORMAT,
+        source_language=SOURCE_LANGUAGE,
+        model=MODEL,
+        task_id='translate_speech_task'
+    )
+    # [END howto_operator_translate_speech]
+
+    text_to_speech_synthesize_task >> translate_speech_task

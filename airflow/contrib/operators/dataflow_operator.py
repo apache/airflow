@@ -154,7 +154,7 @@ class DataFlowJavaOperator(BaseOperator):
             job_class=None,
             *args,
             **kwargs):
-        super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -272,7 +272,7 @@ class DataflowTemplateOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         parameters = parameters or {}
@@ -347,7 +347,7 @@ class DataFlowPythonOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.py_file = py_file
         self.job_name = job_name
@@ -380,7 +380,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper(object):
+class GoogleCloudBucketHelper:
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 

@@ -31,8 +31,7 @@ import dill
 import six
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.models.skipmixin import SkipMixin
+from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -79,16 +78,16 @@ class PythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        op_args=None,  # type: Optional[Iterable]
-        op_kwargs=None,  # type: Optional[Dict]
-        provide_context=False,  # type: bool
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        op_args: Optional[Iterable] = None,
+        op_kwargs: Optional[Dict] = None,
+        provide_context: bool = False,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
-        super(PythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
@@ -134,7 +133,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
     def execute(self, context):
-        branch = super(BranchPythonOperator, self).execute(context)
+        branch = super().execute(context)
         if isinstance(branch, six.string_types):
             branch = [branch]
         self.log.info("Following branch %s", branch)
@@ -173,7 +172,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
     def execute(self, context):
-        condition = super(ShortCircuitOperator, self).execute(context)
+        condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
         if condition:
@@ -247,21 +246,21 @@ class PythonVirtualenvOperator(PythonOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        requirements=None,  # type: Optional[Iterable[str]]
-        python_version=None,  # type: Optional[str]
-        use_dill=False,  # type: bool
-        system_site_packages=True,  # type: bool
-        op_args=None,  # type: Iterable
-        op_kwargs=None,  # type: Dict
-        provide_context=False,  # type: bool
-        string_args=None,  # type: Optional[Iterable[str]]
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        requirements: Optional[Iterable[str]] = None,
+        python_version: Optional[str] = None,
+        use_dill: bool = False,
+        system_site_packages: bool = True,
+        op_args: Iterable = None,
+        op_kwargs: Dict = None,
+        provide_context: bool = False,
+        string_args: Optional[Iterable[str]] = None,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
-        super(PythonVirtualenvOperator, self).__init__(
+        super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
