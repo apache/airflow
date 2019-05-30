@@ -24,6 +24,7 @@ import contextlib
 
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.configuration import conf
 
 log = LoggingMixin().log
 
@@ -81,6 +82,7 @@ def merge_conn(conn, session=None):
 def initdb():
     from airflow import models
     from airflow.models import Connection
+    from airflow.models.pool import reset_default_pool
     upgradedb()
 
     merge_conn(
@@ -285,6 +287,7 @@ def initdb():
         Connection(
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
+    reset_default_pool()
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM

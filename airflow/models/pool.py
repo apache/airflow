@@ -33,7 +33,7 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    default_pool_name = 'not_pooled'
+    default_pool_name = 'default_pool'
 
     def __repr__(self):
         return self.pool
@@ -100,3 +100,23 @@ class Pool(Base):
         used_slots = session.query(func.count()).filter(TI.pool == self.pool).filter(
             TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
         return self.slots - used_slots
+
+
+@provide_session
+def reset_default_pool(session=None) -> None:
+    """
+    Add a default pool if default pool does not exist, else update
+    the slots of default pool based on configuration.
+    :param session: Session
+    """
+    default_pool = session.query(Pool).filter(Pool.pool == Pool.default_pool_name).first()
+    default_slots = conf.getint('core', 'non_pooled_task_slot_count')
+    if default_pool:
+        default_pool.slots = default_slots
+    else:
+        pool = Pool(
+            pool=Pool.default_pool_name,
+            slots=default_slots,
+        )
+        session.add(pool)
+    session.commit()

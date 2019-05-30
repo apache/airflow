@@ -35,6 +35,7 @@ from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
     TaskInstance as TI, errors
+from airflow.models.pool import reset_default_pool
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -73,6 +74,7 @@ class SchedulerJobTest(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
+        reset_default_pool()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
@@ -355,7 +357,10 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[3].key, res_keys)
 
     @mock_conf_get('core', 'non_pooled_task_slot_count', 1)
-    def test_find_executable_task_instances_in_non_pool(self):
+    def test_find_executable_task_instances_in_default_pool(self):
+        session = settings.Session()
+        reset_default_pool()
+
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_non_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         t1 = DummyOperator(dag=dag, task_id='dummy1')
@@ -366,7 +371,6 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(executor=executor)
         dr1 = scheduler.create_dag_run(dag)
         dr2 = scheduler.create_dag_run(dag)
-        session = settings.Session()
 
         ti1 = TI(task=t1, execution_date=dr1.execution_date)
         ti2 = TI(task=t2, execution_date=dr2.execution_date)
@@ -385,7 +389,6 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(1, len(res))
 
         ti2.state = State.RUNNING
-        ti2.pool = Pool.default_pool_name
         session.merge(ti2)
         session.commit()
 
