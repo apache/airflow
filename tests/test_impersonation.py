@@ -24,7 +24,7 @@ import unittest
 import logging
 
 from airflow import jobs, models
-from airflow.models.pool import reset_default_pool
+from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 class ImpersonationTest(unittest.TestCase):
     def setUp(self):
-        reset_default_pool()
+        add_default_pool_if_not_exists()
         self.dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,

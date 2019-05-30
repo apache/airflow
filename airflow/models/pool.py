@@ -40,13 +40,13 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def default_pool_open_slots(session):
-        from airflow.models import TaskInstance as TI  # To avoid circular imports
-        total_slots = conf.getint('core', 'non_pooled_task_slot_count')
-        used_slots = session.query(func.count()).filter(
-            TI.pool == Pool.default_pool_name).filter(
-            TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
-        return total_slots - used_slots
+    def get_pool(pool_name, session=None):
+        return session.query(Pool).filter(Pool.pool == pool_name).first()
+
+    @staticmethod
+    def get_default_pool():
+        return Pool.get_pool(Pool.default_pool_name)
+
 
     def to_json(self):
         return {
@@ -100,22 +100,3 @@ class Pool(Base):
         used_slots = session.query(func.count()).filter(TI.pool == self.pool).filter(
             TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
         return self.slots - used_slots
-
-
-@provide_session
-def reset_default_pool(session=None):
-    """
-    Add a default pool if default pool does not exist, else update
-    the slots of default pool based on configuration.
-    """
-    default_pool = session.query(Pool).filter(Pool.pool == Pool.default_pool_name).first()
-    default_slots = conf.getint('core', 'non_pooled_task_slot_count')
-    if default_pool:
-        default_pool.slots = default_slots
-    else:
-        pool = Pool(
-            pool=Pool.default_pool_name,
-            slots=default_slots,
-        )
-        session.add(pool)
-    session.commit()

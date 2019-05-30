@@ -78,10 +78,22 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
+@provide_session
+def add_default_pool_if_not_exists(session=None):
+    from airflow.models.pool import Pool
+    if not Pool.get_pool(Pool.default_pool_name, session=session):
+        default_pool = Pool(
+            pool=Pool.default_pool_name,
+            slots=128,
+            description="Default pool",
+        )
+        session.add(default_pool)
+        session.commit()
+
+
 def initdb():
     from airflow import models
     from airflow.models import Connection
-    from airflow.models.pool import reset_default_pool
     upgradedb()
 
     merge_conn(
@@ -286,7 +298,6 @@ def initdb():
         Connection(
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
-    reset_default_pool()
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
@@ -313,6 +324,7 @@ def upgradedb():
     config.set_main_option('script_location', directory.replace('%', '%%'))
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
+    add_default_pool_if_not_exists()
 
 
 def resetdb():

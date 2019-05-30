@@ -21,13 +21,13 @@ import unittest
 
 from airflow import settings
 from airflow.models import DAG
-from airflow.models.pool import Pool, reset_default_pool
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
-from tests.test_utils.db import clear_db_pools, clear_db_runs
-from tests.test_utils.decorators import mock_conf_get
+from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -37,13 +37,13 @@ class PoolTest(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
-        reset_default_pool()
+        add_default_pool_if_not_exists()
 
     @classmethod
     def tearDownClass(cls):
         clear_db_runs()
         clear_db_pools()
-        reset_default_pool()
+        add_default_pool_if_not_exists()
 
     def test_open_slots(self):
         pool = Pool(pool='test_pool', slots=5)
@@ -66,9 +66,9 @@ class PoolTest(unittest.TestCase):
 
         self.assertEqual(3, pool.open_slots())
 
-    @mock_conf_get('core', 'non_pooled_task_slot_count', 5)
     def test_default_pool_open_slots(self):
-        reset_default_pool()
+        set_default_pool_slots(5)
+
         dag = DAG(
             dag_id='test_default_pool_open_slots',
             start_date=DEFAULT_DATE, )
@@ -87,4 +87,4 @@ class PoolTest(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(3, Pool.default_pool_open_slots())
+        self.assertEqual(3, Pool.get_default_pool())

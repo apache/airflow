@@ -35,20 +35,19 @@ from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
     TaskInstance as TI, errors
-from airflow.models.pool import reset_default_pool
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
 from airflow.utils.dates import days_ago
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.db import create_session, provide_session, add_default_pool_if_not_exists
 from airflow.utils.state import State
 from tests.compat import MagicMock, Mock, PropertyMock, patch
 from tests.compat import mock
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss
+    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
 from tests.test_utils.decorators import mock_conf_get
 
 configuration.load_test_config()
@@ -74,7 +73,7 @@ class SchedulerJobTest(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
-        reset_default_pool()
+        add_default_pool_if_not_exists()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
@@ -356,12 +355,10 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[1].key, res_keys)
         self.assertIn(tis[3].key, res_keys)
 
-    @mock_conf_get('core', 'non_pooled_task_slot_count', 1)
     def test_find_executable_task_instances_in_default_pool(self):
+        set_default_pool_slots(1)
         session = settings.Session()
-        reset_default_pool()
-
-        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_non_pool'
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_default_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         t1 = DummyOperator(dag=dag, task_id='dummy1')
         t2 = DummyOperator(dag=dag, task_id='dummy2')
@@ -381,7 +378,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(ti2)
         session.commit()
 
-        # Two tasks w/o pool up for execution and our non_pool size is 1
+        # Two tasks w/o pool up for execution and our default pool size is 1
         res = scheduler._find_executable_task_instances(
             dagbag,
             states=(State.SCHEDULED,),

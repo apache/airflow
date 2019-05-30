@@ -44,3 +44,9 @@ def clear_db_errors():
 def clear_db_pools():
     with create_session() as session:
         session.query(Pool).delete()
+
+
+def set_default_pool_slots(slots):
+    with create_session():
+        default_pool = Pool.get_default_pool()
+        default_pool.slots = slots
