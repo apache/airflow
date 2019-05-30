@@ -32,6 +32,12 @@ class MySqlHook(DbApiHook):
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
+
+    Note: For AWS IAM authentication, use iam in the extra connection parameters
+    and set it to true. Leave the password field empty. This will use the the
+    "aws_default" connection to get the temporary token unless you override
+    in extras.
+    extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
     """
 
     conn_name_attr = 'mysql_conn_id'
@@ -64,12 +70,18 @@ class MySqlHook(DbApiHook):
         Returns a mysql connection object
         """
         conn = self.get_connection(self.mysql_conn_id)
+
         conn_config = {
             "user": conn.login,
             "passwd": conn.password or '',
             "host": conn.host or 'localhost',
             "db": self.schema or conn.schema or ''
         }
+
+        # check for authentication via AWS IAM
+        if conn.extra_dejson.get('iam', False):
+            conn_config['passwd'], conn.port = self.get_iam_token(conn)
+            conn_config["read_default_group"] = 'enable-cleartext-plugin'
 
         if not conn.port:
             conn_config["port"] = 3306
@@ -143,3 +155,20 @@ class MySqlHook(DbApiHook):
         """
 
         return cell
+
+    def get_iam_token(self, conn):
+        """
+        Uses AWSHook to retrieve a temporary password to connect to MySQL
+        Port is required. If none is provided, default 3306 is used
+        """
+        from airflow.contrib.hooks.aws_hook import AwsHook
+
+        aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
+        aws_hook = AwsHook(aws_conn_id)
+        if conn.port is None:
+            port = 3306
+        else:
+            port = conn.port
+        client = aws_hook.get_client_type('rds')
+        token = client.generate_db_auth_token(conn.host, port, conn.login)
+        return token, port
