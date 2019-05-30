@@ -48,7 +48,6 @@ from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
     clear_db_runs, clear_db_sla_miss, set_default_pool_slots
-from tests.test_utils.decorators import mock_conf_get
 
 configuration.load_test_config()
 
