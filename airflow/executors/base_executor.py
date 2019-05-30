@@ -129,6 +129,19 @@ class BaseExecutor(LoggingMixin):
         Stats.gauge('executor.queued_tasks', num_queued_tasks)
         Stats.gauge('executor.running_tasks', num_running_tasks)
 
+        self.trigger_tasks(open_slots)
+
+        # Calling child class sync method
+        self.log.debug("Calling the %s sync method", self.__class__)
+        self.sync()
+
+    def trigger_tasks(self, open_slots):
+        """
+        Trigger tasks
+
+        :param open_slots: Number of open slots
+        :return:
+        """
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
@@ -141,10 +154,6 @@ class BaseExecutor(LoggingMixin):
                                command=command,
                                queue=queue,
                                executor_config=simple_ti.executor_config)
-
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
 
     def change_state(self, key, state):
         self.log.debug("Changing state: %s", key)
