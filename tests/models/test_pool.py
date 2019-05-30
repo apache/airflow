@@ -34,7 +34,13 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 class PoolTest(unittest.TestCase):
 
-    def tearDown(self):
+    def setUp(self):
+        clear_db_runs()
+        clear_db_pools()
+        reset_default_pool()
+
+    @classmethod
+    def tearDownClass(cls):
         clear_db_runs()
         clear_db_pools()
         reset_default_pool()
