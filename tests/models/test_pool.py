@@ -21,7 +21,7 @@ import unittest
 
 from airflow import settings
 from airflow.models import DAG
-from airflow.models.pool import Pool
+from airflow.models.pool import Pool, reset_default_pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -37,6 +37,7 @@ class PoolTest(unittest.TestCase):
     def tearDown(self):
         clear_db_runs()
         clear_db_pools()
+        reset_default_pool()
 
     def test_open_slots(self):
         pool = Pool(pool='test_pool', slots=5)
@@ -61,6 +62,7 @@ class PoolTest(unittest.TestCase):
 
     @mock_conf_get('core', 'non_pooled_task_slot_count', 5)
     def test_default_pool_open_slots(self):
+        reset_default_pool()
         dag = DAG(
             dag_id='test_default_pool_open_slots',
             start_date=DEFAULT_DATE, )

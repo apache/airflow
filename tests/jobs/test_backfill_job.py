@@ -34,6 +34,7 @@ from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot, 
     TaskConcurrencyLimitReached
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models.pool import reset_default_pool
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -82,6 +83,7 @@ class BackfillJobTest(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
+        reset_default_pool()
 
         self.parser = cli.CLIFactory.get_parser()
 
