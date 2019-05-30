@@ -30,6 +30,7 @@ This DAG relies on the following OS environment variables
 * GCS_ACL_BUCKET_ROLE - The access permission for the entity for the bucket.
 * GCS_ACL_OBJECT_ROLE - The access permission for the entity for the object.
 """
+
 import os
 
 import airflow
@@ -73,4 +74,5 @@ with models.DAG(
     )
     # [END howto_operator_gcs_object_create_acl_entry_task]
 
+    # pylint: disable=pointless-statement
     gcs_bucket_create_acl_entry_task >> gcs_object_create_acl_entry_task

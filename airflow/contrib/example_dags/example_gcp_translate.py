@@ -22,6 +22,7 @@ Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud Platform.
 
 """
+
 import airflow
 from airflow import models
 
@@ -48,5 +49,5 @@ with models.DAG(
         task_id='access',
         bash_command="echo '{{ task_instance.xcom_pull(\"translate\")[0] }}'"
     )
-    product_set_create >> translation_access
+    product_set_create >> translation_access  # pylint: disable=pointless-statement
     # [END howto_operator_translate_access]

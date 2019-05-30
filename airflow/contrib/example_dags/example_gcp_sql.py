@@ -186,7 +186,7 @@ with models.DAG(
 ) as dag:
 
     def next_dep(task, prev):
-        prev >> task
+        prev >> task  # pylint: disable=pointless-statement
         return task
 
     # ############################################## #

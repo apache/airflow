@@ -267,6 +267,7 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pylint~=2.3.1',  # Ensure the same version as in .travis.yml
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',

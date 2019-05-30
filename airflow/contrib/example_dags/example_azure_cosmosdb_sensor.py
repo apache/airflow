@@ -61,4 +61,4 @@ t2 = AzureCosmosInsertDocumentOperator(
     document={"id": "someuniqueid", "param1": "value1", "param2": "value2"},
     azure_cosmos_conn_id='azure_cosmos_default')
 
-t1 >> t2
+t1 >> t2  # pylint: disable=pointless-statement
