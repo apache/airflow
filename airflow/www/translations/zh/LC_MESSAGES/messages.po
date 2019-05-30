@@ -1,0 +1,46 @@
+# Chinese translations for PROJECT.
+# Copyright (C) 2019 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2019.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2019-05-30 14:30+0800\n"
+"PO-Revision-Date: 2019-05-30 14:32+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.7.0\n"
+
+
+#: airflow/www/validators.py:40
+#, python-format
+msgid "Invalid field name '%s'."
+msgstr "错误的字段-'%s'"
+
+#: airflow/www/validators.py:54
+#, python-format
+msgid "Field must be greater than or equal to %(other_label)s."
+msgstr ""
+
+#: airflow/www/templates/appbuilder/navbar_right.html:56
+msgid "Profile"
+msgstr "配置文件"
+
+#: airflow/www/templates/appbuilder/navbar_right.html:57
+msgid "Logout"
+msgstr "退出"
+
+#: airflow/www/templates/appbuilder/navbar_right.html:62
+msgid "Login"
+msgstr "登陆"
+
+#: docs/exts/exampleinclude.py:180
+msgid "View Source"
+msgstr "视图来源"

@@ -57,7 +57,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
-
+    app.config['LANGUAGES'] = {
+        'zh': {'flag': 'cn', 'name': 'Chinese'},
+        'en': {'flag': 'us', 'name': 'English'},
+    }
+    app.config['BABEL_DEFAULT_LOCALE'] = 'en'
     if config:
         app.config.from_mapping(config)
 
