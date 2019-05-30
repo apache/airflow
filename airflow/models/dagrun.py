@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, cast
 
 import six
 from sqlalchemy import (
@@ -24,7 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
-
+from sqlalchemy.orm.session import Session
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base, ID_LEN
 from airflow.stats import Stats
@@ -218,12 +219,19 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @provide_session
-    def get_previous_dagrun(self, session=None):
+    def get_previous_dagrun(self, state: str = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
 
-        return session.query(DagRun).filter(
+        session = cast(Session, session)  # mypy
+
+        filters = [
             DagRun.dag_id == self.dag_id,
-            DagRun.execution_date < self.execution_date
+            DagRun.execution_date < self.execution_date,
+        ]
+        if state is not None:
+            filters.append(DagRun.state == state)
+        return session.query(DagRun).filter(
+            *filters
         ).order_by(
             DagRun.execution_date.desc()
         ).first()
