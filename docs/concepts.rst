@@ -145,7 +145,7 @@ Airflow provides operators for many common tasks, including:
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
-:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
 :class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
 :class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
