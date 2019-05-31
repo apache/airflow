@@ -160,7 +160,6 @@ First, to use the handler, airflow.cfg must be configured as follows:
     remote_logging = True
 
     [elasticsearch]
-    elasticsearch_host = {{ host }}:{{ port }}
     elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
     elasticsearch_end_of_log_mark = end_of_log
     elasticsearch_write_stdout =
