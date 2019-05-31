@@ -177,7 +177,6 @@ To output task logs to stdout in JSON format, the following config could be used
     remote_logging = True
 
     [elasticsearch]
-    host = {{ host }}:{{ port }}
     log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
     end_of_log_mark = end_of_log
     write_stdout = True
