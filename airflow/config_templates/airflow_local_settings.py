@@ -54,17 +54,17 @@ PROCESSOR_FILENAME_TEMPLATE = conf.get('core', 'LOG_PROCESSOR_FILENAME_TEMPLATE'
 # just to help Airflow select correct handler
 REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
-ELASTICSEARCH_HOST = conf.get('elasticsearch', 'ELASTICSEARCH_HOST')
+ELASTICSEARCH_HOST = conf.get('elasticsearch', 'HOST')
 
-ELASTICSEARCH_LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
+ELASTICSEARCH_LOG_ID_TEMPLATE = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
 
-ELASTICSEARCH_END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
+ELASTICSEARCH_END_OF_LOG_MARK = conf.get('elasticsearch', 'END_OF_LOG_MARK')
 
-ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'ELASTICSEARCH_WRITE_STDOUT')
+ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'WRITE_STDOUT')
 
-ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FORMAT')
+ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'JSON_FORMAT')
 
-ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FIELDS')
+ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'JSON_FIELDS')
 
 
 DEFAULT_LOGGING_CONFIG = {

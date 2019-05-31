@@ -594,8 +594,8 @@ log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{
 log_processor_filename_template = {{{{ filename }}}}.log
 
 [elasticsearch]
-elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
-elasticsearch_end_of_log_mark = end_of_log
+log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+end_of_log_mark = end_of_log
 ```
 
 The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
