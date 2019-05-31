@@ -16,33 +16,49 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Module for all tests airflow.utils.log.json_formatter.JSONFormatter
+"""
+
 import unittest
 from logging import makeLogRecord
 
-from airflow.utils.log.json_formatter import JSONFormatter
+from airflow.utils.log.json_formatter import JSONFormatter, merge_dicts
 
 
 class TestJSONFormatter(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+    """
+    TestJSONFormatter class combine all tests for JSONFormatter
+    """
     def test_json_formatter_is_not_none(self):
+        """
+        JSONFormatter instance  should return not none
+        """
         json_fmt = JSONFormatter()
         self.assertIsNotNone(json_fmt)
 
-    def test__merge_dicts(self):
-        d1 = {'a': 1, 'b': 2, 'c': 3}
-        d2 = {'a': 1, 'b': 3, 'd': 42}
-        json_fmt = JSONFormatter()
-        merged = json_fmt._merge_dicts(d1, d2)
+    def test_merge_dicts(self):
+        """
+        Test _merge method from JSONFormatter
+        """
+        dict1 = {'a': 1, 'b': 2, 'c': 3}
+        dict2 = {'a': 1, 'b': 3, 'd': 42}
+        merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
 
     def test_format(self):
+        """
+        Test format method from JSONFormatter
+        """
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"])
         self.assertEqual(json_fmt.format(log_record), '{"label": "value"}')
 
     def test_format_with_extras(self):
+        """
+        Test format with extras method from JSONFormatter
+        """
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"], extras={'pod_extra': 'useful_message'})
         self.assertEqual(json_fmt.format(log_record), '{"label": "value", "pod_extra": "useful_message"}')
