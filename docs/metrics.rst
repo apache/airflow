@@ -80,6 +80,7 @@ Name                              Description
 ================================= =================================================
 dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
 dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
+dag.loading-duration.<dag_id>     Seconds taken to load the given DAG
 dagrun.duration.success.<dag_id>  Seconds taken for a DagRun to reach success state
 dagrun.duration.failed.<dag_id>   Seconds taken for a DagRun to reach failed state
 dagrun.schedule_delay.<dag_id>    Seconds of delay between the scheduled DagRun
