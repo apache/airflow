@@ -1053,7 +1053,8 @@ that Airflow should intentionally ignore. Each line in ``.airflowignore``
 specifies a regular expression pattern, and directories or files whose names
 (not DAG id) match any of the patterns would be ignored (under the hood,
 ``re.findall()`` is used to match the pattern). Overall it works like a
-``.gitignore`` file.
+``.gitignore`` file. Use the ``#`` character to indicate a comment; all
+characters on a line following a ``#`` will be ignored.
 
 ``.airflowignore`` file should be put in your ``DAG_FOLDER``.
 For example, you can prepare a ``.airflowignore`` file with contents
