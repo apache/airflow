@@ -26,6 +26,9 @@ import json
 
 
 def merge_dicts(d1, d2):
+    """
+    Merge two dicts
+    """
     merged = d1.copy()
     merged.update(d2)
     return merged
