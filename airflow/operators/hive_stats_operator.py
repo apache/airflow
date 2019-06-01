@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import zip
 from collections import OrderedDict
 
 from airflow.exceptions import AirflowException

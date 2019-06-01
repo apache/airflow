@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import chr
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 

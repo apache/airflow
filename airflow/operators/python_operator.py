@@ -23,7 +23,6 @@ import pickle
 import subprocess
 import sys
 import types
-from builtins import str
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
 

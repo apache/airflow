@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
 from datetime import datetime
 from contextlib import closing
 from typing import Optional

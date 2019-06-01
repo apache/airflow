@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import bytes
 from typing import Any
 
 from sqlalchemy import Column, Integer, String, Text, Boolean

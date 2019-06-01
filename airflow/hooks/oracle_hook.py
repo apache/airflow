@@ -20,7 +20,6 @@
 import cx_Oracle
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from builtins import str
 from datetime import datetime
 import numpy
 

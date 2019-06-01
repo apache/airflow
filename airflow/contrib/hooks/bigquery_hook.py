@@ -24,7 +24,6 @@ implementation for BigQuery.
 
 import time
 import six
-from builtins import range
 from copy import deepcopy
 from six import iteritems
 
