@@ -287,7 +287,7 @@ with models.DAG(
         )
         tasks.append(task)
         if prev_task:
-            prev_task >> task  # pylint: disable=pointless-statement
+            prev_task >> task
         prev_task = task
 
 # [END howto_operator_cloudsql_query_operators]

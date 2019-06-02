@@ -64,4 +64,4 @@ if gcs_to_bq is not None:
         bash_command='bq rm -rf airflow_test',
         dag=dag)
 
-    create_test_dataset >> load_csv >> delete_test_dataset  # pylint: disable=pointless-statement
+    create_test_dataset >> load_csv >> delete_test_dataset

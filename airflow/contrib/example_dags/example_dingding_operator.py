@@ -212,12 +212,12 @@ msg_failure_callback = DingdingOperator(
     dag=dag,
 )
 
-[  # pylint: disable=pointless-statement
+[
     text_msg_remind_none,
     text_msg_remind_specific,
     text_msg_remind_include_invalid,
     text_msg_remind_all
-] >> link_msg >> markdown_msg >> [  # pylint: disable=pointless-statement
+] >> link_msg >> markdown_msg >> [
     single_action_card_msg,
     multi_action_card_msg
-] >> feed_card_msg >> msg_failure_callback  # pylint: disable=pointless-statement
+] >> feed_card_msg >> msg_failure_callback

@@ -82,5 +82,5 @@ with DAG('pubsub-end-to-end', default_args=default_args,
     t6 = PubSubSubscriptionDeleteOperator(task_id='delete-subscription')
     t7 = PubSubTopicDeleteOperator(task_id='delete-topic')
 
-    t1 >> t2 >> t3  # pylint: disable=pointless-statement
-    t2 >> t4 >> t5 >> t6 >> t7  # pylint: disable=pointless-statement
+    t1 >> t2 >> t3
+    t2 >> t4 >> t5 >> t6 >> t7

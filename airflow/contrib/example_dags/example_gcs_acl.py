@@ -74,5 +74,4 @@ with models.DAG(
     )
     # [END howto_operator_gcs_object_create_acl_entry_task]
 
-    # pylint: disable=pointless-statement
     gcs_bucket_create_acl_entry_task >> gcs_object_create_acl_entry_task
