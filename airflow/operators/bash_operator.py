@@ -20,7 +20,6 @@
 
 import os
 import signal
-from builtins import bytes
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 

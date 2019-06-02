@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import bytes
 import os
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile

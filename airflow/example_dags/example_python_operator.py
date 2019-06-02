@@ -18,7 +18,6 @@
 # under the License.
 
 import time
-from builtins import range
 from pprint import pprint
 
 import airflow

@@ -26,8 +26,6 @@ import zipfile
 import os
 import io
 
-from builtins import str
-
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for

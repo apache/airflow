@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import next
-from builtins import zip
 from tempfile import NamedTemporaryFile
 from airflow.utils.file import TemporaryDirectory
 import gzip

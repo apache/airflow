@@ -47,7 +47,6 @@ locally, into just one `LocalExecutor` with multiple modes.
 import multiprocessing
 import subprocess
 
-from builtins import range
 from queue import Empty
 
 from airflow.executors.base_executor import BaseExecutor

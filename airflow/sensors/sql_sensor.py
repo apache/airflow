@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
 from typing import Iterable
 
 from airflow.exceptions import AirflowException

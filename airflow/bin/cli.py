@@ -32,7 +32,6 @@ import getpass
 import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
-from builtins import input
 
 from airflow.utils.timezone import parse as parsedate
 import json

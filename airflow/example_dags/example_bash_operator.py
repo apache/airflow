@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import range
 from datetime import timedelta
 
 import airflow

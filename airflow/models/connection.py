@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import bytes
 from urllib.parse import urlparse, unquote, parse_qsl
 
 from sqlalchemy import Column, Integer, String, Boolean

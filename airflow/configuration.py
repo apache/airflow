@@ -18,7 +18,6 @@
 # under the License.
 
 from base64 import b64encode
-from builtins import str
 from collections import OrderedDict
 import copy
 import os
