@@ -70,7 +70,12 @@ class Tox(TestCommand):
 
 
 class CleanCommand(Command):
-    """Command to tidy up the project root."""
+    """
+    Command to tidy up the project root.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py extra_clean``.
+    """
+
+    description = "Tidy up the project root"
     user_options = []
 
     def initialize_options(self):
@@ -86,7 +91,10 @@ class CleanCommand(Command):
 class CompileAssets(Command):
     """
     Compile and build the frontend assets using npm and webpack.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py compile_assets``.
     """
+
+    description = "Compile and build the frontend assets"
     user_options = []
 
     def initialize_options(self):
@@ -171,7 +179,6 @@ datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=0.7.1',
-    'Sphinx-PyPI-upload>=0.2.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinx>=1.2.3',
     'sphinxcontrib-httpdomain>=1.7.0',
