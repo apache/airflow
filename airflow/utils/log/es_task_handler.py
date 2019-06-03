@@ -74,7 +74,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.write_stdout = write_stdout
         self.json_format = json_format
         self.record_labels = [label.strip() for label in record_labels.split(",")]
-
         self.handler = None
 
     def _render_log_id(self, ti, try_number):
