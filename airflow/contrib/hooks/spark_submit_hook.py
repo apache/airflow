@@ -186,7 +186,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             extra = conn.extra_dejson
             conn_data['queue'] = extra.get('queue', None)
             conn_data['deploy_mode'] = extra.get('deploy-mode', None)
-            conn_data['spark_home'] = extra.get('spark-home', None)            
+            conn_data['spark_home'] = extra.get('spark-home', None)
             conn_data['namespace'] = extra.get('namespace', 'default')
         except AirflowException:
             self.log.debug(
