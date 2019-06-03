@@ -191,6 +191,9 @@ class KubeConfig:
         # This prop may optionally be set for PV Claims and is used to write logs
         self.logs_volume_claim = conf.get(self.kubernetes_section, 'logs_volume_claim')
 
+        # This prop may optionally be set for PV Claims and is used to write data which can be shared with other workers
+        self.data_volume_claim = conf.get(self.kubernetes_section, 'data_volume_claim')
+
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
         self.dags_volume_subpath = conf.get(
@@ -201,14 +204,25 @@ class KubeConfig:
         self.logs_volume_subpath = conf.get(
             self.kubernetes_section, 'logs_volume_subpath')
 
+        # This prop may optionally be set for PV Claims and is used to locate data
+        # on a SubPath
+        self.data_volume_subpath = conf.get(
+            self.kubernetes_section, 'data_volume_subpath')
+
         # Optionally, hostPath volume containing DAGs
         self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
 
         # Optionally, write logs to a hostPath Volume
         self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
+        # Optionally, write data to a hostPath Volume
+        self.data_volume_host = conf.get(self.kubernetes_section, 'data_volume_host')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
+
+        # This prop may optionally be set for PV Claims and is used to write data which can be shared with other workers
+        self.base_data_folder = configuration.get(self.core_section, 'base_data_folder')
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your

@@ -29,6 +29,7 @@ class WorkerConfiguration(LoggingMixin):
 
     dags_volume_name = 'airflow-dags'
     logs_volume_name = 'airflow-logs'
+    data_volume_name = 'airflow-data'
     git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
     git_ssh_key_secret_key = 'gitSshKey'
     git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
@@ -39,6 +40,7 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_home = self.kube_config.airflow_home
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
+        self.worker_airflow_data = self.kube_config.base_data_folder
 
         super().__init__()
 
@@ -234,6 +236,11 @@ class WorkerConfiguration(LoggingMixin):
                 self.logs_volume_name,
                 self.kube_config.logs_volume_claim,
                 self.kube_config.logs_volume_host
+            ),
+            self.data_volume_name: _construct_volume(
+                self.data_volume_name,
+                self.kube_config.data_volume_claim,
+                self.kube_config.data_volume_host
             )
         }
 
@@ -246,6 +253,10 @@ class WorkerConfiguration(LoggingMixin):
             self.logs_volume_name: {
                 'name': self.logs_volume_name,
                 'mountPath': self.worker_airflow_logs,
+            },
+            self.data_volume_name: {
+                'name': self.data_volume_name,
+                'mountPath': self.worker_airflow_data,
             }
         }
 
@@ -254,6 +265,9 @@ class WorkerConfiguration(LoggingMixin):
 
         if self.kube_config.logs_volume_subpath:
             volume_mounts[self.logs_volume_name]['subPath'] = self.kube_config.logs_volume_subpath
+
+        if self.kube_config.data_volume_subpath:
+            volume_mounts[self.data_volume_name]['subPath'] = self.kube_config.data_volume_subpath
 
         if self.kube_config.dags_in_image:
             del volumes[self.dags_volume_name]
