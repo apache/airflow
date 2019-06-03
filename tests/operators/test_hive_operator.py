@@ -60,6 +60,32 @@ class HiveEnvironmentTest(unittest.TestCase):
         """
 
 
+class HiveCliTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        self.nondefault_schema = "nondefault"
+        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
+
+    def tearDown(self):
+        del os.environ["AIRFLOW__CORE__SECURITY"]
+
+    def test_get_proxy_user_value(self):
+        from airflow.hooks.hive_hooks import HiveCliHook
+
+        hook = HiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        result = hook._prepare_cli_cmd()
+
+        # Verify
+        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
+
+
 class HiveOperatorConfigTest(HiveEnvironmentTest):
 
     def test_hive_airflow_default_config_queue(self):
