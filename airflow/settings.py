@@ -271,7 +271,7 @@ def configure_action_logging():
     pass
 
 
-def prepare_classpath():
+def prepare_syspath():
     """
     Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
     """
@@ -298,7 +298,7 @@ except Exception:
 
 def initialize():
     configure_vars()
-    prepare_classpath()
+    prepare_syspath()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
     configure_adapters()
