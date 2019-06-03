@@ -24,6 +24,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
 ### Removal of Mesos Executor
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
 
@@ -594,8 +598,8 @@ log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{
 log_processor_filename_template = {{{{ filename }}}}.log
 
 [elasticsearch]
-log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
-end_of_log_mark = end_of_log
+elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+elasticsearch_end_of_log_mark = end_of_log
 ```
 
 The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
