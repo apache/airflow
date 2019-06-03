@@ -370,8 +370,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
-        base_url = configuration.conf.get('webserver', 'BASE_URL')
-        return base_url + (
+        return (
             "/log?"
             "execution_date={iso}"
             "&task_id={task_id}"
@@ -381,8 +380,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        base_url = configuration.conf.get('webserver', 'BASE_URL')
-        return base_url + (
+        return (
             "/success"
             "?task_id={task_id}"
             "&dag_id={dag_id}"
@@ -1225,6 +1223,8 @@ class TaskInstance(Base, LoggingMixin):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
         # This function is called after changing the state
@@ -1244,11 +1244,11 @@ class TaskInstance(Base, LoggingMixin):
         default_html_content = (
             'Try {{try_number}} out of {{max_tries + 1}}<br>'
             'Exception:<br>{{exception_html}}<br>'
-            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Log: <a href="{base_url_log}{{ti.log_url}}">Link</a><br>'
             'Host: {{ti.hostname}}<br>'
             'Log file: {{ti.log_filepath}}<br>'
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-        )
+            'Mark success: <a href="{base_url_success}{{ti.mark_success_url}}">Link</a><br>'
+        ).format(base_url_log=base_url, base_url_success=base_url)
 
         def render(key, content):
             if configuration.has_option('email', key):
