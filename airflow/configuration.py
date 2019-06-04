@@ -130,6 +130,13 @@ class AirflowConfigParser(ConfigParser):
             'ssl_active': 'celery_ssl_active',
             'ssl_cert': 'celery_ssl_cert',
             'ssl_key': 'celery_ssl_key',
+            'elasticsearch_host': 'host',
+            'elasticsearch_log_id_template': 'log_id_template',
+            'elasticsearch_end_of_log_mark': 'end_of_log_mark',
+            'elasticsearch_frontend': 'frontend',
+            'elasticsearch_write_stdout': 'write_stdout',
+            'elasticsearch_json_format': 'json_format',
+            'elasticsearch_json_fields': 'json_fields'
         }
     }
 

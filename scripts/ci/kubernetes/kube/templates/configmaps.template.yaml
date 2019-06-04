@@ -323,4 +323,4 @@ data:
     hide_sensitive_variable_fields = True
 
     [elasticsearch]
-    elasticsearch_host =
+    host =
