@@ -23,6 +23,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
+from airflow.kubernetes.pod import Pod
+
 
 SETTINGS_FILE_POLICY = """
 def policy(task_instance):
@@ -37,6 +39,11 @@ def policy(task_instance):
 
 def not_policy():
     print("This shouldn't be imported")
+"""
+
+SETTINGS_FILE_POD_MUTATION_HOOK = """
+def pod_mutation_hook(pod):
+    pod.namespace = 'airflow-tests'
 """
 
 
@@ -132,3 +139,17 @@ class LocalSettingsTest(unittest.TestCase):
             settings.policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
+
+    def test_pod_mutation_hook(self):
+        """
+        Tests that pods are mutated by the pod_mutation_hook
+        function in airflow_local_settings.
+        """
+        with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
+            from airflow import settings
+            settings.import_local_settings()  # pylint: ignore
+
+            pod = Pod(image="ubuntu", envs={}, cmds=['echo "1"'])
+            settings.pod_mutation_hook(pod)
+
+            assert pod.namespace == 'airflow-tests'
