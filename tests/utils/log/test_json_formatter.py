@@ -20,7 +20,7 @@
 """
 Module for all tests airflow.utils.log.json_formatter.JSONFormatter
 """
-
+import json
 import unittest
 from logging import makeLogRecord
 
@@ -61,4 +61,6 @@ class TestJSONFormatter(unittest.TestCase):
         """
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"], extras={'pod_extra': 'useful_message'})
-        self.assertEqual(json_fmt.format(log_record), '{"label": "value", "pod_extra": "useful_message"}')
+        # compare as a dicts to not fail on sorting errors
+        self.assertDictEqual(json.loads(json_fmt.format(log_record)),
+                             {"label": "value", "pod_extra": "useful_message"})
