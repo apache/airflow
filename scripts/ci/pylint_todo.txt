@@ -930,6 +930,7 @@
 ./tests/test_configuration.py
 ./tests/test_impersonation.py
 ./tests/test_logging_config.py
+./tests/test_local_settings.py
 ./tests/test_stats.py
 ./tests/test_utils/__init__.py
 ./tests/test_utils/db.py
