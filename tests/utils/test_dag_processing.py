@@ -217,6 +217,16 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
+    def setUp(self):
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
+    def tearDown(self):
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
+
     def test_reload_module(self):
         """
         Configure the context to have core.logging_config_class set to a fake logging

@@ -332,6 +332,10 @@ class TestLogView(unittest.TestCase):
 
     def setUp(self):
         super(TestLogView, self).setUp()
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
+        conf.load_test_config()
 
         # Create a custom logging configuration
         configuration.load_test_config()
@@ -371,6 +375,11 @@ class TestLogView(unittest.TestCase):
             TaskInstance.execution_date == self.DEFAULT_DATE).delete()
         self.session.commit()
         self.session.close()
+
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
