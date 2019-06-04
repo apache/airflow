@@ -73,6 +73,9 @@ class DockerOperator(BaseOperator):
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
+    :param host_tmp_dir: Specify the location of the temporary directory on the host which will
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
+    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
     :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
@@ -124,6 +127,7 @@ class DockerOperator(BaseOperator):
             environment=None,
             force_pull=False,
             mem_limit=None,
+            host_tmp_dir=None,
             network_mode=None,
             tls_ca_cert=None,
             tls_client_cert=None,
@@ -155,6 +159,7 @@ class DockerOperator(BaseOperator):
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
+        self.host_tmp_dir = host_tmp_dir
         self.network_mode = network_mode
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
@@ -203,7 +208,7 @@ class DockerOperator(BaseOperator):
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
-        with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
+        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
