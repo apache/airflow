@@ -919,8 +919,8 @@ class Airflow(AirflowViewMixin, BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         try_number = request.args.get('try_number', 1)
-        elasticsearch_frontend = conf.get('elasticsearch', 'elasticsearch_frontend')
-        log_id_template = conf.get('elasticsearch', 'elasticsearch_log_id_template')
+        elasticsearch_frontend = conf.get('elasticsearch', 'frontend')
+        log_id_template = conf.get('elasticsearch', 'log_id_template')
         log_id = log_id_template.format(
             dag_id=dag_id, task_id=task_id,
             execution_date=execution_date, try_number=try_number)
@@ -1575,7 +1575,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        external_logs = conf.get('elasticsearch', 'elasticsearch_frontend')
+        external_logs = conf.get('elasticsearch', 'frontend')
         return self.render(
             'airflow/tree.html',
             operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
@@ -1660,7 +1660,7 @@ class Airflow(AirflowViewMixin, BaseView):
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        external_logs = conf.get('elasticsearch', 'elasticsearch_frontend')
+        external_logs = conf.get('elasticsearch', 'frontend')
         return self.render(
             'airflow/graph.html',
             dag=dag,

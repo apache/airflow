@@ -38,6 +38,10 @@ assists users migrating to a new version.
 
 * the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
 
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series
