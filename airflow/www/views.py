@@ -314,6 +314,12 @@ def get_chart_height(dag):
     """
     return 600 + len(dag.tasks) * 10
 
+def utc2local(utc):
+    import time
+    import datetime
+    epoch = time.mktime(utc.timetuple())
+    offset = datetime.datetime.fromtimestamp(epoch) - datetime.datetime.utcfromtimestamp(epoch)
+    return utc + offset
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     dttm = request.args.get('execution_date')
@@ -323,12 +329,15 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
         dttm = dag.latest_execution_date or timezone.utcnow()
 
     base_date = request.args.get('base_date')
+    base_date_local = None
     if base_date:
-        base_date = timezone.parse(base_date)
+        base_date = timezone.parse(base_date).in_timezone('utc')
+        base_date_local = base_date.in_timezone(tz=settings.TIMEZONE)
     else:
         # The DateTimeField widget truncates milliseconds and would loose
         # the first dag run. Round to next second.
         base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
+        base_date_local = utc2local(base_date)
 
     default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
     num_runs = request.args.get('num_runs')
@@ -359,7 +368,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 
     return {
         'dttm': dttm,
-        'base_date': base_date,
+        'base_date': base_date_local,
         'num_runs': num_runs,
         'execution_date': dttm.isoformat(),
         'dr_choices': dr_choices,

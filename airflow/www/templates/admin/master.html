@@ -28,10 +28,10 @@
 <script src="{{ url_for('static', filename='jqClock.min.js') }}" type="text/javascript"></script>
 <script>
     x = new Date()
-    var UTCseconds = (x.getTime() + x.getTimezoneOffset()*60*1000);
+    var UTCseconds = x.getTime();
     $("#clock").clock({
         "dateFormat":"Y-m-d ",
-        "timeFormat":"H:i:s %UTC%",
+        "timeFormat":"H:i:s",
         "timestamp":UTCseconds
     }).click(function(){
         alert('{{ hostname }}');
