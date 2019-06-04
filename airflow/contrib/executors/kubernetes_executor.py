@@ -797,16 +797,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state
-        (dag_id, task_id, ex_time, try_number) = key
-        with create_session() as session:
-            item = session.query(TaskInstance).filter_by(
-                dag_id=dag_id,
-                task_id=task_id,
-                execution_date=ex_time
-            ).one()
-            if state:
-                item.state = state
-                session.add(item)
 
     def end(self):
         self.log.info('Shutting down Kubernetes executor')
