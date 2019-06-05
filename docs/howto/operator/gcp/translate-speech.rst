@@ -65,7 +65,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_translate_speech_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_translate_speech_operator.py
     :language: python
     :dedent: 4
     :start-after: [START translate_speech_template_fields]
