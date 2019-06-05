@@ -23,7 +23,7 @@ set -e
 FWDIR="$(cd "`dirname "$0"`"; pwd)"
 cd "$FWDIR"
 
-NUM_INCORRECT_USE_LITERALINCLUDE_DIRECTIVE=$(grep -in 'literalinclude::.\+example_dags' $(find . -name '*.rst') |\
+NUM_INCORRECT_USE_LITERALINCLUDE_DIRECTIVE=$(grep -inR --include \*.rst 'literalinclude::.\+example_dags' .\
     tee /dev/tty |\
     wc -l |\
     tr -d '[:space:]')
