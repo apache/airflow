@@ -1233,7 +1233,8 @@ class TaskInstance(Base, LoggingMixin):
             exception=exception,
             exception_html=exception_html,
             try_number=self.try_number - 1,
-            max_tries=self.max_tries))
+            max_tries=self.max_tries,
+            base_url_success=base_url))
 
         jinja_env = self.task.get_template_env()
 
@@ -1244,11 +1245,11 @@ class TaskInstance(Base, LoggingMixin):
         default_html_content = (
             'Try {{try_number}} out of {{max_tries + 1}}<br>'
             'Exception:<br>{{exception_html}}<br>'
-            'Log: <a href="{base_url_log}{{ti.log_url}}">Link</a><br>'
+            'Log: <a href="{{base_url_log}}{{ti.log_url}}">Link</a><br>'
             'Host: {{ti.hostname}}<br>'
             'Log file: {{ti.log_filepath}}<br>'
-            'Mark success: <a href="{base_url_success}{{ti.mark_success_url}}">Link</a><br>'
-        ).format(base_url_log=base_url, base_url_success=base_url)
+            'Mark success: <a href="{{base_url_success}}{{ti.mark_success_url}}">Link</a><br>'
+        )
 
         def render(key, content):
             if configuration.has_option('email', key):
