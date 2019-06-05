@@ -92,10 +92,10 @@ class ConnectionTest(unittest.TestCase):
         self.assertIsNone(connection.extra)
 
     def test_connection_from_http_uri_without_extras(self):
-        uri = 'http://user:password@host%2flocation:1234/schema'
+        uri = 'http://user:password@location:1234/schema'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'http')
-        self.assertEqual(connection.host, 'http://host%2flocation:1234/schema')
+        self.assertEqual(connection.host, 'http://location:1234/schema')
         self.assertEqual(connection.schema, None)
         self.assertIsNone(connection.extra)
 
@@ -111,10 +111,10 @@ class ConnectionTest(unittest.TestCase):
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
 
     def test_connection_from_http_uri_with_extras(self):
-        uri = 'http://user:password@host%2flocation:1234/schema#extra1=a%20value&extra2=%2fpath%2f'
+        uri = 'http://user:password@location:1234/schema#extra1=a%20value&extra2=%2fpath%2f'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'http')
-        self.assertEqual(connection.host, 'http://host%2flocation:1234/schema')
+        self.assertEqual(connection.host, 'http://location:1234/schema')
         self.assertEqual(connection.schema, None)
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password')
@@ -133,16 +133,16 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
 
-    def test_connection_from_http_uri_with_colon_in_hostname(self):
-        uri = 'http://user:password@host%2flocation%3ax%3ay:1234/schema#' \
+    def test_connection_from_http_with_colon_in_hostname(self):
+        uri = 'http://user:password@host%2flocation%3ax%3ay:1234/schema?' \
               'extra1=a%20value&extra2=%2fpath%2f'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'http')
-        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
-        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, None)
+        self.assertEqual(connection.port, 1234)
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value', 'extra2': '/path/'})
 
     def test_connection_from_uri_with_encoded_password(self):
@@ -156,10 +156,10 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
 
     def test_connection_from_http_uri_with_encoded_password(self):
-        uri = 'http://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
+        uri = 'http://user:password%20with%20space@location:1234/schema'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'http')
-        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
+        self.assertEqual(connection.host, 'http://location:1234/schema')
         self.assertEqual(connection.schema, None)
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password with space')
@@ -176,10 +176,10 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
 
     def test_connection_from_http_uri_with_encoded_user(self):
-        uri = 'http://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
+        uri = 'http://domain%2fuser:password@location:1234/schema'
         connection = Connection(uri=uri)
         self.assertEqual(connection.conn_type, 'http')
-        self.assertEqual(connection.host, 'http://host%2flocation%3ax%3ay:1234/schema')
+        self.assertEqual(connection.host, 'http://location:1234/schema')
         self.assertEqual(connection.schema, None)
         self.assertEqual(connection.login, 'domain/user')
         self.assertEqual(connection.password, 'password')
@@ -242,6 +242,16 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.password, None)
         self.assertEqual(connection.port, 1234)
 
+    def test_connection_from_http_with_https(self):
+        uri = 'https://airflow.apache.org/'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'http')
+        self.assertEqual(connection.host, 'https://airflow.apache.org/')
+        self.assertEqual(connection.schema, None)
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.port, None)
+
     @parameterized.expand(
         [
             (
@@ -295,9 +305,9 @@ class ConnectionTest(unittest.TestCase):
                     conn_type="http",
                     login="user",
                     password="password",
-                    host="http:///database",
+                    host="",
                     port=None,
-                    schema=None,
+                    schema='database',
                 ),
             ),
             (
@@ -326,12 +336,12 @@ class ConnectionTest(unittest.TestCase):
             (
                 "https://user:password@/",
                 ConnectionParts(
-                    conn_type="http",
+                    conn_type="https",
                     login="user",
                     password="password",
-                    host="https:///",
+                    host="",
                     port=None,
-                    schema=None,
+                    schema='',
                 ),
             ),
             (

@@ -128,7 +128,7 @@ class Connection(Base, LoggingMixin):
 
     def parse_from_uri(self, uri):
         uri_parts = urlparse(uri)
-        if uri_parts.scheme in ['http', 'https']:
+        if uri_parts.scheme in ['http', 'https'] and uri_parts.hostname and "%" not in uri_parts.hostname:
             self._parse_from_http_uri(uri)
         else:
             self._parse_from_airflow_uri(uri)
@@ -142,8 +142,8 @@ class Connection(Base, LoggingMixin):
         self.host = urlunparse((
             url_parts.scheme, netloc, url_parts.path, url_parts.params, url_parts.query, None
         ))
-        self.login = url_parts.username
-        self.password = url_parts.password
+        self.login = unquote(url_parts.username) if url_parts.username else None
+        self.password = unquote(url_parts.password) if url_parts.password else None
         if url_parts.fragment:
             self.extra = json.dumps(dict(parse_qsl(url_parts.fragment)))
 
