@@ -19,6 +19,7 @@
 
 import datetime
 import unittest
+import time
 
 from airflow import settings, models
 from airflow.jobs import BackfillJob
@@ -30,6 +31,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
+from datetime import timedelta
 
 
 class DagRunTest(unittest.TestCase):
@@ -560,3 +562,40 @@ class DagRunTest(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    def test_dagrun_task_with_execution_timeout_stuck_in_running(self):
+        session = settings.Session()
+        dag = DAG(
+            'test_dagrun_task_stuck_in_running',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='A', execution_timeout=timedelta(seconds=10))
+            op2 = DummyOperator(task_id='B', execution_timeout=timedelta(seconds=15), retries=2)
+            op1.set_upstream(op2)
+
+        dag.clear()
+
+        now = timezone.utcnow()
+        dr = dag.create_dagrun(run_id='test_dagrun_task_stuck_in_running',
+                               state=State.RUNNING,
+                               execution_date=now,
+                               start_date=now)
+
+        session.merge(dr)
+        session.commit()
+
+        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1.set_state(state=State.RUNNING, session=session)
+        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2.set_state(state=State.RUNNING, session=session)
+
+        time.sleep(20)
+        dr.update_state()
+
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
+
+        self.assertEqual(State.UP_FOR_RETRY, ti2.state)
+        self.assertEqual(State.FAILED, ti1.state)

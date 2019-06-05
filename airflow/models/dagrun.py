@@ -274,6 +274,28 @@ class DagRun(Base, LoggingMixin):
             # todo: this can actually get pretty slow: one task costs between 0.01-015s
             no_dependencies_met = True
             for ut in unfinished_tasks:
+
+                # When worker nodes are unable to communicate task state even after completion
+                # due to network failure, task is left in running state
+                # Those tasks are marked failure or up for retry based on execution timeout
+                if ut.state == State.RUNNING and ut.task.execution_timeout:
+                    task_start_date = ut.start_date + ut.task.execution_timeout
+
+                    if timezone.utcnow() > task_start_date:
+                        self.log.info("Task instance - %s was in RUNNING state and "
+                                      "has crossed set execution timeout "
+                                      "- %s", ut.task_id, ut.task.execution_timeout)
+                        if ut.task.retries and ut.try_number <= ut.max_tries:
+                            ut.state = State.UP_FOR_RETRY
+                            ut.end_date = timezone.utcnow()
+                            self.log.info('Marking task as UP_FOR_RETRY')
+                        else:
+                            ut.state = State.FAILED
+                            if ut.task.retries:
+                                self.log.info('All retries failed; marking task as FAILED')
+                            else:
+                                self.log.info('Marking task as FAILED.')
+
                 # We need to flag upstream and check for changes because upstream
                 # failures/re-schedules can result in deadlock false positives
                 old_state = ut.state
