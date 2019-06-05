@@ -86,7 +86,7 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         delete_result = hook.delete_cluster(name=self.name)
         return delete_result
 
@@ -157,23 +157,21 @@ class GKEClusterCreateOperator(BaseOperator):
 
     def _check_input(self):
         if all([self.project_id, self.location, self.body]):
-            if isinstance(self.body, dict) \
-                    and 'name' in self.body \
-                    and 'initial_node_count' in self.body:
+            if isinstance(self.body, dict) and 'name' in self.body:
                 # Don't throw error
                 return
             # If not dict, then must
-            elif self.body.name and self.body.initial_node_count:
+            elif self.body.name:
                 return
 
         self.log.error(
-            'One of (project_id, location, body, body[\'name\'], '
-            'body[\'initial_node_count\']) is missing or incorrect')
+            'One of (project_id, location, body, body[\'name\']) '
+            'is missing or incorrect')
         raise AirflowException('Operator has incorrect or missing input.')
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         create_op = hook.create_cluster(cluster=self.body)
         return create_op
 
