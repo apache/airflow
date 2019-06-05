@@ -1524,7 +1524,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date) if max_date else max_date,
                                              'num_runs': num_runs})
         return self.render(
             'airflow/tree.html',
@@ -1726,7 +1726,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date) if max_date else max_date,
                                              'num_runs': num_runs})
         chart.buildcontent()
         cum_chart.buildcontent()
@@ -1795,7 +1795,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date) if max_date else max_date,
                                              'num_runs': num_runs})
 
         chart.buildcontent()
@@ -1874,7 +1874,7 @@ class Airflow(BaseView):
         dates = sorted(list({ti.execution_date for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
-        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date) if max_date else max_date,
                                              'num_runs': num_runs})
         chart.buildcontent()
         return self.render(
