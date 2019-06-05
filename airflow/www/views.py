@@ -314,13 +314,6 @@ def get_chart_height(dag):
     """
     return 600 + len(dag.tasks) * 10
 
-def utc2local(utc):
-    import time
-    import datetime
-    epoch = time.mktime(utc.timetuple())
-    offset = datetime.datetime.fromtimestamp(epoch) - datetime.datetime.utcfromtimestamp(epoch)
-    return utc + offset
-
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     dttm = request.args.get('execution_date')
     if dttm:
@@ -329,15 +322,12 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
         dttm = dag.latest_execution_date or timezone.utcnow()
 
     base_date = request.args.get('base_date')
-    base_date_local = None
     if base_date:
-        base_date = timezone.parse(base_date).in_timezone('utc')
-        base_date_local = base_date.in_timezone(tz=settings.TIMEZONE)
+        base_date = timezone.parse(base_date)
     else:
         # The DateTimeField widget truncates milliseconds and would loose
         # the first dag run. Round to next second.
         base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
-        base_date_local = utc2local(base_date)
 
     default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
     num_runs = request.args.get('num_runs')
@@ -368,7 +358,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 
     return {
         'dttm': dttm,
-        'base_date': base_date_local,
+        'base_date': timezone.make_naive(base_date),
         'num_runs': num_runs,
         'execution_date': dttm.isoformat(),
         'dr_choices': dr_choices,
@@ -1534,7 +1524,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
                                              'num_runs': num_runs})
         return self.render(
             'airflow/tree.html',
@@ -1660,7 +1650,7 @@ class Airflow(BaseView):
             return redirect('/admin/')
 
         if base_date:
-            base_date = pendulum.parse(base_date)
+            base_date = timezone.parse(base_date)
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
@@ -1736,7 +1726,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
                                              'num_runs': num_runs})
         chart.buildcontent()
         cum_chart.buildcontent()
@@ -1768,7 +1758,7 @@ class Airflow(BaseView):
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
-            base_date = pendulum.parse(base_date)
+            base_date = timezone.parse(base_date)
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
@@ -1805,7 +1795,7 @@ class Airflow(BaseView):
 
         session.commit()
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
                                              'num_runs': num_runs})
 
         chart.buildcontent()
@@ -1832,7 +1822,7 @@ class Airflow(BaseView):
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
-            base_date = pendulum.parse(base_date)
+            base_date = timezone.parse(base_date)
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
@@ -1884,7 +1874,7 @@ class Airflow(BaseView):
         dates = sorted(list({ti.execution_date for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
-        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+        form = DateTimeWithNumRunsForm(data={'base_date': timezone.make_naive(max_date),
                                              'num_runs': num_runs})
         chart.buildcontent()
         return self.render(

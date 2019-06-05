@@ -2884,10 +2884,7 @@ class DagModel(Base):
             return self.default_view
 
     def utc2local(self,utc):
-        import time
-        epoch = time.mktime(utc.timetuple())
-        offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
-        return utc + offset
+        return timezone.make_naive(utc)
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
