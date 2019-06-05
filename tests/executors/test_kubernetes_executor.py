@@ -633,10 +633,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)
-        labels = worker_config._get_labels({
+        labels = worker_config._get_labels({'my_kube_executor_label': 'kubernetes'}, {
             'dag_id': 'override_dag_id',
         })
-        self.assertEqual({'my_label': 'label_id', 'dag_id': 'override_dag_id'}, labels)
+        self.assertEqual({
+            'my_label': 'label_id',
+            'dag_id': 'override_dag_id',
+            'my_kube_executor_label': 'kubernetes'
+        }, labels)
 
 
 class TestKubernetesExecutor(unittest.TestCase):
