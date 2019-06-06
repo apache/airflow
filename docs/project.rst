@@ -58,6 +58,7 @@ Committers
 - @jmcarp (Joshua Carp)
 - @KevinYang21 (Kevin Yang)
 - @mik-laj (Kamil Breguła)
+- @aijamalnk (Aizhamal Nurmamat kyzy)
 
 
 For the full list of contributors, take a look at `Airflow's Github
