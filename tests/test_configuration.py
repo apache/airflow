@@ -384,3 +384,22 @@ key3 = value3
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
                 self.assertListEqual([], w)
+
+    def test_get_env_variable_when_env_variable_is_upper_case(self):
+        TEST_CONFIG = '''
+[test_config_env_variables]
+AIRFLOW__TEST__EXAMPLE = awesome
+'''
+        TEST_CONFIG_DEFAULT = '''
+[test_config_env_variables]
+example = 123
+'''
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+        configuration_dict = test_conf.as_dict(display_sensitive=True)
+
+        self.assertEqual(
+            OrderedDict([('example', '123'), ('AIRFLOW__TEST__EXAMPLE', 'awesome')]),
+            configuration_dict.get('test_config_env_variables')
+        )

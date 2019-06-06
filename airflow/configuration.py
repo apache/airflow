@@ -145,6 +145,8 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
+    optionxform = str
+
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
