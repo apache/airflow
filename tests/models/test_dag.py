@@ -203,6 +203,12 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(tuple(), dag.topological_sort())
 
+    def test_dag_naive_start_date_string(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01'})
+
+    def test_dag_naive_start_end_dates_strings(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01', 'end_date': '2019-06-05'})
+
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
         self.assertEqual(dag.timezone, settings.TIMEZONE)
