@@ -195,6 +195,7 @@ exclude_patterns = [
     '_api/airflow/plugins_manager',
     '_api/airflow/security',
     '_api/airflow/settings',
+    '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
     '_api/airflow/kubernetes',

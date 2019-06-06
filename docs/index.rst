@@ -90,6 +90,7 @@ Content
     Using the CLI <usage-cli>
     integration
     metrics
+    errors
     kubernetes
     lineage
     changelog
