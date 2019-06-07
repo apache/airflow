@@ -198,7 +198,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                     mods.append(m)
                 except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)
-                    self.import_errors[filepath] = 'ERROR MESSAGE [' + str(e) + '] STACK TRACE [' + traceback.format_exc() + ']'
+                    self.import_errors[filepath] = 'ERROR MESSAGE [' + str(e) + '] ' \
+                                                   'STACK TRACE [' + traceback.format_exc() + ']'
                     self.file_last_changed[filepath] = file_last_changed_on_disk
 
         else:
@@ -233,7 +234,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                         mods.append(m)
                     except Exception as e:
                         self.log.exception("Failed to import: %s", filepath)
-                        self.import_errors[filepath] = 'ERROR MESSAGE [' + str(e) + '] STACK TRACE [' + traceback.format_exc() + ']'
+                        self.import_errors[filepath] = 'ERROR MESSAGE [' + str(e) + '] ' \
+                                                       'STACK TRACE [' + traceback.format_exc() + ']'
                         self.file_last_changed[filepath] = file_last_changed_on_disk
 
         for m in mods:
