@@ -634,6 +634,7 @@ class DataProcPigOperatorTest(unittest.TestCase):
             )
 
             dataproc_task.execute(None)
+
         mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
                                                               GCP_REGION, mock.ANY)
 
