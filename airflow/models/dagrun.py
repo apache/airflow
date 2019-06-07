@@ -54,7 +54,7 @@ class DagRun(Base, LoggingMixin):
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
-    conf = Column(PickleType)
+    _conf = Column('conf', PickleType)
 
     dag = None
 
@@ -97,6 +97,16 @@ class DagRun(Base, LoggingMixin):
     def state(self):
         return synonym('_state',
                        descriptor=property(self.get_state, self.set_state))
+
+    def _get_conf(self):
+        return self._conf or {}
+
+    def _set_conf(self, conf: dict):
+        self._conf = conf
+
+    @declared_attr
+    def conf(self):
+        return synonym('_conf', descriptor=property(self._get_conf, self._set_conf))
 
     @classmethod
     def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
