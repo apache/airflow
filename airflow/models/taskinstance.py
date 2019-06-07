@@ -368,7 +368,7 @@ class TaskInstance(Base, LoggingMixin):
             log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
 
     @property
-    def log_url(self):
+    def log_relative_url(self):
         iso = quote(self.execution_date.isoformat())
         return (
             "/log?"
@@ -378,9 +378,21 @@ class TaskInstance(Base, LoggingMixin):
         ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
 
     @property
+    def log_url(self):
+        iso = quote(self.execution_date.isoformat())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/log?"
+            "execution_date={iso}"
+            "&task_id={task_id}"
+            "&dag_id={dag_id}"
+        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+
+    @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        return (
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
             "/success"
             "?task_id={task_id}"
             "&dag_id={dag_id}"
@@ -1223,8 +1235,6 @@ class TaskInstance(Base, LoggingMixin):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
-        base_url = configuration.conf.get('webserver', 'BASE_URL')
-
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
         # This function is called after changing the state
@@ -1233,8 +1243,7 @@ class TaskInstance(Base, LoggingMixin):
             exception=exception,
             exception_html=exception_html,
             try_number=self.try_number - 1,
-            max_tries=self.max_tries,
-            base_url_success=base_url))
+            max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
 
@@ -1245,10 +1254,10 @@ class TaskInstance(Base, LoggingMixin):
         default_html_content = (
             'Try {{try_number}} out of {{max_tries + 1}}<br>'
             'Exception:<br>{{exception_html}}<br>'
-            'Log: <a href="{{base_url_log}}{{ti.log_url}}">Link</a><br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
             'Host: {{ti.hostname}}<br>'
             'Log file: {{ti.log_filepath}}<br>'
-            'Mark success: <a href="{{base_url_success}}{{ti.mark_success_url}}">Link</a><br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
         def render(key, content):

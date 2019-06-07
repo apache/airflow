@@ -824,13 +824,26 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(1, ti2.get_num_running_task_instances(session=session))
         self.assertEqual(1, ti3.get_num_running_task_instances(session=session))
 
-    def test_log_url(self):
+    def test_log_relative_url(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
 
         expected_url = (
             '/log?'
+            'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+            '&task_id=op'
+            '&dag_id=dag'
+        )
+        self.assertEqual(ti.log_relative_url, expected_url)
+
+    def test_log_url(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+
+        expected_url = (
+            'http://localhost:8080/log?'
             'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
             '&task_id=op'
             '&dag_id=dag'

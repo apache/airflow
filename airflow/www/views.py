@@ -2291,7 +2291,8 @@ class TaskInstanceModelView(AirflowModelView):
     list_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'operator',
                     'start_date', 'end_date', 'duration', 'job_id', 'hostname',
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
-                    'pool', 'log_url']
+                    'pool', 'log_relative_url']
+    label_columns = {'log_relative_url': 'Log Url'}
 
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
@@ -2301,7 +2302,7 @@ class TaskInstanceModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def log_url_formatter(attr):
-        log_url = attr.get('log_url')
+        log_url = attr.get('log_relative_url')
         return Markup(
             '<a href="{log_url}">'
             '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
@@ -2314,7 +2315,7 @@ class TaskInstanceModelView(AirflowModelView):
             return timedelta(seconds=duration)
 
     formatters_columns = {
-        'log_url': log_url_formatter,
+        'log_relative_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
