@@ -75,6 +75,7 @@ Variable                                Description
                                         ``airflow.cfg``
 ``{{ run_id }}``                        the ``run_id`` of the current DAG run
 ``{{ dag_run }}``                       a reference to the DagRun object
+``{{ dag_run_conf }}``                  conf associated with DagRun (dict). if no dag run or no conf, empty dict.
 ``{{ test_mode }}``                     whether the task instance was called using
                                         the CLI's test subcommand
 =====================================   ====================================

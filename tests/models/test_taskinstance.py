@@ -1134,3 +1134,53 @@ class TaskInstanceTest(unittest.TestCase):
             ti_list[3].previous_start_date_success,
             ti_list[2].start_date,
         )
+
+    def test_context_dag_run_conf_no_dag_run(self):
+        dag_id = 'test_context_dag_run_conf_no_dag_run'
+        dag = models.DAG(dag_id=dag_id)
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        execution_date = pendulum.datetime.utcnow()
+        ti = TI(task=task, execution_date=execution_date)
+        context = ti.get_template_context()
+        dag_run_conf = context['dag_run_conf']
+        self.assertIsInstance(dag_run_conf, dict)
+
+    def test_context_dag_run_conf_no_conf(self):
+        with create_session() as session:
+            dag_id = 'test_context_dag_run_conf_no_conf'
+            dag = models.DAG(dag_id=dag_id)
+            task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+            execution_date = pendulum.datetime.utcnow()
+            dag.create_dagrun(
+                run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
+                start_date=pendulum.utcnow(),
+                execution_date=execution_date,
+                state=State.RUNNING,
+                session=session,
+            )
+            ti = TI(task=task, execution_date=execution_date)
+            context = ti.get_template_context()
+        dag_run_conf = context['dag_run_conf']
+        self.assertIsInstance(dag_run_conf, dict)
+
+    def test_context_dag_run_conf_yes_conf(self):
+        with create_session() as session:
+            dag_id = 'test_context_dag_run_conf_yes_conf'
+            dag = models.DAG(dag_id=dag_id)
+            task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+            execution_date = pendulum.datetime.utcnow()
+            test_key = 'test_key'
+            test_value = 'test_value'
+            dag.create_dagrun(
+                run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
+                start_date=pendulum.utcnow(),
+                execution_date=execution_date,
+                state=State.RUNNING,
+                session=session,
+                conf={test_key: test_value}
+            )
+            ti = TI(task=task, execution_date=execution_date)
+            context = ti.get_template_context()
+        dag_run_conf = context['dag_run_conf']
+        self.assertIsInstance(dag_run_conf, dict)
+        self.assertEqual(dag_run_conf.get(test_key), test_value)

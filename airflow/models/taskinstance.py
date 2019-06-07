@@ -1140,6 +1140,8 @@ class TaskInstance(Base, LoggingMixin):
             prev_execution_date = task.dag.previous_schedule(self.execution_date)
             next_execution_date = task.dag.following_schedule(self.execution_date)
 
+        dag_run_conf = dag_run and dag_run.conf or {}  # type: dict
+
         next_ds = None
         next_ds_nodash = None
         if next_execution_date:
@@ -1231,6 +1233,7 @@ class TaskInstance(Base, LoggingMixin):
             'ti': self,
             'task_instance_key_str': ti_key_str,
             'conf': configuration,
+            'dag_run_conf': dag_run_conf,
             'test_mode': self.test_mode,
             'var': {
                 'value': VariableAccessor(),
