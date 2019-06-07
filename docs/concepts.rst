@@ -1019,7 +1019,7 @@ It will not go into subdirectories as these are considered to be potential
 packages.
 
 In case you would like to add module dependencies to your DAG you basically would
-do the same, but then it is more to use a virtualenv and pip.
+do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. code-block:: bash
 
