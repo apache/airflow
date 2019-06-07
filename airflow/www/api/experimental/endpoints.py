@@ -176,8 +176,7 @@ def dag_paused(dag_id, paused):
 
     is_paused = True if paused == 'true' else False
 
-    models.DagModel.set_is_paused(
-        dag_id=dag_id,
+    models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
     )
 

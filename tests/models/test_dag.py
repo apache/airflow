@@ -939,7 +939,7 @@ class DagTest(unittest.TestCase):
 
         self.assertEquals(2, unpaused_dags)
 
-        DagModel.set_is_paused(dag.dag_id, is_paused=True)
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
         paused_dags = session.query(
             DagModel

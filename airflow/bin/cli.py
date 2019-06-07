@@ -410,10 +410,8 @@ def unpause(args):
 
 
 def set_is_paused(is_paused, args):
-    DagModel.set_is_paused(
-        dag_id=args.dag_id,
+    DagModel.get_dagmodel(args.dag_id).set_is_paused(
         is_paused=is_paused,
-        subdir=process_subdir(args.subdir),
     )
 
     print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))

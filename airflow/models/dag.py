@@ -1519,40 +1519,22 @@ class DagModel(Base):
                                             conf=conf,
                                             session=session)
 
-    @classmethod
-    def _find_dag_ids_including_subdags(cls, dag: DAG):
-        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular imports
-        dag_ids = [dag.dag_id]
-        for task in dag.tasks:
-            if isinstance(task, SubDagOperator):
-                subdag = task.subdag
-                dag_ids.extend(cls._find_dag_ids_including_subdags(subdag))
-        return dag_ids
-
-    @classmethod
     @provide_session
-    def set_is_paused(cls,
-                      dag_id: str,
+    def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      subdir: str = None,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
-        :param dag_id: DAG ID
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
-        :param subdir: where to find the DAG files
         :param session: session
         """
-        dag_ids = []  # type: List[str]
+        dag_ids = [self.dag_id]  # type: List[str]
         if including_subdags:
-            dagbag = DagBag(dag_folder=subdir)
-            dag_ids.extend(cls._find_dag_ids_including_subdags(dagbag.get_dag(dag_id)))
-        else:
-            dag_ids.append(dag_id)
-
+            subdags = self.get_dag().subdags
+            dag_ids.extend([subdag.dag_id for subdag in subdags])
         dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
         try:
             for dag_model in dag_models:
