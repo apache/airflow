@@ -23,6 +23,7 @@ import importlib
 import os
 import sys
 import textwrap
+import traceback
 import zipfile
 from collections import namedtuple
 from datetime import datetime
