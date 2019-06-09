@@ -17,8 +17,8 @@
 # limitations under the License.
 #
 
-# Script to run Pylint on all code. Should be started from root directory:
-# ./[airflow dir]/scripts/ci/ci_pylint.sh
+# Script to run Pylint on all code. Should be started from root directory of Airflow:
+# ./scripts/ci/ci_pylint.sh
 
 set -ex
 
@@ -26,4 +26,5 @@ find . -name "*.py" \
 -not -path "./.eggs/*" \
 -not -path "./airflow/www/node_modules/*" \
 -not -path "./airflow/_vendor/*" \
--not -path "./build" | grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
+-not -path "./build/*" \
+-not -name 'webserver_config.py' | grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
