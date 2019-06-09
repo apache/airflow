@@ -316,7 +316,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task_id: Task ID
         :type task_id: unicode
         :param execution_date: Execution date for the task
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
