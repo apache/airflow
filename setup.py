@@ -133,6 +133,9 @@ def git_version(version_: str) -> str:
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
+    except git.exc.NoSuchPathError:
+        logger.warning('.git directory not found: Cannot compute the git version')
+        return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
