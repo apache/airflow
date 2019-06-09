@@ -17,27 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
+"""Setup for the Airflow library."""
 
-import imp
+import importlib
 import io
 import logging
 import os
-import sys
 import subprocess
+import sys
+
+from setuptools import setup, find_packages, Command
+from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-version = imp.load_source(
-    'airflow.version', os.path.join('airflow', 'version.py')).version
+spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+version = mod.version
 
 PY3 = sys.version_info[0] == 3
-
-if not PY3:
-    # noinspection PyShadowingBuiltins
-    FileNotFoundError = IOError
 
 # noinspection PyUnboundLocalVariable
 try:
@@ -48,6 +48,11 @@ except FileNotFoundError:
 
 
 class Tox(TestCommand):
+    """
+    Command class to run Tox via setup.py.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py test``.
+    """
+
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
 
     def __init__(self, dist, **kw):
@@ -79,12 +84,13 @@ class CleanCommand(Command):
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
     def run(self):
+        """Run command to remove temporary files and directories."""
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -98,16 +104,17 @@ class CompileAssets(Command):
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
     def run(self):
+        """Run a command to compile and build assets."""
         subprocess.call('./airflow/www/compile_assets.sh')
 
 
-def git_version(version):
+def git_version(version_: str) -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
@@ -115,32 +122,36 @@ def git_version(version):
     and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
+
+    :param str version_: Semver version
+    :return: Found Airflow version in Git repo
+    :rtype: str
     """
-    repo = None
     try:
         import git
         repo = git.Repo('.git')
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
-    except Exception as e:
-        logger.warning('Cannot compute the git version. {}'.format(e))
-        return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        return '.release:{version}+{sha}'.format(version=version, sha=sha)
+        return '.release:{version}+{sha}'.format(version=version_, sha=sha)
     else:
         return 'no_git_version'
 
 
-def write_version(filename=os.path.join(*['airflow',
-                                          'git_version'])):
+def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
+    """
+    Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
+
+    :param str filename: Destination file to write
+    """
     text = "{}".format(git_version(version))
-    with open(filename, 'w') as a:
-        a.write(text)
+    with open(filename, 'w') as file:
+        file.write(text)
 
 
 async_packages = [
@@ -304,6 +315,7 @@ else:
 
 
 def do_setup():
+    """Perform the Airflow package setup."""
     write_version()
     setup(
         name='apache-airflow',
