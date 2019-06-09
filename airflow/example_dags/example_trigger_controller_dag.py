@@ -50,6 +50,7 @@ def conditionally_trigger(context, dag_run_obj):
         dag_run_obj.payload = {'message': context['params']['message']}
         pp.pprint(dag_run_obj.payload)
         return dag_run_obj
+    return None
 
 
 # Define the DAG

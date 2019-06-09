@@ -248,9 +248,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    # pylint: disable=pointless-statement
     create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation >> \
         list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> \
         create_transfer_job_from_gcp >> wait_for_second_operation_to_start >> cancel_operation >> \
         delete_transfer_from_aws_job >> delete_transfer_from_gcp_job
-    # pylint: enable=pointless-statement

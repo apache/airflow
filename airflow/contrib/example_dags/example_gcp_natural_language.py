@@ -107,9 +107,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_natural_language_analyze_classify_text_result]
 
-    # pylint: disable=pointless-statement
     analyze_entities >> analyze_entities_result
     analyze_entity_sentiment >> analyze_entity_sentiment_result
     analyze_sentiment >> analyze_sentiment_result
     analyze_classify_text >> analyze_classify_text_result
-    # pylint: enable=pointless-statement
