@@ -45,6 +45,9 @@ class SSHOperator(BaseOperator):
     :type command: str
     :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
+    :param environment: a dict of shell environment variables. Note that the
+        server will reject them silently if `AcceptEnv` is not set in SSH config.
+    :type environment: dict
     :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
     :type do_xcom_push: bool
     """
@@ -60,6 +63,7 @@ class SSHOperator(BaseOperator):
                  command=None,
                  timeout=10,
                  do_xcom_push=False,
+                 environment=None,
                  *args,
                  **kwargs):
         super(SSHOperator, self).__init__(*args, **kwargs)
@@ -68,6 +72,7 @@ class SSHOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
+        self.environment = environment
         self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
@@ -102,7 +107,8 @@ class SSHOperator(BaseOperator):
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
                                                                 get_pty=get_pty,
-                                                                timeout=self.timeout
+                                                                timeout=self.timeout,
+                                                                environment=self.environment
                                                                 )
                 # get channels
                 channel = stdout.channel
