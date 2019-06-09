@@ -468,9 +468,11 @@ method-naming-style=snake_case
 # Naming style matching correct module names.
 module-naming-style=snake_case
 
-# Regular expression matching correct module names. Overrides module-naming-
-# style.
-#module-rgx=
+# Regular expression matching correct module names. Overrides module-naming-style.
+# Default regex changes:
+# - allow modules beginning with 0-9 (used in airflow/migrations)
+# - allow up to 60 chars (airflow/migrations contains quite long names)
+module-rgx=[a-z0-9_][a-z0-9_]{2,59}$
 
 # Colon-delimited sets of names that determine each other's naming style when
 # the name regexes allow several styles.
