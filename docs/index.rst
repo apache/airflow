@@ -90,7 +90,6 @@ Content
     metrics
     kubernetes
     lineage
-    papermill
     changelog
     faq
     macros
