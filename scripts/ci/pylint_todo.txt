@@ -287,8 +287,6 @@
 ./airflow/contrib/utils/mlengine_prediction_summary.py
 ./airflow/contrib/utils/sendgrid.py
 ./airflow/contrib/utils/weekday.py
-./airflow/dag/__init__.py
-./airflow/dag/base_dag.py
 ./airflow/example_dags/__init__.py
 ./airflow/example_dags/docker_copy_data.py
 ./airflow/example_dags/example_bash_operator.py
