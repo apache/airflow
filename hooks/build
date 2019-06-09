@@ -1,0 +1,480 @@
+#!/usr/bin/env bash
+
+#
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing,
+#  software distributed under the License is distributed on an
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#  KIND, either express or implied.  See the License for the
+#  specific language governing permissions and limitations
+#  under the License.
+
+# This is hook build used by DockerHub. We are also using it
+# on Travis CI to potentially rebuild (and refresh layers that
+# are not cached) Docker images that are used to run CI jobs
+
+set -euo pipefail
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+echo "My dir: ${MY_DIR}"
+
+AIRFLOW_ROOT=$(cd "${MY_DIR}"; cd ..; pwd)
+cd "${AIRFLOW_ROOT}"
+
+echo
+echo "Airflow root directory: ${AIRFLOW_ROOT}"
+echo
+
+date
+
+BUILD_START_TIME=$(date +%s)
+LAST_STEP_START_TIME=${BUILD_START_TIME}
+LAST_STEP_NAME=""
+STEP_STARTED="false"
+PYTHON_VERSION_FOR_LATEST_IMAGE=3.5
+
+function end_step {
+    if [[ "${STEP_STARTED}" != "true" ]]; then
+        return
+    fi
+    LAST_STEP_END_TIME=$(date +%s)
+    echo
+    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    echo "                     Finishing step: ${LAST_STEP_NAME}"
+    echo "                     Date: $(date)"
+    echo "                     Step time in s : $((LAST_STEP_END_TIME-LAST_STEP_START_TIME))"
+    echo "                     Total time in s: $((LAST_STEP_END_TIME-BUILD_START_TIME))"
+    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    echo
+    STEP_STARTED="false"
+}
+
+function start_step {
+    end_step
+    LAST_STEP_NAME="${1}"
+    LAST_STEP_START_TIME=$(date +%s)
+    STEP_STARTED="true"
+    echo
+    echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    echo "                     Starting step: ${LAST_STEP_NAME}"
+    echo "                     Date: $(date)"
+    echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    echo
+}
+
+function add_image_to_push {
+    IMAGE=$1
+    IMAGES_BUILT="${IMAGES_BUILT} ${IMAGE}"
+    echo
+    echo "Adding TAG ${IMAGE} to push"
+    echo
+    echo
+    echo "List of tags to push now: '${IMAGES_BUILT}'"
+    echo
+}
+
+function build_image {
+    NAME="${1}"
+    MY_IMAGE_TAG="${2}"
+    TARGET_IMAGE="${3}"
+    APT_DEPS_IMAGE="${4:-airflow-apt-deps}"
+    AIRFLOW_EXTRAS="${5:-all}"
+    AIRFLOW_USER="${6:-airflow}"
+    HOME="${7:-/home/airflow}"
+
+    echo "Build ${NAME} image: ${MY_IMAGE_TAG}"
+    echo "Base image: ${PYTHON_BASE_IMAGE}"
+
+    set -x
+    docker build \
+        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+        --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
+        --build-arg APT_DEPS_IMAGE="${APT_DEPS_IMAGE}" \
+        --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg AIRFLOW_USER="${AIRFLOW_USER}" \
+        --build-arg HOME="${HOME}" \
+        "${DOCKER_CACHE_DIRECTIVE[@]}" \
+        -t "${MY_IMAGE_TAG}" \
+        --target "${TARGET_IMAGE}" \
+        .
+
+    add_image_to_push "${MY_IMAGE_TAG}"
+
+    set +x
+}
+
+start_step "Setting variables"
+
+# You can override DOCKERHUB_USER to use your own DockerHub account and play with your
+# own docker images. In this case you can build images locally and push them
+export DOCKERHUB_USER=${DOCKERHUB_USER:="airflow"}
+
+# You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
+# own docker images. In this case you can build images locally and push them
+export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+
+# Determine python version from the local python on the path.
+# You can override it with PYTHON_VERSION because all python version dependencies
+# Are determined in Docker images. If you pass IMAGE_NAME, python version will be extracted from the name
+# This default Python version is later overridden in case IMAGE_NAME is passed
+export PYTHON_VERSION=\
+${PYTHON_VERSION:=$(python -c 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
+export IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-${PYTHON_VERSION}}
+
+echo
+echo "IMAGE_NAME=${IMAGE_NAME:=}"
+echo
+
+# Remove index.docker.io/ prefix as it is added by default by DockerHub
+export LOCAL_IMAGE=${IMAGE_NAME#index.docker.io/}
+echo
+echo "LOCAL_IMAGE=${LOCAL_IMAGE}"
+echo
+
+# Extract python version from image name we want to build in case it was passed
+# Via IMAGE_NAME
+# This nice bash construct below extracts last field after '-' delimiter
+# So for example 'latest-3.6' will produce PYTHON_VERSION=3.6
+PYTHON_VERSION=$(echo "${LOCAL_IMAGE}" | rev | cut -d '-' -f1 | rev )
+export PYTHON_VERSION
+
+
+IMAGE_PREFIX=$(echo "${LOCAL_IMAGE}" | rev | cut -d '-' -f2 | cut -d ':' -f1 | rev )
+
+# In case of CRON jobs on Travis we run builds without cache
+if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+    AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="true"}
+fi
+
+
+# You can set AIRFLOW_CONTAINER_USE_DOCKER_CACHE to false if you do not want to use pulled images
+# as cache during build
+# This way you can test building everything from the scratch
+AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE:="true"}
+
+# You can set AIRFLOW_CONTAINER_USE_NO_CACHE to true if you want to use standard Docker cache during build
+# This way you can test building everything from the scratch
+AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="false"}
+
+pwd
+# Determine version of the Airflow from version.py
+AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
+print(version.replace("+",""))
+EOF
+)
+export AIRFLOW_VERSION
+
+# Check if we are running in the CI environment
+# In case of CI build we are not building CI cache. We use it and
+# We also use CI deps as base of the main image
+CI=${CI:=false}
+
+if [[ "${CI}" == "true" ]]; then
+    NON_CI="false"
+else
+    NON_CI="true"
+fi
+
+# Extras used to to build main airflow image
+AIRFLOW_MAIN_EXTRAS=${AIRFLOW_MAIN_EXTRAS:="all"}
+
+# Extras used to build cache and CI image
+AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS:="devel_ci"}
+
+echo
+echo "Airflow ${AIRFLOW_VERSION} Python: ${PYTHON_VERSION}."
+echo
+
+# Whether to push images after build
+# This is set to false on CI builds
+export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:=${NON_CI}}
+
+# Whether to force pull images to populate cache
+export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:="true"}
+
+# Skips downloading and building the main, trimmed down image of airflow
+# This is set to true by default in CI environment (we only need CI image then)
+export AIRFLOW_CONTAINER_SKIP_MAIN_IMAGE=${AIRFLOW_CONTAINER_SKIP_MAIN_IMAGE:=${CI}}
+echo "Skip main image: ${AIRFLOW_CONTAINER_SKIP_MAIN_IMAGE}"
+
+# Skips pulling the airflow images - this will use cache but will build it all from scratch
+export AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES=${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES:="false"}
+echo "Skip pulling Airflow images: ${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}"
+
+export AIRFLOW_FIX_PERMISSIONS=${AIRFLOW_FIX_PERMISSIONS:="all"}
+echo "Fixing permissions: ${AIRFLOW_FIX_PERMISSIONS}"
+
+# Base python image for the build
+PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim
+
+# Image of the main airflow - this is a "reference" image of Airflow with minimum requirements needed
+AIRFLOW_IMAGE="${LOCAL_IMAGE}-v${AIRFLOW_VERSION}"
+
+# Image of the Airflow CI - this is the image used to run tests in CI environment
+AIRFLOW_CI_IMAGE="${LOCAL_IMAGE}-ci-v${AIRFLOW_VERSION}"
+
+# In the future we can enable buildkit.
+# It's experimental now and cache does not work out of the box with buildkit in Docker 18.09.2, buildkit 0.3.3
+# It is fixed in upcoming buildkit 0.4.0.
+# Buildkit will make build faster (including parallel builds of multi-stage builds).
+# It will also help with simpler skipping of unused images.
+export DOCKER_BUILDKIT=${DOCKER_BUILDKIT:=0}
+
+# List of images to push at the end of the build
+IMAGES_BUILT=""
+
+end_step
+
+AIRFLOW_CONTAINER_CLEANUP_IMAGES=${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"}
+if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
+    echo
+    "${AIRFLOW_ROOT}/confirm" "Removing all local images for that build."
+    echo
+    start_step "Removing images"
+    docker rmi "${PYTHON_BASE_IMAGE}" || true
+    docker rmi "${AIRFLOW_IMAGE}" || true
+    docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    echo
+    echo "###################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_VERSION}."
+    echo "       But the disk space in docker will be reclaimed only after"
+    echo "       running 'docker system prune' command."
+    echo "###################################################################"
+    echo
+    end_step
+    exit 0
+fi
+
+start_step "Pulling images to populate cache"
+
+if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
+    echo
+    echo "Pulling images"
+    echo
+    echo
+    if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
+        echo "Force-pull base python image. This forces to get the latest version."
+        echo
+        set -x
+        docker pull "${PYTHON_BASE_IMAGE}"
+        set +x
+        echo
+    fi
+    IMAGES_TO_PULL="${AIRFLOW_CI_IMAGE}"
+    if [[ "${AIRFLOW_CONTAINER_SKIP_MAIN_IMAGE}" == "true" ]]; then
+        echo "Skip downloading the main Airflow image"
+    else
+        IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_IMAGE}"
+    fi
+
+    DOCKER_CACHE_DIRECTIVE=()
+    for IMAGE in ${IMAGES_TO_PULL}
+    do
+        echo
+        echo "Checking whether image ${IMAGE} needs to be pulled."
+        echo
+        PULL_IMAGE="false"
+        if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
+            echo
+            echo "Pulling images is forced. Pulling ${IMAGE}"
+            echo
+            PULL_IMAGE="true"
+        else
+            IMAGE_HASH=$(docker images -q "${IMAGE}" 2> /dev/null)
+            if [[ "${IMAGE_HASH}" == "" ]]; then
+                echo
+                echo "No image ${IMAGE} locally available. Pulling for the first time."
+                echo
+                PULL_IMAGE="true"
+            else
+                echo
+                echo "Image ${IMAGE} is in local registry (${IMAGE_HASH}). Not pulling it!"
+                echo
+                PULL_IMAGE="false"
+            fi
+        fi
+        if [[ "${PULL_IMAGE}" == "true" ]]; then
+            if [[ "${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}" == "true" ]]; then
+                echo
+                echo "Skipping pulling image ${IMAGE}"
+                echo
+            else
+                echo
+                set -x
+                docker pull "${IMAGE}" || true
+                set +x
+                echo
+            fi
+        fi
+        DOCKER_CACHE_DIRECTIVE+=("--cache-from" "${IMAGE}")
+    done
+
+    echo
+    echo "This build uses Docker cache"
+    echo "Cache directive used: ${DOCKER_CACHE_DIRECTIVE[*]}"
+    echo
+elif [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
+    DOCKER_CACHE_DIRECTIVE+=("--no-cache")
+    echo
+    echo "Skip cache for builds. Everything will be rebuilt from scratch."
+    echo
+    echo "Cache directive used: ${DOCKER_CACHE_DIRECTIVE[*]}"
+    echo
+else
+    DOCKER_CACHE_DIRECTIVE+=("--cache-from" "${AIRFLOW_CI_IMAGE}" "--cache-from" "${AIRFLOW_IMAGE}")
+    echo
+    echo "Use default cache from locally built images."
+    echo
+    echo "Cache directive used: ${DOCKER_CACHE_DIRECTIVE[*]}"
+    echo
+fi
+
+STAT_BIN=stat
+if [[ "${OSTYPE}" == "darwin"* ]]; then
+    STAT_BIN=gstat
+fi
+# Build id identifying the build uniquely
+BUILD_ID=${BUILD_ID:="local"}
+# Branch name for triggered builds
+BRANCH_NAME=${BRANCH_NAME:="master"}
+
+# directory where "deployment" artifacts should be placed
+DEPLOY_DIR=${AIRFLOW_ROOT}/dist/${BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
+
+mkdir -pv "${DEPLOY_DIR}"
+
+#
+# Fixing permissions for all filex that are going to be added to Docker context
+# This is necessary, because there are different default umask settings on different *NIX
+# In case of some systems (especially in the CI environments) there is default +w group permission
+# set automatically via UMASK when git checkout is performed.
+#    https://unix.stackexchange.com/questions/315121/why-is-the-default-umask-002-or-022-in-many-unix-systems-seems-insecure-by-defa
+# Unfortunately default setting in git is to use UMASK by default:
+#    https://git-scm.com/docs/git-config/1.6.3.1#git-config-coresharedRepository
+# This messes around with Docker context invalidation because the same files have different permissions
+# and effectively different hash used for context validation calculation.
+#
+# We fix it by removing write permissions for other/group for all files that are in the Docker context.
+#
+if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
+    start_step "Fixing permissions for CI builds for ${AIRFLOW_FIX_PERMISSIONS} files"
+    if [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" ]]; then
+        # Get all files in the context - by building a small alpine based image
+        # then COPY all files (.) from the context and listing the files via find method
+        if [[ "$(docker images -q airflow-context:latest 2> /dev/null)" == "" ]]; then
+            docker build -t airflow-context:latest .  -f Dockerfile-context
+        fi
+        ALL_FILES_TO_FIX=$(docker run airflow-context:latest /bin/sh -c "(cd /context && find .)")
+    elif [[ "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
+        ALL_FILES_TO_FIX="\
+            ${AIRFLOW_ROOT}/setup.py \
+            ${AIRFLOW_ROOT}/setup.cfg \
+            ${AIRFLOW_ROOT}/airflow/version.py \
+            ${AIRFLOW_ROOT}/airflow/__init__.py \
+            ${AIRFLOW_ROOT}/airflow/bin/airflow"
+    fi
+    STAT_BIN=stat
+    if [[ "${OSTYPE}" == "darwin"* ]]; then
+        STAT_BIN=gstat
+    fi
+
+    for FILE in ${ALL_FILES_TO_FIX}; do
+        ACCESS_RIGHTS=$("${STAT_BIN}" -c "%A" "${FILE}" || echo "--------")
+        # check if the file is group/other writeable
+        if [[ "${ACCESS_RIGHTS:5:1}" != "-" || "${ACCESS_RIGHTS:8:1}" != "-" ]]; then
+            "${STAT_BIN}" --printf "%a %A %F \t%s \t->    " "${FILE}"
+            chmod og-w "${FILE}"
+            "${STAT_BIN}" --printf "%a %A %F \t%s \t%n\n" "${FILE}"
+        fi
+    done
+
+    echo "Group/other write access removed for all $(echo "${ALL_FILES_TO_FIX}" | wc -w) files in context"
+    echo
+    echo
+else
+    echo "Skipping fixing permissions for CI builds"
+fi
+
+start_step "Build Airflow image"
+
+if [[ "${AIRFLOW_CONTAINER_SKIP_MAIN_IMAGE}" == "true" ]]; then
+    echo "Skip building the main Airflow image"
+else
+    build_image "Airflow" \
+                "${AIRFLOW_IMAGE}" \
+                "main" \
+                "airflow-apt-deps"
+    echo
+    echo "Tagging additionally the Airflow image ${AIRFLOW_IMAGE} with ${LOCAL_IMAGE} tag"
+    echo
+    docker tag "${AIRFLOW_IMAGE}" "${LOCAL_IMAGE}"
+    add_image_to_push "${LOCAL_IMAGE}"
+
+    if [[ "${PYTHON_VERSION_FOR_LATEST_IMAGE}" == "${PYTHON_VERSION}" && "${BRANCH_NAME}" == "master" ]]; then
+        echo
+        echo "Tagging additionally the Airflow image ${AIRFLOW_IMAGE} with ${IMAGE_PREFIX} tag"
+        echo "For python version ${PYTHON_VERSION} and branch ${BRANCH_NAME}"
+        echo
+        docker tag "${AIRFLOW_IMAGE}" "${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${IMAGE_PREFIX}"
+        add_image_to_push "${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${IMAGE_PREFIX}"
+    fi
+fi
+
+start_step "Build Airflow CI image"
+build_image "Airflow CI" \
+            "${AIRFLOW_CI_IMAGE}" \
+            "main" \
+            "airflow-ci-apt-deps" \
+            "devel_ci" \
+            "root" \
+            "/root"
+
+echo
+echo "Tagging additionally the CI Airflow image ${AIRFLOW_CI_IMAGE} with ${LOCAL_IMAGE}-ci tag"
+echo
+
+docker tag "${AIRFLOW_CI_IMAGE}" "${LOCAL_IMAGE}-ci"
+add_image_to_push "${LOCAL_IMAGE}-ci"
+
+if [[ "${PYTHON_VERSION_FOR_LATEST_IMAGE}" == "${PYTHON_VERSION}" && "${BRANCH_NAME}" == "master" ]]; then
+    echo
+    echo "Tagging additionally the CI Airflow image ${AIRFLOW_CI_IMAGE} with ${IMAGE_PREFIX}-ci tag"
+    echo "For python version ${PYTHON_VERSION} and branch ${BRANCH_NAME}"
+    echo
+    docker tag "${AIRFLOW_CI_IMAGE}" "${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${IMAGE_PREFIX}-ci"
+    add_image_to_push "${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${IMAGE_PREFIX}-ci"
+fi
+
+start_step "Pushing images"
+
+if [[ "${AIRFLOW_CONTAINER_PUSH_IMAGES}" != "false" ]]; then
+    echo
+    echo "Pushing images: ${IMAGES_BUILT}"
+    echo
+    for IMAGE in ${IMAGES_BUILT}
+    do
+        echo "Pushing image '${IMAGE}'"
+        docker push ${IMAGE}
+    done
+else
+    echo
+    echo "Skip pushing images."
+    echo "Images built: ${IMAGES_BUILT}"
+    echo
+fi
+
+end_step
+
+echo
+echo "Build finished"
+echo
