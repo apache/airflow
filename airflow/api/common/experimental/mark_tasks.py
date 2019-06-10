@@ -17,10 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Marks tasks APIs."""
+
+import datetime
+from typing import Iterable
+
 from sqlalchemy import or_
 
 from airflow.jobs import BackfillJob
-from airflow.models import DagRun, TaskInstance
+from airflow.models import BaseOperator, DagRun, TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -54,9 +58,16 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
 
 
 @provide_session
-def set_state(task, execution_date, upstream=False, downstream=False,
-              future=False, past=False, state=State.SUCCESS, commit=False,
-              session=None):  # pylint: disable=too-many-arguments,too-many-locals
+def set_state(
+        tasks: Iterable[BaseOperator],
+        execution_date: datetime.datetime,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        state: str = State.SUCCESS,
+        commit: bool = False,
+        session=None):  # pylint: disable=too-many-arguments,too-many-locals
     """
     Set the state of a task instance and if needed its relatives. Can set state
     for future tasks (calculated from execution_date) and retroactively
@@ -75,14 +86,19 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     :param session: database session
     :return: list of tasks that have been created and updated
     """
-    assert timezone.is_localized(execution_date)
+    if not timezone.is_localized(execution_date):
+        raise ValueError("Received non-localized date {}".format(execution_date))
 
-    assert task.dag is not None
-    dag = task.dag
+    task_dags = {task.dag for task in tasks}
+    if len(task_dags) > 1:
+        raise ValueError("Received tasks from multiple DAGs: {}".format(task_dags))
+    dag = next(iter(task_dags))
+    if dag is None:
+        raise ValueError("Received tasks with no DAG")
 
     dates = get_execution_dates(dag, execution_date, future, past)
 
-    task_ids = find_task_relatives(task, downstream, upstream)
+    task_ids = list(find_task_relatives(tasks, downstream, upstream))
 
     confirmed_dates = verify_dag_run_integrity(dag, dates)
 
@@ -204,22 +220,23 @@ def verify_dag_run_integrity(dag, dates):
     return confirmed_dates
 
 
-def find_task_relatives(task, downstream, upstream):
-    """find relatives (siblings = downstream, parents = upstream) if needed"""
-    task_ids = [task.task_id]
-    if downstream:
-        relatives = task.get_flat_relatives(upstream=False)
-        task_ids += [t.task_id for t in relatives]
-    if upstream:
-        relatives = task.get_flat_relatives(upstream=True)
-        task_ids += [t.task_id for t in relatives]
-    return task_ids
+def find_task_relatives(tasks, downstream, upstream):
+    """Yield task ids and optionally ancestor and descendant ids."""
+    for task in tasks:
+        yield task.task_id
+        if downstream:
+            for relative in task.get_flat_relatives(upstream=False):
+                yield relative.task_id
+        if upstream:
+            for relative in task.get_flat_relatives(upstream=True):
+                yield relative.task_id
 
 
 def get_execution_dates(dag, execution_date, future, past):
     """Returns dates of DAG execution"""
     latest_execution_date = dag.latest_execution_date
-    assert latest_execution_date is not None
+    if latest_execution_date is None:
+        raise ValueError("Received non-localized date {}".format(execution_date))
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
     if 'start_date' in dag.default_args:
@@ -269,12 +286,10 @@ def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
-    :raises: AssertionError if dag or execution_date is invalid
+    :raises: ValueError if dag or execution_date is invalid
     """
-    res = []
-
     if not dag or not execution_date:
-        return res
+        return []
 
     # Mark the dag run to success.
     if commit:
@@ -283,11 +298,8 @@ def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
         task.dag = dag
-        new_state = set_state(task=task, execution_date=execution_date,
-                              state=State.SUCCESS, commit=commit)
-        res.extend(new_state)
-
-    return res
+    return set_state(tasks=dag.tasks, execution_date=execution_date,
+                     state=State.SUCCESS, commit=commit, session=session)
 
 
 @provide_session
@@ -303,10 +315,8 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
              otherwise list of tasks that will be updated
     :raises: AssertionError if dag or execution_date is invalid
     """
-    res = []
-
     if not dag or not execution_date:
-        return res
+        return []
 
     # Mark the dag run to failed.
     if commit:
@@ -318,16 +328,17 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.execution_date == execution_date,
         TaskInstance.task_id.in_(task_ids)).filter(TaskInstance.state == State.RUNNING)
-    task_ids_of_running_tis = [ask_instance.task_id for ask_instance in tis]
+    task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
+
+    tasks = []
     for task in dag.tasks:
         if task.task_id not in task_ids_of_running_tis:
             continue
         task.dag = dag
-        new_state = set_state(task=task, execution_date=execution_date,
-                              state=State.FAILED, commit=commit)
-        res.extend(new_state)
+        tasks.append(task)
 
-    return res
+    return set_state(tasks=tasks, execution_date=execution_date,
+                     state=State.FAILED, commit=commit, session=session)
 
 
 @provide_session
