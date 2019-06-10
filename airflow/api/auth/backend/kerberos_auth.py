@@ -23,53 +23,66 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-import kerberos
+"""Kerberos authentication module"""
 import os
 
-from airflow import configuration as conf
+from functools import wraps
+from socket import getfqdn
 
 from flask import Response
+# noinspection PyProtectedMember
 from flask import _request_ctx_stack as stack  # type: ignore
 from flask import make_response
 from flask import request
 from flask import g
-from functools import wraps
+
+import kerberos
 
 from requests_kerberos import HTTPKerberosAuth
-from socket import getfqdn
 
-client_auth = HTTPKerberosAuth(service='airflow')
+from airflow import configuration as conf
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-_SERVICE_NAME = None
 
-log = LoggingMixin().log
+# pylint: disable=c-extension-no-member
+CLIENT_AUTH = HTTPKerberosAuth(service='airflow')
+
+
+LOG = LoggingMixin().log
+
+
+class KerberosService:  # pylint: disable=too-few-public-methods
+    """Class to keep information about the Kerberos Service initialized """
+    def __init__(self):
+        self.service_name = None
+
+
+# Stores currently initialized Kerberos Service
+_KERBEROS_SERVICE = KerberosService()
 
 
 def init_app(app):
-    global _SERVICE_NAME
+    """Initializes application with kerberos"""
 
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()
-    log.info("Kerberos: hostname %s", hostname)
+    LOG.info("Kerberos: hostname %s", hostname)
 
     service = 'airflow'
 
-    _SERVICE_NAME = "{}@{}".format(service, hostname)
+    _KERBEROS_SERVICE.service_name = "{}@{}".format(service, hostname)
 
     if 'KRB5_KTNAME' not in os.environ:
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
 
     try:
-        log.info("Kerberos init: %s %s", service, hostname)
+        LOG.info("Kerberos init: %s %s", service, hostname)
         principal = kerberos.getServerPrincipalDetails(service, hostname)
     except kerberos.KrbError as err:
-        log.warning("Kerberos: %s", err)
+        LOG.warning("Kerberos: %s", err)
     else:
-        log.info("Kerberos API: server is %s", principal)
+        LOG.info("Kerberos API: server is %s", principal)
 
 
 def _unauthorized():
@@ -88,18 +101,17 @@ def _gssapi_authenticate(token):
     state = None
     ctx = stack.top
     try:
-        rc, state = kerberos.authGSSServerInit(_SERVICE_NAME)
-        if rc != kerberos.AUTH_GSS_COMPLETE:
+        return_code, state = kerberos.authGSSServerInit(_KERBEROS_SERVICE.service_name)
+        if return_code != kerberos.AUTH_GSS_COMPLETE:
             return None
-        rc = kerberos.authGSSServerStep(state, token)
-        if rc == kerberos.AUTH_GSS_COMPLETE:
+        return_code = kerberos.authGSSServerStep(state, token)
+        if return_code == kerberos.AUTH_GSS_COMPLETE:
             ctx.kerberos_token = kerberos.authGSSServerResponse(state)
             ctx.kerberos_user = kerberos.authGSSServerUserName(state)
-            return rc
-        elif rc == kerberos.AUTH_GSS_CONTINUE:
+            return return_code
+        if return_code == kerberos.AUTH_GSS_CONTINUE:
             return kerberos.AUTH_GSS_CONTINUE
-        else:
-            return None
+        return None
     except kerberos.GSSError:
         return None
     finally:
@@ -108,14 +120,15 @@ def _gssapi_authenticate(token):
 
 
 def requires_authentication(function):
+    """Decorator for functions that require authentication with Kerberos"""
     @wraps(function)
     def decorated(*args, **kwargs):
         header = request.headers.get("Authorization")
         if header:
             ctx = stack.top
             token = ''.join(header.split()[1:])
-            rc = _gssapi_authenticate(token)
-            if rc == kerberos.AUTH_GSS_COMPLETE:
+            return_code = _gssapi_authenticate(token)
+            if return_code == kerberos.AUTH_GSS_COMPLETE:
                 g.user = ctx.kerberos_user
                 response = function(*args, **kwargs)
                 response = make_response(response)
@@ -124,7 +137,7 @@ def requires_authentication(function):
                                                                      ctx.kerberos_token])
 
                 return response
-            elif rc != kerberos.AUTH_GSS_CONTINUE:
+            if return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
     return decorated
