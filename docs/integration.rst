@@ -880,6 +880,51 @@ Google Cloud Data Loss Prevention (DLP)
 They also use :class:`airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook` to communicate with Google Cloud Platform.
 
 
+Google Cloud Tasks
+''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueCreateOperator`
+    Creates a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueUpdateOperator`
+    Updates a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueGetOperator`
+    Gets a queue from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuesListOperator`
+    Lists queues from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueDeleteOperator`
+    Deletes a queue from Cloud Tasks, even if it has tasks in it.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePurgeOperator`
+    Purges a queue by deleting all of its tasks from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePauseOperator`
+    Pauses a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueResumeOperator`
+    Resumes a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskCreateOperator`
+    Creates a task in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskGetOperator`
+    Gets a task from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTasksListOperator`
+    Lists the tasks in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskDeleteOperator`
+    Deletes a task from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskRunOperator`
+    Forces to run a task in Cloud Tasks.
+
+They also use :class:`airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook` to communicate with Google Cloud Platform.
+
+
 .. _Qubole:
 
 Qubole
