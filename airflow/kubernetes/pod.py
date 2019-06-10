@@ -69,7 +69,9 @@ class Pod:
     :param configmaps: A list containing names of configmaps object
         mounting env variables to the pod
     :type configmaps: list[str]
-
+    :param pod_runtime_info_envs: environment variables about
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list[PodRuntimeEnv]
     """
     def __init__(
             self,
@@ -95,7 +97,8 @@ class Pod:
             hostnetwork=False,
             tolerations=None,
             security_context=None,
-            configmaps=None
+            configmaps=None,
+            pod_runtime_info_envs=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -120,3 +123,4 @@ class Pod:
         self.tolerations = tolerations or []
         self.security_context = security_context
         self.configmaps = configmaps or []
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []
