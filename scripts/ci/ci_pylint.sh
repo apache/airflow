@@ -17,14 +17,59 @@
 # limitations under the License.
 #
 
-# Script to run Pylint on all code. Should be started from root directory of Airflow:
+# Script to run Pylint on all code. Can be started from any working directory
 # ./scripts/ci/ci_pylint.sh
 
-set -ex
+set -uo pipefail
+
+# Uncomment to see the commands executed
+# set -x
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+pushd ${MY_DIR}/../../ || exit 1
+
+echo
+echo "Running in $(pwd)"
+echo
+
+echo
+echo "Running pylint for source code without tests"
+echo
 
 find . -name "*.py" \
 -not -path "./.eggs/*" \
 -not -path "./airflow/www/node_modules/*" \
 -not -path "./airflow/_vendor/*" \
 -not -path "./build/*" \
+-not -path "./tests/*" \
 -not -name 'webserver_config.py' | grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
+RES_MAIN=$?
+
+echo
+echo "Running pylint for tests"
+echo
+
+find . -name "*.py" -path './tests/*' | \
+grep -vFf scripts/ci/pylint_todo.txt | \
+xargs pylint --disable="
+    missing-docstring,
+    no-self-use,
+    too-many-public-methods,
+    protected-access
+    " \
+    --output-format=colorized
+RES_TESTS=$?
+
+popd || exit 1
+
+if [[ "${RES_TESTS}" != 0 || "${RES_MAIN}" != 0 ]]; then
+    echo
+    echo "There were some pylint errors. Exiting"
+    echo
+    exit 1
+else
+    echo
+    echo "Pylint check succeeded"
+    echo
+fi
