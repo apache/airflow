@@ -38,7 +38,7 @@ from airflow.utils.db import create_session
 
 _log = LoggingMixin().log
 
-requires_authentication = airflow.api.api_auth.requires_authentication
+requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 

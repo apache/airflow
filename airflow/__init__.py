@@ -63,6 +63,9 @@ def load_login():
     try:
         global login
         login = import_module(auth_backend)
+
+        if hasattr(login, 'login_manager') and not hasattr(login, 'LOGIN_MANAGER'):
+            login.LOGIN_MANAGER = login.login_manager
     except ImportError as err:
         log.critical(
             "Cannot import authentication module %s. "
