@@ -25,7 +25,6 @@ assists users migrating to a new version.
 ## Airflow Master
 
 ### Changes to DatastoreHook
-
 * removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
 * renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
 
@@ -37,6 +36,8 @@ assists users migrating to a new version.
   The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
 * the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
 
 ### Changes in writing Logs to Elasticsearch
 
