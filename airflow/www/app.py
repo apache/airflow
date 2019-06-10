@@ -64,11 +64,11 @@ def create_app(config=None, testing=False):
     app.config['TESTING'] = testing
 
     airflow.load_login()
-    airflow.login.login_manager.init_app(app)
+    airflow.login.LOGIN_MANAGER.init_app(app)
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
     # flake8: noqa: F841
     cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})

@@ -184,8 +184,8 @@ class GoogleAuthBackend(object):
         return redirect(next_url)
 
 
-login_manager = GoogleAuthBackend()
+LOGIN_MANAGER = GoogleAuthBackend()
 
 
 def login(self, request):
-    return login_manager.login(request)
+    return LOGIN_MANAGER.login(request)

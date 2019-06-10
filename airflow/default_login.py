@@ -35,9 +35,9 @@ from airflow.utils.db import provide_session
 
 DEFAULT_USERNAME = 'airflow'
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 
 class DefaultUser(object):
@@ -68,7 +68,7 @@ class DefaultUser(object):
         return True
 
 
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == userid).first()

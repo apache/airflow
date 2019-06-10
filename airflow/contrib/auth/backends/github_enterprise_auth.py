@@ -232,8 +232,8 @@ class GHEAuthBackend(object):
         return redirect(next_url)
 
 
-login_manager = GHEAuthBackend()
+LOGIN_MANAGER = GHEAuthBackend()
 
 
 def login(self, request):
-    return login_manager.login(request)
+    return LOGIN_MANAGER.login(request)

@@ -39,9 +39,9 @@ import re
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 log = LoggingMixin().log
 
@@ -273,7 +273,7 @@ class LdapUser(models.User):
         return self.superuser
 
 
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     log.debug("Loading user %s", userid)
