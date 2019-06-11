@@ -79,7 +79,7 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
                                                      table=table,
                                                      partition=partition)
         parsed_schema, parsed_table, parsed_partition = (
-            NamedHivePartitionSensor.parse_partition_name(name)
+            NamedHivePartitionSensor._parse_partition_name(name)
         )
         self.assertEqual(schema, parsed_schema)
         self.assertEqual(table, parsed_table)
@@ -88,7 +88,7 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
     def test_parse_partition_name_incorrect(self):
         name = 'incorrect.name'
         with self.assertRaises(ValueError):
-            NamedHivePartitionSensor.parse_partition_name(name)
+            NamedHivePartitionSensor._parse_partition_name(name)
 
     def test_parse_partition_name_default(self):
         table = 'users'
@@ -96,7 +96,7 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
         name = '{table}/{partition}'.format(table=table,
                                             partition=partition)
         parsed_schema, parsed_table, parsed_partition = (
-            NamedHivePartitionSensor.parse_partition_name(name)
+            NamedHivePartitionSensor._parse_partition_name(name)
         )
         self.assertEqual('default', parsed_schema)
         self.assertEqual(table, parsed_table)

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""HDFS Sensor module"""
 import re
 import sys
 
@@ -25,6 +25,12 @@ from airflow.hooks.hdfs_hook import HDFSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from snakebite.errors import SnakebiteException
+    snakebite_loaded = True
+except ImportError:
+    snakebite_loaded = False
 
 
 class HdfsSensor(BaseSensorOperator):
@@ -45,6 +51,13 @@ class HdfsSensor(BaseSensorOperator):
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+        if not snakebite_loaded:
+            raise ImportError(
+                'This HdfsSensor implementation requires snakebite, but snakebite is not compatible '
+                'with Python 3 (as of August 2015). Please use Python 2 if you require this hook  -- '
+                'or help by submitting a PR!'
+            )
+
         if ignored_ext is None:
             ignored_ext = ['_COPYING_']
         self.filepath = filepath
@@ -101,22 +114,22 @@ class HdfsSensor(BaseSensorOperator):
         return result
 
     def poke(self, context):
-        sb = self.hook(self.hdfs_conn_id).get_conn()
+        client = self.hook(self.hdfs_conn_id).get_conn()
         self.log.info('Poking for file %s', self.filepath)
         try:
             # IMOO it's not right here, as there no raise of any kind.
             # if the filepath is let's say '/data/mydirectory',
             # it's correct but if it is '/data/mydirectory/*',
-            # it's not correct as the directory exists and sb does not raise any error
+            # it's not correct as the directory exists and client does not raise any error
             # here is a quick fix
-            result = [f for f in sb.ls([self.filepath], include_toplevel=False)]
+            result = [file for file in client.ls([self.filepath], include_toplevel=False)]
             self.log.debug('HdfsSensor.poke: result is %s', result)
             result = self.filter_for_ignored_ext(
                 result, self.ignored_ext, self.ignore_copying
             )
             result = self.filter_for_filesize(result, self.file_size)
             return bool(result)
-        except Exception:
+        except SnakebiteException:
             e = sys.exc_info()
             self.log.debug("Caught an exception !: %s", str(e))
             return False

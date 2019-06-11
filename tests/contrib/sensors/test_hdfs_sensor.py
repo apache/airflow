@@ -22,10 +22,16 @@ import unittest
 import re
 from datetime import timedelta
 
-from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
 
+try:
+    from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
+except ImportError:
+    HdfsSensorFolder = None  # type: ignore
+    HdfsSensorRegex = None  # type: ignore
 
+
+@unittest.skipIf(HdfsSensorFolder is None, "Skipping test because HDFSHook is not installed")
 class HdfsSensorFolderTests(unittest.TestCase):
     def setUp(self):
         from tests.core import FakeHDFSHook
@@ -122,6 +128,7 @@ class HdfsSensorFolderTests(unittest.TestCase):
             task.execute(None)
 
 
+@unittest.skipIf(HdfsSensorRegex is None, "Skipping test because HDFSHook is not installed")
 class HdfsSensorRegexTests(unittest.TestCase):
     def setUp(self):
         from tests.core import FakeHDFSHook

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""HTTP Sensor module"""
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -102,10 +102,9 @@ class HttpSensor(BaseSensorOperator):
                     return self.response_check(response, **context)
                 else:
                     return self.response_check(response)
-        except AirflowException as ae:
-            if str(ae).startswith("404"):
+        except AirflowException as ex:
+            if str(ex).startswith("404"):
                 return False
-
-            raise ae
+            raise ex
 
         return True

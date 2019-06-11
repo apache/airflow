@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Universal SQL Sensor"""
 from typing import Iterable
 
 from airflow.exceptions import AirflowException

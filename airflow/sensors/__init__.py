@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""Sensors are a certain type of operator that will keep running until a certain criterion is met."""
 
 
 def _integrate_plugins():
@@ -25,4 +26,4 @@ def _integrate_plugins():
     from airflow.plugins_manager import sensors_modules
     for sensors_module in sensors_modules:
         sys.modules[sensors_module.__name__] = sensors_module
-        globals()[sensors_module._name] = sensors_module
+        globals()[sensors_module._name] = sensors_module  # pylint: disable=protected-access

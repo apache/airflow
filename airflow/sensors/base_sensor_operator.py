@@ -16,8 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+"""Base sensor module"""
 from time import sleep
 from datetime import timedelta
 
@@ -101,6 +100,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at = timezone.utcnow()
         if self.reschedule:
             # If reschedule, use first start date of current try
+            # pylint: disable=no-value-for-parameter
             task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
             if task_reschedules:
                 started_at = task_reschedules[0].start_date
@@ -130,6 +130,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     @property
     def reschedule(self):
+        """
+        Checks if the sensor is in reschedule mode.
+
+        :rtype: bool
+        """
         return self.mode == 'reschedule'
 
     @property
@@ -138,4 +143,5 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         Adds one additional dependency for all sensor operators that
         checks if a sensor task instance can be rescheduled.
         """
+        # pylint: disable=no-member
         return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}

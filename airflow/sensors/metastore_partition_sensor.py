@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Metastore partition sensor module"""
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.decorators import apply_defaults
 

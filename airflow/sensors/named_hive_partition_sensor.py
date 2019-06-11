@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Named Hive partition sensor module"""
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -64,7 +64,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             )
 
     @staticmethod
-    def parse_partition_name(partition):
+    def _parse_partition_name(partition):
         first_split = partition.split('.', 1)
         if len(first_split) == 1:
             schema = 'default'
@@ -79,13 +79,13 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             table, partition = second_split
         return schema, table, partition
 
-    def poke_partition(self, partition):
+    def _poke_partition(self, partition):
         if not self.hook:
             from airflow.hooks.hive_hooks import HiveMetastoreHook
             self.hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
 
-        schema, table, partition = self.parse_partition_name(partition)
+        schema, table, partition = self._parse_partition_name(partition)
 
         self.log.info('Poking for %s.%s/%s', schema, table, partition)
         return self.hook.check_for_named_partition(
@@ -95,6 +95,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
         self.partition_names = [
             partition_name for partition_name in self.partition_names
-            if not self.poke_partition(partition_name)
+            if not self._poke_partition(partition_name)
         ]
         return not self.partition_names

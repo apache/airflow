@@ -268,7 +268,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_named_hive_partition_sensor_parses_partitions_with_periods(self):
-            t = operators.sensors.NamedHivePartitionSensor.parse_partition_name(
+            t = operators.sensors.NamedHivePartitionSensor._parse_partition_name(
                 partition="schema.table/part1=this.can.be.an.issue/part2=ok")
             self.assertEqual(t[0], "schema")
             self.assertEqual(t[1], "table")

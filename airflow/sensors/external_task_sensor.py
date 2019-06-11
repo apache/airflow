@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""External task sensor module"""
 import os
 
 from airflow.exceptions import AirflowException
@@ -151,7 +151,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             count = session.query(DR).filter(
                 DR.dag_id == self.external_dag_id,
-                DR.state.in_(self.allowed_states),
+                DR.state.in_(self.allowed_states),  # pylint: disable=no-member
                 DR.execution_date.in_(dttm_filter),
             ).count()
 
