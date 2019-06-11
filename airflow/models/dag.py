@@ -1439,6 +1439,9 @@ class DagModel(Base):
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object
+    # Note: Do not depend on fileloc pointing to a file; in the case of a
+    # packaged DAG, it will point to the subpath of the DAG within the
+    # associated zip.
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
