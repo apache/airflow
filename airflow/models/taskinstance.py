@@ -22,6 +22,7 @@ import functools
 import getpass
 import hashlib
 import logging
+import math
 import os
 import signal
 import time
@@ -646,14 +647,17 @@ class TaskInstance(Base, LoggingMixin):
         """
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
-            min_backoff = int(delay.total_seconds() * (2 ** (self.try_number - 2)))
+            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+            # we must round up prior to converting to an int, otherwise a divide by zero error
+            # will occurr in the modded_hash calculation.
+            min_backoff = int(math.ceil(delay.total_seconds() * (2 ** (self.try_number - 2))))
             # deterministic per task instance
             hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,
                                                          self.task_id,
                                                          self.execution_date,
                                                          self.try_number)
                                     .encode('utf-8')).hexdigest(), 16)
-            # between 0.5 * delay * (2^retry_number) and 1.0 * delay * (2^retry_number)
+            # between 1 and 1.0 * delay * (2^retry_number)
             modded_hash = min_backoff + hash % min_backoff
             # timedelta has a maximum representable value. The exponentiation
             # here means this value can be exceeded after a certain number

@@ -420,6 +420,30 @@ class TaskInstanceTest(unittest.TestCase):
         dt = ti.next_retry_datetime()
         self.assertEqual(dt, ti.end_date + max_delay)
 
+    def test_next_retry_datetime_short_intervals(self):
+        delay = datetime.timedelta(seconds=1)
+        max_delay = datetime.timedelta(minutes=60)
+
+        dag = models.DAG(dag_id='fail_dag')
+        task = BashOperator(
+            task_id='task_with_exp_backoff_and_short_time_interval',
+            bash_command='exit 1',
+            retries=3,
+            retry_delay=delay,
+            retry_exponential_backoff=True,
+            max_retry_delay=max_delay,
+            dag=dag,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=DEFAULT_DATE)
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        dt = ti.next_retry_datetime()
+        # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
+        period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
+        self.assertTrue(dt in period)
+
     @patch.object(TI, 'pool_full')
     def test_reschedule_handling(self, mock_pool_full):
         """
