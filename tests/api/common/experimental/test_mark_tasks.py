@@ -102,7 +102,7 @@ class TestMarkTasks(unittest.TestCase):
         # set one task to success but do not commit
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=False)
         self.assertEqual(len(altered), 1)
@@ -110,7 +110,7 @@ class TestMarkTasks(unittest.TestCase):
                           None, snapshot)
 
         # set one and only one task to success
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 1)
@@ -118,7 +118,7 @@ class TestMarkTasks(unittest.TestCase):
                           State.SUCCESS, snapshot)
 
         # set no tasks
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 0)
@@ -126,7 +126,7 @@ class TestMarkTasks(unittest.TestCase):
                           State.SUCCESS, snapshot)
 
         # set task to other than success
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.FAILED, commit=True)
         self.assertEqual(len(altered), 1)
@@ -136,7 +136,7 @@ class TestMarkTasks(unittest.TestCase):
         # dont alter other tasks
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_0")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 1)
@@ -151,7 +151,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=True, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 3)
@@ -165,7 +165,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=True, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 4)
@@ -176,7 +176,7 @@ class TestMarkTasks(unittest.TestCase):
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=True,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 2)
@@ -186,7 +186,7 @@ class TestMarkTasks(unittest.TestCase):
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[1],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[1],
                             upstream=False, downstream=False, future=False,
                             past=True, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 2)
@@ -203,7 +203,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=True, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 14)
@@ -496,15 +496,15 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_running(self.dag1, None)
         self.assertEqual(len(altered), 0)
 
-        # This will throw AssertionError since dag.latest_execution_date
+        # This will throw ValueError since dag.latest_execution_date
         # need to be 0 does not exist.
-        self.assertRaises(AssertionError, set_dag_run_state_to_success, self.dag1,
+        self.assertRaises(ValueError, set_dag_run_state_to_success, self.dag1,
                           timezone.make_naive(self.execution_dates[0]))
 
         # altered = set_dag_run_state_to_success(self.dag1, self.execution_dates[0])
         # DagRun does not exist
-        # This will throw AssertionError since dag.latest_execution_date does not exist
-        self.assertRaises(AssertionError, set_dag_run_state_to_success,
+        # This will throw ValueError since dag.latest_execution_date does not exist
+        self.assertRaises(ValueError, set_dag_run_state_to_success,
                           self.dag1, self.execution_dates[0])
 
     def tearDown(self):
