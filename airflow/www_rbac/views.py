@@ -1763,7 +1763,7 @@ class Airflow(AirflowBaseView):
 
         tis = [
             ti for ti in dag.get_task_instances(dttm, dttm, session=session)
-            if ti.start_date]
+            if ti.start_date and ti.state]
         tis = sorted(tis, key=lambda ti: ti.start_date)
         TF = TaskFail
         ti_fails = list(itertools.chain(*[(
