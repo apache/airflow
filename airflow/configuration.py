@@ -18,10 +18,8 @@
 # under the License.
 
 from base64 import b64encode
-from builtins import str
 from collections import OrderedDict
 import copy
-from future import standard_library
 import os
 import pathlib
 import shlex
@@ -35,8 +33,6 @@ from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-standard_library.install_aliases()
 
 log = LoggingMixin().log
 
@@ -134,6 +130,13 @@ class AirflowConfigParser(ConfigParser):
             'ssl_active': 'celery_ssl_active',
             'ssl_cert': 'celery_ssl_cert',
             'ssl_key': 'celery_ssl_key',
+            'elasticsearch_host': 'host',
+            'elasticsearch_log_id_template': 'log_id_template',
+            'elasticsearch_end_of_log_mark': 'end_of_log_mark',
+            'elasticsearch_frontend': 'frontend',
+            'elasticsearch_write_stdout': 'write_stdout',
+            'elasticsearch_json_format': 'json_format',
+            'elasticsearch_json_fields': 'json_fields'
         }
     }
 

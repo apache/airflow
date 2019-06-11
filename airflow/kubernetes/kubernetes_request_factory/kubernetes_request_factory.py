@@ -57,6 +57,17 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
         })
 
     @staticmethod
+    def add_runtime_info_env(env, runtime_info):
+        env.append({
+            'name': runtime_info.name,
+            'valueFrom': {
+                'fieldRef': {
+                    'fieldPath': runtime_info.field_path
+                }
+            }
+        })
+
+    @staticmethod
     def extract_labels(pod, req):
         req['metadata']['labels'] = req['metadata'].get('labels', {})
         for k, v in six.iteritems(pod.labels):
@@ -134,12 +145,14 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             env for env in pod.secrets if env.deploy_type == 'env' and env.key is not None
         ]
 
-        if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0:
+        if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0 or len(pod.pod_runtime_info_envs) > 0:
             env = []
             for k in pod.envs.keys():
                 env.append({'name': k, 'value': pod.envs[k]})
             for secret in envs_from_key_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
+            for runtime_info in pod.pod_runtime_info_envs:
+                KubernetesRequestFactory.add_runtime_info_env(env, runtime_info)
 
             req['spec']['containers'][0]['env'] = env
 

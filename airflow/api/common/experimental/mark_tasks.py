@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Marks tasks APIs."""
 from sqlalchemy import or_
 
 from airflow.jobs import BackfillJob
@@ -37,25 +37,26 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
     :return: newly created and existing dag runs for the execution dates supplied
     """
     # find out if we need to create any dag runs
-    drs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates)
-    dates_to_create = list(set(execution_dates) - set([dr.execution_date for dr in drs]))
+    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates)
+    dates_to_create = list(set(execution_dates) - {dag_run.execution_date for dag_run in dag_runs})
 
     for date in dates_to_create:
-        dr = dag.create_dagrun(
+        dag_run = dag.create_dagrun(
             run_id=run_id_template.format(date.isoformat()),
             execution_date=date,
             start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
         )
-        drs.append(dr)
+        dag_runs.append(dag_run)
 
-    return drs
+    return dag_runs
 
 
 @provide_session
 def set_state(task, execution_date, upstream=False, downstream=False,
-              future=False, past=False, state=State.SUCCESS, commit=False, session=None):
+              future=False, past=False, state=State.SUCCESS, commit=False,
+              session=None):  # pylint: disable=too-many-arguments,too-many-locals
     """
     Set the state of a task instance and if needed its relatives. Can set state
     for future tasks (calculated from execution_date) and retroactively
@@ -79,51 +80,76 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     assert task.dag is not None
     dag = task.dag
 
-    latest_execution_date = dag.latest_execution_date
-    assert latest_execution_date is not None
+    dates = get_execution_dates(dag, execution_date, future, past)
 
-    # determine date range of dag runs and tasks to consider
-    end_date = latest_execution_date if future else execution_date
+    task_ids = find_task_relatives(task, downstream, upstream)
 
-    if 'start_date' in dag.default_args:
-        start_date = dag.default_args['start_date']
-    elif dag.start_date:
-        start_date = dag.start_date
+    confirmed_dates = verify_dag_run_integrity(dag, dates)
+
+    sub_dag_run_ids = get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates)
+
+    # now look for the task instances that are affected
+
+    qry_dag = get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates)
+
+    if commit:
+        tis_altered = qry_dag.with_for_update().all()
+        if sub_dag_run_ids:
+            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
+            tis_altered += qry_sub_dag.with_for_update().all()
+        for task_instance in tis_altered:
+            task_instance.state = state
     else:
-        start_date = execution_date
+        tis_altered = qry_dag.all()
+        if sub_dag_run_ids:
+            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
+            tis_altered += qry_sub_dag.all()
 
-    start_date = execution_date if not past else start_date
+    return tis_altered
 
-    if dag.schedule_interval == '@once':
-        dates = [start_date]
-    else:
-        dates = dag.date_range(start_date=start_date, end_date=end_date)
 
-    # find relatives (siblings = downstream, parents = upstream) if needed
-    task_ids = [task.task_id]
-    if downstream:
-        relatives = task.get_flat_relatives(upstream=False)
-        task_ids += [t.task_id for t in relatives]
-    if upstream:
-        relatives = task.get_flat_relatives(upstream=True)
-        task_ids += [t.task_id for t in relatives]
+# Flake and pylint disagree about correct indents here
+def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):  # noqa: E123
+    """Get *all* tasks of the sub dags"""
+    qry_sub_dag = session.query(TaskInstance).\
+        filter(
+            TaskInstance.dag_id.in_(sub_dag_run_ids),
+            TaskInstance.execution_date.in_(confirmed_dates)  # noqa: E123
+        ).\
+        filter(
+            or_(
+                TaskInstance.state.is_(None),
+                TaskInstance.state != state
+            )
+        )  # noqa: E123
+    return qry_sub_dag
 
-    # verify the integrity of the dag runs in case a task was added or removed
-    # set the confirmed execution dates as they might be different
-    # from what was provided
-    confirmed_dates = []
-    drs = DagRun.find(dag_id=dag.dag_id, execution_date=dates)
-    for dr in drs:
-        dr.dag = dag
-        dr.verify_integrity()
-        confirmed_dates.append(dr.execution_date)
 
-    # go through subdagoperators and create dag runs. We will only work
-    # within the scope of the subdag. We wont propagate to the parent dag,
-    # but we will propagate from parent to subdag.
+def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):  # noqa: E123
+    """Get all tasks of the main dag that will be affected by a state change"""
+    qry_dag = session.query(TaskInstance).\
+        filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.execution_date.in_(confirmed_dates),
+            TaskInstance.task_id.in_(task_ids)  # noqa: E123
+        ).\
+        filter(
+            or_(
+                TaskInstance.state.is_(None),
+                TaskInstance.state != state
+            )
+        )
+    return qry_dag
+
+
+def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
+    """Go through subdag operators and create dag runs. We will only work
+       within the scope of the subdag. We wont propagate to the parent dag,
+      but we will propagate from parent to subdag.
+    """
     dags = [dag]
     sub_dag_ids = []
-    while len(dags) > 0:
+    while dags:
         current_dag = dags.pop()
         for task_id in task_ids:
             if not current_dag.has_task(task_id):
@@ -132,56 +158,82 @@ def set_state(task, execution_date, upstream=False, downstream=False,
             current_task = current_dag.get_task(task_id)
             if isinstance(current_task, SubDagOperator):
                 # this works as a kind of integrity check
-                # it creates missing dag runs for subdagoperators,
+                # it creates missing dag runs for subdag operators,
                 # maybe this should be moved to dagrun.verify_integrity
-                drs = _create_dagruns(current_task.subdag,
-                                      execution_dates=confirmed_dates,
-                                      state=State.RUNNING,
-                                      run_id_template=BackfillJob.ID_FORMAT_PREFIX)
+                dag_runs = _create_dagruns(current_task.subdag,
+                                           execution_dates=confirmed_dates,
+                                           state=State.RUNNING,
+                                           run_id_template=BackfillJob.ID_FORMAT_PREFIX)
 
-                for dr in drs:
-                    dr.dag = current_task.subdag
-                    dr.verify_integrity()
-                    if commit:
-                        dr.state = state
-                        session.merge(dr)
+                verify_dagruns(dag_runs, commit, state, session, current_task)
 
                 dags.append(current_task.subdag)
                 sub_dag_ids.append(current_task.subdag.dag_id)
+    return sub_dag_ids
 
-    # now look for the task instances that are affected
-    TI = TaskInstance
 
-    # get all tasks of the main dag that will be affected by a state change
-    qry_dag = session.query(TI).filter(
-        TI.dag_id == dag.dag_id,
-        TI.execution_date.in_(confirmed_dates),
-        TI.task_id.in_(task_ids)).filter(
-        or_(TI.state.is_(None),
-            TI.state != state)
-    )
+def verify_dagruns(dag_runs, commit, state, session, current_task):
+    """Verifies integrity of dag_runs.
 
-    # get *all* tasks of the sub dags
-    if len(sub_dag_ids) > 0:
-        qry_sub_dag = session.query(TI).filter(
-            TI.dag_id.in_(sub_dag_ids),
-            TI.execution_date.in_(confirmed_dates)).filter(
-            or_(TI.state.is_(None),
-                TI.state != state)
-        )
+    :param dag_runs: dag runs to verify
+    :param commit: whether dag runs state should be updated
+    :param state: state of the dag_run to set if commit is True
+    :param session: session to use
+    :param current_task: current task
+    :return:
+    """
+    for dag_run in dag_runs:
+        dag_run.dag = current_task.subdag
+        dag_run.verify_integrity()
+        if commit:
+            dag_run.state = state
+            session.merge(dag_run)
 
-    if commit:
-        tis_altered = qry_dag.with_for_update().all()
-        if len(sub_dag_ids) > 0:
-            tis_altered += qry_sub_dag.with_for_update().all()
-        for ti in tis_altered:
-            ti.state = state
+
+def verify_dag_run_integrity(dag, dates):
+    """Verify the integrity of the dag runs in case a task was added or removed
+       set the confirmed execution dates as they might be different
+       from what was provided
+    """
+    confirmed_dates = []
+    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=dates)
+    for dag_run in dag_runs:
+        dag_run.dag = dag
+        dag_run.verify_integrity()
+        confirmed_dates.append(dag_run.execution_date)
+    return confirmed_dates
+
+
+def find_task_relatives(task, downstream, upstream):
+    """find relatives (siblings = downstream, parents = upstream) if needed"""
+    task_ids = [task.task_id]
+    if downstream:
+        relatives = task.get_flat_relatives(upstream=False)
+        task_ids += [t.task_id for t in relatives]
+    if upstream:
+        relatives = task.get_flat_relatives(upstream=True)
+        task_ids += [t.task_id for t in relatives]
+    return task_ids
+
+
+def get_execution_dates(dag, execution_date, future, past):
+    """Returns dates of DAG execution"""
+    latest_execution_date = dag.latest_execution_date
+    assert latest_execution_date is not None
+    # determine date range of dag runs and tasks to consider
+    end_date = latest_execution_date if future else execution_date
+    if 'start_date' in dag.default_args:
+        start_date = dag.default_args['start_date']
+    elif dag.start_date:
+        start_date = dag.start_date
     else:
-        tis_altered = qry_dag.all()
-        if len(sub_dag_ids) > 0:
-            tis_altered += qry_sub_dag.all()
-
-    return tis_altered
+        start_date = execution_date
+    start_date = execution_date if not past else start_date
+    if dag.schedule_interval == '@once':
+        dates = [start_date]
+    else:
+        dates = dag.date_range(start_date=start_date, end_date=end_date)
+    return dates
 
 
 @provide_session
@@ -193,18 +245,17 @@ def _set_dag_run_state(dag_id, execution_date, state, session=None):
     :param state: target state
     :param session: database session
     """
-    DR = DagRun
-    dr = session.query(DR).filter(
-        DR.dag_id == dag_id,
-        DR.execution_date == execution_date
+    dag_run = session.query(DagRun).filter(
+        DagRun.dag_id == dag_id,
+        DagRun.execution_date == execution_date
     ).one()
-    dr.state = state
+    dag_run.state = state
     if state == State.RUNNING:
-        dr.start_date = timezone.utcnow()
-        dr.end_date = None
+        dag_run.start_date = timezone.utcnow()
+        dag_run.end_date = None
     else:
-        dr.end_date = timezone.utcnow()
-    session.merge(dr)
+        dag_run.end_date = timezone.utcnow()
+    session.merge(dag_run)
 
 
 @provide_session
@@ -262,13 +313,12 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
         _set_dag_run_state(dag.dag_id, execution_date, State.FAILED, session)
 
     # Mark only RUNNING task instances.
-    TI = TaskInstance
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.query(TI).filter(
-        TI.dag_id == dag.dag_id,
-        TI.execution_date == execution_date,
-        TI.task_id.in_(task_ids)).filter(TI.state == State.RUNNING)
-    task_ids_of_running_tis = [ti.task_id for ti in tis]
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.execution_date == execution_date,
+        TaskInstance.task_id.in_(task_ids)).filter(TaskInstance.state == State.RUNNING)
+    task_ids_of_running_tis = [ask_instance.task_id for ask_instance in tis]
     for task in dag.tasks:
         if task.task_id not in task_ids_of_running_tis:
             continue

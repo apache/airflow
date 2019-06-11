@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-from builtins import str
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator

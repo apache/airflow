@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import str
 from base64 import b64encode
 from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 from datetime import datetime

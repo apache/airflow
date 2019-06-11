@@ -19,7 +19,6 @@
 
 import re
 import sys
-from builtins import str
 
 from airflow import settings
 from airflow.hooks.hdfs_hook import HDFSHook

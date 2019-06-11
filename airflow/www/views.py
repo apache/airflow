@@ -28,7 +28,7 @@ import socket
 import traceback
 from collections import defaultdict
 from datetime import timedelta
-
+from urllib.parse import quote
 
 import markdown
 import pendulum
@@ -40,9 +40,10 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+import lazy_object_proxy
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, or_, desc, and_, union_all
+from sqlalchemy import or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
@@ -150,6 +151,19 @@ def show_traceback(error):
 class AirflowBaseView(BaseView):
     route_base = ''
 
+    # Make our macros available to our UI templates too.
+    extra_args = {
+        'macros': airflow.macros,
+    }
+
+    def render_template(self, *args, **kwargs):
+        return super().render_template(
+            *args,
+            # Cache this at most once per request, not for the lifetime of the view instance
+            scheduler_job=lazy_object_proxy.Proxy(jobs.SchedulerJob.most_recent_job),
+            **kwargs
+        )
+
 
 class Airflow(AirflowBaseView):
     @expose('/health')
@@ -160,31 +174,25 @@ class Airflow(AirflowBaseView):
         including metadatabase and scheduler.
         """
 
-        BJ = jobs.BaseJob
-        payload = {}
-        scheduler_health_check_threshold = timedelta(seconds=conf.getint('scheduler',
-                                                                         'scheduler_health_check_threshold'
-                                                                         ))
+        payload = {
+            'metadatabase': {'status': 'unhealthy'}
+        }
 
         latest_scheduler_heartbeat = None
+        scheduler_status = 'unhealthy'
         payload['metadatabase'] = {'status': 'healthy'}
         try:
-            latest_scheduler_heartbeat = session.query(func.max(BJ.latest_heartbeat)).\
-                filter(BJ.state == 'running', BJ.job_type == 'SchedulerJob').\
-                scalar()
+            scheduler_job = jobs.SchedulerJob.most_recent_job()
+
+            if scheduler_job:
+                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+                if scheduler_job.is_alive():
+                    scheduler_status = 'healthy'
         except Exception:
             payload['metadatabase']['status'] = 'unhealthy'
 
-        if not latest_scheduler_heartbeat:
-            scheduler_status = 'unhealthy'
-        else:
-            if timezone.utcnow() - latest_scheduler_heartbeat <= scheduler_health_check_threshold:
-                scheduler_status = 'healthy'
-            else:
-                scheduler_status = 'unhealthy'
-
         payload['scheduler'] = {'status': scheduler_status,
-                                'latest_scheduler_heartbeat': str(latest_scheduler_heartbeat)}
+                                'latest_scheduler_heartbeat': latest_scheduler_heartbeat}
 
         return wwwutils.json_response(payload)
 
@@ -393,6 +401,33 @@ class Airflow(AirflowBaseView):
                     'dag_id': dag_id,
                     'color': State.color(state)
                 })
+        return wwwutils.json_response(payload)
+
+    @expose('/last_dagruns')
+    @has_access
+    @provide_session
+    def last_dagruns(self, session=None):
+        DagRun = models.DagRun
+
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        if not filter_dag_ids:
+            return
+
+        dags_to_latest_runs = dict(session.query(
+            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
+            .group_by(DagRun.dag_id).all())
+
+        payload = {}
+        for dag in dagbag.dags.values():
+            dag_accessible = 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids
+            if (dag_accessible and dag.dag_id in dags_to_latest_runs and
+                    dags_to_latest_runs[dag.dag_id]):
+                payload[dag.safe_dag_id] = {
+                    'dag_id': dag.dag_id,
+                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
+                }
+
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -610,6 +645,24 @@ class Airflow(AirflowBaseView):
             dag_id=dag_id, task_id=task_id,
             execution_date=execution_date, form=form,
             root=root)
+
+    @expose('/elasticsearch')
+    @has_dag_access(can_dag_read=True)
+    @has_access
+    @action_logging
+    @provide_session
+    def elasticsearch(self, session=None):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        try_number = request.args.get('try_number', 1)
+        elasticsearch_frontend = conf.get('elasticsearch', 'frontend')
+        log_id_template = conf.get('elasticsearch', 'log_id_template')
+        log_id = log_id_template.format(
+            dag_id=dag_id, task_id=task_id,
+            execution_date=execution_date, try_number=try_number)
+        url = 'https://' + elasticsearch_frontend.format(log_id=quote(log_id))
+        return redirect(url)
 
     @expose('/task')
     @has_dag_access(can_dag_read=True)
@@ -1268,15 +1321,14 @@ class Airflow(AirflowBaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
+        external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
             'airflow/tree.html',
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
             root=root,
             form=form,
-            dag=dag, data=data, blur=blur, num_runs=num_runs)
+            dag=dag, data=data, blur=blur, num_runs=num_runs,
+            show_external_logs=bool(external_logs))
 
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
@@ -1359,6 +1411,7 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
+        external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -1369,16 +1422,14 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
             blur=blur,
             root=root or '',
             task_instances=task_instances,
             tasks=tasks,
             nodes=nodes,
-            edges=edges)
+            edges=edges,
+            show_external_logs=bool(external_logs))
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
@@ -1637,15 +1688,9 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def paused(self):
-        DagModel = models.DagModel
         dag_id = request.args.get('dag_id')
-        orm_dag = DagModel.get_dagmodel(dag_id)
-        if request.args.get('is_paused') == 'false':
-            orm_dag.is_paused = True
-        else:
-            orm_dag.is_paused = False
-        with create_session() as session:
-            session.merge(orm_dag)
+        is_paused = True if request.args.get('is_paused') == 'false' else False
+        models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
         return "OK"
 
     @expose('/refresh', methods=['POST'])

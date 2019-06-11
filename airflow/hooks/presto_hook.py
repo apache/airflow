@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 from pyhive import presto
 from pyhive.exc import DatabaseError
 from requests.auth import HTTPBasicAuth

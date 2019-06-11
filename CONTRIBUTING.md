@@ -127,9 +127,12 @@ There are three ways to setup an Apache Airflow development environment.
   # Start docker in your Airflow directory
   docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:3 bash
 
-  # Install Airflow with all the required dependencies,
-  # including the devel which will provide the development tools
-  pip install -e '.[hdfs,hive,druid,devel]'
+  # To install all of airflows dependencies to run all tests (this is a lot)
+  pip install -e .
+  
+  # To run only certain tests install the devel requirements and whatever is required
+  # for your test.  See setup.py for the possible requirements. For example:
+  pip install -e '.[gcp,devel]'
 
   # Init the database
   airflow initdb
@@ -189,6 +192,10 @@ or a single test method:
 
 ```
 ./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
+```
+or another example:
+```
+./run_unit_tests.sh tests.contrib.operators.test_dataproc_operator:DataprocClusterCreateOperatorTest.test_create_cluster_deletes_error_cluster  -s --logging-level=DEBUG
 ```
 
 To run the whole test suite with Docker Compose, do:
@@ -268,6 +275,7 @@ meets these guidelines:
 1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
 1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
 1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
+1. We also apply [Pylint](https://www.pylint.org) for linting (static code analysis). Run locally with `./scripts/ci/ci_pylint.sh`.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
 
 ### Testing on Travis CI

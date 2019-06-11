@@ -238,40 +238,40 @@ class BaseOperator(LoggingMixin):
     @apply_defaults
     def __init__(
         self,
-        task_id,  # type: str
-        owner=configuration.conf.get('operators', 'DEFAULT_OWNER'),  # type: str
-        email=None,  # type: Optional[str]
-        email_on_retry=True,  # type: bool
-        email_on_failure=True,  # type: bool
-        retries=0,  # type: int
-        retry_delay=timedelta(seconds=300),  # type: timedelta
-        retry_exponential_backoff=False,  # type: bool
-        max_retry_delay=None,  # type: Optional[datetime]
-        start_date=None,  # type: Optional[datetime]
-        end_date=None,  # type: Optional[datetime]
+        task_id: str,
+        owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
+        email: Optional[str] = None,
+        email_on_retry: bool = True,
+        email_on_failure: bool = True,
+        retries: int = 0,
+        retry_delay: timedelta = timedelta(seconds=300),
+        retry_exponential_backoff: bool = False,
+        max_retry_delay: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         schedule_interval=None,  # not hooked as of now
-        depends_on_past=False,  # type: bool
-        wait_for_downstream=False,  # type: bool
-        dag=None,  # type: Optional[DAG]
-        params=None,  # type: Optional[Dict]
-        default_args=None,  # type: Optional[Dict]
-        priority_weight=1,  # type: int
-        weight_rule=WeightRule.DOWNSTREAM,  # type: str
-        queue=configuration.conf.get('celery', 'default_queue'),  # type: str
-        pool=None,  # type: Optional[str]
-        sla=None,  # type: Optional[timedelta]
-        execution_timeout=None,  # type: Optional[timedelta]
-        on_failure_callback=None,  # type: Optional[Callable]
-        on_success_callback=None,  # type: Optional[Callable]
-        on_retry_callback=None,  # type: Optional[Callable]
-        trigger_rule=TriggerRule.ALL_SUCCESS,  # type: str
-        resources=None,  # type: Optional[Dict]
-        run_as_user=None,  # type: Optional[str]
-        task_concurrency=None,  # type: Optional[int]
-        executor_config=None,  # type: Optional[Dict]
-        do_xcom_push=True,  # type: bool
-        inlets=None,  # type: Optional[Dict]
-        outlets=None,  # type: Optional[Dict]
+        depends_on_past: bool = False,
+        wait_for_downstream: bool = False,
+        dag: Optional[DAG] = None,
+        params: Optional[Dict] = None,
+        default_args: Optional[Dict] = None,
+        priority_weight: int = 1,
+        weight_rule: str = WeightRule.DOWNSTREAM,
+        queue: str = configuration.conf.get('celery', 'default_queue'),
+        pool: Optional[str] = None,
+        sla: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = None,
+        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[Callable] = None,
+        on_retry_callback: Optional[Callable] = None,
+        trigger_rule: str = TriggerRule.ALL_SUCCESS,
+        resources: Optional[Dict] = None,
+        run_as_user: Optional[str] = None,
+        task_concurrency: Optional[int] = None,
+        executor_config: Optional[Dict] = None,
+        do_xcom_push: bool = True,
+        inlets: Optional[Dict] = None,
+        outlets: Optional[Dict] = None,
         *args,
         **kwargs
     ):
@@ -957,8 +957,7 @@ class BaseOperator(LoggingMixin):
             include_prior_dates=include_prior_dates)
 
     @cached_property
-    def extra_links(self):
-        # type: () -> Iterable[str]
+    def extra_links(self) -> Iterable[str]:
         return list(set(self.operator_extra_link_dict.keys())
                     .union(self.global_operator_extra_link_dict.keys()))
 
@@ -986,8 +985,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """
         Name of the link. This will be the button name on the task UI.
 
@@ -996,8 +994,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_link(self, operator, dttm):
-        # type: (BaseOperator, datetime) -> str
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
         """
         Link to external system.
 

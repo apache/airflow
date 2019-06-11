@@ -89,7 +89,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         # Then
         self.assertTrue(response)
-        get_bucket_mock.assert_called_once_with(bucket_name=test_bucket)
+        get_bucket_mock.assert_called_once_with(test_bucket)
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with()
 

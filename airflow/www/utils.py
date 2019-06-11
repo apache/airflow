@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
-
 import inspect
 import json
 import time
@@ -28,8 +25,6 @@ import re
 import zipfile
 import os
 import io
-
-from builtins import str
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter

@@ -137,3 +137,48 @@ example:
   [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
 
 **Note** that the path to the remote log file is listed on the first line.
+
+.. _write-logs-elasticsearch:
+
+Writing Logs to Elasticsearch
+------------------------------------
+
+Airflow can be configured to read task logs from Elasticsearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the Elasticsearch cluster using tools like fluentd, logstash or others.
+
+You can choose to have all task logs from workers output to the highest parent level process, instead of the standard file locations. This allows for some additional flexibility in container environments like Kubernetes, where container stdout is already being logged to the host nodes. From there a log shipping tool can be used to forward them along to Elasticsearch. To use this feature, set the ``write_stdout`` option in ``airflow.cfg``.
+You can also choose to have the logs output in a JSON format, using the ``json_format`` option. Airflow uses the standard Python logging module and JSON fields are directly extracted from the LogRecord object. To use this feature, set the ``json_fields`` option in ``airflow.cfg``. Add the fields to the comma-delimited string that you want collected for the logs. These fields are from the LogRecord object in the ``logging`` module. `Documentation on different attributes can be found here <https://docs.python.org/3/library/logging.html#logrecord-objects/>`_.
+
+First, to use the handler, airflow.cfg must be configured as follows:
+
+.. code-block:: bash
+
+    [core]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+
+    [elasticsearch]
+    log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+    end_of_log_mark = end_of_log
+    write_stdout =
+    json_fields =
+
+To output task logs to stdout in JSON format, the following config could be used:
+
+.. code-block:: bash
+
+    [core]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+
+    [elasticsearch]
+    log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+    end_of_log_mark = end_of_log
+    write_stdout = True
+    json_format = True
+    json_fields = asctime, filename, lineno, levelname, message

@@ -21,7 +21,6 @@ import errno
 
 import psutil
 
-from builtins import input
 from datetime import datetime
 from functools import reduce
 import os

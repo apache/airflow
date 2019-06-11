@@ -18,6 +18,7 @@
 from airflow.kubernetes.kubernetes_request_factory.kubernetes_request_factory import KubernetesRequestFactory
 from airflow.kubernetes.pod import Pod, Resources
 from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from parameterized import parameterized
 import unittest
 import copy
@@ -190,10 +191,25 @@ class TestKubernetesRequestFactory(unittest.TestCase):
             'ENV2': 'val2'
         }
         configmaps = ['configmap_a', 'configmap_b']
-        pod = Pod('v3.14', envs, [], secrets=secrets, configmaps=configmaps)
+        pod_runtime_envs = [PodRuntimeInfoEnv("ENV3", "status.podIP")]
+        pod = Pod(
+            image='v3.14',
+            envs=envs,
+            cmds=[],
+            secrets=secrets,
+            configmaps=configmaps,
+            pod_runtime_info_envs=pod_runtime_envs)
         self.expected['spec']['containers'][0]['env'] = [
             {'name': 'ENV1', 'value': 'val1'},
             {'name': 'ENV2', 'value': 'val2'},
+            {
+                'name': 'ENV3',
+                'valueFrom': {
+                    'fieldRef': {
+                        'fieldPath': 'status.podIP'
+                    }
+                }
+            }
         ]
         self.expected['spec']['containers'][0]['envFrom'] = [{
             'secretRef': {

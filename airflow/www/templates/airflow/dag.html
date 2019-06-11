@@ -160,6 +160,13 @@
             <hr/>
             <hr/>
           </div>
+          <div id="dag_es_logs">
+            <label style="display:inline"> View Logs in Elasticsearch (by attempts): </label>
+            <ul class="nav nav-pills" role="tablist" id="es_try_index" style="display:inline">
+            </ul>
+            <hr/>
+            <hr/>
+          </div>
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden">
@@ -347,6 +354,10 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var execution_date = '';
     var subdag_id = '';
+    var show_es_logs = false;
+    {% if show_external_logs is defined %}
+      show_es_logs = '{{ show_external_logs }}' == "True";
+    {% endif %}
 
     var buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce(function(obj, elm) {
       obj[elm.id.replace('btn_', '')] = elm;
@@ -416,14 +427,20 @@ function updateQueryStringParameter(uri, key, value) {
           $("#div_btn_subdag").show();
           subdag_id = "{{ dag.dag_id }}." + t;
       }
-      if (try_numbers > 0)
+
+      $("#dag_dl_logs").hide();
+      $("#dag_es_logs").hide();
+      if (try_numbers > 0) {
           $("#dag_dl_logs").show();
-      else
-          $("#dag_dl_logs").hide();
+          if (show_es_logs) {
+              $("#dag_es_logs").show();
+          }
+      }
 
       updateModalUrls();
 
       $("#try_index > li").remove();
+      $("#es_try_index > li").remove();
       var startIndex = (try_numbers > 2 ? 0 : 1)
       for (var index = startIndex; index <  try_numbers; index++) {
         var url = "{{ url_for('Airflow.get_logs_with_metadata') }}" +
@@ -442,6 +459,17 @@ function updateQueryStringParameter(uri, key, value) {
 
         $("#try_index").append(`<li role="presentation" style="display:inline">
           <a href="${url}"> ${showLabel} </a>
+          </li>`
+        );
+
+        if (index == 0 || !show_es_logs) continue;
+        var es_url = "{{ url_for('Airflow.elasticsearch') }}" +
+          "?dag_id=" + encodeURIComponent(dag_id) +
+          "&task_id=" + encodeURIComponent(task_id) +
+          "&execution_date=" + encodeURIComponent(execution_date) +
+          "&try_number=" + index;
+        $("#es_try_index").append(`<li role="presentation" style="display:inline">
+          <a href="${es_url}"> ${showLabel} </a>
           </li>`
         );
       }

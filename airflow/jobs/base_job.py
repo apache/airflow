@@ -23,7 +23,8 @@ from time import sleep
 
 from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import make_transient
+from sqlalchemy.orm.session import make_transient, Session
+from typing import Optional
 
 from airflow import configuration as conf
 from airflow import executors, models
@@ -71,25 +72,54 @@ class BaseJob(Base, LoggingMixin):
         Index('idx_job_state_heartbeat', state, latest_heartbeat),
     )
 
+    heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
+
     def __init__(
             self,
             executor=executors.get_default_executor(),
-            heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
+            heartrate=None,
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
-        self.heartrate = heartrate
+        if heartrate is not None:
+            self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
 
-    def is_alive(self):
+    @classmethod
+    @provide_session
+    def most_recent_job(cls, session: Session) -> Optional['BaseJob']:
+        """
+        Return the most recent job of this type, if any, based on last
+        heartbeat received.
+
+        This method should be called on a subclass (i.e. on SchedulerJob) to
+        return jobs of that type.
+
+        :param session: Database session
+        :rtype: BaseJob or None
+        """
+        return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
+
+    def is_alive(self, grace_multiplier=2.1):
+        """
+        Is this job currently alive.
+
+        We define alive as in a state of RUNNING, and having sent a heartbeat
+        within a multiple of the heartrate (default of 2.1)
+
+        :param grace_multiplier: multiplier of heartrate to require heart beat
+            within
+        :type grace_multiplier: number
+        :rtype: boolean
+        """
         return (
-            (timezone.utcnow() - self.latest_heartbeat).seconds <
-            (conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1)
+            self.state == State.RUNNING and
+            (timezone.utcnow() - self.latest_heartbeat).seconds < self.heartrate * grace_multiplier
         )
 
     @provide_session

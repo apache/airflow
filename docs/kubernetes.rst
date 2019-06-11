@@ -145,3 +145,21 @@ Kubernetes Operator
 
 
 See :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator`
+
+
+Pod Mutation Hook
+^^^^^^^^^^^^^^^^^
+
+Your local Airflow settings file can define a ``pod_mutation_hook`` function that
+has the ability to mutate pod objects before sending them to the Kubernetes client
+for scheduling. It receives a single argument as a reference to pod objects, and
+is expected to alter its attributes.
+
+This could be used, for instance, to add sidecar or init containers
+to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
+
+
+.. code:: python
+
+    def pod_mutation_hook(pod: Pod):
+      pod.annotations['airflow.apache.org/launched-by'] = 'Tests'

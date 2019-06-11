@@ -119,8 +119,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
     :type sanitize_specs: list[str]
 
     """
-    def __init__(self, sanitize_specs):
-        # type: (List[str]) -> None
+    def __init__(self, sanitize_specs: List[str]) -> None:
         super().__init__()
         self._sanitize_specs = sanitize_specs
 

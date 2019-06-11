@@ -53,7 +53,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = ('username', 'message')
+    template_fields = ['username', 'message']
 
     @apply_defaults
     def __init__(self,

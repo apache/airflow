@@ -46,6 +46,7 @@ This DAG relies on the following environment variables:
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
 
 """
+
 import json
 
 from os import getenv

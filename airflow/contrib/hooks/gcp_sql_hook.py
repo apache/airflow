@@ -955,7 +955,8 @@ class CloudSqlDatabaseHook(BaseHook):
             instance_specification=self._get_sqlproxy_instance_specification(),
             project_id=self.project_id,
             sql_proxy_version=self.sql_proxy_version,
-            sql_proxy_binary_path=self.sql_proxy_binary_path
+            sql_proxy_binary_path=self.sql_proxy_binary_path,
+            gcp_conn_id=self.gcp_cloudsql_conn_id
         )
 
     def get_database_hook(self):

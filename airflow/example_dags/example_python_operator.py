@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the PythonOperator."""
+
 import time
-from builtins import range
 from pprint import pprint
 
 import airflow
@@ -39,6 +40,7 @@ dag = DAG(
 
 # [START howto_operator_python]
 def print_context(ds, **kwargs):
+    """Print the Airflow context and ds variable from the context."""
     pprint(kwargs)
     print(ds)
     return 'Whatever you return gets printed in the logs'

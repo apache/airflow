@@ -24,6 +24,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
+### Changes to the Google Cloud Storage Hook
+
+Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
+
 ### Removal of Mesos Executor
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
 
@@ -434,6 +442,30 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+      
+### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
+
+GoogleCloudStorageToBigQueryOperator is now support schema auto-detection is available when you load data into BigQuery. Unfortunately, changes can be required.
+
+If BigQuery tables are created outside of airflow and the schema is not defined in the task, multiple options are available:
+
+define a schema_fields:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_fields={...})
+      
+or define a schema_object:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_object='path/to/schema/object)
+
+or enabled autodetect of schema:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      autodetect=True)
 
 ## Airflow 1.10.1
 

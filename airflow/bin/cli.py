@@ -32,7 +32,6 @@ import getpass
 import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
-from builtins import input
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -71,7 +70,7 @@ from sqlalchemy.orm import exc
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.api_auth.client_auth)
+                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
 log = LoggingMixin().log
 
@@ -401,24 +400,21 @@ def export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args, dag=None):
-    set_is_paused(True, args, dag)
+def pause(args):
+    set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args, dag=None):
-    set_is_paused(False, args, dag)
+def unpause(args):
+    set_is_paused(False, args)
 
 
-def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+def set_is_paused(is_paused, args):
+    DagModel.get_dagmodel(args.dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
-    with db.create_session() as session:
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-        dm.is_paused = is_paused
-        session.commit()
-
-    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
+    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
 def _run(args, dag, ti):
