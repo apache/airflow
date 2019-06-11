@@ -211,7 +211,7 @@ class DAG(BaseDag, LoggingMixin):
         self.fileloc = sys._getframe().f_back.f_code.co_filename
         self.task_dict = dict()  # type: Dict[str, TaskInstance]
 
-        # set timezone for start_date
+        # set timezone from start_date
         if start_date and start_date.tzinfo:
             self.timezone = start_date.tzinfo
         elif 'start_date' in self.default_args and self.default_args['start_date']:
