@@ -90,6 +90,7 @@ class AWSGlueJobOperator(BaseOperator):
         Executes AWS Glue Job from Airflow
         :return:
         """
+        task_instance = context['ti']
         glue_job = AwsGlueJobHook(job_name=self.job_name,
                                   desc=self.job_desc,
                                   concurrent_run_limit=self.concurrent_run_limit,
