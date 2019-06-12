@@ -158,10 +158,7 @@ There are three ways to setup an Apache Airflow development environment.
   Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
 
   ```bash
-  docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
-  # From the container
-  export TOX_ENV=py35-backend_mysql-env_docker
-  /app/scripts/ci/run-ci.sh
+  docker-compose -f scripts/ci/docker-compose.yml run -e TOX_ENV=py35-backend_mysql-env_docker airflow-testing /app/scripts/ci/run-ci.sh
   ```
 
   If you wish to run individual tests inside of Docker environment you can do as follows:
@@ -195,7 +192,7 @@ To run the whole test suite with Docker Compose, do:
 
 ```
 # Install Docker Compose first, then this will run the tests
-docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+docker-compose -f scripts/ci/docker-compose.yml run -e TOX_ENV=py35-backend_mysql-env_docker airflow-testing /app/scripts/ci/run-ci.sh
 ```
 
 Alternatively, you can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
