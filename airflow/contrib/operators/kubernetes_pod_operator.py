@@ -44,6 +44,8 @@ class KubernetesPodOperator(BaseOperator):
                                If more than one secret is required, provide a
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
+    :param ports: ports for launched pod
+    :type ports: list[airflow.kubernetes.pod.Port]
     :param volume_mounts: volumeMounts for launched pod
     :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
