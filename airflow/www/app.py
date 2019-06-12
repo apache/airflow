@@ -70,7 +70,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
     # flake8: noqa: F841
     cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})

@@ -25,12 +25,12 @@ import logging
 import json
 
 
-def merge_dicts(d1, d2):
+def merge_dicts(dict1, dict2):
     """
     Merge two dicts
     """
-    merged = d1.copy()
-    merged.update(d2)
+    merged = dict1.copy()
+    merged.update(dict2)
     return merged
 
 
@@ -38,6 +38,7 @@ class JSONFormatter(logging.Formatter):
     """
     JSONFormatter instances are used to convert a log record to json.
     """
+    # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
         super(JSONFormatter, self).__init__(fmt, datefmt, style)
         if extras is None:

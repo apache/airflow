@@ -230,7 +230,6 @@ with models.DAG(
     )
     # [END howto_operator_vision_remove_product_from_product_set]
 
-    # pylint: disable=pointless-statement
     # Product path
     product_create >> product_get >> product_update >> product_delete
 
@@ -246,7 +245,6 @@ with models.DAG(
     add_product_to_product_set >> remove_product_from_product_set
     remove_product_from_product_set >> product_delete
     remove_product_from_product_set >> product_set_delete
-    # pylint: enable=pointless-statement
 
 with models.DAG(
     'example_gcp_vision_explicit_id', default_args=default_args, schedule_interval=None
@@ -384,7 +382,6 @@ with models.DAG(
     )
     # [END howto_operator_vision_remove_product_from_product_set_2]
 
-    # pylint: disable=pointless-statement
     # Product path
     product_create_2 >> product_create_2_idempotence >> product_get_2 >> product_update_2 >> product_delete_2
 
@@ -401,7 +398,6 @@ with models.DAG(
     product_create_2 >> add_product_to_product_set_2
     remove_product_from_product_set_2 >> product_set_delete_2
     remove_product_from_product_set_2 >> product_delete_2
-    # pylint: enable=pointless-statement
 
 with models.DAG(
     'example_gcp_vision_annotate_image', default_args=default_args, schedule_interval=None
@@ -481,11 +477,9 @@ with models.DAG(
     )
     # [END howto_operator_vision_detect_safe_search_result]
 
-    # pylint: disable=pointless-statement
     annotate_image >> annotate_image_result
 
     detect_text >> detect_text_result
     document_detect_text >> document_detect_text_result
     detect_labels >> detect_labels_result
     detect_safe_search >> detect_safe_search_result
-    # pylint: enable=pointless-statement

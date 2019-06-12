@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,14 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Task APIs.."""
-from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import TaskInstance
+"""
+Classes for using Kubernetes Downward API
+"""
 
 
-def get_task(dag_id: str, task_id: str) -> TaskInstance:
-    """Return the task object identified by the given dag_id and task_id."""
-    dag = check_and_get_dag(dag_id, task_id)
+class PodRuntimeInfoEnv:
+    """Defines Pod runtime information as environment variable"""
 
-    # Return the task.
-    return dag.get_task(task_id)
+    def __init__(self, name, field_path):
+        """
+        Adds Kubernetes pod runtime information as environment variables such as namespace, pod IP, pod name.
+        Full list of options can be found in kubernetes documentation.
+
+        :param name: the name of the environment variable
+        :type: name: str
+        :param field_path: path to pod runtime info. Ex: metadata.namespace | status.podIP
+        :type: field_path: str
+        """
+        self.name = name
+        self.field_path = field_path

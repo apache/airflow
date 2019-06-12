@@ -121,6 +121,7 @@ class SSHOperatorTest(unittest.TestCase):
             command="echo -n airflow",
             do_xcom_push=True,
             dag=self.dag,
+            environment={'TEST': 'value'}
         )
 
         self.assertIsNotNone(task)

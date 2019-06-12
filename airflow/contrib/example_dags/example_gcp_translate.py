@@ -49,5 +49,5 @@ with models.DAG(
         task_id='access',
         bash_command="echo '{{ task_instance.xcom_pull(\"translate\")[0] }}'"
     )
-    product_set_create >> translation_access  # pylint: disable=pointless-statement
+    product_set_create >> translation_access
     # [END howto_operator_translate_access]

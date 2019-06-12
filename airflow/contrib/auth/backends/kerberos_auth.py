@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Kerberos authentication module"""
 import logging
 import flask_login
 from airflow.exceptions import AirflowConfigException
@@ -37,16 +37,18 @@ from airflow import configuration
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+# pylint: disable=c-extension-no-member
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 
 class AuthenticationError(Exception):
-    pass
+    """Error raised when authentication error occurs"""
 
 
 class KerberosUser(models.User, LoggingMixin):
+    """User authenticated with Kerberos"""
     def __init__(self, user):
         self.user = user
 
@@ -107,7 +109,7 @@ class KerberosUser(models.User, LoggingMixin):
         return True
 
 
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     if not userid or userid == 'None':

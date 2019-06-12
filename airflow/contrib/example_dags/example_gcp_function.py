@@ -130,4 +130,4 @@ with models.DAG(
         name=FUNCTION_NAME
     )
     # [END howto_operator_gcf_delete]
-    deploy_task >> deploy2_task >> delete_task  # pylint: disable=pointless-statement
+    deploy_task >> deploy2_task >> delete_task

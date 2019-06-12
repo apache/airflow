@@ -1134,7 +1134,7 @@ class Airflow(AirflowBaseView):
         from airflow.api.common.experimental.mark_tasks import set_state
 
         if confirmed:
-            altered = set_state(task=task, execution_date=execution_date,
+            altered = set_state(tasks=[task], execution_date=execution_date,
                                 upstream=upstream, downstream=downstream,
                                 future=future, past=past, state=state,
                                 commit=True)
@@ -1142,7 +1142,7 @@ class Airflow(AirflowBaseView):
             flash("Marked {} on {} task instances".format(state, len(altered)))
             return redirect(origin)
 
-        to_be_altered = set_state(task=task, execution_date=execution_date,
+        to_be_altered = set_state(tasks=[task], execution_date=execution_date,
                                   upstream=upstream, downstream=downstream,
                                   future=future, past=past, state=state,
                                   commit=False)
@@ -1752,7 +1752,7 @@ class Airflow(AirflowBaseView):
 
         tis = [
             ti for ti in dag.get_task_instances(dttm, dttm)
-            if ti.start_date]
+            if ti.start_date and ti.state]
         tis = sorted(tis, key=lambda ti: ti.start_date)
         TF = TaskFail
         ti_fails = list(itertools.chain(*[(

@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the SubDagOperator."""
+
 import airflow
 from airflow.example_dags.subdags.subdag import subdag
 from airflow.models import DAG
