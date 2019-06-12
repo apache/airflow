@@ -82,23 +82,23 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
                                             default_args={'start_date': days_ago(2)}),
                              owner='airflow')
 
-        d = days_ago(1)
+        test_date = days_ago(1)
         with create_session() as session:
             session.add(DM(dag_id=self.key))
             session.add(DR(dag_id=self.key))
             session.add(TI(task=task,
-                           execution_date=d,
+                           execution_date=test_date,
                            state=State.SUCCESS))
             # flush to ensure task instance if written before
             # task reschedule because of FK constraint
             session.flush()
             session.add(LOG(dag_id=self.key, task_id=None, task_instance=None,
-                            execution_date=d, event="varimport"))
-            session.add(TF(task=task, execution_date=d,
-                           start_date=d, end_date=d))
-            session.add(TR(task=task, execution_date=d,
-                           start_date=d, end_date=d,
-                           try_number=1, reschedule_date=d))
+                            execution_date=test_date, event="varimport"))
+            session.add(TF(task=task, execution_date=test_date,
+                           start_date=test_date, end_date=test_date))
+            session.add(TR(task=task, execution_date=test_date,
+                           start_date=test_date, end_date=test_date,
+                           try_number=1, reschedule_date=test_date))
 
     def tearDown(self):
         with create_session() as session:

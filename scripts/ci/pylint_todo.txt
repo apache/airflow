@@ -409,10 +409,6 @@
 ./scripts/perf/dags/perf_dag_1.py
 ./scripts/perf/dags/perf_dag_2.py
 ./scripts/perf/scheduler_ops_metrics.py
-./tests/api/client/test_local_client.py
-./tests/api/common/experimental/test_delete_dag.py
-./tests/api/common/experimental/test_mark_tasks.py
-./tests/api/common/experimental/test_pool.py
 ./tests/cli/test_cli.py
 ./tests/cli/test_worker_initialisation.py
 ./tests/contrib/hooks/test_aws_hook.py
