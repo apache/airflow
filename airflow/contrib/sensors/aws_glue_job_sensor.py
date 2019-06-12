@@ -54,4 +54,4 @@ class AwsGlueJobSensor(BaseSensorOperator):
         hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
         job_state = hook.job_completion(job_name=self.job_name,
                                         run_id=self.run_id)
-        return job_state.upper() in self.targeted_status
+        return job_state['JobRunState'].upper() in self.targeted_status
