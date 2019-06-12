@@ -2326,8 +2326,8 @@ class SchedulerJobTest(unittest.TestCase):
         import_error = import_errors[0]
         self.assertEqual(import_error.filename,
                          unparseable_filename)
-        self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+        self.assertTrue(import_error.stacktrace.startswith(
+                         "ERROR MESSAGE [invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME)))
 
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
@@ -2348,8 +2348,8 @@ class SchedulerJobTest(unittest.TestCase):
         import_error = import_errors[0]
         self.assertEqual(import_error.filename,
                          unparseable_filename)
-        self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+        self.assertTrue(import_error.stacktrace.startswith(
+                         "ERROR MESSAGE [invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME)))
 
     def test_no_import_errors_with_parseable_dag(self):
         try:
@@ -2394,8 +2394,8 @@ class SchedulerJobTest(unittest.TestCase):
         import_error = import_errors[0]
         self.assertEqual(import_error.filename,
                          unparseable_filename)
-        self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 2)".format(TEMP_DAG_FILENAME))
+        self.assertTrue(import_error.stacktrace.startswith(
+                         "ERROR MESSAGE [invalid syntax ({}, line 2)".format(TEMP_DAG_FILENAME)))
 
     def test_remove_error_clears_import_error(self):
         try:
