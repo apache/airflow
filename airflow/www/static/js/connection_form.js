@@ -62,6 +62,12 @@ $(document).ready(function () {
         'login': 'Username',
       }
     },
+    sentry: {
+      hidden_fields: ['schema', 'login', 'password', 'port', 'extra'],
+      relabeling: {
+        'host': 'DSN',
+      },
+    },
   };
 
   function connTypeChange(connectionType) {

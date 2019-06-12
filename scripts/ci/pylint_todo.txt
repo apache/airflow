@@ -107,6 +107,7 @@
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/salesforce_hook.py
 ./airflow/contrib/hooks/segment_hook.py
+./airflow/contrib/hooks/sentry_hook.py
 ./airflow/contrib/hooks/sftp_hook.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
 ./airflow/contrib/hooks/snowflake_hook.py
@@ -596,6 +597,7 @@
 ./tests/contrib/hooks/test_sagemaker_hook.py
 ./tests/contrib/hooks/test_salesforce_hook.py
 ./tests/contrib/hooks/test_segment_hook.py
+./tests/contrib/hooks/test_sentry_hook.py
 ./tests/contrib/hooks/test_sftp_hook.py
 ./tests/contrib/hooks/test_slack_webhook_hook.py
 ./tests/contrib/hooks/test_snowflake_hook.py

@@ -107,6 +107,7 @@ class Connection(Base, LoggingMixin):
         ('mongo', 'MongoDB'),
         ('gcpcloudsql', 'Google Cloud SQL'),
         ('grpc', 'GRPC Connection'),
+        ('sentry', 'Sentry DSN'),
     ]
 
     def __init__(
@@ -269,6 +270,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
+        elif self.conn_type == 'sentry':
+            from airflow.contrib.hooks.sentry_hook import SentryHook
+            return SentryHook(sentry_conn_id=self.conn_id)
         raise AirflowException("Unknown hook type {}".format(self.conn_type))
 
     def __repr__(self):

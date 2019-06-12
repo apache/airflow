@@ -261,6 +261,7 @@ salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
+sentry = ['sentry-sdk>=0.8.0']
 slack = ['slackclient>=1.0.0,<2.0.0']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
@@ -307,7 +308,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce + cgroups + papermill)
+             atlas + azure + aws + salesforce + cgroups + papermill + sentry)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -423,6 +424,7 @@ def do_setup():
             'salesforce': salesforce,
             'samba': samba,
             'sendgrid': sendgrid,
+            'sentry': sentry,
             'segment': segment,
             'slack': slack,
             'snowflake': snowflake,
