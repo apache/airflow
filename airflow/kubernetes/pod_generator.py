@@ -24,6 +24,7 @@ class PodGenerator:
 
     def __init__(self, kube_config=None):
         self.kube_config = kube_config
+        self.ports = []
         self.volumes = []
         self.volume_mounts = []
         self.init_containers = []
@@ -61,6 +62,13 @@ class PodGenerator:
 
     def _get_init_containers(self):
         return self.init_containers
+
+    def add_port(self, port):
+        """
+        Args:
+            port (Port):
+        """
+        self.ports.append({'name': port.name, 'containerPort': port.container_port})
 
     def add_volume(self, volume):
         """
@@ -157,6 +165,7 @@ class PodGenerator:
             # service_account_name=self.kube_config.worker_service_account_name,
             # image_pull_secrets=self.kube_config.image_pull_secrets,
             init_containers=worker_init_container_spec,
+            ports=self.ports,
             volumes=volumes,
             volume_mounts=volume_mounts,
             resources=None
