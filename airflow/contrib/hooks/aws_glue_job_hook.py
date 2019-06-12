@@ -118,7 +118,7 @@ class AwsGlueJobHook(AwsHook):
 
         try:
             job_response = self.get_or_create_glue_job()
-            job_name = job_response['Name']
+            job_name = job_response
             job_run = glue_client.start_job_run(
                 JobName=job_name,
                 Arguments=script_arguments
@@ -137,56 +137,59 @@ class AwsGlueJobHook(AwsHook):
         :param run_id:
         :return:
         """
-        glue_client = self.get_conn()
-        job_status = glue_client.get_job_run(
-            JobName=job_name,
-            RunId=run_id,
-            PredecessorsIncluded=True
-        )
-        job_run_state = job_status['JobRun']['JobRunState']
-        failed = job_run_state == 'FAILED'
-        stopped = job_run_state == 'STOPPED'
-        completed = job_run_state == 'SUCCEEDED'
-
         while True:
+            glue_client = self.get_conn()
+            job_status = glue_client.get_job_run(
+                JobName=job_name,
+                RunId=run_id,
+                PredecessorsIncluded=True
+            )
+            job_run_state = job_status['JobRun']['JobRunState']
+            failed = job_run_state == 'FAILED'
+            stopped = job_run_state == 'STOPPED'
+            completed = job_run_state == 'SUCCEEDED'
             if failed or stopped or completed:
                 self.log.info("Exiting Job {} Run State: {}"
                               .format(run_id, job_run_state))
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             else:
-                self.log.info("Polling for AWS Glue Job {} current run state"
-                              .format(job_name))
+                self.log.info("Polling for AWS Glue Job {} current run state with status {}"
+                              .format(job_name,job_run_state))
                 time.sleep(6)
 
     def get_or_create_glue_job(self):
         glue_client = self.get_conn()
         try:
-            self.log.info("Now creating and running AWS Glue Job")
-            s3_log_path = "s3://{bucket_name}/{logs_path}{job_name}"\
-                .format(bucket_name=self.s3_bucket,
-                        logs_path=self.S3_GLUE_LOGS,
-                        job_name=self.job_name)
+            get_job_response = glue_client.get_job(JobName=self.job_name)
+            self.log.info("Job Already exist. Returning Name of the job")
+            return get_job_response['Job']['Name']        
+        except glue_client.exceptions.EntityNotFoundException:
+            try:
+                self.log.info("Job Not exist. Now creating and running AWS Glue Job")
+                s3_log_path = "s3://{bucket_name}/{logs_path}{job_name}"\
+                    .format(bucket_name=self.s3_bucket,
+                            logs_path=self.S3_GLUE_LOGS,
+                            job_name=self.job_name)
 
-            execution_role = self.get_iam_execution_role()
-            script_location = self._check_script_location()
-            create_job_response = glue_client.create_job(
-                Name=self.job_name,
-                Description=self.desc,
-                LogUri=s3_log_path,
-                Role=execution_role['Role']['RoleName'],
-                ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                Command={"Name": "glueetl", "ScriptLocation": script_location},
-                MaxRetries=self.retry_limit,
-                AllocatedCapacity=self.num_of_dpus
-            )
-            # print(create_job_response)
-            return create_job_response
-        except Exception as general_error:
-            raise AirflowException(
-                'Failed to create aws glue job, error: {error}'.format(
-                    error=str(general_error)
+                execution_role = self.get_iam_execution_role()
+                script_location = self._check_script_location()
+                create_job_response = glue_client.create_job(
+                    Name=self.job_name,
+                    Description=self.desc,
+                    LogUri=s3_log_path,
+                    Role=execution_role['Role']['RoleName'],
+                    ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                    Command={"Name": "glueetl", "ScriptLocation": script_location},
+                    MaxRetries=self.retry_limit,
+                    AllocatedCapacity=self.num_of_dpus
                 )
-            )
+                return create_job_response['Name']   
+            except Exception as general_error:
+                raise AirflowException(
+                    'Failed to create aws glue job, error: {error}'.format(
+                        error=str(general_error)
+                    )
+                )    
 
     def _check_script_location(self):
         """
