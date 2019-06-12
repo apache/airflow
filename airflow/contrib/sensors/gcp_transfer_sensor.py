@@ -72,7 +72,7 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
     def poke(self, context):
         hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
         operations = hook.list_transfer_operations(
-            filter={'project_id': self.project_id, 'job_names': [self.job_name]}
+            request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
         )
 
         check = GCPTransferServiceHook.operations_contain_expected_statuses(

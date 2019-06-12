@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This module contains a Google Cloud Functions Hook.
+"""
 import time
 import requests
 from googleapiclient.discovery import build
@@ -82,7 +84,7 @@ class GcfHook(GoogleCloudBaseHook):
         :return: A Cloud Functions object representing the function.
         :rtype: dict
         """
-        return self.get_conn().projects().locations().functions().get(
+        return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -99,7 +101,7 @@ class GcfHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().projects().locations().functions().create(
+        response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
         ).execute(num_retries=self.num_retries)
@@ -118,7 +120,7 @@ class GcfHook(GoogleCloudBaseHook):
         :type update_mask: [str]
         :return: None
         """
-        response = self.get_conn().projects().locations().functions().patch(
+        response = self.get_conn().projects().locations().functions().patch(  # pylint: disable=no-member
             updateMask=",".join(update_mask),
             name=name,
             body=body
@@ -140,14 +142,16 @@ class GcfHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: The upload URL that was returned by generateUploadUrl method.
         """
-        response = self.get_conn().projects().locations().functions().generateUploadUrl(
+        response = \
+            self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)
-        ).execute(num_retries=self.num_retries)
+            ).execute(num_retries=self.num_retries)
+
         upload_url = response.get('uploadUrl')
-        with open(zip_path, 'rb') as fp:
+        with open(zip_path, 'rb') as file:
             requests.put(
                 url=upload_url,
-                data=fp,
+                data=file,
                 # Those two headers needs to be specified according to:
                 # https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/generateUploadUrl
                 # nopep8
@@ -166,7 +170,7 @@ class GcfHook(GoogleCloudBaseHook):
         :type name: str
         :return: None
         """
-        response = self.get_conn().projects().locations().functions().delete(
+        response = self.get_conn().projects().locations().functions().delete(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
@@ -184,7 +188,7 @@ class GcfHook(GoogleCloudBaseHook):
         """
         service = self.get_conn()
         while True:
-            operation_response = service.operations().get(
+            operation_response = service.operations().get(  # pylint: disable=no-member
                 name=operation_name,
             ).execute(num_retries=self.num_retries)
             if operation_response.get("done"):

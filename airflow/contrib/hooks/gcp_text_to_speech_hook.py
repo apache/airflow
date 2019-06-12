@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This module contains a Google Cloud Text to Speech Hook.
+"""
 from google.cloud.texttospeech_v1 import TextToSpeechClient
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -26,6 +28,9 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Text to Speech API.
 
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -34,10 +39,9 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _client = None
-
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def get_conn(self):
         """
@@ -48,6 +52,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
         """
         if not self._client:
             self._client = TextToSpeechClient(credentials=self._get_credentials())
+
         return self._client
 
     def synthesize_speech(self, input_data, voice, audio_config, retry=None, timeout=None):
