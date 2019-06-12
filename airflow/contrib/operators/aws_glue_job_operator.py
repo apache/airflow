@@ -104,6 +104,7 @@ class AWSGlueJobOperator(BaseOperator):
 
         self.log.info("Initializing AWS Glue Job: {}".format(self.job_name))
         glue_job_run = glue_job.initialize_job(self.script_args)
+        task_instance.xcom_push(key='run_id', value=glue_job_run['JobRunId'])
         self.log.info('AWS Glue Job: {job_name} status: {job_status}. Run Id: {run_id}'
                       .format(run_id=glue_job_run['JobRunId'],
                               job_name=self.job_name,
