@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage to S3 operator.
+"""
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
@@ -57,6 +60,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+
     :type dest_verify: bool or str
     :param replace: Whether or not to verify the existence of the files in the
         destination bucket.

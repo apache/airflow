@@ -50,7 +50,6 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             object_name="test-object",
             entity="test-entity",
             role="test-role",
-            generation="test-generation",
             user_project="test-user-project",
             task_id="id"
         )
@@ -60,6 +59,5 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             object_name="test-object",
             entity="test-entity",
             role="test-role",
-            generation="test-generation",
             user_project="test-user-project"
         )

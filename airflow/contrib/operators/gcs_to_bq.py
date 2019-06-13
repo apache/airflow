@@ -16,15 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage to BigQuery operator.
+"""
 
 import json
 
+from airflow import AirflowException
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=too-many-instance-attributes
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
     Loads files from Google cloud storage into BigQuery.
@@ -137,6 +142,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-locals,too-many-arguments
     @apply_defaults
     def __init__(self,
                  bucket,
@@ -218,8 +224,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                     self.bucket,
                     self.schema_object).decode("utf-8"))
             elif self.schema_object is None and self.autodetect is False:
-                raise ValueError('At least one of `schema_fields`, `schema_object`, '
-                                 'or `autodetect` must be passed.')
+                raise AirflowException('At least one of `schema_fields`, '
+                                       '`schema_object`, or `autodetect` must be passed.')
             else:
                 schema_fields = None
 
@@ -278,4 +284,3 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 'Loaded BQ data with max %s.%s=%s',
                 self.destination_project_dataset_table, self.max_id_key, max_id
             )
-            return max_id

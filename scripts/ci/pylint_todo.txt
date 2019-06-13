@@ -91,7 +91,6 @@
 ./airflow/contrib/hooks/gcp_translate_hook.py
 ./airflow/contrib/hooks/gcp_video_intelligence_hook.py
 ./airflow/contrib/hooks/gcp_vision_hook.py
-./airflow/contrib/hooks/gcs_hook.py
 ./airflow/contrib/hooks/grpc_hook.py
 ./airflow/contrib/hooks/imap_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
@@ -162,15 +161,6 @@
 ./airflow/contrib/operators/gcp_translate_speech_operator.py
 ./airflow/contrib/operators/gcp_video_intelligence_operator.py
 ./airflow/contrib/operators/gcp_vision_operator.py
-./airflow/contrib/operators/gcs_acl_operator.py
-./airflow/contrib/operators/gcs_delete_operator.py
-./airflow/contrib/operators/gcs_download_operator.py
-./airflow/contrib/operators/gcs_list_operator.py
-./airflow/contrib/operators/gcs_operator.py
-./airflow/contrib/operators/gcs_to_bq.py
-./airflow/contrib/operators/gcs_to_gcs.py
-./airflow/contrib/operators/gcs_to_gcs_transfer_operator.py
-./airflow/contrib/operators/gcs_to_s3.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/hipchat_operator.py
 ./airflow/contrib/operators/hive_to_dynamodb.py
@@ -238,7 +228,6 @@
 ./airflow/contrib/sensors/file_sensor.py
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/contrib/sensors/gcp_transfer_sensor.py
-./airflow/contrib/sensors/gcs_sensor.py
 ./airflow/contrib/sensors/hdfs_sensor.py
 ./airflow/contrib/sensors/imap_attachment_sensor.py
 ./airflow/contrib/sensors/jira_sensor.py
@@ -369,6 +358,7 @@
 ./airflow/migrations/versions/e3a246e0dc1_current_schema.py
 ./airflow/migrations/versions/f23433877c24_fix_mysql_not_null_constraint.py
 ./airflow/migrations/versions/f2ca10b85618_add_dag_stats_table.py
+./airflow/migrations/versions/004c1210f153_increase_queue_name_size_limit.py
 ./airflow/models/__init__.py
 ./airflow/models/base.py
 ./airflow/models/baseoperator.py

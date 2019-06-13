@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage operator.
+"""
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -183,7 +186,6 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                      source_object,
                                      self.last_modified_time):
                 self.log.debug("Object has been modified after %s ", self.last_modified_time)
-                pass
             else:
                 return
 

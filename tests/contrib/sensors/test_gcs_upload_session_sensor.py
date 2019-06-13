@@ -21,7 +21,8 @@
 import unittest
 import unittest.mock as mock
 from datetime import datetime, timedelta
-from airflow import configuration
+
+from airflow import configuration, AirflowException
 from airflow import models, DAG
 from airflow.contrib.sensors import gcs_sensor
 from airflow.settings import Session
@@ -85,7 +86,7 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.is_bucket_updated(2)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(AirflowException):
             self.sensor.is_bucket_updated(1)
 
     @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)

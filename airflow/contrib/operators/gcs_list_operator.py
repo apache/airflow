@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage list operator.
+"""
 
 from typing import Iterable
 
@@ -61,6 +64,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
             )
     """
     template_fields = ('bucket', 'prefix', 'delimiter')  # type: Iterable[str]
+
     ui_color = '#f0eee4'
 
     @apply_defaults
