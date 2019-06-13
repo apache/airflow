@@ -31,11 +31,17 @@ class SnowflakeOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
-    :param warehouse: name of warehouse which overwrite defined
-        one in connection
+    :param warehouse: name of warehouse (will overwrite any warehouse
+        defined in the connection's extra JSON)
     :type warehouse: str
-    :param database: name of database which overwrite defined one in connection
+    :param database: name of database (will overwrite database defined
+        in connection)
     :type database: str
+    :param schema: name of schema (will overwrite schema defined in
+        connection)
+    :type schema: str
+    :param role: name of role (will overwrite any role defined in
+        connection's extra JSON)
     """
 
     template_fields = ('sql',)
