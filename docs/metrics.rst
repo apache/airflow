@@ -64,8 +64,6 @@ Name                                            Description
 collect_dags                                    Seconds taken to scan and import DAGs
 dagbag_import_errors                            DAG import errors
 dagbag_size                                     DAG bag size
-dag_processing.last_runtime.<dag_file>          Seconds spent processing <dag_file> (in most recent iteration)
-dag_processing.last_run.seconds_ago.<dag_file>  Seconds since <dag_file> was last processed
 executor.open_slots                             Number of of open slots on executor
 executor.queued_tasks                           Number of queued tasks on executor
 executor.running_tasks                          Number of running tasks on executor
@@ -75,13 +73,15 @@ pool.starving_tasks.<pool_name>                 Number of starving tasks in the 
 Timers
 ------
 
-================================= =================================================
-Name                              Description
-================================= =================================================
-dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
-dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
-dagrun.duration.success.<dag_id>  Seconds taken for a DagRun to reach success state
-dagrun.duration.failed.<dag_id>   Seconds taken for a DagRun to reach failed state
-dagrun.schedule_delay.<dag_id>    Seconds of delay between the scheduled DagRun
-                                  start date and the actual DagRun start date
-================================= =================================================
+=============================================== =================================================
+Name                                            Description
+=============================================== =================================================
+dagrun.dependency-check.<dag_id>                Seconds taken to check DAG dependencies
+dag.<dag_id>.<task_id>.duration                 Seconds taken to finish a task
+dagrun.duration.success.<dag_id>                Seconds taken for a DagRun to reach success state
+dagrun.duration.failed.<dag_id>                 Seconds taken for a DagRun to reach failed state
+dagrun.schedule_delay.<dag_id>                  Seconds of delay between the scheduled DagRun
+                                                start date and the actual DagRun start date
+dag_processing.last_runtime.<dag_file>          Seconds spent processing <dag_file> (in most recent iteration)
+dag_processing.last_run.seconds_ago.<dag_file>  Seconds since <dag_file> was last processed
+=============================================== =================================================

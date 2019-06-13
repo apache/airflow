@@ -984,7 +984,7 @@ class DagFileProcessorManager(LoggingMixin):
             file_name = os.path.basename(file_path)
             file_name = os.path.splitext(file_name)[0].replace(os.sep, '.')
             if last_runtime:
-                Stats.gauge(
+                Stats.timing(
                     'dag_processing.last_runtime.{}'.format(file_name),
                     last_runtime
                 )
@@ -996,7 +996,7 @@ class DagFileProcessorManager(LoggingMixin):
             last_run = self.get_last_finish_time(file_path)
             if last_run:
                 seconds_ago = (timezone.utcnow() - last_run).total_seconds()
-                Stats.gauge(
+                Stats.timing(
                     'dag_processing.last_run.seconds_ago.{}'.format(file_name),
                     seconds_ago
                 )
