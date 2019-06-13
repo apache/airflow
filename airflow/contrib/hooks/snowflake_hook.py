@@ -43,7 +43,7 @@ class SnowflakeHook(DbApiHook):
         self.database = kwargs.pop("database", None)
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
-        self.schema=kwargs.pop("schema", None)
+        self.schema = kwargs.pop("schema", None)
 
     def _get_conn_params(self):
         """
