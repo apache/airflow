@@ -1268,7 +1268,10 @@ class DagFileProcessorManager(LoggingMixin):
             )
             self._last_zombie_query_time = timezone.utcnow()
             for ti in tis:
-                zombies.append(SimpleTaskInstance(ti))
+                sti = SimpleTaskInstance(ti)
+                self.log.info("Detected zombie job with dag_id %s, task_id %s, and execution date %s",
+                              sti.dag_id, sti.task_id, sti.execution_date.isoformat())
+                zombies.append(sti)
 
         return zombies
 
