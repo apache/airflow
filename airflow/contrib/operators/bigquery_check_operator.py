@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google BigQuery check operator.
+"""
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.operators.check_operator import \

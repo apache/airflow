@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Translate operators.
+"""
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_translate_hook import CloudTranslateHook
@@ -70,7 +73,6 @@ class CloudTranslateTextOperator(BaseOperator):
       as ``'base'`` or ``'nmt'``.
 
     """
-
     # [START translate_template_fields]
     template_fields = ('values', 'target_language', 'format_', 'source_language', 'model', 'gcp_conn_id')
     # [END translate_template_fields]

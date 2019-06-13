@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google PubSub sensor.
+"""
 
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator

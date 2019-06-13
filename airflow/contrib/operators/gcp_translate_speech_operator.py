@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Translate Speech operator.
+"""
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
@@ -92,7 +95,6 @@ class GcpTranslateSpeechOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START translate_speech_template_fields]
     template_fields = ('target_language', 'format_', 'source_language', 'model', 'project_id', 'gcp_conn_id')
     # [END translate_speech_template_fields]
@@ -130,12 +132,12 @@ class GcpTranslateSpeechOperator(BaseOperator):
         )
         recognize_dict = MessageToDict(recognize_result)
 
-        self.log.info("recognition operation finished", recognize_dict)
+        self.log.info("Recognition operation finished")
 
-        if len(recognize_dict['results']) == 0:
+        if not recognize_dict['results']:
             self.log.info("No recognition results")
             return {}
-        self.log.debug("recognition result: %s", recognize_dict)
+        self.log.debug("Recognition result: %s", recognize_dict)
 
         try:
             transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
@@ -151,7 +153,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
                 source_language=self.source_language,
                 model=self.model
             )
-            self.log.info('translated output: %s', translation)
+            self.log.info('Translated output: %s', translation)
             return translation
         except ValueError as e:
             self.log.error('An error has been thrown from translate speech method:')
