@@ -63,7 +63,7 @@ class PodGenerator:
     def _get_init_containers(self):
         return self.init_containers
 
-    def add_port(self, port):
+    def add_port(self, port: int):
         """
         Args:
             port (Port):
