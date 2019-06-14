@@ -141,6 +141,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         for batch prediction.
     :type runtime_version: str
 
+    :param signature_name: The name of the signature defined in the SavedModel
+        to use for this job.
+    :type signature_name: str
+
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
     :type gcp_conn_id: str
