@@ -34,12 +34,82 @@ class _DataProcJob(LoggingMixin):
         self.project_id = project_id
         self.region = region
         self.num_retries = num_retries
+        self.job_error_states = job_error_states
+
+        # Check if the job to submit is already running on the cluster.
+        # If so, don't resubmit the job.
+        try:
+            cluster_name = job['job']['placement']['clusterName']
+        except KeyError:
+            self.log.error('Job to submit is incorrectly configured.')
+            raise
+
+        jobs_on_cluster_response = dataproc_api.projects().regions().jobs().list(
+            projectId=self.project_id,
+            region=self.region,
+            clusterName=cluster_name).execute()
+
+        UUID_LENGTH = 9
+        jobs_on_cluster = jobs_on_cluster_response.get('jobs', [])
+        try:
+            task_id_to_submit = job['job']['reference']['jobId'][:-UUID_LENGTH]
+        except KeyError:
+            self.log.error('Job to submit is incorrectly configured.')
+            raise
+
+        # There is a small set of states that we will accept as sufficient
+        # for attaching the new task instance to the old Dataproc job.  We
+        # generally err on the side of _not_ attaching, unless the prior
+        # job is in a known-good state. For example, we don't attach to an
+        # ERRORed job because we want Airflow to be able to retry the job.
+        # The full set of possible states is here:
+        # https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.jobs#State
+        recoverable_states = frozenset([
+            'PENDING',
+            'SETUP_DONE',
+            'RUNNING',
+            'DONE',
+        ])
+
+        found_match = False
+        for job_on_cluster in jobs_on_cluster:
+            job_on_cluster_id = job_on_cluster['reference']['jobId']
+            job_on_cluster_task_id = job_on_cluster_id[:-UUID_LENGTH]
+            if task_id_to_submit == job_on_cluster_task_id:
+
+                self.job = job_on_cluster
+                self.job_id = self.job['reference']['jobId']
+                found_match = True
+
+                # We can stop looking once we find a matching job in a recoverable state.
+                if self.job['status']['state'] in recoverable_states:
+                    break
+
+        if found_match and self.job['status']['state'] in recoverable_states:
+            message = """
+    Reattaching to previously-started DataProc job %s (in state %s).
+    If this is not the desired behavior (ie if you would like to re-run this job),
+    please delete the previous instance of the job by running:
+
+    gcloud --project %s dataproc jobs delete %s --region %s
+"""
+            self.log.info(
+                message,
+                self.job_id,
+                str(self.job['status']['state']),
+                self.project_id,
+                self.job_id,
+                self.region,
+            )
+
+            return
+
         self.job = dataproc_api.projects().regions().jobs().submit(
             projectId=self.project_id,
             region=self.region,
             body=job).execute(num_retries=self.num_retries)
         self.job_id = self.job['reference']['jobId']
-        self.job_error_states = job_error_states
+
         self.log.info(
             'DataProc job %s is %s',
             self.job_id, str(self.job['status']['state'])
@@ -207,6 +277,7 @@ class _DataProcOperation(LoggingMixin):
 
 class DataProcHook(GoogleCloudBaseHook):
     """Hook for Google Cloud Dataproc APIs."""
+
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
