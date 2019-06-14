@@ -214,13 +214,14 @@ class DagTest(unittest.TestCase):
         Tests that a start_date string with a timezone and an end_date string without a timezone
         are accepted and that the timezone from the start carries over the end
 
-        This test is a little indirect, it works by setting start and end equal except for the timezone and then
-        testing for equality after the DAG construction.  They'll be equal only if the same timezone was applied
-        to both.
+        This test is a little indirect, it works by setting start and end equal except for the
+        timezone and then testing for equality after the DAG construction.  They'll be equal
+        only if the same timezone was applied to both.
 
         An explicit check the the `tzinfo` attributes for both are the same is an extra check.
         """
-        dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00', 'end_date': '2019-06-05T00:00:00'})
+        dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00',
+                                       'end_date': '2019-06-05T00:00:00'})
         self.assertEqual(dag.default_args['start_date'], dag.default_args['end_date'])
         self.assertEqual(dag.default_args['start_date'].tzinfo, dag.default_args['end_date'].tzinfo)
 
