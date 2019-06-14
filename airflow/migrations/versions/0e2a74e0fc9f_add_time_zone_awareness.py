@@ -154,8 +154,8 @@ def upgrade():
             table_name="xcom",
             column_name="timestamp",
             type_=mysql.TIMESTAMP(fsp=6),
-            nullable = False,
-            server_default = sa.text('CURRENT_TIMESTAMP(6)')
+            nullable=False,
+            server_default=sa.text('CURRENT_TIMESTAMP(6)')
         )
         op.alter_column(
             table_name="xcom",
