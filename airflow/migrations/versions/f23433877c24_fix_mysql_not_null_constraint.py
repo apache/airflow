@@ -35,10 +35,17 @@ depends_on = None
 def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
+        import sqlalchemy as sa
         conn.execute("SET time_zone = '+00:00'")
-        op.alter_column('task_fail', 'execution_date', existing_type=mysql.TIMESTAMP(fsp=6), nullable=False)
-        op.alter_column('xcom', 'execution_date', existing_type=mysql.TIMESTAMP(fsp=6), nullable=False)
-        op.alter_column('xcom', 'timestamp', existing_type=mysql.TIMESTAMP(fsp=6), nullable=False)
+        op.alter_column('task_fail', 'execution_date', existing_type=mysql.TIMESTAMP(fsp=6),
+                        nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)'))
+        op.alter_column('xcom', 'execution_date', existing_type=mysql.TIMESTAMP(fsp=6),
+                        nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)'))
+        op.alter_column('xcom', 'timestamp', existing_type=mysql.TIMESTAMP(fsp=6),
+                        nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)'))
+        conn.execute("alter table task_fail alter column execution_date drop default")
+        conn.execute("alter table xcom alter column execution_date drop default")
+        conn.execute("alter table xcom alter column timestamp drop default")
 
 
 def downgrade():

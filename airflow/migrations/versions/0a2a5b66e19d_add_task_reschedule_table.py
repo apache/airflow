@@ -66,13 +66,12 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('task_id', sa.String(length=250), nullable=False),
         sa.Column('dag_id', sa.String(length=250), nullable=False),
-        # use explicit server_default=None otherwise mysql implies defaults for first timestamp column
-        sa.Column('execution_date', timestamp(), nullable=False, server_default=None),
+        sa.Column('execution_date', timestamp(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)')),
         sa.Column('try_number', sa.Integer(), nullable=False),
-        sa.Column('start_date', timestamp(), nullable=False),
-        sa.Column('end_date', timestamp(), nullable=False),
+        sa.Column('start_date', timestamp(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)')),
+        sa.Column('end_date', timestamp(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)')),
         sa.Column('duration', sa.Integer(), nullable=False),
-        sa.Column('reschedule_date', timestamp(), nullable=False),
+        sa.Column('reschedule_date', timestamp(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP(6)')),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(
             ['task_id', 'dag_id', 'execution_date'],
