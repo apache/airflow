@@ -23,7 +23,6 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-from datetime import timedelta
 
 from unittest.mock import MagicMock
 
@@ -203,8 +202,15 @@ class TestDagFileProcessorManager(unittest.TestCase):
             session.add(ti)
             session.commit()
 
-            manager._last_zombie_query_time = timezone.utcnow() - timedelta(
-                seconds=manager._zombie_threshold_secs + 1)
+            # initial call should return zombies
+            zombies = manager._find_zombies()
+            self.assertEqual(1, len(zombies))
+            self.assertIsInstance(zombies[0], SimpleTaskInstance)
+            self.assertEqual(ti.dag_id, zombies[0].dag_id)
+            self.assertEqual(ti.task_id, zombies[0].task_id)
+            self.assertEqual(ti.execution_date, zombies[0].execution_date)
+
+            # AIRFLOW-4797: repeated call should return zombies again
             zombies = manager._find_zombies()
             self.assertEqual(1, len(zombies))
             self.assertIsInstance(zombies[0], SimpleTaskInstance)
