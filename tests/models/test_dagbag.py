@@ -194,13 +194,14 @@ class DagBagTest(unittest.TestCase):
         Test that fileloc is correctly set when we load example DAGs,
         specifically SubDAGs and packaged DAGs.
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
 
         expected = {
             'example_bash_operator': 'airflow/example_dags/example_bash_operator.py',
             'example_subdag_operator': 'airflow/example_dags/example_subdag_operator.py',
             'example_subdag_operator.section-1': 'airflow/example_dags/subdags/subdag.py',
-            'test_zip_dag': 'tests/dags/test_zip.zip/test_zip.py'
+            'test_zip_dag': 'dags/test_zip.zip/test_zip.py'
         }
 
         for dag_id, path in expected.items():
@@ -604,7 +605,7 @@ class DagBagTest(unittest.TestCase):
         """
         Test that kill zombies call TIs failure handler with proper context
         """
-        dagbag = models.DagBag()
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
         with create_session() as session:
             session.query(TI).delete()
             dag = dagbag.get_dag('example_branch_operator')
