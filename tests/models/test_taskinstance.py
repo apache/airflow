@@ -541,11 +541,20 @@ class TaskInstanceTest(unittest.TestCase):
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
     def test_depends_on_past(self):
-        dagbag = models.DagBag()
-        dag = dagbag.get_dag('test_depends_on_past')
+        dag = DAG(
+            dag_id='test_depends_on_past',
+            start_date=DEFAULT_DATE
+        )
+
+        task = DummyOperator(
+            task_id='test_dop_task',
+            dag=dag,
+            depends_on_past=True,
+        )
         dag.clear()
-        task = dag.tasks[0]
+
         run_date = task.start_date + datetime.timedelta(days=5)
+
         ti = TI(task, run_date)
 
         # depends_on_past prevents the run
