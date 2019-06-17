@@ -741,7 +741,7 @@ class DataProcPigOperator(DataProcJobBaseOperator):
             self.job_template.add_query(self.query)
         self.job_template.add_variables(self.variables)
 
-        self.execute(context)
+        super(DataProcPigOperator, self).execute(context)
 
 
 class DataProcHiveOperator(DataProcJobBaseOperator):
