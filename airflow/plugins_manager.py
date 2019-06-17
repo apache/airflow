@@ -17,12 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import imp
+import importlib.util
 import inspect
 import os
 import re
-import pkg_resources
+import types
+from importlib.abc import Loader
 from typing import List, Any
+
+import pkg_resources
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
@@ -139,8 +142,12 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
-            m = imp.load_source(namespace, filepath)
-            for obj in list(m.__dict__.values()):
+            spec = importlib.util.spec_from_file_location(namespace, filepath)
+            mod = importlib.util.module_from_spec(spec)
+            # get rid of mypy errors
+            assert isinstance(spec.loader, Loader)
+            spec.loader.exec_module(mod)
+            for obj in list(mod.__dict__.values()):
                 if is_valid_plugin(obj, plugins):
                     plugins.append(obj)
 
@@ -158,7 +165,7 @@ plugins = load_entrypoint_plugins(
 def make_module(name, objects):
     log.debug('Creating module %s', name)
     name = name.lower()
-    module = imp.new_module(name)
+    module = types.ModuleType(name)
     module._name = name.split('.')[-1]
     module._objects = objects
     module.__dict__.update((o.__name__, o) for o in objects)

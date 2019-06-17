@@ -18,7 +18,6 @@
 # under the License.
 
 import hashlib
-import imp
 import importlib
 import os
 import sys
@@ -195,8 +194,10 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             with timeout(configuration.conf.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
                 try:
-                    m = imp.load_source(mod_name, filepath)
-                    mods.append(m)
+                    spec = importlib.util.spec_from_file_location(mod_name, filepath)
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    mods.append(mod)
                 except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)
                     self.import_errors[filepath] = str(e)

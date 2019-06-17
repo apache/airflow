@@ -281,7 +281,7 @@ class DagBagTest(unittest.TestCase):
         # write source to file
         source = textwrap.dedent(''.join(
             inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        f = NamedTemporaryFile()
+        f = NamedTemporaryFile(suffix='.py')
         f.write(source.encode('utf8'))
         f.flush()
 
