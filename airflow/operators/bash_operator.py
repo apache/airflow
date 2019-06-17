@@ -90,15 +90,16 @@ class BashOperator(BaseOperator):
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
         # Prepare env for child process.
-        if self.env is None:
-            self.env = os.environ.copy()
+        env = self.env
+        if env is None:
+            env = os.environ.copy()
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.info('Exporting the following env vars:\n%s',
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in
                                  airflow_context_vars.items()]))
-        self.env.update(airflow_context_vars)
+        env.update(airflow_context_vars)
 
         self.lineage_data = self.bash_command
 
@@ -122,7 +123,7 @@ class BashOperator(BaseOperator):
                     stdout=PIPE,
                     stderr=STDOUT,
                     cwd=tmp_dir,
-                    env=self.env,
+                    env=env,
                     preexec_fn=pre_exec)
 
                 self.sub_process = sub_process
