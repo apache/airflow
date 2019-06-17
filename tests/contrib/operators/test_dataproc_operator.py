@@ -31,6 +31,7 @@ from airflow.contrib.operators.dataproc_operator import \
     DataprocClusterDeleteOperator, \
     DataProcHadoopOperator, \
     DataProcHiveOperator, \
+    DataProcPigOperator, \
     DataProcPySparkOperator, \
     DataProcSparkOperator, \
     DataprocWorkflowTemplateInstantiateInlineOperator, \
@@ -617,6 +618,32 @@ class DataProcHiveOperatorTest(unittest.TestCase):
         with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHiveOperator(
                 task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
+
+class DataProcPigOperatorTest(unittest.TestCase):
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPigOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                region=GCP_REGION
+            )
+
+            dataproc_task.execute(None)
+        mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                              GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPigOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                region=GCP_REGION
             )
 
             _assert_dataproc_job_id(mock_hook, dataproc_task)
