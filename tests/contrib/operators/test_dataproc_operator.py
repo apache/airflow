@@ -47,6 +47,7 @@ CLUSTER_NAME = 'test-cluster-name'
 GCP_PROJECT_ID = 'test-project-id'
 NUM_WORKERS = 123
 GCE_ZONE = 'us-central1-a'
+SCALING_POLICY = 'test-scaling-policy'
 NETWORK_URI = '/projects/project_id/regions/global/net'
 SUBNETWORK_URI = '/projects/project_id/regions/global/subnet'
 INTERNAL_IP_ONLY = True
@@ -115,6 +116,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     project_id=GCP_PROJECT_ID,
                     num_workers=NUM_WORKERS,
                     zone=GCE_ZONE,
+                    autoscaling_policy=SCALING_POLICY,
                     network_uri=NETWORK_URI,
                     subnetwork_uri=SUBNETWORK_URI,
                     internal_ip_only=INTERNAL_IP_ONLY,
@@ -170,6 +172,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.idle_delete_ttl, IDLE_DELETE_TTL)
             self.assertEqual(dataproc_operator.auto_delete_time, AUTO_DELETE_TIME)
             self.assertEqual(dataproc_operator.auto_delete_ttl, AUTO_DELETE_TTL)
+            self.assertEqual(dataproc_operator.autoscaling_policy, SCALING_POLICY)
 
     def test_get_init_action_timeout(self):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
@@ -204,6 +207,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                              "321s")
             self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                              "2017-06-07T00:00:00.000000Z")
+            self.assertEqual(cluster_data['config']['autoscalingConfig']['policyUri'],
+                             SCALING_POLICY)
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
@@ -390,7 +395,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                         'secondaryWorkerConfig': {},
                         'softwareConfig': {},
                         'lifecycleConfig': {},
-                        'encryptionConfig': {}},
+                        'encryptionConfig': {},
+                        'autoscalingConfig': {},
+                    },
                     'labels': {'airflow-version': mock.ANY}})
             hook.wait.assert_called_once_with(self.operation)
 
