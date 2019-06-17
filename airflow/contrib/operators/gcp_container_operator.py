@@ -86,8 +86,8 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        delete_result = hook.delete_cluster(name=self.name)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
 
 
@@ -173,8 +173,8 @@ class GKEClusterCreateOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        create_op = hook.create_cluster(cluster=self.body)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
 
 
