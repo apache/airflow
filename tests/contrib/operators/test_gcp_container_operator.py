@@ -55,7 +55,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.create_cluster.assert_called_once_with(
-            cluster=PROJECT_BODY_CREATE)
+            cluster=PROJECT_BODY_CREATE, project_id=TEST_GCP_PROJECT_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_body(self, mock_hook):
@@ -97,7 +97,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.delete_cluster.assert_called_once_with(
-            name=CLUSTER_NAME)
+            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_project_id(self, mock_hook):
