@@ -333,7 +333,7 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
-            'alembic>=0.9, <1.0',
+            'alembic>=1.0, <2.0',
             'cached_property~=1.5',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
