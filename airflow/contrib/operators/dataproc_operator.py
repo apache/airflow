@@ -99,6 +99,10 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     :param custom_image: custom Dataproc image for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image: str
+    :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
+        including projectid and location (region) are valid. Example:
+        ``projects/[projectId]/locations/[dataproc_region]/autoscalingPolicies/[policy_id]``
+    :type autoscaling_policy: str
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
@@ -162,7 +166,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
     :param customer_managed_key: The customer-managed key used for disk encryption
-        (projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME])
+        ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]``
     :type customer_managed_key: str
     """
 
@@ -184,6 +188,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                  metadata=None,
                  custom_image=None,
                  image_version=None,
+                 autoscaling_policy=None,
                  properties=None,
                  master_machine_type='n1-standard-4',
                  master_disk_type='pd-standard',
@@ -217,6 +222,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
+        self.autoscaling_policy = autoscaling_policy
         self.worker_machine_type = worker_machine_type
         self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
@@ -293,7 +299,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'secondaryWorkerConfig': {},
                 'softwareConfig': {},
                 'lifecycleConfig': {},
-                'encryptionConfig': {}
+                'encryptionConfig': {},
+                'autoscalingConfig': {},
             }
         }
         if self.num_preemptible_workers > 0:
@@ -377,6 +384,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         if self.customer_managed_key:
             cluster_data['config']['encryptionConfig'] =\
                 {'gcePdKmsKeyName': self.customer_managed_key}
+        if self.autoscaling_policy:
+            cluster_data['config']['autoscalingConfig'] = {'policyUri': self.autoscaling_policy}
+
         return cluster_data
 
     def start(self):
