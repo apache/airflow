@@ -136,6 +136,27 @@ class JenkinsOperatorTestCase(unittest.TestCase):
 
             self.assertRaises(AirflowException, operator.execute, None)
 
+    @unittest.skipIf(mock is None, 'mock package not present')
+    def test_build_job(self):
+        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
+        jenkins_mock.build_job_url.return_value = \
+            'http://www.jenkins.url/somewhere/in/the/universe'
+        
+        hook_mock = mock.Mock(spec=JenkinsHook)
+        hook_mock.get_jenkins_server.return_value = jenkins_mock
+
+        operator = JenkinsJobTriggerOperator(
+                dag=None,
+                task_id="build_job_test",
+                job_name="a_job_on_jenkins",
+                jenkins_connection_id="fake_jenkins_connection",
+                # The hook is mocked, this connection won't be used
+                sleep_time=1)
+        
+
+        self.assertEqual(operator.build_job(hook_mock)['headers']['Location'], 'http://www.jenkins.url/somewhere/in/the/universe')
+
+
 
 if __name__ == "__main__":
     unittest.main()
