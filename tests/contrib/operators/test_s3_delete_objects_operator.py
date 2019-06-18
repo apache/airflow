@@ -24,6 +24,7 @@ import boto3
 from moto import mock_s3
 
 from airflow.contrib.operators.s3_delete_objects_operator import S3DeleteObjectsOperator
+from tests.compat import mock
 
 
 class TestS3DeleteObjectsOperator(unittest.TestCase):
@@ -83,3 +84,15 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # There should be no object found in the bucket created earlier
         self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
                                                          Prefix=key_pattern))
+
+    @mock.patch('airflow.hooks.S3_hook.S3Hook.delete_objects')
+    def test_s3_delete_empty_list_of_objects(self, s3_hook_delete_objects_mock):
+        bucket = "testbucket"
+        keys = []
+
+        t = S3DeleteObjectsOperator(task_id="test_task_s3_delete_empty_list_of_objects",
+                                    bucket=bucket,
+                                    keys=keys)
+        t.execute(None)
+
+        self.assertFalse(s3_hook_delete_objects_mock.called)

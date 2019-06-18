@@ -77,6 +77,9 @@ class S3DeleteObjectsOperator(BaseOperator):
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
+        if isinstance(self.keys, list) and len(self.keys) == 0:
+            return
+
         response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
 
         deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
