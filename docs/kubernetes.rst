@@ -47,6 +47,10 @@ Kubernetes Operator
     from airflow.contrib.operators import KubernetesOperator
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
+    from airflow.contrib.kubernetes.volume import Volume
+    from airflow.contrib.kubernetes.volume_mount import VolumeMount
+    from airflow.contrib.kubernetes.pod import Port
+
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
     secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
@@ -55,7 +59,7 @@ Kubernetes Operator
                                 mount_path='/root/mount_file',
                                 sub_path=None,
                                 read_only=True)
-
+    port = Port('http', 80)
     configmaps = ['test-configmap-1', 'test-configmap-2']
 
     volume_config= {
@@ -129,6 +133,7 @@ Kubernetes Operator
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file, secret_env, secret_all_keys],
+                              ports=[port]
                               volumes=[volume],
                               volume_mounts=[volume_mount]
                               name="test",
