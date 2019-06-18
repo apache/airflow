@@ -100,6 +100,13 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
         req['spec']['containers'][0]['args'] = pod.args
 
     @staticmethod
+    def attach_ports(pod, req):
+        req['spec']['containers'][0]['ports'] = (
+            req['spec']['containers'][0].get('ports', []))
+        if len(pod.ports) > 0:
+            req['spec']['containers'][0]['ports'].extend(pod.ports)
+
+    @staticmethod
     def attach_volumes(pod, req):
         req['spec']['volumes'] = (
             req['spec'].get('volumes', []))

@@ -44,6 +44,8 @@ class KubernetesPodOperator(BaseOperator):
                                If more than one secret is required, provide a
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
+    :param ports: ports for launched pod
+    :type ports: list[airflow.kubernetes.pod.Port]
     :param volume_mounts: volumeMounts for launched pod
     :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
@@ -104,6 +106,8 @@ class KubernetesPodOperator(BaseOperator):
                                                  config_file=self.config_file)
             gen = pod_generator.PodGenerator()
 
+            for port in self.ports:
+                gen.add_port(port)
             for mount in self.volume_mounts:
                 gen.add_mount(mount)
             for volume in self.volumes:
@@ -167,6 +171,7 @@ class KubernetesPodOperator(BaseOperator):
                  name,
                  cmds=None,
                  arguments=None,
+                 ports=None,
                  volume_mounts=None,
                  volumes=None,
                  env_vars=None,
@@ -202,6 +207,7 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = name
         self.env_vars = env_vars or {}
+        self.ports = ports or []
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
         self.secrets = secrets or []

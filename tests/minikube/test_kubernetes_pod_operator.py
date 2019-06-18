@@ -25,6 +25,7 @@ from kubernetes.client.rest import ApiException
 from subprocess import check_call
 import json
 from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod import Port
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.volume import Volume
 from tests.compat import mock
@@ -254,6 +255,22 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"+ echo 10\n")
+
+    @staticmethod
+    def test_port():
+        port = Port('http', 80)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            ports=[port]
+        )
+        k.execute(None)
 
     @staticmethod
     def test_volume_mount():
