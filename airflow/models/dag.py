@@ -211,7 +211,7 @@ class DAG(BaseDag, LoggingMixin):
         self.fileloc = sys._getframe().f_back.f_code.co_filename
         self.task_dict = dict()  # type: Dict[str, TaskInstance]
 
-        # set timezone
+        # set timezone from start_date
         if start_date and start_date.tzinfo:
             self.timezone = start_date.tzinfo
         elif 'start_date' in self.default_args and self.default_args['start_date']:
@@ -223,6 +223,13 @@ class DAG(BaseDag, LoggingMixin):
 
         if not hasattr(self, 'timezone') or not self.timezone:
             self.timezone = settings.TIMEZONE
+
+        # Apply the timezone we settled on to end_date if it wasn't supplied
+        if 'end_date' in self.default_args and self.default_args['end_date']:
+            if isinstance(self.default_args['end_date'], six.string_types):
+                self.default_args['end_date'] = (
+                    timezone.parse(self.default_args['end_date'], timezone=self.timezone)
+                )
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)

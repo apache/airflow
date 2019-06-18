@@ -203,6 +203,28 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(tuple(), dag.topological_sort())
 
+    def test_dag_naive_start_date_string(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01'})
+
+    def test_dag_naive_start_end_dates_strings(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01', 'end_date': '2019-06-05'})
+
+    def test_dag_start_date_propagates_to_end_date(self):
+        """
+        Tests that a start_date string with a timezone and an end_date string without a timezone
+        are accepted and that the timezone from the start carries over the end
+
+        This test is a little indirect, it works by setting start and end equal except for the
+        timezone and then testing for equality after the DAG construction.  They'll be equal
+        only if the same timezone was applied to both.
+
+        An explicit check the the `tzinfo` attributes for both are the same is an extra check.
+        """
+        dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00',
+                                       'end_date': '2019-06-05T00:00:00'})
+        self.assertEqual(dag.default_args['start_date'], dag.default_args['end_date'])
+        self.assertEqual(dag.default_args['start_date'].tzinfo, dag.default_args['end_date'].tzinfo)
+
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
         self.assertEqual(dag.timezone, settings.TIMEZONE)
