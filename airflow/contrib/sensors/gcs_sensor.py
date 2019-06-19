@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage sensors.
+"""
 
 import os
 from datetime import datetime
@@ -23,6 +26,7 @@ from datetime import datetime
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
+from airflow import AirflowException
 
 
 class GoogleCloudStorageObjectSensor(BaseSensorOperator):
@@ -190,14 +194,14 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         an upload session is over. Note, this mechanism is not real time and
         this operator may not return until a poke_interval after this period
         has passed with no additional objects sensed.
-    :type inactivity_period: int
+    :type inactivity_period: float
     :param min_objects: The minimum number of objects needed for upload session
         to be considered valid.
     :type min_objects: int
     :param previous_num_objects: The number of objects found during the last poke.
     :type previous_num_objects: int
     :param inactivity_seconds: The current seconds of the inactivity period.
-    :type inactivity_seconds: int
+    :type inactivity_seconds: float
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
@@ -251,63 +255,54 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         if current_num_objects > self.previous_num_objects:
             # When new objects arrived, reset the inactivity_seconds
             # previous_num_objects for the next poke.
-            self.log.info(
-                '''
-                New objects found at {} resetting last_activity_time.
-                '''.format(os.path.join(self.bucket, self.prefix)))
+            self.log.info("New objects found at %s resetting last_activity_time.",
+                          os.path.join(self.bucket, self.prefix))
             self.last_activity_time = get_time()
             self.inactivity_seconds = 0
             self.previous_num_objects = current_num_objects
-        elif current_num_objects < self.previous_num_objects:
+            return False
+
+        if current_num_objects < self.previous_num_objects:
             # During the last poke interval objects were deleted.
             if self.allow_delete:
                 self.previous_num_objects = current_num_objects
                 self.last_activity_time = get_time()
                 self.log.warning(
-                    '''
+                    """
                     Objects were deleted during the last
                     poke interval. Updating the file counter and
                     resetting last_activity_time.
-                    '''
+                    """
                 )
-            else:
-                raise RuntimeError(
-                    '''
-                    Illegal behavior: objects were deleted in {} between pokes.
-                    '''.format(os.path.join(self.bucket, self.prefix))
-                )
-        else:
-            if self.last_activity_time:
-                self.inactivity_seconds = (
-                    get_time() - self.last_activity_time).total_seconds()
-            else:
-                # Handles the first poke where last inactivity time is None.
-                self.last_activity_time = get_time()
-                self.inactivity_seconds = 0
-
-            if self.inactivity_seconds >= self.inactivity_period:
-                if current_num_objects >= self.min_objects:
-                    self.log.info(
-                        '''
-                        SUCCESS:
-                        Sensor found {} objects at {}.
-                        Waited at least {} seconds, with no new objects dropped.
-                        '''.format(
-                            current_num_objects,
-                            os.path.join(self.bucket, self.prefix),
-                            self.inactivity_period))
-                    return True
-
-                warn_msg = \
-                    '''
-                    FAILURE:
-                    Inactivity Period passed,
-                    not enough objects found in {}
-                    '''.format(
-                        os.path.join(self.bucket, self.prefix))
-                self.log.warning(warn_msg)
                 return False
+
+            raise AirflowException(
+                """
+                Illegal behavior: objects were deleted in {} between pokes.
+                """.format(os.path.join(self.bucket, self.prefix))
+            )
+
+        if self.last_activity_time:
+            self.inactivity_seconds = (get_time() - self.last_activity_time).total_seconds()
+        else:
+            # Handles the first poke where last inactivity time is None.
+            self.last_activity_time = get_time()
+            self.inactivity_seconds = 0
+
+        if self.inactivity_seconds >= self.inactivity_period:
+            path = os.path.join(self.bucket, self.prefix)
+
+            if current_num_objects >= self.min_objects:
+                self.log.info("""SUCCESS:
+                    Sensor found %s objects at %s.
+                    Waited at least %s seconds, with no new objects dropped.
+                    """, current_num_objects, path, self.inactivity_period)
+                return True
+
+            self.log.warning("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+
             return False
+        return False
 
     def poke(self, context):
         hook = GoogleCloudStorageHook()

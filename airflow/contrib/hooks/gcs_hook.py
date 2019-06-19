@@ -17,12 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains a Google Cloud Storage hook.
+"""
+
 import gzip as gz
 import os
 import shutil
 
-from google.cloud import storage
 from urllib.parse import urlparse
+from google.cloud import storage
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
@@ -72,6 +76,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         destination_bucket = destination_bucket or source_bucket
         destination_object = destination_object or source_object
+
         if source_bucket == destination_bucket and \
                 source_object == destination_object:
 
@@ -289,11 +294,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         bucket = client.get_bucket(bucket_name)
 
         ids = []
-        pageToken = None
+        page_token = None
         while True:
             blobs = bucket.list_blobs(
                 max_results=max_results,
-                page_token=pageToken,
+                page_token=page_token,
                 prefix=prefix,
                 delimiter=delimiter,
                 versions=versions
@@ -309,8 +314,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             else:
                 ids += blob_names
 
-            pageToken = blobs.next_page_token
-            if pageToken is None:
+            page_token = blobs.next_page_token
+            if page_token is None:
                 # empty next page token
                 break
         return ids
@@ -437,7 +442,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         for item in bucket_resource:
             if item != "name":
-                bucket._patch_property(name=item, value=resource[item])
+                bucket._patch_property(name=item, value=resource[item])  # pylint: disable=protected-access
 
         bucket.storage_class = storage_class
         bucket.labels = labels or {}
@@ -531,7 +536,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type destination_object: str
         """
 
-        if not source_objects or not len(source_objects):
+        if not source_objects:
             raise ValueError('source_objects cannot be empty.')
 
         if not bucket_name or not destination_object:

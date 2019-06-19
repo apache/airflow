@@ -16,12 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage delete operator.
+"""
+
+from typing import Optional, Iterable
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from typing import Optional, Iterable
 
 
 class GoogleCloudStorageDeleteOperator(BaseOperator):
