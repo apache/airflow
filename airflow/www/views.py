@@ -922,13 +922,14 @@ class Airflow(AirflowBaseView):
         return redirect(origin)
 
     def _clear_dag_tis(self, dag, start_date, end_date, origin,
-                       recursive=False, confirmed=False):
+                       recursive=False, confirmed=False, only_failed=False):
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
                 include_subdags=recursive,
                 include_parentdag=recursive,
+                only_failed=only_failed,
             )
 
             flash("{0} task instances have been cleared".format(count))
@@ -939,6 +940,7 @@ class Airflow(AirflowBaseView):
             end_date=end_date,
             include_subdags=recursive,
             include_parentdag=recursive,
+            only_failed=only_failed,
             dry_run=True,
         )
         if not tis:
@@ -973,6 +975,7 @@ class Airflow(AirflowBaseView):
         future = request.form.get('future') == "true"
         past = request.form.get('past') == "true"
         recursive = request.form.get('recursive') == "true"
+        only_failed = request.form.get('only_failed') == "true"
 
         dag = dag.sub_dag(
             task_regex=r"^{0}$".format(task_id),
@@ -983,7 +986,7 @@ class Airflow(AirflowBaseView):
         start_date = execution_date if not past else None
 
         return self._clear_dag_tis(dag, start_date, end_date, origin,
-                                   recursive=recursive, confirmed=confirmed)
+                                   recursive=recursive, confirmed=confirmed, only_failed=only_failed)
 
     @expose('/dagrun_clear', methods=['POST'])
     @has_dag_access(can_dag_edit=True)

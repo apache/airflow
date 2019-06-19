@@ -574,6 +574,7 @@ class TestAirflowBaseViews(TestBase):
             downstream="false",
             future="false",
             past="false",
+            only_failed="false",
         )
         resp = self.client.post("clear", data=form)
         self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
