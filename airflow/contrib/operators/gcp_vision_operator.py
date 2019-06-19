@@ -678,16 +678,17 @@ class CloudVisionProductDeleteOperator(BaseOperator):
 
 class CloudVisionAnnotateImageOperator(BaseOperator):
     """
-    Run image detection and annotation for an image.
+    Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudVisionAnnotateImageOperator`
 
-    :param request: (Required) Individual file annotation requests.
+    :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
         message class:`google.cloud.vision_v1.types.AnnotateImageRequest`
-    :type request: dict or google.cloud.vision_v1.types.AnnotateImageRequest
+    :type request: list[dict or google.cloud.vision_v1.types.AnnotateImageRequest] for batch or
+        dict or google.cloud.vision_v1.types.AnnotateImageRequest for single image.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -715,7 +716,17 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+
+        if not isinstance(self.request, list):
+            response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+        else:
+            response = hook.batch_annotate_images(
+                requests=self.request,
+                retry=self.retry,
+                timeout=self.timeout
+            )
+
+        return response
 
 
 class CloudVisionReferenceImageCreateOperator(BaseOperator):
