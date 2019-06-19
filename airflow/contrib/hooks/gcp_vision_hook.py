@@ -449,6 +449,22 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
+    def batch_annotate_images(self, requests, retry=None, timeout=None):
+        """
+        For the documentation see:
+        :py:class:`~airflow.contrib.operators.gcp_vision_image_annotator_operator.CloudVisionAnnotateImage`
+        """
+        client = self.annotator_client
+
+        self.log.info('Annotating images')
+
+        response = client.batch_annotate_images(requests=requests, retry=retry, timeout=timeout)
+
+        self.log.info('Images annotated')
+
+        return MessageToDict(response)
+
+    @GoogleCloudBaseHook.catch_http_exception
     def text_detection(
         self, image, max_results=None, retry=None, timeout=None, additional_properties=None
     ):
