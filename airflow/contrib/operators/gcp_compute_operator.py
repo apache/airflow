@@ -16,8 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Compute Engine operators.
+"""
+
 from copy import deepcopy
 from typing import Dict
+from json_merge_patch import merge
 
 from googleapiclient.errors import HttpError
 
@@ -27,7 +32,6 @@ from airflow.contrib.utils.gcp_field_sanitizer import GcpBodyFieldSanitizer
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from json_merge_patch import merge
 
 
 class GceBaseOperator(BaseOperator):
@@ -473,8 +477,9 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             for version in patch_body['versions']:
                 self._possibly_replace_template(version)
         if self._change_performed or self.update_policy:
-            self.log.info("Calling patch instance template with updated body: {}".
-                          format(patch_body))
+            self.log.info(
+                "Calling patch instance template with updated body: %s",
+                patch_body)
             return self._hook.patch_instance_group_manager(
                 zone=self.zone, resource_id=self.resource_id,
                 body=patch_body, request_id=self.request_id,

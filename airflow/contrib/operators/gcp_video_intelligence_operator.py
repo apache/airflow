@@ -16,11 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Vision operators.
+"""
+
 from google.protobuf.json_format import MessageToDict
+from google.cloud.videointelligence_v1 import enums
 
 from airflow.contrib.hooks.gcp_video_intelligence_hook import CloudVideoIntelligenceHook
 from airflow.models import BaseOperator
-from google.cloud.videointelligence_v1 import enums
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
@@ -55,7 +59,6 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     """
-
     # [START gcp_video_intelligence_detect_labels_template_fields]
     template_fields = ("input_uri", "output_uri", "gcp_conn_id")
     # [END gcp_video_intelligence_detect_labels_template_fields]
@@ -129,7 +132,6 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     """
-
     # [START gcp_video_intelligence_detect_explicit_content_template_fields]
     template_fields = ("input_uri", "output_uri", "gcp_conn_id")
     # [END gcp_video_intelligence_detect_explicit_content_template_fields]
@@ -203,7 +205,6 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     """
-
     # [START gcp_video_intelligence_detect_video_shots_template_fields]
     template_fields = ("input_uri", "output_uri", "gcp_conn_id")
     # [END gcp_video_intelligence_detect_video_shots_template_fields]

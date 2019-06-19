@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Transfer sensor.
+"""
+
 import six
 
 from airflow.contrib.hooks.gcp_transfer_hook import GCPTransferServiceHook

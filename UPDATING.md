@@ -16,13 +16,16 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
 ## Airflow Master
+
+### Changes to Google Transfer Operator
+To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
+has been renamed to `request_filter`.
 
 ### Changes in writing Logs to Elasticsearch
 

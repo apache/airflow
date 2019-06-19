@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud SQL operators.
+"""
+
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
@@ -261,8 +265,8 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                 project_id=self.project_id,
                 body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID {} already exists. "
-                          "Aborting create.".format(self.instance))
+            self.log.info("Cloud SQL instance with ID %s already exists. "
+                          "Aborting create.", self.instance)
 
         instance_resource = self._hook.get_instance(project_id=self.project_id,
                                                     instance=self.instance)
@@ -434,13 +438,11 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
         database = self.body.get("name")
         if not database:
             self.log.error("Body doesn't contain 'name'. Cannot check if the"
-                           " database already exists in the instance {}."
-                           .format(self.instance))
+                           " database already exists in the instance %s.", self.instance)
             return False
         if self._check_if_db_exists(database):
-            self.log.info("Cloud SQL instance with ID {} already contains database"
-                          " '{}'. Aborting database insert."
-                          .format(self.instance, database))
+            self.log.info("Cloud SQL instance with ID %s already contains database"
+                          " '%s'. Aborting database insert.", self.instance, database)
             return True
         else:
             return self._hook.create_database(project_id=self.project_id,
@@ -511,10 +513,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     def execute(self, context):
         self._validate_body_fields()
         if not self._check_if_db_exists(self.database):
-            raise AirflowException("Cloud SQL instance with ID {} does not contain "
-                                   "database '{}'. "
-                                   "Please specify another database to patch."
-                                   .format(self.instance, self.database))
+            raise AirflowException("Cloud SQL instance with ID {instance} does not contain "
+                                   "database '{database}'. "
+                                   "Please specify another database to patch.".
+                                   format(instance=self.instance, database=self.database))
         else:
             return self._hook.patch_database(
                 project_id=self.project_id,
@@ -775,29 +777,33 @@ class CloudSqlQueryOperator(BaseOperator):
         self.cloud_sql_proxy_runner = None
         self.database_hook = None
 
+    def _execute_query(self):
+        try:
+            if self.cloudsql_db_hook.use_proxy:
+                self.cloud_sql_proxy_runner = self.cloudsql_db_hook. \
+                    get_sqlproxy_runner()
+                self.cloudsql_db_hook.free_reserved_port()
+                # There is very, very slim chance that the socket will
+                # be taken over here by another bind(0).
+                # It's quite unlikely to happen though!
+                self.cloud_sql_proxy_runner.start_proxy()
+            self.log.info('Executing: "%s"', self.sql)
+            self.database_hook.run(self.sql, self.autocommit,
+                                   parameters=self.parameters)
+        finally:
+            if self.cloud_sql_proxy_runner:
+                self.cloud_sql_proxy_runner.stop_proxy()
+                self.cloud_sql_proxy_runner = None
+
     def execute(self, context):
         self.cloudsql_db_hook.validate_ssl_certs()
         self.cloudsql_db_hook.create_connection()
+
         try:
             self.cloudsql_db_hook.validate_socket_path_length()
             self.database_hook = self.cloudsql_db_hook.get_database_hook()
             try:
-                try:
-                    if self.cloudsql_db_hook.use_proxy:
-                        self.cloud_sql_proxy_runner = self.cloudsql_db_hook.\
-                            get_sqlproxy_runner()
-                        self.cloudsql_db_hook.free_reserved_port()
-                        # There is very, very slim chance that the socket will
-                        # be taken over here by another bind(0).
-                        # It's quite unlikely to happen though!
-                        self.cloud_sql_proxy_runner.start_proxy()
-                    self.log.info('Executing: "%s"', self.sql)
-                    self.database_hook.run(self.sql, self.autocommit,
-                                           parameters=self.parameters)
-                finally:
-                    if self.cloud_sql_proxy_runner:
-                        self.cloud_sql_proxy_runner.stop_proxy()
-                        self.cloud_sql_proxy_runner = None
+                self._execute_query()
             finally:
                 self.cloudsql_db_hook.cleanup_database_hook()
         finally:

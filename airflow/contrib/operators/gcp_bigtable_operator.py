@@ -16,17 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Bigtable operators.
+"""
 
 from typing import Iterable
+
 import google.api_core.exceptions
+from google.cloud.bigtable_admin_v2 import enums
+from google.cloud.bigtable.table import ClusterState
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
 from airflow.utils.decorators import apply_defaults
-from google.cloud.bigtable_admin_v2 import enums
-from google.cloud.bigtable.table import ClusterState
 
 
 class BigtableValidationMixin:
@@ -93,7 +97,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
                        'main_cluster_zone']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  instance_id,
                  main_cluster_id,
                  main_cluster_zone,
@@ -259,7 +263,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
             self.log.error("Actual: %s", table_column_families.keys())
             return False
 
-        for key in table_column_families.keys():
+        for key in table_column_families:
             # There is difference in structure between local Column Families
             # and remote ones
             # Local `self.column_families` is dict with column_id as key
