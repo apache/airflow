@@ -50,7 +50,6 @@ class BaseExecutor(LoggingMixin):
         Executors may need to get things started. For example LocalExecutor
         starts N workers.
         """
-        pass
 
     def queue_command(self, simple_task_instance, command, priority=1, queue=None):
         key = simple_task_instance.key
@@ -108,7 +107,6 @@ class BaseExecutor(LoggingMixin):
         Sync will get called periodically by the heartbeat method.
         Executors should override this to perform gather statuses.
         """
-        pass
 
     def heartbeat(self):
         # Triggering new jobs

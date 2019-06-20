@@ -221,10 +221,10 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         mock_conf_get.side_effect = get_conf
         mock_config_as_dict.return_value = {'core': ''}
 
-        with self.assertRaisesRegexp(AirflowConfigException,
-                                     'either `git_user` and `git_password`.*'
-                                     'or `git_ssh_key_secret_name`.*'
-                                     'but not both$'):
+        with self.assertRaisesRegex(AirflowConfigException,
+                                    'either `git_user` and `git_password`.*'
+                                    'or `git_ssh_key_secret_name`.*'
+                                    'but not both$'):
             KubeConfig()
 
     def test_worker_with_subpaths(self):

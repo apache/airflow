@@ -528,7 +528,6 @@
 ./tests/contrib/operators/test_gcp_translate_speech_operator.py
 ./tests/contrib/operators/test_gcp_video_intelligence_operator_system_helper.py
 ./tests/contrib/operators/test_gcp_vision_operator.py
-./tests/contrib/operators/test_gcs_to_gcs_operator.py
 ./tests/contrib/operators/test_gcs_to_s3_operator.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_hive_to_dynamodb_operator.py

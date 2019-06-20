@@ -1691,7 +1691,6 @@ class TestTaskInstanceView(TestBase):
         # in to FAB) but simply that our UTC conversion was run - i.e. it
         # doesn't blow up!
         self.check_content_in_response('List Task Instance', resp)
-        pass
 
 
 class TestTriggerDag(TestBase):

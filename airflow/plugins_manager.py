@@ -72,7 +72,6 @@ class AirflowPlugin:
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
         """
-        pass
 
 
 def load_entrypoint_plugins(entry_points, airflow_plugins):

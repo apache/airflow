@@ -54,7 +54,7 @@ class CloudLanguageAnalyzeEntitiesOperatorTestCase(unittest.TestCase):
         hook_mock.return_value.analyze_entities.return_value = ANALYZE_ENTITIES_RESPONSE
         op = CloudLanguageAnalyzeEntitiesOperator(task_id="task-id", document=DOCUMENT)
         resp = op.execute({})
-        self.assertEquals(resp, {})
+        self.assertEqual(resp, {})
 
 
 class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
@@ -63,7 +63,7 @@ class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
         hook_mock.return_value.analyze_entity_sentiment.return_value = ANALYZE_ENTITY_SENTIMENT_RESPONSE
         op = CloudLanguageAnalyzeEntitySentimentOperator(task_id="task-id", document=DOCUMENT)
         resp = op.execute({})
-        self.assertEquals(resp, {})
+        self.assertEqual(resp, {})
 
 
 class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
@@ -72,7 +72,7 @@ class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
         hook_mock.return_value.analyze_sentiment.return_value = ANALYZE_SENTIMENT_RESPONSE
         op = CloudLanguageAnalyzeSentimentOperator(task_id="task-id", document=DOCUMENT)
         resp = op.execute({})
-        self.assertEquals(resp, {})
+        self.assertEqual(resp, {})
 
 
 class CloudLanguageClassifyTextOperatorTestCase(unittest.TestCase):
@@ -81,4 +81,4 @@ class CloudLanguageClassifyTextOperatorTestCase(unittest.TestCase):
         hook_mock.return_value.classify_text.return_value = CLASSIFY_TEXT_RRESPONSE
         op = CloudLanguageClassifyTextOperator(task_id="task-id", document=DOCUMENT)
         resp = op.execute({})
-        self.assertEquals(resp, {})
+        self.assertEqual(resp, {})

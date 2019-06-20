@@ -71,7 +71,7 @@ class KubernetesExecutorTest(unittest.TestCase):
             timeout=1,
         )
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
     def setUp(self):
         self.session = self._get_session_with_retries()
@@ -109,7 +109,6 @@ class KubernetesExecutorTest(unittest.TestCase):
                 tries += 1
             except requests.exceptions.ConnectionError as e:
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
-                pass
 
         self.assertEqual(state, expected_final_state)
 

@@ -96,7 +96,6 @@ def policy(task_instance):
         pool.
     * ...
     """
-    pass
 
 
 def pod_mutation_hook(pod: Pod):
@@ -111,7 +110,6 @@ def pod_mutation_hook(pod: Pod):
     This could be used, for instance, to add sidecar or init containers
     to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
     """
-    pass
 
 
 def configure_vars():
@@ -251,7 +249,6 @@ def configure_action_logging():
     module
     :rtype: None
     """
-    pass
 
 
 def prepare_syspath():

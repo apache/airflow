@@ -61,9 +61,9 @@ class TestSQSPublishOperator(unittest.TestCase):
 
         message = self.sqs_hook.get_conn().receive_message(QueueUrl='test')
 
-        self.assertEquals(len(message['Messages']), 1)
-        self.assertEquals(message['Messages'][0]['MessageId'], result['MessageId'])
-        self.assertEquals(message['Messages'][0]['Body'], 'hello')
+        self.assertEqual(len(message['Messages']), 1)
+        self.assertEqual(message['Messages'][0]['MessageId'], result['MessageId'])
+        self.assertEqual(message['Messages'][0]['Body'], 'hello')
 
         context_calls = []
 
