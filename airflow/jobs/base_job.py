@@ -141,7 +141,6 @@ class BaseJob(Base, LoggingMixin):
         """
         Will be called when an external kill command is received
         """
-        pass
 
     def heartbeat_callback(self, session=None):
         pass
