@@ -45,6 +45,7 @@ LOG = LoggingMixin().log
 
 def load_auth():
     """Loads authentication backend"""
+
     auth_backend = 'airflow.api.auth.backend.default'
     try:
         auth_backend = conf.get("api", "auth_backend")
@@ -52,18 +53,19 @@ def load_auth():
         pass
 
     try:
-        API_AUTH.api_auth = import_module(auth_backend)
+        api_auth = import_module(auth_backend)
 
-        if hasattr(API_AUTH.api_auth, 'client_auth'):
-            warnings.warn(
-                'Auth backend %s should provide a CLIENT_AUTH (instead of client_auth)' % auth_backend,
-                DeprecationWarning)
-            API_AUTH.api_auth.CLIENT_AUTH = API_AUTH.api_auth.client_auth
-        else:
-            API_AUTH.api_auth.client_auth = deprecated(
-                'use CLIENT_AUTH',
-                API_AUTH.api_auth.CLIENT_AUTH
-            )
+        if api_auth is not API_AUTH.api_auth:
+            # Only warn about this if the setting has changed
+
+            if hasattr(api_auth, 'client_auth'):
+                warnings.warn(
+                    'Auth backend %s should provide a CLIENT_AUTH (instead of client_auth)' % auth_backend,
+                    DeprecationWarning)
+                api_auth.CLIENT_AUTH = api_auth.client_auth
+            else:
+                api_auth.client_auth = deprecated('use CLIENT_AUTH', api_auth.CLIENT_AUTH)
+            API_AUTH.api_auth = api_auth
     except ImportError as err:
         LOG.critical(
             "Cannot import %s for API authentication due to: %s",
