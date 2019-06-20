@@ -156,10 +156,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
     def test_bad_parameters(self):
         self.kwargs['check_headers'] = True
         self.kwargs['headers'] = False
-        self.assertRaisesRegexp(AirflowException,
-                                "To check_headers.*",
-                                S3ToHiveTransfer,
-                                **self.kwargs)
+        self.assertRaisesRegex(AirflowException, "To check_headers.*", S3ToHiveTransfer, **self.kwargs)
 
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'

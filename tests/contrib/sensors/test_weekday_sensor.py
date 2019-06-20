@@ -79,9 +79,8 @@ class DayOfWeekSensorTests(unittest.TestCase):
 
     def test_invalid_weekday_number(self):
         invalid_week_day = 'Thsday'
-        with self.assertRaisesRegexp(AttributeError,
-                                     'Invalid Week Day passed: "{}"'.format(
-                                         invalid_week_day)):
+        with self.assertRaisesRegex(AttributeError,
+                                    'Invalid Week Day passed: "{}"'.format(invalid_week_day)):
             DayOfWeekSensor(
                 task_id='weekday_sensor_invalid_weekday_num',
                 week_day=invalid_week_day,
@@ -140,11 +139,11 @@ class DayOfWeekSensorTests(unittest.TestCase):
 
     def test_weekday_sensor_with_invalid_type(self):
         invalid_week_day = ['Thsday']
-        with self.assertRaisesRegexp(TypeError,
-                                     'Unsupported Type for week_day parameter:'
-                                     ' {}. It should be one of str, set or '
-                                     'Weekday enum type'.format(type(invalid_week_day))
-                                     ):
+        with self.assertRaisesRegex(TypeError,
+                                    'Unsupported Type for week_day parameter:'
+                                    ' {}. It should be one of str, set or '
+                                    'Weekday enum type'.format(type(invalid_week_day))
+                                    ):
             DayOfWeekSensor(
                 task_id='weekday_sensor_check_true',
                 week_day=invalid_week_day,

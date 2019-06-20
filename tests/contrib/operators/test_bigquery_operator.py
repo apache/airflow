@@ -274,12 +274,12 @@ class BigQueryOperatorTest(unittest.TestCase):
         job_id = '12345'
         ti.xcom_push(key='job_id', value=job_id)
 
-        self.assertEquals(
+        self.assertEqual(
             'https://console.cloud.google.com/bigquery?j={job_id}'.format(job_id=job_id),
             bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
         )
 
-        self.assertEquals(
+        self.assertEqual(
             '',
             bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
         )

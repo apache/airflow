@@ -303,7 +303,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.get_size(bucket_name=test_bucket,
                                           object_name=test_object)
 
-        self.assertEquals(response, returned_file_size)
+        self.assertEqual(response, returned_file_size)
         get_blob_method.return_value.reload.assert_called_once_with()
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -319,7 +319,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.get_crc32c(bucket_name=test_bucket,
                                             object_name=test_object)
 
-        self.assertEquals(response, returned_file_crc32c)
+        self.assertEqual(response, returned_file_crc32c)
 
         # Check that reload method is called
         get_blob_method.return_value.reload.assert_called_once_with()
@@ -337,7 +337,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.get_md5hash(bucket_name=test_bucket,
                                              object_name=test_object)
 
-        self.assertEquals(response, returned_file_md5hash)
+        self.assertEqual(response, returned_file_md5hash)
 
         # Check that reload method is called
         get_blob_method.return_value.reload.assert_called_once_with()
@@ -365,10 +365,10 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             project_id=test_project
         )
 
-        self.assertEquals(response, sample_bucket.id)
+        self.assertEqual(response, sample_bucket.id)
 
-        self.assertEquals(sample_bucket.storage_class, test_storage_class)
-        self.assertEquals(sample_bucket.labels, test_labels)
+        self.assertEqual(sample_bucket.storage_class, test_storage_class)
+        self.assertEqual(sample_bucket.labels, test_labels)
 
         mock_service.return_value.bucket.return_value.create.assert_called_with(
             project=test_project, location=test_location
@@ -401,7 +401,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             labels=test_labels,
             project_id=test_project
         )
-        self.assertEquals(response, sample_bucket.id)
+        self.assertEqual(response, sample_bucket.id)
 
         mock_service.return_value.bucket.return_value._patch_property.assert_called_with(
             name='versioning', value=test_versioning_enabled
@@ -502,7 +502,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                           object_name=test_object,
                                           filename=None)
 
-        self.assertEquals(response, test_object_bytes)
+        self.assertEqual(response, test_object_bytes)
         download_method.assert_called_once_with()
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -524,7 +524,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                           object_name=test_object,
                                           filename=test_file)
 
-        self.assertEquals(response, test_object_bytes)
+        self.assertEqual(response, test_object_bytes)
         download_filename_method.assert_called_once_with(test_file)
 
 

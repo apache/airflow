@@ -81,13 +81,13 @@ class Compression(unittest.TestCase):
 
     def test_uncompress_file(self):
         # Testing txt file type
-        self.assertRaisesRegexp(NotImplementedError,
-                                "^Received .txt format. Only gz and bz2.*",
-                                compression.uncompress_file,
-                                **{'input_file_name': None,
-                                   'file_extension': '.txt',
-                                   'dest_dir': None
-                                   })
+        self.assertRaisesRegex(NotImplementedError,
+                               "^Received .txt format. Only gz and bz2.*",
+                               compression.uncompress_file,
+                               **{'input_file_name': None,
+                                  'file_extension': '.txt',
+                                  'dest_dir': None
+                                  })
         # Testing gz file type
         fn_txt = self._get_fn('.txt')
         fn_gz = self._get_fn('.gz')

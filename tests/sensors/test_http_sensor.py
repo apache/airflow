@@ -64,7 +64,7 @@ class HttpSensorTests(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1)
-        with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
+        with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
             task.execute(None)
 
     @patch("airflow.hooks.http_hook.requests.Session.send")

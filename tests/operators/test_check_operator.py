@@ -98,7 +98,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator('select value from tab1 limit 1;', 5, 1)
 
-        with self.assertRaisesRegexp(AirflowException, 'Tolerance:100.0%'):
+        with self.assertRaisesRegex(AirflowException, 'Tolerance:100.0%'):
             operator.execute()
 
 
@@ -115,7 +115,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
         )
 
     def test_invalid_ratio_formula(self):
-        with self.assertRaisesRegexp(AirflowException, 'Invalid diff_method'):
+        with self.assertRaisesRegex(AirflowException, 'Invalid diff_method'):
             self._construct_operator(
                 table='test_table',
                 metric_thresholds={
@@ -188,7 +188,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegexp(AirflowException, "f0, f1, f2"):
+        with self.assertRaisesRegex(AirflowException, "f0, f1, f2"):
             operator.execute()
 
     @mock.patch.object(IntervalCheckOperator, 'get_db_hook')
@@ -219,5 +219,5 @@ class IntervalCheckOperatorTest(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegexp(AirflowException, "f0, f1"):
+        with self.assertRaisesRegex(AirflowException, "f0, f1"):
             operator.execute()

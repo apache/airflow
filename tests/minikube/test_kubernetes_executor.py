@@ -71,7 +71,7 @@ class KubernetesExecutorTest(unittest.TestCase):
             timeout=1,
         )
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
     def setUp(self):
         self.session = self._get_session_with_retries()

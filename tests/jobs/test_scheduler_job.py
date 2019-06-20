@@ -1738,7 +1738,7 @@ class SchedulerJobTest(unittest.TestCase):
             session.merge(ti)
         session.commit()
 
-        self.assertEquals(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
+        self.assertEqual(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
         scheduler._execute_task_instances(dagbag,
                                           (State.SCHEDULED, State.UP_FOR_RETRY),
                                           session=session)
