@@ -47,8 +47,7 @@ from tests.compat import mock
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss
-from tests.test_utils.decorators import mock_conf_get
+    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
 
 configuration.load_test_config()
 
@@ -354,9 +353,10 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[1].key, res_keys)
         self.assertIn(tis[3].key, res_keys)
 
-    @mock_conf_get('core', 'non_pooled_task_slot_count', 1)
-    def test_find_executable_task_instances_in_non_pool(self):
-        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_non_pool'
+    def test_find_executable_task_instances_in_default_pool(self):
+        set_default_pool_slots(1)
+
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_default_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         t1 = DummyOperator(dag=dag, task_id='dummy1')
         t2 = DummyOperator(dag=dag, task_id='dummy2')
@@ -366,18 +366,18 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(executor=executor)
         dr1 = scheduler.create_dag_run(dag)
         dr2 = scheduler.create_dag_run(dag)
-        session = settings.Session()
 
         ti1 = TI(task=t1, execution_date=dr1.execution_date)
         ti2 = TI(task=t2, execution_date=dr2.execution_date)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
+        session = settings.Session()
         session.merge(ti1)
         session.merge(ti2)
         session.commit()
 
-        # Two tasks w/o pool up for execution and our non_pool size is 1
+        # Two tasks w/o pool up for execution and our default pool size is 1
         res = scheduler._find_executable_task_instances(
             dagbag,
             states=(State.SCHEDULED,),
@@ -385,7 +385,6 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(1, len(res))
 
         ti2.state = State.RUNNING
-        ti2.pool = Pool.default_pool_name
         session.merge(ti2)
         session.commit()
 

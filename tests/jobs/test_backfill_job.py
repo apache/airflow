@@ -41,7 +41,7 @@ from airflow.utils.timeout import timeout
 from tests.compat import Mock, patch
 from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_pools, \
-    clear_db_runs
+    clear_db_runs, set_default_pool_slots
 
 configuration.load_test_config()
 
@@ -52,7 +52,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 class BackfillJobTest(unittest.TestCase):
 
-    def _get_dummy_dag(self, dag_id, pool=None, task_concurrency=None):
+    def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
         dag = DAG(
             dag_id=dag_id,
             start_date=DEFAULT_DATE,
@@ -397,18 +397,9 @@ class BackfillJobTest(unittest.TestCase):
         self.assertGreater(times_dag_concurrency_limit_reached_in_debug, 0)
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
-    @patch('airflow.jobs.backfill_job.conf.getint')
-    def test_backfill_with_no_pool_limit(self, mock_getint, mock_log):
-        non_pooled_backfill_task_slot_count = 2
-
-        def getint(section, key):
-            if section.lower() == 'core' and \
-                    'non_pooled_backfill_task_slot_count' == key.lower():
-                return non_pooled_backfill_task_slot_count
-            else:
-                return configuration.conf.getint(section, key)
-
-        mock_getint.side_effect = getint
+    def test_backfill_respect_default_pool_limit(self, mock_log):
+        default_pool_slots = 2
+        set_default_pool_slots(default_pool_slots)
 
         dag = self._get_dummy_dag('test_backfill_with_no_pool_limit')
 
@@ -425,24 +416,24 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertTrue(0 < len(executor.history))
 
-        non_pooled_task_slot_count_reached_at_least_once = False
+        default_pool_task_slot_count_reached_at_least_once = False
 
         num_running_task_instances = 0
 
         # if no pool is specified, the number of tasks running in
         # parallel per backfill should be less than
-        # non_pooled_backfill_task_slot_count at any point of time.
+        # default_pool slots at any point of time.
         for running_task_instances in executor.history:
             self.assertLessEqual(
                 len(running_task_instances),
-                non_pooled_backfill_task_slot_count,
+                default_pool_slots,
             )
             num_running_task_instances += len(running_task_instances)
-            if len(running_task_instances) == non_pooled_backfill_task_slot_count:
-                non_pooled_task_slot_count_reached_at_least_once = True
+            if len(running_task_instances) == default_pool_slots:
+                default_pool_task_slot_count_reached_at_least_once = True
 
-        self.assertEqual(8, num_running_task_instances)
-        self.assertTrue(non_pooled_task_slot_count_reached_at_least_once)
+        self.assertEquals(8, num_running_task_instances)
+        self.assertTrue(default_pool_task_slot_count_reached_at_least_once)
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
             mock_log.debug,

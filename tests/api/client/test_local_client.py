@@ -124,18 +124,19 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('foo1', 1, ''), ('foo2', 2, '')])
+        self.assertEqual(pools, [('default_pool', 128, 'Default pool'),
+                                 ('foo1', 1, ''), ('foo2', 2, '')])
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(models.Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(models.Pool).count(), 2)
         self.client.delete_pool(name='foo')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 0)
+            self.assertEqual(session.query(models.Pool).count(), 1)

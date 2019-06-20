@@ -893,21 +893,14 @@ class SchedulerJob(BaseJob):
         # any open slots in the pool.
         for pool, task_instances in pool_to_task_instances.items():
             pool_name = pool
-            if not pool:
-                # Arbitrary:
-                # If queued outside of a pool, trigger no more than
-                # non_pooled_task_slot_count
-                open_slots = models.Pool.default_pool_open_slots()
-                pool_name = models.Pool.default_pool_name
+            if pool not in pools:
+                self.log.warning(
+                    "Tasks using non-existent pool '%s' will not be scheduled",
+                    pool
+                )
+                open_slots = 0
             else:
-                if pool not in pools:
-                    self.log.warning(
-                        "Tasks using non-existent pool '%s' will not be scheduled",
-                        pool
-                    )
-                    open_slots = 0
-                else:
-                    open_slots = pools[pool].open_slots(session=session)
+                open_slots = pools[pool].open_slots(session=session)
 
             num_ready = len(task_instances)
             self.log.info(
