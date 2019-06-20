@@ -31,11 +31,17 @@ class SnowflakeOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
-    :param warehouse: name of warehouse which overwrite defined
-        one in connection
+    :param warehouse: name of warehouse (will overwrite any warehouse
+        defined in the connection's extra JSON)
     :type warehouse: str
-    :param database: name of database which overwrite defined one in connection
+    :param database: name of database (will overwrite database defined
+        in connection)
     :type database: str
+    :param schema: name of schema (will overwrite schema defined in
+        connection)
+    :type schema: str
+    :param role: name of role (will overwrite any role defined in
+        connection's extra JSON)
     """
 
     template_fields = ('sql',)
@@ -45,7 +51,8 @@ class SnowflakeOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, snowflake_conn_id='snowflake_default', parameters=None,
-            autocommit=True, warehouse=None, database=None, *args, **kwargs):
+            autocommit=True, warehouse=None, database=None, role=None,
+            schema=None, *args, **kwargs):
         super(SnowflakeOperator, self).__init__(*args, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
@@ -53,10 +60,13 @@ class SnowflakeOperator(BaseOperator):
         self.parameters = parameters
         self.warehouse = warehouse
         self.database = database
+        self.role = role
+        self.schema = schema
 
     def get_hook(self):
         return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
-                             warehouse=self.warehouse, database=self.database)
+                             warehouse=self.warehouse, database=self.database,
+                             role=self.role, schema=self.schema)
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
