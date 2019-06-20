@@ -579,7 +579,6 @@ class BaseOperator(LoggingMixin):
         """
         This hook is triggered right before self.execute() is called.
         """
-        pass
 
     def execute(self, context):
         """
@@ -597,7 +596,6 @@ class BaseOperator(LoggingMixin):
         It is passed the execution context and any results returned by the
         operator.
         """
-        pass
 
     def on_kill(self):
         """
@@ -606,7 +604,6 @@ class BaseOperator(LoggingMixin):
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
         """
-        pass
 
     def __deepcopy__(self, memo):
         """
@@ -684,7 +681,6 @@ class BaseOperator(LoggingMixin):
         content of the file before the template is rendered,
         it should override this method to do so.
         """
-        pass
 
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
@@ -991,7 +987,6 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
         :return: link name
         """
-        pass
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
@@ -1002,4 +997,3 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :param dttm: datetime
         :return: link to external system
         """
-        pass

@@ -795,7 +795,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.running.pop(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
-                pass
         self.event_buffer[key] = state
 
     def end(self):

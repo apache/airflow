@@ -45,9 +45,7 @@ def configure_manifest_files(app):
                 for k in manifest.keys():
                     manifest[k] = os.path.join("dist", manifest[k])
         except Exception:
-            print("Please make sure to build the frontend in "
-                  "static/ directory and restart the server")
-            pass
+            print("Please make sure to build the frontend in static/ directory and restart the server")
 
     def get_asset_url(filename):
         if app.debug:

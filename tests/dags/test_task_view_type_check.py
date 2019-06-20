@@ -38,12 +38,10 @@ default_args = dict(
 class CallableClass:
     def __call__(self):
         """ A __call__ method """
-        pass
 
 
 def a_function(arg_x, arg_y):
     """ A function with two args """
-    pass
 
 
 partial_function = functools.partial(a_function, arg_x=1)

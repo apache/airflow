@@ -57,7 +57,6 @@ class HipChatAPIOperator(BaseOperator):
         Override in child class. Each HipChatAPI child operator is responsible for having
         a prepare_request method call which sets self.method, self.url, and self.body.
         """
-        pass
 
     def execute(self, context):
         self.prepare_request()
