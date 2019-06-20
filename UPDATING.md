@@ -23,6 +23,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove parameter python_version in PythonVirtualenvOperator 
+
+Due to [AIP-3 drop support Python 2](https://issues.apache.org/jira/browse/AIRFLOW-4196), PythonVirtualenvOperator
+not support parameter `python_version` anymore, which mean that PythonVirtualenvOperator only work with Python 3.
+
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
 has been renamed to `request_filter`.
