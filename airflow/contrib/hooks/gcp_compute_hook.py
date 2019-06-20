@@ -302,7 +302,7 @@ class GceHook(GoogleCloudBaseHook):
             if zone is None:
                 # noinspection PyTypeChecker
                 operation_response = self._check_global_operation_status(
-                    service, operation_name, project_id)
+                    service, operation_name, project_id, None, self.num_retries)
             else:
                 # noinspection PyTypeChecker
                 operation_response = self._check_zone_operation_status(
