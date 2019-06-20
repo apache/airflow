@@ -21,7 +21,6 @@ import inspect
 import os
 import pickle
 import subprocess
-import sys
 import types
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
@@ -208,9 +207,6 @@ class PythonVirtualenvOperator(PythonOperator):
     :type python_callable: function
     :param requirements: A list of requirements as specified in a pip install command
     :type requirements: list[str]
-    :param python_version: The Python version to run the virtualenv with. Note that
-        both 2 and 2.7 are acceptable forms.
-    :type python_version: str
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
@@ -247,7 +243,6 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         python_callable: Callable,
         requirements: Optional[Iterable[str]] = None,
-        python_version: Optional[str] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         op_args: Iterable = None,
@@ -270,7 +265,6 @@ class PythonVirtualenvOperator(PythonOperator):
             **kwargs)
         self.requirements = requirements or []
         self.string_args = string_args or []
-        self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         # check that dill is present if needed
@@ -285,14 +279,6 @@ class PythonVirtualenvOperator(PythonOperator):
                                                    (lambda x: 0).__name__)):
             raise AirflowException('{} only supports functions for python_callable arg',
                                    self.__class__.__name__)
-        # check that args are passed iff python major version matches
-        if (python_version is not None and
-                str(python_version)[0] != str(sys.version_info[0]) and
-                self._pass_op_args()):
-            raise AirflowException("Passing op_args or op_kwargs is not supported across "
-                                   "different Python major versions "
-                                   "for PythonVirtualenvOperator. "
-                                   "Please use string_args.")
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
@@ -379,8 +365,6 @@ class PythonVirtualenvOperator(PythonOperator):
         cmd = ['virtualenv', tmp_dir]
         if self.system_site_packages:
             cmd.append('--system-site-packages')
-        if self.python_version is not None:
-            cmd.append('--python=python{}'.format(self.python_version))
         return cmd
 
     def _generate_pip_install_cmd(self, tmp_dir):
