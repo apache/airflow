@@ -33,7 +33,6 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
 
         :param pod: The pod object
         """
-        pass
 
     @staticmethod
     def extract_image(pod, req):

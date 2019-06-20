@@ -80,49 +80,39 @@ class AirflowDagCycleException(AirflowException):
 
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
-    pass
 
 
 class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system"""
-    pass
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry"""
-    pass
 
 
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
-    pass
 
 
 class TaskNotFound(AirflowNotFoundException):
     """Raise when a Task is not available in the system"""
-    pass
 
 
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a Task Instance is not available in the system"""
-    pass
 
 
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
-    pass
 
 
 class NoAvailablePoolSlot(AirflowException):
     """Raise when there is not enough slots in pool"""
-    pass
 
 
 class DagConcurrencyLimitReached(AirflowException):
     """Raise when DAG concurrency limit is reached"""
-    pass
 
 
 class TaskConcurrencyLimitReached(AirflowException):
     """Raise when task concurrency limit is reached"""
-    pass

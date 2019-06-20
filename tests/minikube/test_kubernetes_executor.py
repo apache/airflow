@@ -109,7 +109,6 @@ class KubernetesExecutorTest(unittest.TestCase):
                 tries += 1
             except requests.exceptions.ConnectionError as e:
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
-                pass
 
         self.assertEqual(state, expected_final_state)
 
