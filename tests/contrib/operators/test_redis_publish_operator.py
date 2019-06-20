@@ -61,10 +61,10 @@ class TestRedisPublishOperator(unittest.TestCase):
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
         message = pubsub.get_message()
-        self.assertEquals(message['type'], 'subscribe')
+        self.assertEqual(message['type'], 'subscribe')
 
         message = pubsub.get_message()
-        self.assertEquals(message['type'], 'message')
-        self.assertEquals(message['data'], b'hello')
+        self.assertEqual(message['type'], 'message')
+        self.assertEqual(message['data'], b'hello')
 
         pubsub.unsubscribe(self.channel)

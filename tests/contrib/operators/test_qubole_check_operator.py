@@ -89,8 +89,8 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
 
         operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     'Qubole Command Id: ' + str(mock_cmd.id)):
+        with self.assertRaisesRegex(AirflowException,
+                                    'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
 
         mock_cmd.is_success.assert_called_with(mock_cmd.status)

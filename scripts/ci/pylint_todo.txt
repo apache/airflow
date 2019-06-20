@@ -634,7 +634,6 @@
 ./tests/contrib/operators/test_gcs_download_operator.py
 ./tests/contrib/operators/test_gcs_list_operator.py
 ./tests/contrib/operators/test_gcs_operator.py
-./tests/contrib/operators/test_gcs_to_gcs_operator.py
 ./tests/contrib/operators/test_gcs_to_s3_operator.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_hipchat_operator.py

@@ -959,7 +959,7 @@ class DagTest(unittest.TestCase):
             DagModel.is_paused.is_(False)
         ).count()
 
-        self.assertEquals(2, unpaused_dags)
+        self.assertEqual(2, unpaused_dags)
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
@@ -971,4 +971,4 @@ class DagTest(unittest.TestCase):
             DagModel.is_paused.is_(True)
         ).count()
 
-        self.assertEquals(2, paused_dags)
+        self.assertEqual(2, paused_dags)
