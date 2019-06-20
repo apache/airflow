@@ -952,7 +952,7 @@ To create default connections, add this to airflow.cfg:
 
 ```
 [core]
-create_default_connection = True
+create_default_connections = True
 ```
 
 
