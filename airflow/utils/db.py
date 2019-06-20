@@ -87,8 +87,8 @@ def initdb():
         .getboolean('core',
                     'create_default_connections')
     upgradedb()
-    
-    if is_create_connections:     
+       
+    if is_create_connections:
         merge_conn(
             Connection(
                 conn_id='airflow_db', conn_type='mysql',
