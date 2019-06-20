@@ -19,7 +19,6 @@
 
 from sqlalchemy import Column, Integer, String, Text, func
 
-from airflow import conf
 from airflow.models.base import Base
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
@@ -33,20 +32,20 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    default_pool_name = 'not_pooled'
+    DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
         return self.pool
 
     @staticmethod
     @provide_session
-    def default_pool_open_slots(session):
-        from airflow.models import TaskInstance as TI  # To avoid circular imports
-        total_slots = conf.getint('core', 'non_pooled_task_slot_count')
-        used_slots = session.query(func.count()).filter(
-            TI.pool == Pool.default_pool_name).filter(
-            TI.state.in_([State.RUNNING, State.QUEUED])).scalar()
-        return total_slots - used_slots
+    def get_pool(pool_name, session=None):
+        return session.query(Pool).filter(Pool.pool == pool_name).first()
+
+    @staticmethod
+    @provide_session
+    def get_default_pool(session=None):
+        return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
 
     def to_json(self):
         return {

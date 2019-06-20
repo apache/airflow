@@ -72,6 +72,9 @@ def delete_pool(name, session=None):
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
+    if name == Pool.DEFAULT_POOL_NAME:
+        raise AirflowBadRequest("default_pool cannot be deleted")
+
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
         raise PoolNotFound("Pool '%s' doesn't exist" % name)

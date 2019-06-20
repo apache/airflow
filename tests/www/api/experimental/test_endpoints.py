@@ -20,7 +20,7 @@
 from datetime import timedelta
 import json
 import unittest
-from urllib.parse import quote_plus
+from six.moves.urllib.parse import quote_plus
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
@@ -28,6 +28,7 @@ from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
+from tests.test_utils.db import clear_db_pools
 
 
 class TestApiExperimental(unittest.TestCase):
@@ -288,13 +289,12 @@ class TestApiExperimental(unittest.TestCase):
 
 class TestPoolApiExperimental(unittest.TestCase):
 
+    USER_POOL_COUNT = 2
+    TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
+
     @classmethod
     def setUpClass(cls):
         super(TestPoolApiExperimental, cls).setUpClass()
-        session = Session()
-        session.query(Pool).delete()
-        session.commit()
-        session.close()
 
     def setUp(self):
         super(TestPoolApiExperimental, self).setUp()
@@ -302,8 +302,10 @@ class TestPoolApiExperimental(unittest.TestCase):
         app = application.create_app(testing=True)
         self.app = app.test_client()
         self.session = Session()
-        self.pools = []
-        for i in range(2):
+
+        clear_db_pools()
+        self.pools = [Pool.get_default_pool()]
+        for i in range(self.USER_POOL_COUNT):
             name = 'experimental_%s' % (i + 1)
             pool = Pool(
                 pool=name,
@@ -313,12 +315,9 @@ class TestPoolApiExperimental(unittest.TestCase):
             self.session.add(pool)
             self.pools.append(pool)
         self.session.commit()
-        self.pool = self.pools[0]
+        self.pool = self.pools[-1]
 
     def tearDown(self):
-        self.session.query(Pool).delete()
-        self.session.commit()
-        self.session.close()
         super(TestPoolApiExperimental, self).tearDown()
 
     def _get_pool_count(self):
@@ -344,7 +343,7 @@ class TestPoolApiExperimental(unittest.TestCase):
         response = self.app.get('/api/experimental/pools')
         self.assertEqual(response.status_code, 200)
         pools = json.loads(response.data.decode('utf-8'))
-        self.assertEqual(len(pools), 2)
+        self.assertEqual(len(pools), self.TOTAL_POOL_COUNT)
         for i, pool in enumerate(sorted(pools, key=lambda p: p['pool'])):
             self.assertDictEqual(pool, self.pools[i].to_json())
 
@@ -363,7 +362,7 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(pool['pool'], 'foo')
         self.assertEqual(pool['slots'], 1)
         self.assertEqual(pool['description'], '')
-        self.assertEqual(self._get_pool_count(), 3)
+        self.assertEqual(self._get_pool_count(), self.TOTAL_POOL_COUNT + 1)
 
     def test_create_pool_with_bad_name(self):
         for name in ('', '    '):
@@ -381,7 +380,7 @@ class TestPoolApiExperimental(unittest.TestCase):
                 json.loads(response.data.decode('utf-8'))['error'],
                 "Pool name shouldn't be empty",
             )
-        self.assertEqual(self._get_pool_count(), 2)
+        self.assertEqual(self._get_pool_count(), self.TOTAL_POOL_COUNT)
 
     def test_delete_pool(self):
         response = self.app.delete(
@@ -390,7 +389,7 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data.decode('utf-8')),
                          self.pool.to_json())
-        self.assertEqual(self._get_pool_count(), 1)
+        self.assertEqual(self._get_pool_count(), self.TOTAL_POOL_COUNT - 1)
 
     def test_delete_pool_non_existing(self):
         response = self.app.delete(
@@ -399,6 +398,15 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
                          "Pool 'foo' doesn't exist")
+
+    def test_delete_default_pool(self):
+        clear_db_pools()
+        response = self.app.delete(
+            '/api/experimental/pools/default_pool',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
+                         "default_pool cannot be deleted")
 
 
 if __name__ == '__main__':

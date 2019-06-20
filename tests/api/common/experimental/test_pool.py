@@ -16,21 +16,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+import six
 
 from airflow import models
 from airflow import settings
+from airflow.models.pool import Pool
 from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
+from tests.test_utils.db import clear_db_pools
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 class TestPool(unittest.TestCase):
 
+    USER_POOL_COUNT = 2
+    TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
+
     def setUp(self):
         self.session = settings.Session()
-        self.pools = []
-        for i in range(2):
+        clear_db_pools()
+        self.pools = [Pool.get_default_pool()]
+        for i in range(self.USER_POOL_COUNT):
             name = 'experimental_%s' % (i + 1)
             pool = models.Pool(
                 pool=name,
@@ -40,11 +51,6 @@ class TestPool(unittest.TestCase):
             self.session.add(pool)
             self.pools.append(pool)
         self.session.commit()
-
-    def tearDown(self):
-        self.session.query(models.Pool).delete()
-        self.session.commit()
-        self.session.close()
 
     def test_get_pool(self):
         pool = pool_api.get_pool(name=self.pools[0].pool, session=self.session)
@@ -79,7 +85,7 @@ class TestPool(unittest.TestCase):
         self.assertEqual(pool.pool, 'foo')
         self.assertEqual(pool.slots, 5)
         self.assertEqual(pool.description, '')
-        self.assertEqual(self.session.query(models.Pool).count(), 3)
+        self.assertEqual(self.session.query(models.Pool).count(), self.TOTAL_POOL_COUNT + 1)
 
     def test_create_pool_existing(self):
         pool = pool_api.create_pool(name=self.pools[0].pool,
@@ -89,7 +95,7 @@ class TestPool(unittest.TestCase):
         self.assertEqual(pool.pool, self.pools[0].pool)
         self.assertEqual(pool.slots, 5)
         self.assertEqual(pool.description, '')
-        self.assertEqual(self.session.query(models.Pool).count(), 2)
+        self.assertEqual(self.session.query(models.Pool).count(), self.TOTAL_POOL_COUNT)
 
     def test_create_pool_bad_name(self):
         for name in ('', '    '):
@@ -111,10 +117,9 @@ class TestPool(unittest.TestCase):
                                 session=self.session)
 
     def test_delete_pool(self):
-        pool = pool_api.delete_pool(name=self.pools[0].pool,
-                                    session=self.session)
-        self.assertEqual(pool.pool, self.pools[0].pool)
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        pool = pool_api.delete_pool(name=self.pools[-1].pool)
+        self.assertEqual(pool.pool, self.pools[-1].pool)
+        self.assertEqual(self.session.query(models.Pool).count(), self.TOTAL_POOL_COUNT - 1)
 
     def test_delete_pool_non_existing(self):
         self.assertRaisesRegexp(pool_api.PoolNotFound,
@@ -130,6 +135,11 @@ class TestPool(unittest.TestCase):
                                     pool_api.delete_pool,
                                     name=name,
                                     session=self.session)
+
+    def test_delete_default_pool_not_allowed(self):
+        with self.assertRaisesRegex(AirflowBadRequest,
+                                    "^default_pool cannot be deleted$"):
+            pool_api.delete_pool(Pool.DEFAULT_POOL_NAME)
 
 
 if __name__ == '__main__':

@@ -49,6 +49,15 @@ Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream
 
 The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
 
+### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+
+`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+are removed in favor of a real pool, e.g. `default_pool`.
+
+By default tasks are running in `default_pool`.
+`default_pool` is initialized with 128 slots and user can change the
+number of slots through UI/CLI. `default_pool` cannot be removed.
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series

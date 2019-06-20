@@ -34,6 +34,7 @@ from airflow import configuration, settings
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -258,7 +259,7 @@ class BaseOperator(LoggingMixin):
         priority_weight=1,  # type: int
         weight_rule=WeightRule.DOWNSTREAM,  # type: str
         queue=configuration.conf.get('celery', 'default_queue'),  # type: str
-        pool=None,  # type: Optional[str]
+        pool=Pool.DEFAULT_POOL_NAME,  # type: str
         sla=None,  # type: Optional[timedelta]
         execution_timeout=None,  # type: Optional[timedelta]
         on_failure_callback=None,  # type: Optional[Callable]
