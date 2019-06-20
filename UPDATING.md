@@ -946,6 +946,15 @@ Previously, new DAGs would be scheduled immediately. To retain the old behavior,
 [core]
 dags_are_paused_at_creation = False
 ```
+### New connections created by default
+
+To create default connections, add this to airflow.cfg:
+
+```
+[core]
+create_default_connection = True
+```
+
 
 ### Airflow Context variable are passed to Hive config if conf is specified
 
