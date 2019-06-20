@@ -74,8 +74,6 @@ class SlackAPIOperator(BaseOperator):
         API call parameters (https://api.slack.com/methods)
         """
 
-        pass
-
     def execute(self, **kwargs):
         """
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.

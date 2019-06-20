@@ -184,11 +184,9 @@ class BigQueryConnection(object):
 
     def close(self):
         """ BigQueryConnection does not have anything to close. """
-        pass
 
     def commit(self):
         """ BigQueryConnection does not support transactions. """
-        pass
 
     def cursor(self):
         """ Return a new :py:class:`Cursor` object using the connection. """
@@ -1997,7 +1995,6 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def close(self):
         """ By default, do nothing """
-        pass
 
     @property
     def rowcount(self):
@@ -2126,11 +2123,9 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def setinputsizes(self, sizes):
         """ Does nothing by default """
-        pass
 
     def setoutputsize(self, size, column=None):
         """ Does nothing by default """
-        pass
 
 
 def _bind_parameters(operation, parameters):
