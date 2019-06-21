@@ -522,6 +522,10 @@ class DAG(BaseDag, LoggingMixin):
             'DAG.tasks can not be modified. Use dag.add_task() instead.')
 
     @property
+    def active_tasks(self):
+        return [t for t in self.tasks]
+
+    @property
     def task_ids(self):
         return list(self.task_dict.keys())
 
