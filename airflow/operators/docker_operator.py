@@ -234,7 +234,10 @@ class DockerOperator(BaseOperator):
             self.cli.start(self.container['Id'])
 
             line = ''
-            for line in self.cli.logs(container=self.container['Id'], stream=True):
+            for line in self.cli.attach(container=self.container['Id'],
+                                        stdout=True,
+                                        stderr=True,
+                                        stream=True):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
