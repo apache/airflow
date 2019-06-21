@@ -28,7 +28,7 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError
+from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -294,7 +294,7 @@ class AirflowConfigParser(ConfigParser):
             # UNSET to avoid logging a warning about missing values
             self.get(section, option, fallback=_UNSET)
             return True
-        except NoOptionError:
+        except (NoOptionError, NoSectionError):
             return False
 
     def remove_option(self, section, option, remove_default=True):
