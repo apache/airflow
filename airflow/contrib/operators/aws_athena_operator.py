@@ -29,7 +29,7 @@ class AWSAthenaOperator(BaseOperator):
     """
     An operator that submit presto query to athena.
 
-    If BaseOperator.do_xcom_push is True, the QueryExecutionID assigned to the
+    If ``do_xcom_push`` is True, the QueryExecutionID assigned to the
     query will be pushed to an XCom when it successfuly completes.
 
     :param query: Presto to be run on athena. (templated)
