@@ -340,12 +340,13 @@ def resetdb():
 
     log.info("Dropping tables that exist")
 
-    models.base.Base.metadata.drop_all(settings.engine)
-    mc = MigrationContext.configure(settings.engine)
-    if mc._version.exists(settings.engine):
-        mc._version.drop(settings.engine)
+    connection = settings.engine.connect()
+    models.base.Base.metadata.drop_all(connection)
+    mc = MigrationContext.configure(connection)
+    if mc._version.exists(connection):
+        mc._version.drop(connection)
 
     from flask_appbuilder.models.sqla import Base
-    Base.metadata.drop_all(settings.engine)
+    Base.metadata.drop_all(connection)
 
     initdb()
