@@ -298,36 +298,35 @@ class DagRun(Base, LoggingMixin):
         duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        if len(tis) == len(dag.active_tasks):
-            root_ids = [t.task_id for t in dag.roots]
-            roots = [t for t in tis if t.task_id in root_ids]
+        root_ids = [t.task_id for t in dag.roots]
+        roots = [t for t in tis if t.task_id in root_ids]
 
-            # if all roots finished and at least one failed, the run failed
-            if (not unfinished_tasks and
-                    any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
-                self.log.info('Marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='task_failure',
-                                    session=session)
+        # if all roots finished and at least one failed, the run failed
+        if (not unfinished_tasks and
+                any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
+            self.log.info('Marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='task_failure',
+                                session=session)
 
-            # if all roots succeeded and no unfinished tasks, the run succeeded
-            elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
-                                              for r in roots):
-                self.log.info('Marking run %s successful', self)
-                self.set_state(State.SUCCESS)
-                dag.handle_callback(self, success=True, reason='success', session=session)
+        # if all roots succeeded and no unfinished tasks, the run succeeded
+        elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
+                                          for r in roots):
+            self.log.info('Marking run %s successful', self)
+            self.set_state(State.SUCCESS)
+            dag.handle_callback(self, success=True, reason='success', session=session)
 
-            # if *all tasks* are deadlocked, the run failed
-            elif (unfinished_tasks and none_depends_on_past and
-                  none_task_concurrency and no_dependencies_met):
-                self.log.info('Deadlock; marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
-                                    session=session)
+        # if *all tasks* are deadlocked, the run failed
+        elif (unfinished_tasks and none_depends_on_past and
+              none_task_concurrency and no_dependencies_met):
+            self.log.info('Deadlock; marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
+                                session=session)
 
-            # finally, if the roots aren't done, the dag is still running
-            else:
-                self.set_state(State.RUNNING)
+        # finally, if the roots aren't done, the dag is still running
+        else:
+            self.set_state(State.RUNNING)
 
         self._emit_duration_stats_for_finished_state()
 
