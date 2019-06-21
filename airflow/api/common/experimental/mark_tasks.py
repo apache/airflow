@@ -87,6 +87,9 @@ def set_state(
     :param session: database session
     :return: list of tasks that have been created and updated
     """
+    if not tasks:
+        return []
+
     if not timezone.is_localized(execution_date):
         raise ValueError("Received non-localized date {}".format(execution_date))
 

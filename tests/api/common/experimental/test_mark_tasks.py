@@ -507,6 +507,17 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertRaises(ValueError, set_dag_run_state_to_success,
                           self.dag1, self.execution_dates[0])
 
+    def test_set_dag_run_state_to_failed_no_running_tasks(self):
+        """
+        set_dag_run_state_to_failed when there are no running tasks to update
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+
+        set_dag_run_state_to_failed(self.dag1, date)
+
     def tearDown(self):
         self.dag1.clear()
         self.dag2.clear()
