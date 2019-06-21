@@ -45,7 +45,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels={}):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -59,17 +59,18 @@ class KubernetesExecutorConfig:
         self.volumes = volumes
         self.volume_mounts = volume_mounts
         self.tolerations = tolerations
+        self.labels = labels
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={}, tolerations={})" \
+               "volume_mounts={}, tolerations={}, labels={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
                     self.affinity, self.annotations, self.volumes, self.volume_mounts,
-                    self.tolerations)
+                    self.tolerations, self.labels)
 
     @staticmethod
     def from_dict(obj):
@@ -96,6 +97,7 @@ class KubernetesExecutorConfig:
             volumes=namespaced.get('volumes', []),
             volume_mounts=namespaced.get('volume_mounts', []),
             tolerations=namespaced.get('tolerations', None),
+            labels=namespaced.get('labels', {}),
         )
 
     def as_dict(self):
@@ -113,6 +115,7 @@ class KubernetesExecutorConfig:
             'volumes': self.volumes,
             'volume_mounts': self.volume_mounts,
             'tolerations': self.tolerations,
+            'labels': self.labels,
         }
 
 
