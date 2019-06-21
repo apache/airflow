@@ -22,7 +22,6 @@ import datetime
 import itertools
 import os
 import random
-import sys
 import unittest
 from collections import OrderedDict
 
@@ -44,7 +43,6 @@ configuration.load_test_config()
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-NOT_ASSERTLOGS_VERSION = sys.version_info.major + sys.version_info.minor / 10
 
 
 class HiveEnvironmentTest(unittest.TestCase):
@@ -460,8 +458,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
-    @unittest.skipIf(NOT_ASSERTLOGS_VERSION < 3.4, 'assertLogs not support before python 3.4')
-    def test_to_csv_assertlogs(self):
+    def test_to_csv(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
@@ -474,18 +471,6 @@ class TestHiveServer2Hook(unittest.TestCase):
             self.assertEqual(len(df), 2)
             self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
                           'Written 2 rows so far.', cm.output)
-
-    @unittest.skipIf(NOT_ASSERTLOGS_VERSION >= 3.4, 'test could cover by test_to_csv_assertLogs')
-    def test_to_csv_without_assertlogs(self):
-        hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
-        csv_filepath = 'query_results.csv'
-        hook.to_csv(query, csv_filepath, schema=self.database,
-                    delimiter=',', lineterminator='\n', output_header=True)
-        df = pd.read_csv(csv_filepath, sep=',')
-        self.assertListEqual(df.columns.tolist(), self.columns)
-        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
-        self.assertEqual(len(df), 2)
 
     def test_multi_statements(self):
         sqls = [
