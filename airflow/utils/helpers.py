@@ -33,6 +33,7 @@ from builtins import input
 from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
+from collections import Iterable
 import os
 import re
 import signal
@@ -159,19 +160,50 @@ def as_flattened_list(iterable):
 
 
 def chain(*tasks):
-    """
+    r"""
     Given a number of tasks, builds a dependency chain.
+    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
+    If you want to chain between two List[airflow.models.BaseOperator], have to
+    make sure they have same length.
 
-    chain(task_1, task_2, task_3, task_4)
+    chain(t1, [t2, t3], [t4, t5], t6)
 
     is equivalent to
 
-    task_1.set_downstream(task_2)
-    task_2.set_downstream(task_3)
-    task_3.set_downstream(task_4)
+      / -> t2 -> t4 \
+    t1               -> t6
+      \ -> t3 -> t5 /
+
+    t1.set_downstream(t2)
+    t1.set_downstream(t3)
+    t2.set_downstream(t4)
+    t3.set_downstream(t5)
+    t4.set_downstream(t6)
+    t5.set_downstream(t6)
+
+    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
+    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
     """
-    for up_task, down_task in zip(tasks[:-1], tasks[1:]):
-        up_task.set_downstream(down_task)
+    from airflow.models import BaseOperator
+
+    for index, up_task in enumerate(tasks[:-1]):
+        down_task = tasks[index + 1]
+        if isinstance(up_task, BaseOperator):
+            up_task.set_downstream(down_task)
+        elif isinstance(down_task, BaseOperator):
+            down_task.set_upstream(up_task)
+        else:
+            if not isinstance(up_task, Iterable) or not isinstance(down_task, Iterable):
+                raise TypeError(
+                    'Chain not supported between instances of {up_type} and {down_type}'.format(
+                        up_type=type(up_task), down_type=type(down_task)))
+            elif len(up_task) != len(down_task):
+                raise AirflowException(
+                    'Chain not supported different length Iterable but get {up_len} and {down_len}'.format(
+                        up_len=len(up_task), down_len=len(down_task)))
+            else:
+                for up, down in zip(up_task, down_task):
+                    up.set_downstream(down)
 
 
 def cross_downstream(from_tasks, to_tasks):

@@ -185,6 +185,9 @@ Bitshift Composition
 
 *Added in Airflow 1.8*
 
+We recommend you setting operator relationships with bitshift operators rather than ``set_upstream()``
+and ``set_downstream()``.
+
 Traditionally, operator relationships are set with the ``set_upstream()`` and
 ``set_downstream()`` methods. In Airflow 1.8, this can be done with the Python
 bitshift operators ``>>`` and ``<<``. The following four statements are all
@@ -243,6 +246,96 @@ We can put this all together to build a simple pipeline:
                 task_id='python_1',
                 python_callable=lambda: print("GOODBYE!"))
         )
+
+Bitshift can also be used with lists. For example:
+
+.. code:: python
+
+    op1 >> [op2, op3] >> op4
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> op2 >> op4
+    op1 >> op3 >> op4
+    
+and equivalent to:
+
+.. code:: python
+
+    op1.set_downstream([op2, op3])
+
+
+Relationship Helper
+--------------------
+
+``chain`` and ``cross_downstream`` function provide easier ways to set relationships
+between operators in specific situation.
+
+When setting relationships between two list of operators and wish all up list
+operators as upstream to all down list operators, we have to split one list
+manually using bitshift composition.
+
+.. code:: python
+
+    [op1, op2, op3] >> op4
+    [op1, op2, op3] >> op5
+    [op1, op2, op3] >> op6
+
+``cross_downstream`` could handle list relationships easier.
+
+.. code:: python
+
+    cross_downstream([op1, op2, op3], [op4, op5, op6])
+
+When setting single direction relationships to many operators, we could
+concat them with bitshift composition.
+
+.. code:: python
+
+    op1 >> op2 >> op3 >> op4 >> op5
+
+use ``chain`` could do that
+
+.. code:: python
+
+    chain(op1, op2, op3, op4, op5)
+
+even without operator's name
+
+.. code:: python
+
+    chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
+
+``chain`` could handle list of operators
+
+.. code:: python
+
+    chain(op1, [op2, op3], op4)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3] >> op4
+
+Have to same size when ``chain`` set relationships between two list
+of operators.
+
+.. code:: python
+
+    chain(op1, [op2, op3], [op4, op5], op6)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+    op2 >> op4
+    op3 >> op5
+    [op4, op5] >> op6
+
 
 Tasks
 =====
