@@ -94,4 +94,10 @@ three_task = PythonOperator(
                                "affinity": affinity}}
 )
 
-start_task.set_downstream([one_task, two_task, three_task])
+# Add arbitrary labels to worker pods
+four_task = PythonOperator(
+    task_id="four_task", python_callable=print_stuff, dag=dag,
+    executor_config={"KubernetesExecutor": {"labels": {"foo": "bar"}}}
+)
+
+start_task.set_downstream([one_task, two_task, three_task, four_task])
