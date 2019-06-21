@@ -172,6 +172,21 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_dnspolicy():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            hostnetwork=True,
+            dnspolicy="ClusterFirstWithHostNet"
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_pod_node_selectors():
         node_selectors = {
             'beta.kubernetes.io/os': 'linux'

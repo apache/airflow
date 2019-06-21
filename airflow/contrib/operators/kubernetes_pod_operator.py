@@ -95,6 +95,8 @@ class KubernetesPodOperator(BaseOperator):
     :param pod_runtime_info_envs: environment variables about
                                   pod runtime information (ip, namespace, nodeName, podName)
     :type pod_runtime_info_envs: list[PodRuntimeEnv]
+    :param dnspolicy: Specify a dnspolicy for the pod
+    :type dnspolicy: str
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -135,6 +137,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.configmaps = self.configmaps
             pod.security_context = self.security_context
             pod.pod_runtime_info_envs = self.pod_runtime_info_envs
+            pod.dnspolicy = self.dnspolicy
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.xcom_push)
@@ -195,6 +198,7 @@ class KubernetesPodOperator(BaseOperator):
                  configmaps=None,
                  security_context=None,
                  pod_runtime_info_envs=None,
+                 dnspolicy=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -228,3 +232,4 @@ class KubernetesPodOperator(BaseOperator):
         self.configmaps = configmaps or []
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.dnspolicy = dnspolicy

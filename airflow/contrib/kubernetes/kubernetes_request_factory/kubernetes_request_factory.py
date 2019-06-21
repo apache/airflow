@@ -207,6 +207,11 @@ class KubernetesRequestFactory:
             req['spec']['hostNetwork'] = pod.hostnetwork
 
     @staticmethod
+    def extract_dnspolicy(pod, req):
+        if pod.dnspolicy:
+            req['spec']['dnsPolicy'] = pod.dnspolicy
+
+    @staticmethod
     def extract_image_pull_secrets(pod, req):
         if pod.image_pull_secrets:
             req['spec']['imagePullSecrets'] = [{
