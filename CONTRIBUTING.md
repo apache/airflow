@@ -19,385 +19,168 @@ under the License.
 
 # Contributing
 
-Contributions are welcome and are greatly appreciated! Every
-little bit helps, and credit will always be given.
+Contributions are welcome and are greatly appreciated! Every little bit helps, and credit will always be 
+given.
 
 # Table of Contents
-  * [TOC](#table-of-contents)
-  * [Types of Contributions](#types-of-contributions)
-      - [Report Bugs](#report-bugs)
-      - [Fix Bugs](#fix-bugs)
-      - [Implement Features](#implement-features)
-      - [Improve Documentation](#improve-documentation)
-      - [Submit Feedback](#submit-feedback)
-  * [Documentation](#documentation)
-  * [Development and Testing](#development-and-testing)
-      - [Setting up a development environment](#setting-up-a-development-environment)
-      - [Running unit tests](#running-unit-tests)
-  * [Pull requests guidelines](#pull-request-guidelines)
-  * [Changing the Metadata Database](#changing-the-metadata-database)
 
-## Types of Contributions
+* [Development environment](#development-environment)
+  - [Tools used](#tools-used)
+  - [Setting up a development environment](#setting-up-a-development-environment)
+  - [Building front-end assets](#building-front-end-assets)
+* [Developing Airflow](#developing-airflow)
+  - [Running unit tests](#running-unit-tests)
+  - [Setting up your own Travis CI](#setting-up-your-own-travis-ci)
+  - [Writing documentation](#writing-documentation)
+  - [Changing the metastore schema](#changing-the-metastore-schema)
+  - [Conventions](#conventions)
+* [Pull request guidelines](#pull-request-guidelines)
+* [Types of contributions](#types-of-contributions)
+  - [Documentation](#documentation)
+  - [Bug fixes & new small features](#bug-fixes--new-small-features)
+  - [Large changes](#large-changes)
+  - [Breaking changes & deprecation warnings](#breaking-changes--deprecation-warnings)
+  - [Other feedback](#other-feedback)
+* [Tool specific tips & tricks](#tool-specific-tips--tricks)
+  - [reStructuredText](#restructuredtext)
+  - [Pylint](#pylint)
 
-### Report Bugs
+# Development environment
 
-Report bugs through [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
+This section explains how to set up a development environment for contributing to Apache Airflow.
 
-Please report relevant information and preferably code that exhibits
-the problem.
+## Tools used
 
-### Fix Bugs
+We use the following tools (in the CI):
 
-Look through the Jira issues for bugs. Anything is open to whoever wants
-to implement it.
+For code quality:
+- [Travis](https://travis-ci.org/apache/airflow) for CI
+- [Flake8](http://flake8.pycqa.org) for code linting
+- [Pylint](https://www.pylint.org) for more code linting
+- [Mypy](http://mypy-lang.org) for static type checking
+- [Apache Rat](https://creadur.apache.org) for checking Apache license headers
+- [Sphinx](http://www.sphinx-doc.org) for documentation building
+- [Read the Docs](https://readthedocs.org/projects/airflow) for documentation hosting
 
-### Implement Features
+All tools can be called separate from the CI pipeline. See `.travis.yml` how they are called to run them manually.
 
-Look through the [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW) for features. Any unassigned "Improvement" issue is open to whoever wants to implement it.
+A few major libraries we depend on:
 
-We've created the operators, hooks, macros and executors we needed, but we
-made sure that this part of Airflow is extensible. New operators,
-hooks, macros and executors are very welcomed!
+- [SQLAlchemy](https://www.sqlalchemy.org) for ORM (object-relational mapping)
+- [Flask Application Builder (FAB)](https://flask-appbuilder.readthedocs.io) for the UI
+- [Alembic](https://alembic.sqlalchemy.org) for database migrations
 
-### Improve Documentation
+## Setting up a development environment
 
-Airflow could always use better documentation,
-whether as part of the official Airflow docs,
-in docstrings, `docs/*.rst` or even on the web as blog posts or
-articles.
+There are three ways to install an Apache Airflow development environment:
 
-### Submit Feedback
+1. Using tools and libraries installed natively on your system
+1. Using a single Docker container
+1. Using Docker Compose and Airflow's CI scripts
 
-The best way to send feedback is to open an issue on [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
+### 1. Using tools and libraries installed natively on your system
+Install Python (>=3.5.*), MySQL, and libxml by using system-level package managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the base CI Dockerfile for a comprehensive list of required packages.
 
-If you are proposing a feature:
+Then install Python development requirements. It is usually best to work in a virtualenv:
 
-- Explain in detail how it would work.
-- Keep the scope as narrow as possible, to make it easier to implement.
-- Remember that this is a volunteer-driven project, and that contributions are welcome :)
-
-## Documentation
-
-The latest API documentation is usually available
-[here](https://airflow.apache.org/). To generate a local version,
-you need to have set up an Airflow development environment (see below). Also
-install the `doc` extra.
-
-```
-pip install -e '.[doc]'
-```
-
-Generate and serve the documentation by running:
-
-```
-cd docs
-./build.sh
-./start_doc_server.sh
+```bash
+cd $AIRFLOW_HOME
+virtualenv env
+source env/bin/activate
+pip install -e '.[devel]'
 ```
 
-Only a subset of the API reference documentation builds. Install additional
-extras to build the full API reference.
+### 2. Using a single Docker container
+Docker isolates everything from the rest of your system which you might prefer to avoid mixing with other development environments.
 
-## Development and Testing
+```bash
+# Start docker in your Airflow directory
+docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:3 bash
 
-### Setting up a development environment
+# To install all of Airflows dependencies to run all tests (this is a lot)
+pip install -e .
 
-There are three ways to setup an Apache Airflow development environment.
+# To run only certain tests install the devel requirements and whatever is required
+# for your test.  See setup.py for the possible requirements. For example:
+pip install -e '.[gcp,devel]'
 
-1. Using tools and libraries installed directly on your system
+# Init the database
+airflow initdb
 
-  Install Python (2.7.x or 3.5.x), MySQL, and libxml by using system-level package
-  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/airflow-ci/blob/master/Dockerfile) for
-  a comprehensive list of required packages.
+nosetests -v tests/hooks/test_druid_hook.py
 
-  Then install python development requirements. It is usually best to work in a virtualenv:
+  test_get_first_record (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_records (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_uri (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_conn_url (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_gone_wrong (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_ok (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_timeout (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_unknown_response (tests.hooks.test_druid_hook.TestDruidHook) ... ok
 
-  ```bash
-  cd $AIRFLOW_HOME
-  virtualenv env
-  source env/bin/activate
-  pip install -e '.[devel]'
-  ```
+  ----------------------------------------------------------------------
+  Ran 8 tests in 3.036s
 
-2. Using a Docker container
-
-  Go to your Airflow directory and start a new docker container. You can choose between Python 2 or 3, whatever you prefer.
-
-  ```
-  # Start docker in your Airflow directory
-  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:3 bash
-
-  # To install all of airflows dependencies to run all tests (this is a lot)
-  pip install -e .
-  
-  # To run only certain tests install the devel requirements and whatever is required
-  # for your test.  See setup.py for the possible requirements. For example:
-  pip install -e '.[gcp,devel]'
-
-  # Init the database
-  airflow initdb
-
-  nosetests -v tests/hooks/test_druid_hook.py
-
-    test_get_first_record (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-    test_get_records (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-    test_get_uri (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-    test_get_conn_url (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-    test_submit_gone_wrong (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-    test_submit_ok (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-    test_submit_timeout (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-    test_submit_unknown_response (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-
-    ----------------------------------------------------------------------
-    Ran 8 tests in 3.036s
-
-    OK
-  ```
-
-  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test it in the container.
-
-3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts
-
-  Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
-
-  ```bash
-  docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
-  # From the container
-  export TOX_ENV=py35-backend_mysql-env_docker
-  /app/scripts/ci/run-ci.sh
-  ```
-
-  If you wish to run individual tests inside of Docker environment you can do as follows:
-
-  ```bash
-  # From the container (with your desired environment) with druid hook
-  export TOX_ENV=py35-backend_mysql-env_docker
-  /app/scripts/ci/run-ci.sh -- tests/hooks/test_druid_hook.py
-  ```
-
-
-### Running unit tests
-
-To run tests locally, once your unit test environment is setup (directly on your
-system or through our Docker setup) you should be able to simply run
-``./run_unit_tests.sh`` at will.
-
-For example, in order to just execute the "core" unit tests, run the following:
-
-```
-./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
+  OK
 ```
 
-or a single test method:
+The Airflow code is mounted inside of the Docker container and installed "editable" (with `-e`), so if you change any code, it is directly available in the environment in your container.
 
-```
-./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
-```
-or another example:
-```
-./run_unit_tests.sh tests.contrib.operators.test_dataproc_operator:DataprocClusterCreateOperatorTest.test_create_cluster_deletes_error_cluster  -s --logging-level=DEBUG
-```
+### 3. Using Docker Compose and Airflow's CI scripts
 
-To run the whole test suite with Docker Compose, do:
+If you prefer a bit more full-fledged development environment, where you can test e.g. against a Postgres database, you will need multiple Docker containers. Docker Compose is a convenient tool to manage multiple containers. Start a Docker container with Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
 
-```
-# Install Docker Compose first, then this will run the tests
-docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+```bash
+docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
+# From the container
+export TOX_ENV=py35-backend_mysql-env_docker
+/app/scripts/ci/run-ci.sh
 ```
 
-Alternatively, you can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
-It is free for open source projects.
+If you wish to run individual tests inside of Docker environment you can do as follows:
 
-Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
-This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
-
-Since there are a lot of tests the script would last very long so you probably only should test your new feature locally.
-
-The following example of a `pre-commit` file allows you..
-- to lint your code via flake8
-- to test your code via nosetests in a docker container based on python 2
-- to test your code via nosetests in a docker container based on python 3
-
-```
-#!/bin/sh
-
-GREEN='\033[0;32m'
-NO_COLOR='\033[0m'
-
-setup_python_env() {
-    local venv_path=${1}
-
-    echo -e "${GREEN}Activating python virtual environment ${venv_path}..${NO_COLOR}"
-    source ${venv_path}
-}
-run_linting() {
-    local project_dir=$(git rev-parse --show-toplevel)
-
-    echo -e "${GREEN}Running flake8 over directory ${project_dir}..${NO_COLOR}"
-    flake8 ${project_dir}
-}
-run_testing_in_docker() {
-    local feature_path=${1}
-    local airflow_py2_container=${2}
-    local airflow_py3_container=${3}
-
-    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 2 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ ${airflow_py2_container} nosetests -v ${feature_path}
-    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 3 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ ${airflow_py3_container} nosetests -v ${feature_path}
-}
-
-set -e
-# NOTE: Before running this make sure you have set the function arguments correctly.
-setup_python_env /Users/feluelle/venv/bin/activate
-run_linting
-run_testing_in_docker tests/contrib/hooks/test_imap_hook.py dazzling_chatterjee quirky_stallman
-
+```bash
+# From the container (with your desired environment) with druid hook
+export TOX_ENV=py35-backend_mysql-env_docker
+/app/scripts/ci/run-ci.sh -- tests/hooks/test_druid_hook.py
 ```
 
-For more information on how to run a subset of the tests, take a look at the
-nosetests docs.
+## Building front-end assets
 
-See also the list of test classes and methods in `tests/core.py`.
+### Setting up the Node/npm JavaScript environment
 
-Feel free to customize based on the extras available in [setup.py](./setup.py)
-
-## Pull Request Guidelines
-
-Before you submit a pull request from your forked repo, check that it
-meets these guidelines:
-
-1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and [codecov](https://codecov.io/gh/apache/airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
-1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and resolve all conflicts.
-1. Every pull request should have an associated [JIRA](https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel). The JIRA link should also be contained in the PR description.
-1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and GitHub PRs for more details about a particular change.
-1. Add an [Apache License](http://www.apache.org/legal/src-headers.html) header to all new files
-1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
-1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
-1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
-1. We also apply [Pylint](https://www.pylint.org) for linting (static code analysis). Run locally with `./scripts/ci/ci_pylint.sh`.
-1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
-
-### Testing on Travis CI
-
-We currently rely heavily on Travis CI for running the full Airflow test suite
-as running all of the tests locally requires significant setup.  You can setup
-Travis CI in your fork of Airflow by following the
-[Travis CI Getting Started guide][travis-ci-getting-started].
-
-There are two different options available for running Travis CI which are
-setup as separate components on GitHub:
-
-1. **Travis CI GitHub App** (new version)
-1. **Travis CI GitHub Services** (legacy version)
-
-#### Travis CI GitHub App (new version)
-
-1. Once installed, you can configure the Travis CI GitHub App at
-https://github.com/settings/installations -> Configure Travis CI.
-
-1. For the Travis CI GitHub App, you can set repository access to either "All
-repositories" for convenience, or "Only select repositories" and choose
-`<username>/airflow` in the dropdown.
-
-1. You can access Travis CI for your fork at
-`https://travis-ci.com/<username>/airflow`.
-
-#### Travis CI GitHub Services (legacy version)
-
-The Travis CI GitHub Services versions uses an Authorized OAuth App.  Note
-that `apache/airflow` is currently still using the legacy version.
-
-1. Once installed, you can configure the Travis CI Authorized OAuth App at
-https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac.
-
-1. If you are a GitHub admin, click the "Grant" button next to your
-organization; otherwise, click the "Request" button.
-
-1. For the Travis CI Authorized OAuth App, you may have to grant access to the
-forked `<organization>/airflow` repo even though it is public.
-
-1. You can access Travis CI for your fork at
-`https://travis-ci.org/<organization>/airflow`.
-
-#### Prefer travis-ci.com over travis-ci.org
-
-The travis-ci.org site for open source projects is now legacy and new projects
-should instead be created on travis-ci.com for both private repos and open
-source.
-
-Note that there is a second Authorized OAuth App available called "Travis CI
-for Open Source" used for the
-[legacy travis-ci.org service][travis-ci-org-vs-com].  It should not be used
-for new projects.
-
-More information:
-
-- [Open Source on travis-ci.com][travis-ci-open-source]
-- [Legacy GitHub Services to GitHub Apps Migration Guide][travis-ci-migrating]
-- [Migrating Multiple Repositories to GitHub Apps Guide][travis-ci-migrating-2]
-
-[travis-ci-getting-started]: https://docs.travis-ci.com/user/getting-started/
-[travis-ci-migrating-2]: https://docs.travis-ci.com/user/travis-migrate-to-apps-gem-guide/
-[travis-ci-migrating]: https://docs.travis-ci.com/user/legacy-services-to-github-apps-migration-guide/
-[travis-ci-open-source]: https://docs.travis-ci.com/user/open-source-on-travis-ci-com/
-[travis-ci-org-vs-com]: https://devops.stackexchange.com/a/4305/8830
-
-
-### Changing the Metadata Database
-
-When developing features the need may arise to persist information to the the
-metadata database. Airflow has [Alembic](https://bitbucket.org/zzzeek/alembic)
-built-in to handle all schema changes. Alembic must be installed on your
-development machine before continuing.
-
-```
-# starting at the root of the project
-$ pwd
-~/airflow
-# change to the airflow directory
-$ cd airflow
-$ alembic revision -m "add new field to db"
-  Generating
-~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
-```
-
-## Setting up the node / npm javascript environment
-
-`airflow/www/` contains all npm-managed, front end assets.
-Flask-Appbuilder itself comes bundled with jQuery and bootstrap.
-While these may be phased out over time, these packages are currently not
-managed with npm.
+`airflow/www/` contains all npm-managed, front end assets. Flask-Appbuilder itself comes bundled with jQuery 
+and bootstrap. While these may be phased out over time, these packages are currently not managed with npm.
 
 ### Node/npm versions
 
-Make sure you are using recent versions of node and npm. No problems have been found with node>=8.11.3 and npm>=6.1.3
+Make sure you are using recent versions of node and npm. No problems have been found with node>=8.11.3 and 
+npm>=6.1.3.
 
 ### Using npm to generate bundled files
 
 #### npm
 
-First, npm must be available in your environment. If it is not you can run the following commands
-(taken from [this source](https://gist.github.com/DanHerbert/9520689))
+First, npm must be available in your environment. If it is not you can run the following commands (taken from 
+[this source](https://gist.github.com/DanHerbert/9520689)):
 
-```
+```bash
 brew install node --without-npm
 echo prefix=~/.npm-packages >> ~/.npmrc
 curl -L https://www.npmjs.com/install.sh | sh
 ```
 
-The final step is to add `~/.npm-packages/bin` to your `PATH` so commands you install globally are usable.
-Add something like this to your `.bashrc` file, then `source ~/.bashrc` to reflect the change.
+The final step is to add `~/.npm-packages/bin` to your `PATH` so commands you install globally are usable. Add
+something like this to your `.bashrc` file, then `source ~/.bashrc` to reflect the change:
 
-```
+```bash
 export PATH="$HOME/.npm-packages/bin:$PATH"
 ```
 
 #### npm packages
 
-To install third party libraries defined in `package.json`, run the
-following within the `airflow/www/` directory which will install them in a
-new `node_modules/` folder within `www/`.
+To install third party libraries defined in `package.json`, run the following within the `airflow/www/` 
+directory which will install them in a new `node_modules/` folder within `www/`:
 
 ```bash
 # from the root of the repository, move to where our JS package.json lives
@@ -406,11 +189,10 @@ cd airflow/www/
 npm install
 ```
 
-To parse and generate bundled files for airflow, run either of the
-following commands. The `dev` flag will keep the npm script running and
-re-run it upon any changes within the assets directory.
+To parse and generate bundled files for airflow, run either of the following commands. The `dev` flag will 
+keep the npm script running and re-run it upon any changes within the assets directory.
 
-```
+```bash
 # Compiles the production / optimized js & css
 npm run prod
 
@@ -420,16 +202,16 @@ npm run dev
 
 #### Upgrading npm packages
 
-Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `npm install`
-and push the newly generated `package-lock.json` file so we get the reproducible build.
+Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run 
+`npm install` and push the newly generated `package-lock.json` file so we get the reproducible build.
 
-#### Javascript Style Guide
+#### JavaScript style guide
 
-We try to enforce a more consistent style and try to follow the JS community guidelines.
-Once you add or modify any javascript code in the project, please make sure it follows the guidelines
-defined in [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript).
-Apache Airflow uses [ESLint](https://eslint.org/) as a tool for identifying and reporting on patterns in JavaScript,
-which can be used by running any of the following commands.
+We try to enforce a more consistent style and try to follow the JS community guidelines. Once you add or 
+modify any JavaScript code in the project, please make sure it follows the guidelines defined in 
+[Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript). Apache Airflow uses 
+[ESLint](https://eslint.org/) as a tool for identifying and reporting on patterns in JavaScript, which can be 
+used by running any of the following commands:
 
 ```bash
 # Check JS code in .js and .html files, and report any errors/warnings
@@ -438,3 +220,241 @@ npm run lint
 # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
 npm run lint:fix
 ```
+
+# Developing Airflow
+
+## Running unit tests
+
+To run tests locally, once your unit test environment is set up you should be able to run 
+``./run_unit_tests.sh`` at will. For example, in order to just execute the "core" unit tests, run the 
+following:
+
+```bash
+./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
+```
+
+Or a single test:
+```bash
+./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
+```
+
+Another example:
+```bash
+./run_unit_tests.sh tests.contrib.operators.test_dataproc_operator:DataprocClusterCreateOperatorTest.test_create_cluster_deletes_error_cluster  -s --logging-level=DEBUG
+```
+
+To run the whole test suite with Docker Compose, do:
+```bash
+# Install Docker Compose first, then this will run the tests
+docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+```
+
+## Setting up your own Travis CI
+
+Every PR made to Airflow is automatically passed through the Airflow CI pipeline, which runs on Travis. If you
+want to run the same pipeline without having to submit a PR, you can set up your own Travis CI.
+
+Register your Airflow fork in Travis ([guide](https://docs.travis-ci.com/user/tutorial)) and the pipeline will
+run on every push. 
+
+Note that travis-ci.org is legacy; make sure you register your fork on
+[travis-ci.com](https://travis-ci.com).
+
+## Writing documentation
+
+The latest API documentation is usually available [here](https://airflow.apache.org/). To generate a local 
+version, install the `doc` extra in your development environment.
+
+```bash
+pip install -e '.[doc]'
+```
+
+Generate and serve the documentation by running:
+
+```bash
+cd docs
+./build.sh
+./start_doc_server.sh
+```
+
+Only a subset of the API reference documentation builds. Install additional extras to build the full API
+reference.
+
+## Changing the metastore schema
+
+When developing features the need may arise to persist information to the metadata database. Airflow uses 
+[Alembic](https://bitbucket.org/zzzeek/alembic) to handle schema changes. A history of all schema migrations 
+is stored in Python scripts in `airflow/migrations/versions/`. When creating the metastore, or upgrading to a new
+Airflow version, these scripts are executed. To generate a new schema change:
+
+```
+# Starting at the root of the project
+$ cd airflow
+$ alembic revision -m "add new column to table"
+  Generating .../airflow/migrations/versions/2da817564f87_add_new_column_to_table.py ... done
+```
+
+This generates a file in `airflow/migrations/versions/` which contains the changes to make to the schema. In 
+that file, implement the changes in the `upgrade()` and `downgrade()` functions for respectively upgrading and 
+downgrading the schema.
+
+You can inspect the entire history of schema changes with `alembic history`:
+
+```
+$ alembic history
+021ae05a82b6 -> 2da817564f87 (head), add new column to table
+6e96a59344a4, 004c1210f153 -> 021ae05a82b6 (mergepoint), empty message
+939bb1e647c8 -> 6e96a59344a4, Make TaskInstance.pool not nullable
+939bb1e647c8 -> 004c1210f153, increase queue name size limit
+...
+```
+
+## Conventions
+
+- We apply a line length of 110 characters. For IntelliJ/PyCharm, you can configure to display a vertical line
+at 110 characters in Preferences -> Editor -> Code Style -> Hard Wrap at -> set to 110.
+- We apply the reStructuredText docstring format.
+
+# Pull request guidelines
+
+Before you submit a pull request from your forked repo, check that it meets these guidelines:
+
+- Please make sure a PR touches only a single feature. So e.g. when adding a new argument to an operator, add 
+only that one argument and don't fix a typo in a different argument. Unrelated changes are confusing to a 
+reviewer and make it harder to trace changes for others and your future self. We rather have 2 PRs touching 2 
+features, than a single PR changing multiple features.
+- Every PR, except for documentation changes, requires an associated JIRA issue.
+- Every commit subject, except for documentation changes, must start with "[AIRFLOW-1234]" where 1234 references the related JIRA issue.
+- Documentation only changes do not require a JIRA issue and the commit subject can start with "[AIRFLOW-XXX]".
+- The PR title must also start with [AIRFLOW-XXX] or [AIRFLOW-1234].
+- Every PR should consist of a single commit. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993) and squash commits.
+- Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier. 
+
+# Types of contributions
+
+We distinguish a few contribution categories. In general, for all categories, keep the scope for any contribution as narrow as possible to make it easier to implement, review and trace for others and your future self.
+
+## Documentation
+
+Documentation changes are always greatly appreciated and are good beginner issues. They don't require a 
+related JIRA issue. Both the commit subject and PR title can start with "[AIRFLOW-XXX]".
+
+## Bug fixes & new small features
+
+Most changes fall in this category and add/alter some Python code, e.g. a new operator. This requires a JIRA 
+ticket, even if the change is small. Please refer to the JIRA issue number in your commit subject and PR 
+title.
+
+## Large changes
+
+For large changes we require an [Airflow Improvement Proposal (AIP)](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals), where the envisioned change is described, discussed and voted on by the community. The distinction between a small and large change is a grey area and is up to yourself. 
+
+## Breaking changes & deprecation warnings
+
+Breaking changes are only introduced in new major versions. If altering existing functionality, please add a deprecated warning first to inform users of the upcoming change. Also update UPDATING.md to inform users about the change.
+
+## Other feedback
+
+Other feedback about the project can be given on various channels:
+
+- [JIRA](https://issues.apache.org/jira/browse/AIRFLOW)
+- [Slack](https://apache-airflow-slack.herokuapp.com)
+- [Mailing list](https://lists.apache.org/list.html?dev@airflow.apache.org)
+
+Please remember that this is a volunteer-driven project, and most work is done in spare time :-)
+
+# Tool specific tips & tricks
+
+The section provides some pointers for using various tools in the Airflow project.
+
+## reStructuredText
+
+reStructuredText is used for documentation. A few pointers:
+
+- Always document your methods/functions. Somebody else does not have the same context when reading your code 
+and documentation helps understanding the functionality.
+- Triple quotes to start PyDoc under a function signature:
+
+  ```python
+  def dosomething():
+      """This function does something..."""
+  ```
+
+- Convention is to write the triple quotes + text if it's a one-liner and fits within 110 characters, 
+otherwise write on a newline:
+
+  ```python
+  def dosomething():
+      """Within 110 chars"""
+  
+  def longfunc():
+      """
+      ... a >110 char description ...
+      """
+  
+  def short_with_args(arg):
+      """
+      Short but with arg description.
+    
+      :param arg: argument description
+      """
+  ```
+
+- Note that param types can be listed both separate (`param` & `type` on separate lines) and on a single line:
+
+  ```python
+  def one_liner_param(arg):
+      """
+      Do something.
+    
+      :param str arg: argument description
+      """
+  
+  def two_liner_param(arg):
+      """
+      Do something.
+    
+      :param arg: argument description
+      :type arg: str
+      """
+  ```
+
+## Pylint
+
+You can disable specific messages if desired. This can be done in various ways.
+
+To disable a block of code (typically used if the message is raised multiple consecutive times:
+
+```python
+# pylint: disable=line-too-long
+print("very long line...")
+print("another long line...")
+print("yet another long line...")
+# pylint: enable=line-too-long
+```
+
+If `# pylint: disable` is placed on a separate line, everything after that line is disabled and can (not 
+required) be enabled again by `# pylint: enable` on another line.
+
+If you wish to disable only a single line, you can also do:
+
+```python
+print("very long line...")  # pylint: disable=line-too-long
+```
+
+This only disables the message for that specific line and does not require to explicitly enable the message 
+again. In-line disables work in any place, e.g. if the message complains about too many arguments in a 
+function, place it at the function definition line:
+
+```python
+def foobar(many, many2, args):  # pylint: disable=too-many-arguments
+    # ....
+```
+
+To disable multiple messages simultaneously:
+
+```python
+# pylint: disable=too-many-arguments,line-too-long
+```
+
+Generally the one-liner is preferred because you don't have to enable the message again. 
