@@ -18,10 +18,10 @@
 # under the License.
 
 import unittest
+from unittest import mock
 from datetime import datetime
 from urllib.parse import parse_qs
 
-from unittest import mock
 from bs4 import BeautifulSoup
 
 from airflow.www import utils

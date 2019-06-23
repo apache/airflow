@@ -18,10 +18,10 @@
 # under the License.
 
 import json
+import unittest
 from unittest import mock
 import os
 import socket
-import unittest
 
 from datetime import datetime
 

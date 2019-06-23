@@ -20,11 +20,11 @@
 import datetime
 import time
 import unittest
+from unittest.mock import patch, mock_open
 import urllib
 from typing import Union, List
 import pendulum
 from freezegun import freeze_time
-from unittest.mock import patch, mock_open
 from parameterized import parameterized, param
 from sqlalchemy.orm.session import Session
 from airflow import models, settings, configuration

@@ -480,7 +480,6 @@
 ./tests/contrib/hooks/test_gcs_hook.py
 ./tests/contrib/hooks/test_grpc_hook.py
 ./tests/contrib/hooks/test_imap_hook.py
-./tests/contrib/hooks/test_jdbc_hook.py
 ./tests/contrib/hooks/test_jira_hook.py
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
@@ -563,14 +562,12 @@
 ./tests/contrib/sensors/test_aws_redshift_cluster_sensor.py
 ./tests/contrib/sensors/test_bash_sensor.py
 ./tests/contrib/sensors/test_celery_queue_sensor.py
-./tests/contrib/sensors/test_emr_job_flow_sensor.py
 ./tests/contrib/sensors/test_emr_step_sensor.py
 ./tests/contrib/sensors/test_file_sensor.py
 ./tests/contrib/sensors/test_ftp_sensor.py
 ./tests/contrib/sensors/test_gcp_transfer_sensor.py
 ./tests/contrib/sensors/test_jira_sensor_test.py
 ./tests/contrib/sensors/test_python_sensor.py
-./tests/contrib/sensors/test_qubole_sensor.py
 ./tests/contrib/sensors/test_redis_pub_sub_sensor.py
 ./tests/contrib/sensors/test_sagemaker_endpoint_sensor.py
 ./tests/contrib/sensors/test_sagemaker_training_sensor.py
@@ -625,7 +622,6 @@
 ./tests/minikube/test_kubernetes_executor.py
 ./tests/minikube/test_kubernetes_pod_operator.py
 ./tests/models/test_cleartasks.py
-./tests/models/test_connection.py
 ./tests/models/test_dag.py
 ./tests/models/test_dagbag.py
 ./tests/models/test_dagrun.py
@@ -672,13 +668,8 @@
 ./tests/test_utils/reset_warning_registry.py
 ./tests/ti_deps/deps/fake_models.py
 ./tests/ti_deps/deps/test_dagrun_exists_dep.py
-./tests/ti_deps/deps/test_not_in_retry_period_dep.py
-./tests/ti_deps/deps/test_not_running_dep.py
-./tests/ti_deps/deps/test_prev_dagrun_dep.py
 ./tests/ti_deps/deps/test_ready_to_reschedule_dep.py
 ./tests/ti_deps/deps/test_runnable_exec_date_dep.py
-./tests/ti_deps/deps/test_task_concurrency.py
-./tests/ti_deps/deps/test_valid_state_dep.py
 ./tests/utils/log/elasticmock/fake_elasticsearch.py
 ./tests/utils/log/elasticmock/__init__.py
 ./tests/utils/log/test_es_task_handler.py
@@ -695,7 +686,6 @@
 ./tests/utils/test_logging_mixin.py
 ./tests/utils/test_log_handlers.py
 ./tests/utils/test_module_loading.py
-./tests/utils/test_operator_helpers.py
 ./tests/utils/test_tests.py
 ./tests/utils/test_timezone.py
 ./tests/www/api/experimental/test_endpoints.py

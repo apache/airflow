@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from datetime import datetime
 from unittest.mock import MagicMock, patch
+from datetime import datetime
 from dateutil.tz import tzlocal
 
 from airflow import configuration, AirflowException

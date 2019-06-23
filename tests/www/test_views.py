@@ -26,11 +26,11 @@ import shutil
 import sys
 import tempfile
 import unittest
-import urllib
-from datetime import timedelta
-from urllib.parse import quote_plus
-
 from unittest import mock
+import urllib
+from urllib.parse import quote_plus
+from datetime import timedelta
+
 import jinja2
 from flask import Markup, url_for
 from parameterized import parameterized

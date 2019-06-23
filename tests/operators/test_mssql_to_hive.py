@@ -18,13 +18,13 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch, PropertyMock, Mock
 from collections import OrderedDict
 
 try:
     import pymssql
 except ImportError:
     pymssql = None
-from unittest.mock import patch, PropertyMock, Mock
 
 from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 

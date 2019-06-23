@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-import logging
 from unittest import mock
+import logging
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
