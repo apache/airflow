@@ -18,7 +18,6 @@
 # under the License.
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils import timezone
 from airflow.utils.db import provide_session
 
 
