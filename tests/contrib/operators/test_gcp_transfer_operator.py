@@ -237,7 +237,7 @@ class GcpStorageTransferJobCreateOperatorTest(unittest.TestCase):
     def test_job_create_gcs(self, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_GCS_RAW
         body = deepcopy(VALID_TRANSFER_JOB_GCS)
-        del (body['name'])
+        del body['name']
         op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
         result = op.execute(None)
 
@@ -255,7 +255,7 @@ class GcpStorageTransferJobCreateOperatorTest(unittest.TestCase):
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
         )
         body = deepcopy(VALID_TRANSFER_JOB_AWS)
-        del (body['name'])
+        del body['name']
         op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
 
         result = op.execute(None)
