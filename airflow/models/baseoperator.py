@@ -25,7 +25,7 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set, Any
 
 import jinja2
 
@@ -636,51 +636,76 @@ class BaseOperator(LoggingMixin):
         self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_from_field(self, attr, content, context, jinja_env):
+    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
         """
-        Renders a template from a field. If the field is a string, it will
-        simply render the string and return the result. If it is a collection or
-        nested set of collections, it will traverse the structure and render
-        all elements in it. If the field has another type, it will return it as it is.
+        Template all attributes listed in template_fields. Note this operation is irreversible.
+
+        :param context: Dict with values to apply on content
+        :type context: dict
+        :param jinja_env: Jinja environment
+        :type jinja_env: jinja2.Environment
         """
-        rt = self.render_template
+
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+
+        for attr_name in self.template_fields:
+            content = getattr(self, attr_name)
+            if content:
+                rendered_content = self.render_template(content, context, jinja_env)
+                setattr(self, attr_name, rendered_content)
+
+    def render_template(
+        self, content: Any, context: Dict, jinja_env: Optional[jinja2.Environment] = None
+    ) -> Any:
+        """
+        Render a templated string. The content can be a collection holding multiple templated strings and will
+        be templated recursively.
+
+        :param content: Content to template. Only strings can be templated (may be inside collection).
+        :type content: Any
+        :param context: Dict with values to apply on templated content
+        :type context: dict
+        :param jinja_env: Jinja environment. Can be provided to avoid re-creating Jinja environments during
+            recursion.
+        :type jinja_env: jinja2.Environment
+        :return: Templated content
+        """
+
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+
         if isinstance(content, str):
-            result = jinja_env.from_string(content).render(**context)
-        elif isinstance(content, tuple):
+            if any(content.endswith(ext) for ext in self.template_ext):
+                # Content contains a filepath
+                return jinja_env.get_template(content).render(**context)
+            else:
+                return jinja_env.from_string(content).render(**context)
+
+        if isinstance(content, tuple):
             if type(content) is not tuple:
                 # Special case for named tuples
-                result = content.__class__(*(rt(attr, e, context) for e in content))
+                return content.__class__(
+                    *(self.render_template(element, context, jinja_env) for element in content)
+                )
             else:
-                result = tuple(rt(attr, e, context) for e in content)
+                return tuple(self.render_template(element, context, jinja_env) for element in content)
+
         elif isinstance(content, list):
-            result = [rt(attr, e, context) for e in content]
+            return [self.render_template(element, context, jinja_env) for element in content]
+
         elif isinstance(content, dict):
-            result = {
-                k: rt("{}[{}]".format(attr, k), v, context)
-                for k, v in list(content.items())}
+            return {key: self.render_template(value, context, jinja_env) for key, value in content.items()}
+
+        elif isinstance(content, set):
+            return {self.render_template(element, context, jinja_env) for element in content}
+
         else:
-            result = content
-        return result
+            return content
 
-    def render_template(self, attr, content, context):
-        """
-        Renders a template either from a file or directly in a field, and returns
-        the rendered result.
-        """
-        jinja_env = self.get_template_env()
-
-        exts = self.__class__.template_ext
-        if (
-                isinstance(content, str) and
-                any([content.endswith(ext) for ext in exts])):
-            return jinja_env.get_template(content).render(**context)
-        else:
-            return self.render_template_from_field(attr, content, context, jinja_env)
-
-    def get_template_env(self):
-        return self.dag.get_template_env() \
-            if hasattr(self, 'dag') \
-            else jinja2.Environment(cache_size=0)
+    def get_template_env(self) -> jinja2.Environment:
+        """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
+        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)
 
     def prepare_template(self):
         """

@@ -52,8 +52,7 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
     def test_pass_value_template(self):
         pass_value_str = "2018-03-22"
         operator = self.__construct_operator('select date from tab1;', "{{ ds }}")
-        result = operator.render_template('pass_value', operator.pass_value,
-                                          {'ds': pass_value_str})
+        result = operator.render_template(operator.pass_value, {'ds': pass_value_str})
 
         self.assertEqual(operator.task_id, self.task_id)
         self.assertEqual(result, pass_value_str)
