@@ -120,10 +120,8 @@ class _DataflowJob(LoggingMixin):
                     elif 'JOB_STATE_CANCELLED' == job['currentState']:
                         raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                             job['name']))
-                    elif 'JOB_STATE_RUNNING' == job['currentState']:
-                        None
-                    elif 'JOB_STATE_PENDING' == job['currentState']:
-                        None
+                    elif job['currentState'] in {'JOB_STATE_RUNNING', 'JOB_STATE_PENDING'}:
+                        pass
                     else:
                         self.log.debug(str(job))
                         raise Exception(
