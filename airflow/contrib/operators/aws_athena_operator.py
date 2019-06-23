@@ -87,7 +87,7 @@ class AWSAthenaOperator(BaseOperator):
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
                 'Final state of Athena job is {}, query_execution_id is {}. Error: {}'
-                .format(query_status, self.query_execution_id, error_message)
+                .format(query_status, self.query_execution_id, error_message))
         elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
             raise Exception(
                 'Final state of Athena job is {}. '
