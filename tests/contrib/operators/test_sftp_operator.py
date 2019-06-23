@@ -82,8 +82,8 @@ class SFTPOperatorTest(unittest.TestCase):
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as f:
-            f.write(test_local_file_content)
+        with open(self.test_local_filepath, 'wb') as file:
+            file.write(test_local_file_content)
 
         # put test file to remote
         put_test_task = SFTPOperator(
@@ -120,8 +120,8 @@ class SFTPOperatorTest(unittest.TestCase):
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as f:
-            f.write(test_local_file_content)
+        with open(self.test_local_filepath, 'wb') as file:
+            file.write(test_local_file_content)
 
         # Try to put test file to remote
         # This should raise an error with "No such file" as the directory
@@ -147,8 +147,8 @@ class SFTPOperatorTest(unittest.TestCase):
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as f:
-            f.write(test_local_file_content)
+        with open(self.test_local_filepath, 'wb') as file:
+            file.write(test_local_file_content)
 
         # put test file to remote
         put_test_task = SFTPOperator(
@@ -185,8 +185,8 @@ class SFTPOperatorTest(unittest.TestCase):
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as f:
-            f.write(test_local_file_content)
+        with open(self.test_local_filepath, 'wb') as file:
+            file.write(test_local_file_content)
 
         # put test file to remote
         put_test_task = SFTPOperator(
@@ -250,8 +250,8 @@ class SFTPOperatorTest(unittest.TestCase):
 
         # test the received content
         content_received = None
-        with open(self.test_local_filepath, 'r') as f:
-            content_received = f.read()
+        with open(self.test_local_filepath, 'r') as file:
+            content_received = file.read()
         self.assertEqual(content_received.strip(), test_remote_file_content)
 
     def test_json_file_transfer_get(self):
@@ -288,8 +288,8 @@ class SFTPOperatorTest(unittest.TestCase):
 
         # test the received content
         content_received = None
-        with open(self.test_local_filepath, 'r') as f:
-            content_received = f.read()
+        with open(self.test_local_filepath, 'r') as file:
+            content_received = file.read()
         self.assertEqual(content_received.strip(),
                          test_remote_file_content.encode('utf-8').decode('utf-8'))
 
@@ -364,8 +364,8 @@ class SFTPOperatorTest(unittest.TestCase):
 
         # test the received content
         content_received = None
-        with open(self.test_local_filepath_int_dir, 'r') as f:
-            content_received = f.read()
+        with open(self.test_local_filepath_int_dir, 'r') as file:
+            content_received = file.read()
         self.assertEqual(content_received.strip(), test_remote_file_content)
 
     def test_arg_checking(self):

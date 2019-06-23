@@ -1213,8 +1213,8 @@ class CliTests(unittest.TestCase):
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as f:
-            retrieved_users = json.loads(f.read())
+        with open(users_filename, mode='r') as file:
+            retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 
         # ensure that an export can be imported
@@ -1779,8 +1779,8 @@ class CliTests(unittest.TestCase):
                 "slots": 2
             }
         }
-        with open('pools_import.json', mode='w') as f:
-            json.dump(pool_config_input, f)
+        with open('pools_import.json', mode='w') as file:
+            json.dump(pool_config_input, file)
 
         # Import json
         try:
@@ -1794,8 +1794,8 @@ class CliTests(unittest.TestCase):
         except Exception as e:
             self.fail("The 'pool -e pools_export.json' failed: %s" % e)
 
-        with open('pools_export.json', mode='r') as f:
-            pool_config_output = json.load(f)
+        with open('pools_export.json', mode='r') as file:
+            pool_config_output = json.load(file)
             self.assertEqual(
                 pool_config_input,
                 pool_config_output,
@@ -1903,8 +1903,8 @@ class CliTests(unittest.TestCase):
     def _wait_pidfile(self, pidfile):
         while True:
             try:
-                with open(pidfile) as f:
-                    return int(f.read())
+                with open(pidfile) as file:
+                    return int(file.read())
             except Exception:
                 sleep(1)
 

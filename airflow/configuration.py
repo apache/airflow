@@ -92,8 +92,8 @@ def run_command(command):
 def _read_default_config_file(file_name):
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    with open(file_path, encoding='utf-8') as f:
-        return f.read()
+    with open(file_path, encoding='utf-8') as file:
+        return file.read()
 
 
 DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
@@ -510,18 +510,18 @@ if not os.path.isfile(TEST_CONFIG_FILE):
     log.info(
         'Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE
     )
-    with open(TEST_CONFIG_FILE, 'w') as f:
+    with open(TEST_CONFIG_FILE, 'w') as file:
         cfg = parameterized_config(TEST_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
+        file.write(cfg.split(TEMPLATE_START)[-1].strip())
 if not os.path.isfile(AIRFLOW_CONFIG):
     log.info(
         'Creating new Airflow config file in: %s',
         AIRFLOW_CONFIG
     )
-    with open(AIRFLOW_CONFIG, 'w') as f:
+    with open(AIRFLOW_CONFIG, 'w') as file:
         cfg = parameterized_config(DEFAULT_CONFIG)
         cfg = cfg.split(TEMPLATE_START)[-1].strip()
-        f.write(cfg)
+        file.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -554,8 +554,8 @@ WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
     DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
-    with open(WEBSERVER_CONFIG, 'w') as f:
-        f.write(DEFAULT_WEBSERVER_CONFIG)
+    with open(WEBSERVER_CONFIG, 'w') as file:
+        file.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
