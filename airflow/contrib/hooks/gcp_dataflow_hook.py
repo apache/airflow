@@ -32,7 +32,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 FAILED_END_STATES = {'JOB_STATE_FAILED', 'JOB_STATE_CANCELLED'}
-SUCCEEDED_END_STATES = ['JOB_STATE_DONE']
+SUCCEEDED_END_STATES = {'JOB_STATE_DONE'}
 END_STATES = SUCCEEDED_END_STATES + FAILED_END_STATES
 
 
