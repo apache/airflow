@@ -97,8 +97,8 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(FILENAME.format(0), obj)
             self.assertEqual('application/json', content_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(NDJSON_LINES), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(NDJSON_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -117,8 +117,8 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
         def _assert_upload(bucket, obj, tmp_filename, content_type):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual('application/json', content_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(expected_upload[obj], f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(expected_upload[obj], file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -152,8 +152,8 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         def _assert_upload(bucket, obj, tmp_filename, content_type):
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as f:
-                    self.assertEqual(SCHEMA_JSON, f.read())
+                with open(tmp_filename, 'rb') as file:
+                    self.assertEqual(SCHEMA_JSON, file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 

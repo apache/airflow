@@ -978,8 +978,8 @@ def webserver(args):
                 # seem to return the right value with DaemonContext.
                 while True:
                     try:
-                        with open(pid) as f:
-                            gunicorn_master_proc_pid = int(f.read())
+                        with open(pid) as file:
+                            gunicorn_master_proc_pid = int(file.read())
                             break
                     except IOError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
@@ -1493,9 +1493,9 @@ def users(args):
             for user in users
         ]
 
-        with open(args.export, 'w') as f:
-            f.write(json.dumps(users, sort_keys=True, indent=4))
-            print("{} users successfully exported to {}".format(len(users), f.name))
+        with open(args.export, 'w') as file:
+            file.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), file.name))
 
     elif getattr(args, 'import'):  # "import" is a reserved word
         json_file = getattr(args, 'import')
@@ -1505,8 +1505,8 @@ def users(args):
 
         users_list = None
         try:
-            with open(json_file, 'r') as f:
-                users_list = json.loads(f.read())
+            with open(json_file, 'r') as file:
+                users_list = json.loads(file.read())
         except ValueError as e:
             print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
             exit(1)

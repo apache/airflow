@@ -930,8 +930,8 @@ class HiveServer2Hook(BaseHook):
         message = None
 
         i = 0
-        with open(csv_filepath, 'wb') as f:
-            writer = csv.writer(f,
+        with open(csv_filepath, 'wb') as file:
+            writer = csv.writer(file,
                                 delimiter=delimiter,
                                 lineterminator=lineterminator,
                                 encoding='utf-8')

@@ -117,14 +117,14 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         thread_postgres.join()
 
     def get_ip_addresses(self, instance_suffix):
-        with open(GCSQL_MYSQL_PUBLIC_IP_FILE, "w") as f:
+        with open(GCSQL_MYSQL_PUBLIC_IP_FILE, "w") as file:
             ip = self.__get_ip_address(get_mysql_instance_name(instance_suffix),
                                        'GCSQL_MYSQL_PUBLIC_IP')
-            f.write(ip)
-        with open(GCSQL_POSTGRES_PUBLIC_IP_FILE, "w") as f:
+            file.write(ip)
+        with open(GCSQL_POSTGRES_PUBLIC_IP_FILE, "w") as file:
             ip = self.__get_ip_address(get_postgres_instance_name(instance_suffix),
                                        'GCSQL_POSTGRES_PUBLIC_IP')
-            f.write(ip)
+            file.write(ip)
 
     def raise_database_exception(self, database):
         raise Exception("The {database} instance does not exist. Make sure to run  "
@@ -238,8 +238,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
     @staticmethod
     def __set_ip_address_in_env(file_name):
         if os.path.exists(file_name):
-            with open(file_name, "r") as f:
-                env, ip = f.read().split("=")
+            with open(file_name, "r") as file:
+                env, ip = file.read().split("=")
                 os.environ[env] = ip
 
     def __setup_instance_and_certs(self, instance_name, db_version, server_ca_file,
@@ -342,8 +342,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                     raise
         self.log.info("... Done. Dir created.")
 
-        with open(filepath, "w") as f:
-            f.write(str(content.decode('utf-8')))
+        with open(filepath, "w") as file:
+            file.write(str(content.decode('utf-8')))
         self.log.info('Written file in: %s', filepath)
 
     def __remove_keys_and_certs(self, filepaths):

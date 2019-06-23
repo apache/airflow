@@ -114,8 +114,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(JSON_FILENAME.format(0), obj)
             self.assertEqual('application/json', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(NDJSON_LINES), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(NDJSON_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -146,8 +146,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -179,8 +179,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -212,8 +212,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES_PIPE_DELIMITED), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES_PIPE_DELIMITED), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -239,8 +239,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual('application/json', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(expected_upload[obj], f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(expected_upload[obj], file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -264,8 +264,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type):
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as f:
-                    self.assertEqual(b''.join(SCHEMA_JSON), f.read())
+                with open(tmp_filename, 'rb') as file:
+                    self.assertEqual(b''.join(SCHEMA_JSON), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 

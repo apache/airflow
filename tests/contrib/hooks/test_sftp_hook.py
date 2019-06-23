@@ -37,8 +37,8 @@ class SFTPHookTest(unittest.TestCase):
         configuration.load_test_config()
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as f:
-            f.write('Test file')
+        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:
+            file.write('Test file')
 
     def test_get_conn(self):
         output = self.hook.get_conn()

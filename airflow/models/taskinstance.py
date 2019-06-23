@@ -1288,8 +1288,8 @@ class TaskInstance(Base, LoggingMixin):
         def render(key, content):
             if configuration.has_option('email', key):
                 path = configuration.get('email', key)
-                with open(path) as f:
-                    content = f.read()
+                with open(path) as file:
+                    content = file.read()
 
             return jinja_env.from_string(content).render(**jinja_context)
 

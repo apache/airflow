@@ -247,8 +247,8 @@ class S3ToHiveTransfer(BaseOperator):
                                     tblproperties=self.tblproperties)
 
     def _get_top_row_as_list(self, file_name):
-        with open(file_name, 'rt') as f:
-            header_line = f.readline().strip()
+        with open(file_name, 'rt') as file:
+            header_line = file.readline().strip()
             header_list = header_line.split(self.delimiter)
             return header_list
 
