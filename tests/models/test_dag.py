@@ -22,13 +22,13 @@ import logging
 import os
 import re
 import unittest
+from unittest.mock import patch
 import uuid
 from tempfile import NamedTemporaryFile
 
 import jinja2
 import pendulum
 import six
-from unittest.mock import patch
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException

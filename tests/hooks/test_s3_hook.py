@@ -17,10 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import unittest
 from unittest import mock
 import tempfile
-import unittest
 
 from botocore.exceptions import NoCredentialsError
 

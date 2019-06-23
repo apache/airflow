@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import MagicMock, patch
 import datetime
 from dateutil.tz import tzlocal
-from unittest.mock import MagicMock, patch
 
 from airflow import configuration, AirflowException
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor

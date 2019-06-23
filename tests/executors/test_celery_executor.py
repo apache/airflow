@@ -19,10 +19,10 @@
 import os
 import sys
 import unittest
+from unittest import mock
 import contextlib
 from multiprocessing import Pool
 
-from unittest import mock
 
 from celery import Celery
 from celery import states as celery_states
@@ -37,7 +37,7 @@ from airflow import configuration
 configuration.load_test_config()
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401
+import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
 
 
 def _prepare_test_bodies():

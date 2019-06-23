@@ -18,10 +18,10 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 from collections import namedtuple
 
 from cryptography.fernet import Fernet
-from unittest.mock import patch
 from parameterized import parameterized
 
 from airflow.models import Connection, crypto

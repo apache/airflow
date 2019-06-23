@@ -21,9 +21,9 @@
 from six import StringIO
 import sys
 import unittest
+from unittest.mock import patch, Mock, MagicMock
 
 from datetime import datetime, timedelta, time
-from unittest.mock import patch, Mock, MagicMock
 from time import sleep
 import psutil
 import pytz

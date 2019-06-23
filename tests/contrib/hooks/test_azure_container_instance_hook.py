@@ -19,8 +19,8 @@
 
 import json
 import unittest
-from collections import namedtuple
 from unittest.mock import patch
+from collections import namedtuple
 
 from airflow import configuration
 from airflow.models import Connection
