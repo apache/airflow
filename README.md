@@ -381,6 +381,7 @@ Currently **officially** using Airflow:
 1. [Zendesk](https://www.github.com/zendesk)
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
+1. [Zynga](https://www.zynga.com)
 
 ## Who Maintains Apache Airflow?
 
