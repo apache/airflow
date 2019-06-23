@@ -31,8 +31,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
-FAILED_END_STATES = ['JOB_STATE_FAILED', 'JOB_STATE_CANCELLED','JOB_STATE_CANCELLING','JOB_STATE_STOPPED']
-SUCCEEDED_END_STATES = ['JOB_STATE_DONE']
+FAILED_END_STATES = {'JOB_STATE_FAILED', 'JOB_STATE_CANCELLED'}
+SUCCEEDED_END_STATES = {'JOB_STATE_DONE'}
 END_STATES = SUCCEEDED_END_STATES + FAILED_END_STATES
 
 
@@ -120,10 +120,8 @@ class _DataflowJob(LoggingMixin):
                     elif 'JOB_STATE_CANCELLED' == job['currentState']:
                         raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                             job['name']))
-                    elif 'JOB_STATE_RUNNING' == job['currentState']:
-                        None
-                    elif 'JOB_STATE_PENDING' == job['currentState']:
-                        None
+                    elif job['currentState'] in {'JOB_STATE_RUNNING', 'JOB_STATE_PENDING'}:
+                        pass
                     else:
                         self.log.debug(str(job))
                         raise Exception(
