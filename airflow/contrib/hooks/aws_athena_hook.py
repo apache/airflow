@@ -36,7 +36,7 @@ class AWSAthenaHook(AwsHook):
     SUCCESS_STATES = ('SUCCEEDED',)
 
     def __init__(self, aws_conn_id='aws_default', sleep_time=30, *args, **kwargs):
-        super().__init__(aws_conn_id, **kwargs)
+        super().__init__(aws_conn_id, *args, **kwargs)
         self.sleep_time = sleep_time
         self.conn = None
 
@@ -64,10 +64,10 @@ class AWSAthenaHook(AwsHook):
         :type client_request_token: str
         :return: str
         """
-        response = self.conn.start_query_execution(QueryString=query,
-                                                   ClientRequestToken=client_request_token,
-                                                   QueryExecutionContext=query_context,
-                                                   ResultConfiguration=result_configuration)
+        response = self.get_conn().start_query_execution(QueryString=query,
+                                                         ClientRequestToken=client_request_token,
+                                                         QueryExecutionContext=query_context,
+                                                         ResultConfiguration=result_configuration)
         query_execution_id = response['QueryExecutionId']
         return query_execution_id
 
@@ -79,7 +79,7 @@ class AWSAthenaHook(AwsHook):
         :type query_execution_id: str
         :return: str
         """
-        response = self.conn.get_query_execution(QueryExecutionId=query_execution_id)
+        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
         state = None
         try:
             state = response['QueryExecution']['Status']['State']
@@ -120,7 +120,7 @@ class AWSAthenaHook(AwsHook):
         elif query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error('Query is in {state} state. Cannot fetch results'.format(state=query_state))
             return None
-        return self.conn.get_query_results(QueryExecutionId=query_execution_id)
+        return self.get_conn().get_query_results(QueryExecutionId=query_execution_id)
 
     def poll_query_status(self, query_execution_id, max_tries=None):
         """
@@ -163,4 +163,4 @@ class AWSAthenaHook(AwsHook):
         :type query_execution_id: str
         :return: dict
         """
-        return self.conn.stop_query_execution(QueryExecutionId=query_execution_id)
+        return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
