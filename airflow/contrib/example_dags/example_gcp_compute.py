@@ -29,6 +29,7 @@ This DAG relies on the following OS environment variables
 * GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
     See https://cloud.google.com/compute/docs/machine-types
 """
+
 import os
 
 import airflow

@@ -17,15 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import random
+from typing import Iterable
 
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -67,7 +63,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_connections(cls, conn_id):
+    def get_connections(cls, conn_id: str) -> Iterable[Connection]:
         conn = cls._get_connection_from_env(conn_id)
         if conn:
             conns = [conn]
@@ -76,15 +72,16 @@ class BaseHook(LoggingMixin):
         return conns
 
     @classmethod
-    def get_connection(cls, conn_id):
-        conn = random.choice(cls.get_connections(conn_id))
+    def get_connection(cls, conn_id: str) -> Connection:
+        conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
             log = LoggingMixin().log
             log.info("Using connection to: %s", conn.debug_info())
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id):
+    def get_hook(cls, conn_id: str) -> "BaseHook":
+        # TODO: set method return type to BaseHook class when on 3.7+. See https://stackoverflow.com/a/33533514/3066428  # noqa: E501
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 

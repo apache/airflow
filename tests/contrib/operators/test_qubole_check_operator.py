@@ -25,14 +25,7 @@ from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOper
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from qds_sdk.commands import HiveCommand
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class QuboleValueCheckOperatorTest(unittest.TestCase):
@@ -96,8 +89,8 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
 
         operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     'Qubole Command Id: ' + str(mock_cmd.id)):
+        with self.assertRaisesRegex(AirflowException,
+                                    'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
 
         mock_cmd.is_success.assert_called_with(mock_cmd.status)

@@ -16,9 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Client for all the API clients."""
 
 
-class Client(object):
+class Client:
     """Base API client for all API clients."""
 
     def __init__(self, api_base_url, auth):

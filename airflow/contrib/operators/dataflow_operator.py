@@ -16,22 +16,60 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import copy
+"""
+This module contains Google Dataflow operators.
+"""
+
 import os
 import re
 import uuid
+import copy
 
-from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.version import version
+from airflow.utils.decorators import apply_defaults
 
 
 class DataFlowJavaOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
+
+    **Example**: ::
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date':
+                (2016, 8, 1),
+            'email': ['alex@vanboxel.be'],
+            'email_on_failure': False,
+            'email_on_retry': False,
+            'retries': 1,
+            'retry_delay': timedelta(minutes=30),
+            'dataflow_default_options': {
+                'project': 'my-gcp-project',
+                'zone': 'us-central1-f',
+                'stagingLocation': 'gs://bucket/tmp/dataflow/staging/',
+            }
+        }
+
+        dag = DAG('test-dag', default_args=default_args)
+
+        task = DataFlowJavaOperator(
+            gcp_conn_id='gcp_default',
+            task_id='normalize-cal',
+            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            options={
+                'autoscalingAlgorithm': 'BASIC',
+                'maxNumWorkers': '50',
+                'start': '{{ds}}',
+                'partitionType': 'DAY'
+
+            },
+            dag=dag)
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -58,7 +96,7 @@ class DataFlowJavaOperator(BaseOperator):
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
-    :param job_class: The name of the dataflow job class to be executued, it
+    :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
     :type job_class: str
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
@@ -126,7 +164,7 @@ class DataFlowJavaOperator(BaseOperator):
             multiple_jobs=None,
             *args,
             **kwargs):
-        super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -249,7 +287,7 @@ class DataflowTemplateOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         parameters = parameters or {}
@@ -290,8 +328,8 @@ class DataFlowPythonOperator(BaseOperator):
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
-    :param py_options: Additional python options.
-    :type pyt_options: list of strings, e.g., ["-m", "-v"].
+    :param py_options: Additional python options, e.g., ["-m", "-v"].
+    :type pyt_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
@@ -323,7 +361,8 @@ class DataFlowPythonOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
+
+        super().__init__(*args, **kwargs)
 
         self.py_file = py_file
         self.job_name = job_name
@@ -356,7 +395,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper(object):
+class GoogleCloudBucketHelper:
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 
@@ -385,7 +424,8 @@ class GoogleCloudBucketHelper(object):
         path_components = file_name[self.GCS_PREFIX_LENGTH:].split('/')
         if len(path_components) < 2:
             raise Exception(
-                'Invalid Google Cloud Storage (GCS) object path: {}'.format(file_name))
+                'Invalid Google Cloud Storage (GCS) object path: {}'
+                .format(file_name))
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
@@ -396,4 +436,5 @@ class GoogleCloudBucketHelper(object):
         if os.stat(local_file).st_size > 0:
             return local_file
         raise Exception(
-            'Failed to download Google Cloud Storage (GCS) object: {}'.format(file_name))
+            'Failed to download Google Cloud Storage (GCS) object: {}'
+            .format(file_name))

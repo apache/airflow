@@ -18,10 +18,10 @@
 # under the License.
 #
 
-import mock
+from unittest import mock
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.hooks.presto_hook import PrestoHook
 
@@ -29,7 +29,7 @@ from airflow.hooks.presto_hook import PrestoHook
 class TestPrestoHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPrestoHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

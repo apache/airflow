@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import MagicMock
 
 from ftplib import error_perm
-from mock import MagicMock
 
 from airflow.contrib.hooks.ftp_hook import FTPHook
 from airflow.contrib.sensors.ftp_sensor import FTPSensor
@@ -28,7 +28,7 @@ from airflow.contrib.sensors.ftp_sensor import FTPSensor
 
 class TestFTPSensor(unittest.TestCase):
     def setUp(self):
-        super(TestFTPSensor, self).setUp()
+        super().setUp()
         self._create_hook_orig = FTPSensor._create_hook
         self.hook_mock = MagicMock(spec=FTPHook)
 
@@ -42,7 +42,7 @@ class TestFTPSensor(unittest.TestCase):
 
     def tearDown(self):
         FTPSensor._create_hook = self._create_hook_orig
-        super(TestFTPSensor, self).tearDown()
+        super().tearDown()
 
     def test_poke(self):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",

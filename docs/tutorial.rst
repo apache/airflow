@@ -260,7 +260,7 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :ref:`macros` section
+in templates, make sure to read through the :doc:`macros`
 
 Setting up Dependencies
 -----------------------
@@ -368,8 +368,10 @@ Testing
 Running the Script
 ''''''''''''''''''
 
-Time to run some tests. First let's make sure that the pipeline
-parses. Let's assume we're saving the code from the previous step in
+Time to run some tests. First, let's make sure the pipeline
+is parsed successfully.
+
+Let's assume we're saving the code from the previous step in
 ``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
 The default location for your DAGs is ``~/airflow/dags``.
 

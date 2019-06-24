@@ -24,14 +24,7 @@ from airflow import AirflowException
 from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, \
     GKEClusterDeleteOperator, GKEPodOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'
@@ -62,7 +55,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.create_cluster.assert_called_once_with(
-            cluster=PROJECT_BODY_CREATE)
+            cluster=PROJECT_BODY_CREATE, project_id=TEST_GCP_PROJECT_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_body(self, mock_hook):
@@ -104,7 +97,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.delete_cluster.assert_called_once_with(
-            name=CLUSTER_NAME)
+            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_project_id(self, mock_hook):
@@ -285,7 +278,7 @@ class GKEPodOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEPodOperator.log')
     def test_get_field_fail(self, log_mock):
         log_mock.info = mock.Mock()
-        LOG_STR = 'Field {} not found in extras.'
+        LOG_STR = 'Field %s not found in extras.'
         FIELD_NAME = 'test_field'
         FIELD_VALUE = 'test_field_value'
 
@@ -294,4 +287,4 @@ class GKEPodOperatorTest(unittest.TestCase):
         ret_val = self.gke_op._get_field(extras, FIELD_NAME, default=FIELD_VALUE)
         # Assert default is returned upon failure
         self.assertEqual(FIELD_VALUE, ret_val)
-        log_mock.info.assert_called_with(LOG_STR.format(FIELD_NAME))
+        log_mock.info.assert_called_with(LOG_STR, FIELD_NAME)

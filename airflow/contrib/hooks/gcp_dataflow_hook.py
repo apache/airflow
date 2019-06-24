@@ -38,13 +38,15 @@ END_STATES = SUCCEEDED_END_STATES + FAILED_END_STATES
 
 class _DataflowJob(LoggingMixin):
     def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
-                 job_id=None, multiple_jobs=None):
+                 job_id=None, multiple_jobs=None, num_retries=None):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_location = location
         self.multiple_jobs = multiple_jobs
         self._job_id = job_id
+        self._num_retries = num_retries
+        self._job = self._get_job()
         self._jobs = self._get_jobs()
         self._poll_sleep = poll_sleep
 
@@ -58,10 +60,9 @@ class _DataflowJob(LoggingMixin):
         jobs = self._dataflow.projects().locations().jobs().list(
             projectId=self._project_number,
             location=self._job_location
-        ).execute(num_retries=5)
-        dataflow_jobs = []
+        ).execute(num_retries=self._num_retries)
         for job in jobs['jobs']:
-            if job['name'].startswith(self._job_name):
+            if job['name'].startswith(self._job_name.lower()):
                 dataflow_jobs.append(job)
         if len(dataflow_jobs) == 1:
             self._job_id = dataflow_jobs[0]['id']
@@ -73,7 +74,7 @@ class _DataflowJob(LoggingMixin):
             self._jobs.append(self._dataflow.projects().locations().jobs().get(
                 projectId=self._project_number,
                 location=self._job_location,
-                jobId=self._job_id).execute(num_retries=5))
+                jobId=self._job_id).execute(num_retries=self._num_retries))
         elif self._job_name:
             self._jobs = self._get_job_id_from_name()
         else:
@@ -201,7 +202,8 @@ class DataFlowHook(GoogleCloudBaseHook):
                  delegate_to=None,
                  poll_sleep=10):
         self.poll_sleep = poll_sleep
-        super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
+        self.num_retries = self._get_field('num_retries', 5)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
         """
@@ -218,7 +220,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
                      variables['region'],
-                     self.poll_sleep, job_id, multiple_jobs).wait_for_done()
+                     self.poll_sleep, job_id, self.num_retries,multiple_jobs).wait_for_done()
 
     @staticmethod
     def _set_variables(variables):
@@ -236,7 +238,6 @@ class DataFlowHook(GoogleCloudBaseHook):
         def label_formatter(labels_dict):
             return ['--labels={}'.format(
                 json.dumps(labels_dict).replace(' ', ''))]
-
         command_prefix = (["java", "-cp", dataflow, job_class] if job_class
                           else ["java", "-jar", dataflow])
         self._start_dataflow(variables, name, command_prefix, label_formatter, multiple_jobs)
@@ -295,8 +296,9 @@ class DataFlowHook(GoogleCloudBaseHook):
         # Builds RuntimeEnvironment from variables dictionary
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
-        for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
-                    'bypassTempDirValidation', 'machineType']:
+        for key in ['numWorkers', 'maxWorkers', 'zone', 'serviceAccountEmail',
+                    'tempLocation', 'bypassTempDirValidation', 'machineType',
+                    'additionalExperiments', 'network', 'subnetwork', 'additionalUserLabels']:
             if key in variables:
                 environment.update({key: variables[key]})
         body = {"jobName": name,
@@ -309,10 +311,10 @@ class DataFlowHook(GoogleCloudBaseHook):
             gcsPath=dataflow_template,
             body=body
         )
-        response = request.execute()
+        response = request.execute(num_retries=self.num_retries)
         variables = self._set_variables(variables)
         _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
-                     self.poll_sleep).wait_for_done()
+                     self.poll_sleep, num_retries=self.num_retries).wait_for_done()
         return response
 
     def is_job_dataflow_running(self, name, variables):

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 import unittest
 
 from airflow.www import validators
@@ -26,7 +26,7 @@ from airflow.www import validators
 class TestGreaterEqualThan(unittest.TestCase):
 
     def setUp(self):
-        super(TestGreaterEqualThan, self).setUp()
+        super().setUp()
         self.form_field_mock = mock.MagicMock(data='2017-05-06')
         self.form_field_mock.gettext.side_effect = lambda msg: msg
         self.other_field_mock = mock.MagicMock(data='2017-05-05')
@@ -46,7 +46,7 @@ class TestGreaterEqualThan(unittest.TestCase):
         return validator(self.form_mock, self.form_field_mock)
 
     def test_field_not_found(self):
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             validators.ValidationError,
             "^Invalid field name 'some'.$",
             self._validate,
@@ -75,7 +75,7 @@ class TestGreaterEqualThan(unittest.TestCase):
     def test_validation_raises(self):
         self.form_field_mock.data = '2017-05-04'
 
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             validators.ValidationError,
             "^Field must be greater than or equal to other field.$",
             self._validate,
@@ -84,7 +84,7 @@ class TestGreaterEqualThan(unittest.TestCase):
     def test_validation_raises_custom_message(self):
         self.form_field_mock.data = '2017-05-04'
 
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             validators.ValidationError,
             "^This field must be greater than or equal to MyField.$",
             self._validate,

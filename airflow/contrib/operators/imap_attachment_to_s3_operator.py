@@ -55,7 +55,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
                  s3_conn_id='aws_default',
                  *args,
                  **kwargs):
-        super(ImapAttachmentToS3Operator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.imap_attachment_name = imap_attachment_name
         self.s3_key = s3_key
         self.imap_mail_folder = imap_mail_folder
@@ -85,4 +85,6 @@ class ImapAttachmentToS3Operator(BaseOperator):
             )
 
         s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
-        s3_hook.load_string(string_data=imap_mail_attachments[0][1], key=self.s3_key)
+        s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1],
+                           key=self.s3_key,
+                           replace=self.s3_overwrite)

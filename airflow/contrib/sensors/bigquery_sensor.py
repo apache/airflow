@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Bigquery sensor.
+"""
+
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.utils.decorators import apply_defaults
@@ -50,11 +54,11 @@ class BigQueryTableSensor(BaseSensorOperator):
                  project_id,
                  dataset_id,
                  table_id,
-                 bigquery_conn_id='bigquery_default_conn',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args, **kwargs):
 
-        super(BigQueryTableSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id

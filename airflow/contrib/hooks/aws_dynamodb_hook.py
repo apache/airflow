@@ -41,7 +41,7 @@ class AwsDynamoDBHook(AwsHook):
         self.table_keys = table_keys
         self.table_name = table_name
         self.region_name = region_name
-        super(AwsDynamoDBHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_resource_type('dynamodb', self.region_name)

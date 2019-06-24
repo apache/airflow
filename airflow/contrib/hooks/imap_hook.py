@@ -35,7 +35,7 @@ class ImapHook(BaseHook):
     """
 
     def __init__(self, imap_conn_id='imap_default'):
-        super(ImapHook, self).__init__(imap_conn_id)
+        super().__init__(imap_conn_id)
         self.conn = self.get_connection(imap_conn_id)
         self.mail_client = imaplib.IMAP4_SSL(self.conn.host)
 
@@ -221,7 +221,7 @@ class Mail(LoggingMixin):
     """
 
     def __init__(self, mail_body):
-        super(Mail, self).__init__()
+        super().__init__()
         self.mail = email.message_from_string(mail_body)
 
     def has_attachments(self):

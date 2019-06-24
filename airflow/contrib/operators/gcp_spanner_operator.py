@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Spanner operators.
+"""
+
 import six
 
 from airflow import AirflowException
@@ -70,7 +74,7 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -98,6 +102,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
     Deletes a Cloud Spanner instance. If an instance does not exist,
     no action is taken and the operator succeeds.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDeleteOperator`
+
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
@@ -121,7 +129,7 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -143,6 +151,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
 class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
     """
     Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseQueryOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -177,7 +189,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -207,7 +219,14 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
 
     @staticmethod
     def sanitize_queries(queries):
-        if len(queries) and queries[-1] == '':
+        """
+        Drops empty query in queries.
+
+        :param queries: queries
+        :type queries: List[str]
+        :rtype: None
+        """
+        if queries and queries[-1] == '':
             del queries[-1]
 
 
@@ -216,12 +235,16 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
     Creates a new Cloud Spanner database, or if database exists,
     the operator does nothing.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeployOperator`
+
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
     :type database_id: str
     :param ddl_statements: The string list containing DDL for the new database.
-    :type ddl_statements: list of str
+    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
@@ -249,7 +272,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -282,6 +305,10 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
 class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
     """
     Updates a Cloud Spanner database with the specified DDL statement.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseUpdateOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -321,7 +348,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -357,6 +384,10 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
     """
     Deletes a Cloud Spanner database.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeleteOperator`
+
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str
     :param database_id: Cloud Spanner database ID.
@@ -385,7 +416,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -398,10 +429,10 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        db = self._hook.get_database(project_id=self.project_id,
-                                     instance_id=self.instance_id,
-                                     database_id=self.database_id)
-        if not db:
+        database = self._hook.get_database(project_id=self.project_id,
+                                           instance_id=self.instance_id,
+                                           database_id=self.database_id)
+        if not database:
             self.log.info("The Cloud Spanner database was missing: "
                           "'%s' in project '%s' and instance '%s'. Assuming success.",
                           self.database_id, self.project_id, self.instance_id)

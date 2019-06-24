@@ -18,21 +18,21 @@
 # under the License.
 
 import os
+import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
+from unittest.mock import MagicMock
 from datetime import timedelta
 
-from mock import MagicMock
-
 from airflow import configuration as conf
-from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,
-                                          SimpleTaskInstance)
+                                          SimpleTaskInstance, correct_maybe_zipped)
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 
@@ -80,7 +80,7 @@ LOGGING_CONFIG = {
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context(object):
+class settings_context:
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -99,7 +99,7 @@ class settings_context(object):
 
             # Create the directory structure
             dir_path = os.path.join(self.settings_root, dir)
-            mkdir_p(dir_path)
+            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
@@ -216,6 +216,16 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
+    def setUp(self):
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
+    def tearDown(self):
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
+
     def test_reload_module(self):
         """
         Configure the context to have core.logging_config_class set to a fake logging
@@ -326,3 +336,36 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         manager_process.join()
 
         self.assertTrue(os.path.isfile(log_file_loc))
+
+
+class TestCorrectMaybeZipped(unittest.TestCase):
+    @mock.patch("zipfile.is_zipfile")
+    def test_correct_maybe_zipped_normal_file(self, mocked_is_zipfile):
+        path = '/path/to/some/file.txt'
+        mocked_is_zipfile.return_value = False
+
+        dag_folder = correct_maybe_zipped(path)
+
+        self.assertEqual(dag_folder, path)
+
+    @mock.patch("zipfile.is_zipfile")
+    def test_correct_maybe_zipped_normal_file_with_zip_in_name(self, mocked_is_zipfile):
+        path = '/path/to/fakearchive.zip.other/file.txt'
+        mocked_is_zipfile.return_value = False
+
+        dag_folder = correct_maybe_zipped(path)
+
+        self.assertEqual(dag_folder, path)
+
+    @mock.patch("zipfile.is_zipfile")
+    def test_correct_maybe_zipped_archive(self, mocked_is_zipfile):
+        path = '/path/to/archive.zip/deep/path/to/file.txt'
+        mocked_is_zipfile.return_value = True
+
+        dag_folder = correct_maybe_zipped(path)
+
+        assert mocked_is_zipfile.call_count == 1
+        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
+        self.assertEqual('/path/to/archive.zip', args[0])
+
+        self.assertEqual(dag_folder, '/path/to/archive.zip')

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google BigQuery table delete operator.
+"""
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -27,7 +30,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
     Deletes BigQuery tables
 
     :param deletion_dataset_table: A dotted
-        (<project>.|<project>:)<dataset>.<table> that indicates which table
+        ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
         will be deleted. (templated)
     :type deletion_dataset_table: str
     :param bigquery_conn_id: reference to a specific BigQuery hook.
@@ -46,12 +49,12 @@ class BigQueryTableDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  deletion_dataset_table,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  ignore_if_missing=False,
                  *args,
                  **kwargs):
-        super(BigQueryTableDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.deletion_dataset_table = deletion_dataset_table
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
@@ -63,4 +66,6 @@ class BigQueryTableDeleteOperator(BaseOperator):
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_table_delete(self.deletion_dataset_table, self.ignore_if_missing)
+        cursor.run_table_delete(
+            deletion_dataset_table=self.deletion_dataset_table,
+            ignore_if_missing=self.ignore_if_missing)
