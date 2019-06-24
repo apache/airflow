@@ -254,10 +254,10 @@ class HelpersTest(unittest.TestCase):
         [t1, t2, t3, t4, t5, t6] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 7)]
         helpers.chain(t1, [t2, t3], [t4, t5], t6)
 
-        self.assertItemsEqual([t2, t3], t1.get_direct_relatives(upstream=False))
+        self.assertCountEqual([t2, t3], t1.get_direct_relatives(upstream=False))
         self.assertEqual([t4], t2.get_direct_relatives(upstream=False))
         self.assertEqual([t5], t3.get_direct_relatives(upstream=False))
-        self.assertItemsEqual([t4, t5], t6.get_direct_relatives(upstream=True))
+        self.assertCountEqual([t4, t5], t6.get_direct_relatives(upstream=True))
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
