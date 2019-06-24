@@ -18,6 +18,9 @@
 # under the License.
 
 import unittest
+
+from slack.errors import SlackApiError
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.slack_hook import SlackHook
 from tests.compat import mock
@@ -67,11 +70,13 @@ class SlackHookTestCase(unittest.TestCase):
     def test_init_with_out_token_nor_slack_conn_id(self):
         self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=None)
 
-    @mock.patch('airflow.hooks.slack_hook.SlackClient')
+    @mock.patch('airflow.hooks.slack_hook.WebClient')
     def test_call_with_success(self, slack_client_class_mock):
         slack_client_mock = mock.Mock()
         slack_client_class_mock.return_value = slack_client_mock
-        slack_client_mock.api_call.return_value = {'ok': True}
+        slack_response = mock.Mock()
+        slack_client_mock.api_call.return_value = slack_response
+        slack_response.validate.return_value = True
 
         test_token = 'test_token'
         test_slack_conn_id = 'test_slack_conn_id'
@@ -83,12 +88,16 @@ class SlackHookTestCase(unittest.TestCase):
 
         slack_client_class_mock.assert_called_with(test_token)
         slack_client_mock.api_call.assert_called_with(test_method, **test_api_params)
+        self.assertEqual(slack_response.validate.call_count, 1)
 
-    @mock.patch('airflow.hooks.slack_hook.SlackClient')
+    @mock.patch('airflow.hooks.slack_hook.WebClient')
     def test_call_with_failure(self, slack_client_class_mock):
         slack_client_mock = mock.Mock()
         slack_client_class_mock.return_value = slack_client_mock
-        slack_client_mock.api_call.return_value = {'ok': False, 'error': 'test_error'}
+        slack_response = mock.Mock()
+        slack_client_mock.api_call.return_value = slack_response
+        expected_exception = SlackApiError(message='foo', response='bar')
+        slack_response.validate = mock.Mock(side_effect=expected_exception)
 
         test_token = 'test_token'
         test_slack_conn_id = 'test_slack_conn_id'
@@ -96,4 +105,9 @@ class SlackHookTestCase(unittest.TestCase):
         test_method = 'test_method'
         test_api_params = {'key1': 'value1', 'key2': 'value2'}
 
-        self.assertRaises(AirflowException, slack_hook.call, test_method, test_api_params)
+        try:
+            slack_hook.call(test_method, test_api_params)
+            self.fail()
+        except AirflowException as exc:
+            self.assertIn("foo", str(exc))
+            self.assertIn("bar", str(exc))
