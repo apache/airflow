@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import BaseOperator, SkipMixin
-
 from typing import Union, Iterable, Dict
 
+from airflow.models import BaseOperator, SkipMixin
 
-class BranchOperator(BaseOperator, SkipMixin):
+
+class BaseBranchOperator(BaseOperator, SkipMixin):
     """
     This is a base class for creating operators with branching functionality,
     similarly to BranchPythonOperator.

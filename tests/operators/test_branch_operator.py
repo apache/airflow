@@ -22,7 +22,7 @@ import datetime
 
 from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.branch_operator import BranchOperator
+from airflow.operators.branch_operator import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -31,12 +31,12 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
 
-class ChooseBranchOne(BranchOperator):
+class ChooseBranchOne(BaseBranchOperator):
     def choose_branch(self, context):
         return 'branch_1'
 
 
-class ChooseBranchOneTwo(BranchOperator):
+class ChooseBranchOneTwo(BaseBranchOperator):
     def choose_branch(self, context):
         return ['branch_1', 'branch_2']
 
@@ -59,6 +59,8 @@ class BranchOperatorTest(unittest.TestCase):
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_3 = None
+        self.branch_op = None
 
     def tearDown(self):
         super().tearDown()
@@ -129,7 +131,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_2.set_upstream(self.branch_op)
         self.dag.clear()
 
-        dr = self.dag.create_dagrun(
+        dagrun = self.dag.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
@@ -138,7 +140,7 @@ class BranchOperatorTest(unittest.TestCase):
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
                 self.assertEqual(ti.state, State.SUCCESS)
@@ -155,7 +157,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_op >> self.branch_2
         self.dag.clear()
 
-        dr = self.dag.create_dagrun(
+        dagrun = self.dag.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
@@ -164,7 +166,7 @@ class BranchOperatorTest(unittest.TestCase):
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
                 self.assertEqual(ti.state, State.SUCCESS)
