@@ -24,12 +24,19 @@ import os
 import re
 import uuid
 import copy
+from enum import Enum
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
 from airflow.models import BaseOperator
 from airflow.version import version
 from airflow.utils.decorators import apply_defaults
+
+
+class CheckJobRunning(Enum):
+    IgnoreJob = 1
+    FinishIfRunning = 2
+    WaitForRun = 3
 
 
 class DataFlowJavaOperator(BaseOperator):
@@ -102,8 +109,8 @@ class DataFlowJavaOperator(BaseOperator):
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
     :type multiple_jobs: boolean
     :parma check_if_running: before running job, validate that a previous run is not in process
-    :type check_if_running: boolean
-
+    :type check_if_running: CheckJobRunning(IgnoreJob = do not check if running, FinishIfRunning=
+        if job is running finish with nothing, WaitForRun= wait until job finished and the run job)
     ``jar``, ``options``, and ``job_name`` are templated so you can use variables in them.
 
     Note that both
@@ -160,7 +167,7 @@ class DataFlowJavaOperator(BaseOperator):
             delegate_to=None,
             poll_sleep=10,
             job_class=None,
-            check_if_running=None,
+            check_if_running=CheckJobRunning.IgnoreJob,
             multiple_jobs=None,
             *args,
             **kwargs):
@@ -182,21 +189,24 @@ class DataFlowJavaOperator(BaseOperator):
         self.check_if_running = check_if_running
 
     def execute(self, context):
-        bucket_helper = GoogleCloudBucketHelper(
-            self.gcp_conn_id, self.delegate_to)
         hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
         is_running = False
-        if self.check_if_running:
+        if self.check_if_running != CheckJobRunning.IgnoreJob:
             is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
+            while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
+                is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
 
         if not is_running:
+            bucket_helper = GoogleCloudBucketHelper(
+                self.gcp_conn_id, self.delegate_to)
             self.jar = bucket_helper.google_cloud_to_local(self.jar)
             hook.start_java_dataflow(self.job_name, dataflow_options,
-                                     self.jar, self.job_class, self.multiple_jobs)
+                                     self.jar, self.job_class, True, self.multiple_jobs)
+
 
 
 class DataflowTemplateOperator(BaseOperator):

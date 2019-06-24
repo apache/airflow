@@ -125,7 +125,7 @@ class DataFlowHookTest(unittest.TestCase):
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
-            dataflow=JAR_FILE)
+            jar=JAR_FILE)
         EXPECTED_CMD = ['java', '-jar', JAR_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
@@ -149,7 +149,7 @@ class DataFlowHookTest(unittest.TestCase):
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
-            dataflow=JAR_FILE, job_class=JOB_CLASS)
+            jar=JAR_FILE, job_class=JOB_CLASS)
         EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',

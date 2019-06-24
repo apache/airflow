@@ -28,25 +28,27 @@ from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 FAILED_END_STATES = {'JOB_STATE_FAILED', 'JOB_STATE_CANCELLED'}
 SUCCEEDED_END_STATES = {'JOB_STATE_DONE'}
-END_STATES = SUCCEEDED_END_STATES + FAILED_END_STATES
+END_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
 
 
 class _DataflowJob(LoggingMixin):
     def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
-                 job_id=None, multiple_jobs=None, num_retries=None):
+                 job_id=None, num_retries=None, multiple_jobs=None):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_location = location
-        self.multiple_jobs = multiple_jobs
+        self._multiple_jobs = multiple_jobs
         self._job_id = job_id
         self._num_retries = num_retries
-        self._job = self._get_job()
+        if self._num_retries is None:
+            self._num_retries = 0
         self._jobs = self._get_jobs()
         self._poll_sleep = poll_sleep
 
@@ -61,15 +63,17 @@ class _DataflowJob(LoggingMixin):
             projectId=self._project_number,
             location=self._job_location
         ).execute(num_retries=self._num_retries)
-        for job in jobs['jobs']:
-            if job['name'].startswith(self._job_name.lower()):
-                dataflow_jobs.append(job)
+        dataflow_jobs = []
+        if len(jobs) > 0:
+            for job in jobs['jobs']:
+                if job['name'].startswith(self._job_name.lower()):
+                    dataflow_jobs.append(job)
         if len(dataflow_jobs) == 1:
             self._job_id = dataflow_jobs[0]['id']
         return dataflow_jobs
 
     def _get_jobs(self):
-        if not self.multiple_jobs and self._job_id:
+        if not self._multiple_jobs and self._job_id:
             self._jobs = []
             self._jobs.append(self._dataflow.projects().locations().jobs().get(
                 projectId=self._project_number,
@@ -219,8 +223,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         cmd = command_prefix + self._build_cmd(variables, label_formatter)
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'],
-                     self.poll_sleep, job_id, self.num_retries,multiple_jobs).wait_for_done()
+                         variables['region'],
+                     self.poll_sleep, job_id, self.num_retries, multiple_jobs).wait_for_done()
 
     @staticmethod
     def _set_variables(variables):
@@ -230,7 +234,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             variables['region'] = DEFAULT_DATAFLOW_LOCATION
         return variables
 
-    def start_java_dataflow(self, job_name, variables, dataflow, job_class=None,
+    def start_java_dataflow(self, job_name, variables, jar, job_class=None,
                             append_job_name=True, multiple_jobs=False):
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
@@ -238,8 +242,9 @@ class DataFlowHook(GoogleCloudBaseHook):
         def label_formatter(labels_dict):
             return ['--labels={}'.format(
                 json.dumps(labels_dict).replace(' ', ''))]
-        command_prefix = (["java", "-cp", dataflow, job_class] if job_class
-                          else ["java", "-jar", dataflow])
+
+        command_prefix = (["java", "-cp", jar, job_class] if job_class
+                          else ["java", "-jar", jar])
         self._start_dataflow(variables, name, command_prefix, label_formatter, multiple_jobs)
 
     def start_template_dataflow(self, job_name, variables, parameters, dataflow_template,
