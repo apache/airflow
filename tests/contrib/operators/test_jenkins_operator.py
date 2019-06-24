@@ -136,6 +136,24 @@ class JenkinsOperatorTestCase(unittest.TestCase):
 
             self.assertRaises(AirflowException, operator.execute, None)
 
+    @unittest.skipIf(mock is None, 'mock package not present')
+    def test_build_job_request_settings(self):
+        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
+        jenkins_mock.build_job_url.return_value = 'http://apache.org'
+
+        with mock.patch('airflow.contrib.operators.jenkins_job_trigger_operator'
+                        '.jenkins_request_with_headers') as mock_make_request:
+            operator = JenkinsJobTriggerOperator(
+                dag=None,
+                task_id="build_job_test",
+                job_name="a_job_on_jenkins",
+                jenkins_connection_id="fake_jenkins_connection")
+            operator.build_job(jenkins_mock)
+            mock_request = mock_make_request.call_args_list[0][0][1]
+
+        self.assertEqual(mock_request.method, 'POST')
+        self.assertEqual(mock_request.url, 'http://apache.org')
+
 
 if __name__ == "__main__":
     unittest.main()
