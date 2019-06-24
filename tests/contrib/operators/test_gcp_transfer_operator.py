@@ -426,7 +426,7 @@ class GcpStorageTransferOperationListOperatorTest(unittest.TestCase):
         op = GcpTransferServiceOperationsListOperator(request_filter=TEST_FILTER, task_id=TASK_ID)
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
-        mock_hook.return_value.list_transfer_operations.assert_called_once_with(filter=TEST_FILTER)
+        mock_hook.return_value.list_transfer_operations.assert_called_once_with(request_filter=TEST_FILTER)
         self.assertEqual(result, [VALID_TRANSFER_JOB_GCS])
 
     # Setting all of the operator's input parameters as templated dag_ids

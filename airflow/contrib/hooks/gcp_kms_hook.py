@@ -17,12 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains a Google Cloud KMS hook.
+"""
+
 
 import base64
+from googleapiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
-from googleapiclient.discovery import build
 
 
 def _b64encode(s):
@@ -71,7 +74,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :return: The base 64 encoded ciphertext of the original message.
         :rtype: str
         """
-        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()
+        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()  # pylint: disable=no-member
         body = {'plaintext': _b64encode(plaintext)}
         if authenticated_data:
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
@@ -97,7 +100,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :return: The original message.
         :rtype: bytes
         """
-        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()
+        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()  # pylint: disable=no-member
         body = {'ciphertext': ciphertext}
         if authenticated_data:
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)

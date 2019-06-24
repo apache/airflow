@@ -7,6 +7,7 @@
 ./airflow/contrib/auth/backends/google_auth.py
 ./airflow/contrib/auth/backends/kerberos_auth.py
 ./airflow/contrib/auth/backends/ldap_auth.py
+./airflow/contrib/auth/backends/password_auth.py
 ./airflow/contrib/example_dags/example_azure_container_instances_operator.py
 ./airflow/contrib/example_dags/example_databricks_operator.py
 ./airflow/contrib/example_dags/example_dingding_operator.py
@@ -38,7 +39,6 @@
 ./airflow/contrib/hooks/azure_cosmos_hook.py
 ./airflow/contrib/hooks/azure_data_lake_hook.py
 ./airflow/contrib/hooks/azure_fileshare_hook.py
-./airflow/contrib/hooks/bigquery_hook.py
 ./airflow/contrib/hooks/cassandra_hook.py
 ./airflow/contrib/hooks/cloudant_hook.py
 ./airflow/contrib/hooks/databricks_hook.py
@@ -49,25 +49,6 @@
 ./airflow/contrib/hooks/emr_hook.py
 ./airflow/contrib/hooks/fs_hook.py
 ./airflow/contrib/hooks/ftp_hook.py
-./airflow/contrib/hooks/gcp_api_base_hook.py
-./airflow/contrib/hooks/gcp_bigtable_hook.py
-./airflow/contrib/hooks/gcp_compute_hook.py
-./airflow/contrib/hooks/gcp_container_hook.py
-./airflow/contrib/hooks/gcp_dataflow_hook.py
-./airflow/contrib/hooks/gcp_dataproc_hook.py
-./airflow/contrib/hooks/gcp_function_hook.py
-./airflow/contrib/hooks/gcp_kms_hook.py
-./airflow/contrib/hooks/gcp_mlengine_hook.py
-./airflow/contrib/hooks/gcp_natural_language_hook.py
-./airflow/contrib/hooks/gcp_pubsub_hook.py
-./airflow/contrib/hooks/gcp_spanner_hook.py
-./airflow/contrib/hooks/gcp_speech_to_text_hook.py
-./airflow/contrib/hooks/gcp_sql_hook.py
-./airflow/contrib/hooks/gcp_text_to_speech_hook.py
-./airflow/contrib/hooks/gcp_transfer_hook.py
-./airflow/contrib/hooks/gcp_translate_hook.py
-./airflow/contrib/hooks/gcp_video_intelligence_hook.py
-./airflow/contrib/hooks/gcp_vision_hook.py
 ./airflow/contrib/hooks/grpc_hook.py
 ./airflow/contrib/hooks/imap_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
@@ -260,6 +241,7 @@
 ./airflow/migrations/versions/05f30312d566_merge_heads.py
 ./airflow/migrations/versions/0a2a5b66e19d_add_task_reschedule_table.py
 ./airflow/migrations/versions/0e2a74e0fc9f_add_time_zone_awareness.py
+./airflow/migrations/versions/004c1210f153_increase_queue_name_size_limit.py
 ./airflow/migrations/versions/127d2bf2dfa7_add_dag_id_state_index_on_dag_run_table.py
 ./airflow/migrations/versions/13eb55f81627_for_compatibility.py
 ./airflow/migrations/versions/1507a7289a2f_create_is_encrypted.py
@@ -301,6 +283,7 @@
 ./airflow/migrations/versions/e3a246e0dc1_current_schema.py
 ./airflow/migrations/versions/f23433877c24_fix_mysql_not_null_constraint.py
 ./airflow/migrations/versions/f2ca10b85618_add_dag_stats_table.py
+./airflow/migrations/versions/6e96a59344a4_make_taskinstance_pool_not_nullable.py
 ./airflow/models/base.py
 ./airflow/models/baseoperator.py
 ./airflow/models/connection.py

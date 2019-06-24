@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Video Intelligence Hook.
+"""
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -25,6 +28,9 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Video Intelligence APIs.
 
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -33,10 +39,9 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _conn = None
-
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
         super(CloudVideoIntelligenceHook, self).__init__(gcp_conn_id, delegate_to)
+        self._conn = None
 
     def get_conn(self):
         """

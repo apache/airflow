@@ -434,7 +434,7 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
-        operations_list = hook.list_transfer_operations(filter=self.filter)
+        operations_list = hook.list_transfer_operations(request_filter=self.filter)
         self.log.info(operations_list)
         return operations_list
 

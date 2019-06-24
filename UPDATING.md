@@ -23,6 +23,7 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+
 ### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
 
 `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
@@ -35,6 +36,10 @@ number of slots through UI/CLI. `default_pool` cannot be removed.
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
 has been renamed to `request_filter`.
+
+### Changes in  Google Cloud Transfer Hook
+ To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and 
+ `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
 ### Changes in writing Logs to Elasticsearch
 
