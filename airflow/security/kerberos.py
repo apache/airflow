@@ -105,9 +105,9 @@ def detect_conf_var():
     """
     ticket_cache = configuration.conf.get('kerberos', 'ccache')
 
-    with open(ticket_cache, 'rb') as f:
+    with open(ticket_cache, 'rb') as file:
         # Note: this file is binary, so we check against a bytearray.
-        return b'X-CACHECONF:' in f.read()
+        return b'X-CACHECONF:' in file.read()
 
 
 def run(principal, keytab):

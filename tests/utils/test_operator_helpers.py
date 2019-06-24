@@ -18,9 +18,8 @@
 # under the License.
 
 import unittest
-from datetime import datetime
-
 from unittest import mock
+from datetime import datetime
 
 from airflow.utils import operator_helpers
 

@@ -88,6 +88,22 @@ class AWSAthenaHook(AwsHook):
         finally:
             return state
 
+    def get_state_change_reason(self, query_execution_id):
+        """
+        Fetch the reason for a state change (e.g. error message). Returns None or reason string.
+        :param query_execution_id: Id of submitted athena query
+        :type query_execution_id: str
+        :return: str
+        """
+        response = self.conn.get_query_execution(QueryExecutionId=query_execution_id)
+        reason = None
+        try:
+            reason = response['QueryExecution']['Status']['StateChangeReason']
+        except Exception as ex:
+            self.log.error('Exception while getting query state change reason', ex)
+        finally:
+            return reason
+
     def get_query_results(self, query_execution_id):
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or

@@ -140,7 +140,7 @@ class TaskInstance(Base, LoggingMixin):
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
-    pool = Column(String(50))
+    pool = Column(String(50), nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -1288,8 +1288,8 @@ class TaskInstance(Base, LoggingMixin):
         def render(key, content):
             if configuration.has_option('email', key):
                 path = configuration.get('email', key)
-                with open(path) as f:
-                    content = f.read()
+                with open(path) as file:
+                    content = file.read()
 
             return jinja_env.from_string(content).render(**jinja_context)
 

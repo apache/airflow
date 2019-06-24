@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from datetime import datetime
 from unittest.mock import Mock
+from datetime import datetime
 
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.utils.state import State

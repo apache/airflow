@@ -208,8 +208,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         :return: a mapping between the subsystem name to the cgroup name
         :rtype: dict[str, str]
         """
-        with open("/proc/self/cgroup") as f:
-            lines = f.readlines()
+        with open("/proc/self/cgroup") as file:
+            lines = file.readlines()
             d = {}
             for line in lines:
                 line_split = line.rstrip().split(":")

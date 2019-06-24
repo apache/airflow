@@ -194,26 +194,26 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     @mock.patch.object(configuration, 'as_dict')
     def test_worker_configuration_auth_both_ssh_and_user(self, mock_config_as_dict, mock_conf_get):
         def get_conf(*args, **kwargs):
-            if(args[0] == 'core'):
+            if args[0] == 'core':
                 return '1'
-            if(args[0] == 'kubernetes'):
-                if(args[1] == 'git_ssh_known_hosts_configmap_name'):
+            if args[0] == 'kubernetes':
+                if args[1] == 'git_ssh_known_hosts_configmap_name':
                     return 'airflow-configmap'
-                if(args[1] == 'git_ssh_key_secret_name'):
+                if args[1] == 'git_ssh_key_secret_name':
                     return 'airflow-secrets'
-                if(args[1] == 'git_user'):
+                if args[1] == 'git_user':
                     return 'some-user'
-                if(args[1] == 'git_password'):
+                if args[1] == 'git_password':
                     return 'some-password'
-                if(args[1] == 'git_repo'):
+                if args[1] == 'git_repo':
                     return 'git@github.com:apache/airflow.git'
-                if(args[1] == 'git_branch'):
+                if args[1] == 'git_branch':
                     return 'master'
-                if(args[1] == 'git_dags_folder_mount_point'):
+                if args[1] == 'git_dags_folder_mount_point':
                     return '/usr/local/airflow/dags'
-                if(args[1] == 'delete_worker_pods'):
+                if args[1] == 'delete_worker_pods':
                     return True
-                if(args[1] == 'kube_client_request_args'):
+                if args[1] == 'kube_client_request_args':
                     return '{"_request_timeout" : [60,360] }'
                 return '1'
             return None
@@ -633,10 +633,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)
-        labels = worker_config._get_labels({
+        labels = worker_config._get_labels({'my_kube_executor_label': 'kubernetes'}, {
             'dag_id': 'override_dag_id',
         })
-        self.assertEqual({'my_label': 'label_id', 'dag_id': 'override_dag_id'}, labels)
+        self.assertEqual({
+            'my_label': 'label_id',
+            'dag_id': 'override_dag_id',
+            'my_kube_executor_label': 'kubernetes'
+        }, labels)
 
 
 class TestKubernetesExecutor(unittest.TestCase):

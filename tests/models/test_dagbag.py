@@ -23,9 +23,8 @@ import os
 import shutil
 import textwrap
 import unittest
-from tempfile import mkdtemp, NamedTemporaryFile
-
 from unittest.mock import patch, ANY
+from tempfile import mkdtemp, NamedTemporaryFile
 
 from airflow import models, configuration
 from airflow.models import DagModel, DagBag, TaskInstance as TI

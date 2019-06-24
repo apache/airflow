@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import DagModel, DagRun, errors, Pool, SlaMiss, TaskInstance
+from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.db import create_session
 
 
@@ -44,3 +45,10 @@ def clear_db_errors():
 def clear_db_pools():
     with create_session() as session:
         session.query(Pool).delete()
+        add_default_pool_if_not_exists(session)
+
+
+def set_default_pool_slots(slots):
+    with create_session() as session:
+        default_pool = Pool.get_default_pool(session)
+        default_pool.slots = slots

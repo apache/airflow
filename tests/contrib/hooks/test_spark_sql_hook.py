@@ -20,9 +20,8 @@
 
 import six
 import unittest
-from itertools import dropwhile
-
 from unittest.mock import patch, call
+from itertools import dropwhile
 
 from airflow import configuration
 from airflow.models import Connection

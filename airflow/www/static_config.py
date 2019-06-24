@@ -39,8 +39,8 @@ def configure_manifest_files(app):
             global manifest
             manifest_file = os.path.join(os.path.dirname(__file__),
                                          'static/dist/manifest.json')
-            with open(manifest_file, 'r') as f:
-                manifest.update(json.load(f))
+            with open(manifest_file, 'r') as file:
+                manifest.update(json.load(file))
 
                 for k in manifest.keys():
                     manifest[k] = os.path.join("dist", manifest[k])

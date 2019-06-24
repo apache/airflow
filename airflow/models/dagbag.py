@@ -171,8 +171,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         is_zipfile = zipfile.is_zipfile(filepath)
         if not is_zipfile:
             if safe_mode:
-                with open(filepath, 'rb') as f:
-                    content = f.read()
+                with open(filepath, 'rb') as file:
+                    content = file.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
                         self.file_last_changed[filepath] = file_last_changed_on_disk
                         # Don't want to spam user with skip messages

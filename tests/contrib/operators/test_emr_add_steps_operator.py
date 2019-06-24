@@ -18,9 +18,8 @@
 # under the License.
 
 import unittest
-from datetime import timedelta
-
 from unittest.mock import MagicMock, patch
+from datetime import timedelta
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
