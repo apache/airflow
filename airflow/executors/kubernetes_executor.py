@@ -160,8 +160,8 @@ class KubeConfig:
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
         # Run as user for pod security context
-        self.worker_run_as_user = self.get_security_context('run_as_user')
-        self.worker_fs_group = self.get_security_context('fs_group')
+        self.worker_run_as_user = self._get_security_context_val('run_as_user')
+        self.worker_fs_group = self._get_security_context_val('fs_group')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -269,12 +269,12 @@ class KubeConfig:
 
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
-    def get_security_context(self, scontext):
-        temp = configuration.get(self.kubernetes_section, scontext)
-        if len(temp) == 0:
-            return temp
+    def _get_security_context_val(self, scontext):
+        val = configuration.get(self.kubernetes_section, scontext)
+        if len(val) == 0:
+            return val
         else:
-            return configuration.getint(self.kubernetes_section, scontext)
+            return int(val)
 
     def _validate(self):
         # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
