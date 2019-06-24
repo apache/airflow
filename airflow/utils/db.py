@@ -23,6 +23,7 @@ import os
 import contextlib
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -78,12 +79,26 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
+@provide_session
+def add_default_pool_if_not_exists(session=None):
+    from airflow.models.pool import Pool
+    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+        default_pool = Pool(
+            pool=Pool.DEFAULT_POOL_NAME,
+            slots=conf.getint(section='core', key='non_pooled_task_slot_count',
+                              fallback=128),
+            description="Default pool",
+        )
+        session.add(default_pool)
+        session.commit()
+
+
 def initdb(create_connection=True):
     from airflow import models
     from airflow.models import Connection
     upgradedb()
 
-    if create_connection==True:
+    if create_connection==True:        
         merge_conn(
             Connection(
                 conn_id='airflow_db', conn_type='mysql',
@@ -312,6 +327,7 @@ def upgradedb():
     config.set_main_option('script_location', directory.replace('%', '%%'))
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
+    add_default_pool_if_not_exists()
 
 
 def resetdb():
@@ -325,12 +341,13 @@ def resetdb():
 
     log.info("Dropping tables that exist")
 
-    models.base.Base.metadata.drop_all(settings.engine)
-    mc = MigrationContext.configure(settings.engine)
-    if mc._version.exists(settings.engine):
-        mc._version.drop(settings.engine)
+    connection = settings.engine.connect()
+    models.base.Base.metadata.drop_all(connection)
+    mc = MigrationContext.configure(connection)
+    if mc._version.exists(connection):
+        mc._version.drop(connection)
 
     from flask_appbuilder.models.sqla import Base
-    Base.metadata.drop_all(settings.engine)
+    Base.metadata.drop_all(connection)
 
     initdb()
