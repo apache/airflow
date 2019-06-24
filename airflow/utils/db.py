@@ -78,17 +78,12 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb():
+def initdb(create_connection=True):
     from airflow import models
     from airflow.models import Connection
-    from airflow import configuration
-
-    is_create_connections = configuration.conf\
-        .getboolean('core',
-                    'create_default_connections')
     upgradedb()
 
-    if is_create_connections:
+    if create_connection==True:
         merge_conn(
             Connection(
                 conn_id='airflow_db', conn_type='mysql',
