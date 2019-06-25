@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Vision Hook.
+"""
+
 from copy import deepcopy
 
 from cached_property import cached_property
@@ -25,31 +29,57 @@ from google.protobuf.json_format import MessageToDict
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
+ERR_DIFF_NAMES = \
+    """The {label} name provided in the object ({explicit_name}) is different than the name created
+    from the input parameters ({constructed_name}). Please either:
+    1) Remove the {label} name,
+    2) Remove the location and {id_label} parameters,
+    3) Unify the {label} name and input parameters.
+    """
+
+ERR_UNABLE_TO_CREATE = \
+    """Unable to determine the {label} name. Please either set the name directly
+    in the {label} object or provide the `location` and `{id_label}` parameters.
+    """
+
 
 class NameDeterminer:
     """
-    Class used for checking if the entity has the 'name' attribute set.
-
-    * If so, no action is taken.
-
-    * If not, and the name can be constructed from other parameters provided, it is created and filled in
-      the entity.
-
-    * If both the entity's 'name' attribute is set and the name can be constructed from other parameters
-      provided:
-
-        * If they are the same - no action is taken
-
-        * if they are different - an exception is thrown.
-
+    Helper class to determine entity name.
     """
-
     def __init__(self, label, id_label, get_path):
         self.label = label
         self.id_label = id_label
         self.get_path = get_path
 
     def get_entity_with_name(self, entity, entity_id, location, project_id):
+        """
+        Check if entity has the `name` attribute set:
+        * If so, no action is taken.
+
+        * If not, and the name can be constructed from other parameters provided, it is created and filled in
+            the entity.
+
+        * If both the entity's 'name' attribute is set and the name can be constructed from other parameters
+            provided:
+
+            * If they are the same - no action is taken
+
+            * if they are different - an exception is thrown.
+
+
+        :param entity: Entity
+        :type entity: str
+        :param entity_id: Entity id
+        :type entity_id: str
+        :param location: Location
+        :type location: str
+        :param project_id: The id of Google Cloud Vision project.
+        :type project_id: str
+        :return: The same entity or entity with new name
+        :rtype: str
+        :raises: AirflowException
+        """
         entity = deepcopy(entity)
         explicit_name = getattr(entity, 'name')
         if location and entity_id:
@@ -58,43 +88,32 @@ class NameDeterminer:
             if not explicit_name:
                 entity.name = constructed_name
                 return entity
-            elif explicit_name != constructed_name:
-                self._raise_ex_different_names(constructed_name, explicit_name)
+
+            if explicit_name != constructed_name:
+                raise AirflowException(ERR_DIFF_NAMES.format(
+                    label=self.label,
+                    explicit_name=explicit_name,
+                    constructed_name=constructed_name,
+                    id_label=self.id_label)
+                )
+
+        # Not enough parameters to construct the name. Trying to use the name from Product / ProductSet.
+        if explicit_name:
+            return entity
         else:
-            # Not enough parameters to construct the name. Trying to use the name from Product / ProductSet.
-            if explicit_name:
-                return entity
-            else:
-                self._raise_ex_unable_to_determine_name()
-
-    def _raise_ex_unable_to_determine_name(self):
-        raise AirflowException(
-            "Unable to determine the {label} name. Please either set the name directly in the {label} "
-            "object or provide the `location` and `{id_label}` parameters.".format(
-                label=self.label, id_label=self.id_label
+            raise AirflowException(
+                ERR_UNABLE_TO_CREATE.format(label=self.label, id_label=self.id_label)
             )
-        )
-
-    def _raise_ex_different_names(self, constructed_name, explicit_name):
-        raise AirflowException(
-            "The {label} name provided in the object ({explicit_name}) is different than the name created "
-            "from the input parameters ({constructed_name}). Please either: 1) Remove the {label} name, 2) "
-            "Remove the location and {id_label} parameters, 3) Unify the {label} name and input "
-            "parameters.".format(
-                label=self.label,
-                explicit_name=explicit_name,
-                constructed_name=constructed_name,
-                id_label=self.id_label,
-            )
-        )
 
 
 class CloudVisionHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Vision APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
 
-    _client = None
     product_name_determiner = NameDeterminer('Product', 'product_id', ProductSearchClient.product_path)
     product_set_name_determiner = NameDeterminer(
         'ProductSet', 'productset_id', ProductSearchClient.product_set_path
@@ -102,6 +121,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def get_conn(self):
         """
@@ -116,6 +136,12 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
     @cached_property
     def annotator_client(self):
+        """
+        Creates ImageAnnotatorClient.
+
+        :return: Google Image Annotator client object.
+        :rtype: google.cloud.vision_v1.ImageAnnotatorClient
+        """
         return ImageAnnotatorClient(credentials=self._get_credentials())
 
     @staticmethod
@@ -369,9 +395,12 @@ class CloudVisionHook(GoogleCloudBaseHook):
         name = ProductSearchClient.reference_image_path(
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
-        response = client.delete_reference_image(name=name, retry=retry, timeout=timeout, metadata=metadata)
-        self.log.info('ReferenceImage with the name [%s] deleted.', name)
+        response = client.delete_reference_image(name=name,  # pylint: disable=assignment-from-no-return
+                                                 retry=retry,
+                                                 timeout=timeout,
+                                                 metadata=metadata)
 
+        self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
@@ -417,8 +446,9 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
+        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator` # pylint: disable=line-too-long # noqa
         """
+
         client = self.get_conn()
 
         product_name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -442,6 +472,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         self.log.info('Annotating image')
 
+        # pylint: disable=no-member
         response = client.annotate_image(request=request, retry=retry, timeout=timeout)
 
         self.log.info('Image annotated')
@@ -458,7 +489,9 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         self.log.info('Annotating images')
 
-        response = client.batch_annotate_images(requests=requests, retry=retry, timeout=timeout)
+        response = client.batch_annotate_images(requests=requests,  # pylint: disable=no-member
+                                                retry=retry,
+                                                timeout=timeout)
 
         self.log.info('Images annotated')
 
@@ -479,7 +512,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.text_detection(
+        response = client.text_detection(  # pylint: disable=no-member
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -504,7 +537,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.document_text_detection(
+        response = client.document_text_detection(  # pylint: disable=no-member
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -529,7 +562,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.label_detection(
+        response = client.label_detection(  # pylint: disable=no-member
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -554,7 +587,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.safe_search_detection(
+        response = client.safe_search_detection(  # pylint: disable=no-member
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
