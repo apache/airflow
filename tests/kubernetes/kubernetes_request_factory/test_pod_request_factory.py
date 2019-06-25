@@ -17,49 +17,62 @@
 
 from airflow.kubernetes.kubernetes_request_factory.pod_request_factory import SimplePodRequestFactory, \
     ExtractXcomPodRequestFactory
-from airflow.kubernetes.pod import Pod
-from airflow.kubernetes.secret import Secret
-from airflow.exceptions import AirflowConfigException
+import kubernetes.client.models as k8s
+from kubernetes.client import ApiClient
 import unittest
-
-XCOM_CMD = """import time
-while True:
-    try:
-        time.sleep(3600)
-    except KeyboardInterrupt:
-        exit(0)
-"""
 
 
 class TestPodRequestFactory(unittest.TestCase):
 
     def setUp(self):
+        self.k8s_client = ApiClient()
         self.simple_pod_request_factory = SimplePodRequestFactory()
         self.xcom_pod_request_factory = ExtractXcomPodRequestFactory()
-        self.pod = Pod(
-            image='busybox',
-            envs={
-                'ENVIRONMENT': 'prod',
-                'LOG_LEVEL': 'warning'
-            },
-            name='myapp-pod',
-            cmds=['sh', '-c', 'echo Hello Kubernetes!'],
-            labels={'app': 'myapp'},
-            image_pull_secrets='pull_secret_a,pull_secret_b',
-            configmaps=['configmap_a', 'configmap_b'],
-            ports=[{'name': 'foo', 'containerPort': 1234}],
-            secrets=[
-                # This should be a secretRef
-                Secret('env', None, 'secret_a'),
-                # This should be a single secret mounted in volumeMounts
-                Secret('volume', '/etc/foo', 'secret_b'),
-                # This should produce a single secret mounted in env
-                Secret('env', 'TARGET', 'secret_b', 'source_b'),
-            ],
-            security_context={
-                'runAsUser': 1000,
-                'fsGroup': 2000,
-            }
+        self.pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels={'app': 'myapp'},
+                name='myapp-pod',
+            ),
+            spec=k8s.V1PodSpec(
+                image_pull_secrets=[
+                    k8s.V1LocalObjectReference('pull_secret_a'),
+                    k8s.V1LocalObjectReference('pull_secret_b')
+                ],
+                containers=[k8s.V1Container(
+                    image='busybox',
+                    name='base',
+                    env=[
+                        k8s.V1EnvVar(name='ENVIRONMENT', value='prod'),
+                        k8s.V1EnvVar(name='LOG_LEVEL', value='warning'),
+                        k8s.V1EnvVar(name='TARGET', value_from=k8s.V1EnvVarSource(
+                            secret_key_ref=k8s.V1SecretKeySelector(
+                                key='source_b',
+                                name='secret_b',
+                            )
+                        ))
+                    ],
+                    command=['sh', '-c', 'echo Hello Kubernetes!'],
+                    env_from=[
+                        k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource('secret_a')),
+                        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource('configmap_a')),
+                        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource('configmap_b')),
+                    ],
+                    ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
+                    volume_mounts=[k8s.V1VolumeMount(
+                        mount_path='/etc/foo',
+                        name='secretvol0',
+                        read_only=True
+                    )]
+                )],
+                security_context=k8s.V1PodSecurityContext(
+                    run_as_user=1000,
+                    fs_group=2000,
+                ),
+                volumes=[k8s.V1Volume(
+                    name='secretvol0',
+                    secret=k8s.V1SecretVolumeSource(secret_name='secret_b')
+                )]
+            ),
         )
         self.maxDiff = None
         self.expected = {
@@ -77,7 +90,6 @@ class TestPodRequestFactory(unittest.TestCase):
                         'sh', '-c', 'echo Hello Kubernetes!'
                     ],
                     'imagePullPolicy': 'IfNotPresent',
-                    'args': [],
                     'env': [{
                         'name': 'ENVIRONMENT',
                         'value': 'prod'
@@ -114,7 +126,6 @@ class TestPodRequestFactory(unittest.TestCase):
                     }]
                 }],
                 'restartPolicy': 'Never',
-                'nodeSelector': {},
                 'volumes': [{
                     'name': 'secretvol0',
                     'secret': {
@@ -125,7 +136,6 @@ class TestPodRequestFactory(unittest.TestCase):
                     {'name': 'pull_secret_a'},
                     {'name': 'pull_secret_b'}
                 ],
-                'affinity': {},
                 'securityContext': {
                     'runAsUser': 1000,
                     'fsGroup': 2000,
@@ -133,22 +143,20 @@ class TestPodRequestFactory(unittest.TestCase):
             }
         }
 
-    def test_secret_throws(self):
-        with self.assertRaises(AirflowConfigException):
-            Secret('volume', None, 'secret_a', 'key')
-
     def test_simple_pod_request_factory_create(self):
         result = self.simple_pod_request_factory.create(self.pod)
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
         # sort
-        result['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
-        self.assertEqual(result, self.expected)
+        result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        self.assertDictEqual(result_dict, self.expected)
 
     def test_xcom_pod_request_factory_create(self):
         result = self.xcom_pod_request_factory.create(self.pod)
+        result_dict = self.k8s_client.sanitize_for_serialization((result))
         container_two = {
             'name': 'airflow-xcom-sidecar',
             'image': 'python:3.5-alpine',
-            'command': ['python', '-c', XCOM_CMD],
+            'command': ['python', '-c', self.xcom_pod_request_factory.XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',
@@ -164,5 +172,5 @@ class TestPodRequestFactory(unittest.TestCase):
         self.expected['spec']['volumes'].insert(0, {
             'name': 'xcom', 'emptyDir': {}
         })
-        result['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
-        self.assertEqual(result, self.expected)
+        result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        self.assertEqual(result_dict, self.expected)
