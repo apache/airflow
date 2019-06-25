@@ -1119,7 +1119,7 @@ def worker(args):
 
 
 def initdb(args):
-    print("DB: " + repr(settings.engine.url))    
+    print("DB: " + repr(settings.engine.url))
     db.initdb(args.default_connection)
     print("Done.")
 
