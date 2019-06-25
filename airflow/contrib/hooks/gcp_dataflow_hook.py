@@ -138,7 +138,7 @@ class _DataflowJob(LoggingMixin):
                                     count_not_done += 1
                         if count_not_done == 0:
                             return True
-                    elif DataflowJobStatus.JOB_STATE_RUNNIN == job['currentState'] and \
+                    elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
                             DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
                         return True
                     elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
@@ -147,7 +147,8 @@ class _DataflowJob(LoggingMixin):
                     elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
                         raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                             job['name']))
-                    elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING, DataflowJobStatus.JOB_STATE_PENDING}:
+                    elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
+                                                 DataflowJobStatus.JOB_STATE_PENDING}:
                         time.sleep(15)
                     else:
                         self.log.debug(str(job))
@@ -160,11 +161,10 @@ class _DataflowJob(LoggingMixin):
             self._jobs = self._get_jobs()
 
     def get(self):
-        return self._jobs
         """
         Returns Dataflow job.
         """
-        return self._job
+        return self._jobs
 
 
 class _Dataflow(LoggingMixin):
@@ -208,7 +208,6 @@ class _Dataflow(LoggingMixin):
         matched_job = job_id_pattern.search(line or '')
         if matched_job:
             return matched_job.group(1).decode()
-
         return None
 
     def wait_for_done(self):
@@ -253,6 +252,7 @@ class DataFlowHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
+
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -275,8 +275,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         cmd = command_prefix + self._build_cmd(variables, label_formatter)
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
-                         variables['region'],
-                     self.poll_sleep, job_id, self.num_retries, multiple_jobs).wait_for_done()
+                     variables['region'], self.poll_sleep, job_id, self.num_retries, multiple_jobs)\
+            .wait_for_done()
 
     @staticmethod
     def _set_variables(variables):
@@ -358,6 +358,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         def label_formatter(labels_dict):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
+
         self._start_dataflow(variables, name, ["python2"] + py_options + [dataflow],
                              label_formatter)
 

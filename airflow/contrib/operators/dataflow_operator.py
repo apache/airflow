@@ -208,7 +208,6 @@ class DataFlowJavaOperator(BaseOperator):
                                      self.jar, self.job_class, True, self.multiple_jobs)
 
 
-
 class DataflowTemplateOperator(BaseOperator):
     """
     Start a Templated Cloud DataFlow batch job. The parameters of the operation
