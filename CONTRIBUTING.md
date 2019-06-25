@@ -84,7 +84,7 @@ you need to have set up an Airflow development environment (see below). Also
 install the `doc` extra.
 
 ```
-pip install -e .[doc]
+pip install -e '.[doc]'
 ```
 
 Generate and serve the documentation by running:
@@ -116,7 +116,7 @@ There are three ways to setup an Apache Airflow development environment.
   cd $AIRFLOW_HOME
   virtualenv env
   source env/bin/activate
-  pip install -e .[devel]
+  pip install -e '.[devel]'
   ```
 
 2. Using a Docker container
@@ -127,9 +127,12 @@ There are three ways to setup an Apache Airflow development environment.
   # Start docker in your Airflow directory
   docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:3 bash
 
-  # Install Airflow with all the required dependencies,
-  # including the devel which will provide the development tools
-  pip install -e ".[hdfs,hive,druid,devel]"
+  # To install all of airflows dependencies to run all tests (this is a lot)
+  pip install -e .
+  
+  # To run only certain tests install the devel requirements and whatever is required
+  # for your test.  See setup.py for the possible requirements. For example:
+  pip install -e '.[gcp,devel]'
 
   # Init the database
   airflow initdb
@@ -160,18 +163,17 @@ There are three ways to setup an Apache Airflow development environment.
   ```bash
   docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
   # From the container
-  pip install -e .[devel]
-  # Run all the tests with python and mysql through tox
-  pip install tox
-  tox -e py35-backend_mysql
+  export TOX_ENV=py35-backend_mysql-env_docker
+  /app/scripts/ci/run-ci.sh
   ```
 
   If you wish to run individual tests inside of Docker environment you can do as follows:
 
   ```bash
-    # From the container (with your desired environment) with druid hook
-    tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
- ```
+  # From the container (with your desired environment) with druid hook
+  export TOX_ENV=py35-backend_mysql-env_docker
+  /app/scripts/ci/run-ci.sh -- tests/hooks/test_druid_hook.py
+  ```
 
 
 ### Running unit tests
@@ -190,6 +192,10 @@ or a single test method:
 
 ```
 ./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
+```
+or another example:
+```
+./run_unit_tests.sh tests.contrib.operators.test_dataproc_operator:DataprocClusterCreateOperatorTest.test_create_cluster_deletes_error_cluster  -s --logging-level=DEBUG
 ```
 
 To run the whole test suite with Docker Compose, do:
@@ -264,11 +270,12 @@ meets these guidelines:
 1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and [codecov](https://codecov.io/gh/apache/airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and resolve all conflicts.
 1. Every pull request should have an associated [JIRA](https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel). The JIRA link should also be contained in the PR description.
-1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and Github PRs for more details about a particular change.
+1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and GitHub PRs for more details about a particular change.
 1. Add an [Apache License](http://www.apache.org/legal/src-headers.html) header to all new files
 1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
 1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
 1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
+1. We also apply [Pylint](https://www.pylint.org) for linting (static code analysis). Run locally with `./scripts/ci/ci_pylint.sh`.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
 
 ### Testing on Travis CI

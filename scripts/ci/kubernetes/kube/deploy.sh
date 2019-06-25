@@ -154,6 +154,7 @@ kubectl apply -f $DIRNAME/volumes.yaml
 kubectl apply -f $BUILD_DIRNAME/airflow.yaml
 
 # wait for up to 10 minutes for everything to be deployed
+PODS_ARE_READY=0
 for i in {1..150}
 do
   echo "------- Running kubectl get pods -------"
@@ -162,10 +163,44 @@ do
   NUM_AIRFLOW_READY=$(echo $PODS | grep airflow | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
   NUM_POSTGRES_READY=$(echo $PODS | grep postgres | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
   if [ "$NUM_AIRFLOW_READY" == "1" ] && [ "$NUM_POSTGRES_READY" == "1" ]; then
+    PODS_ARE_READY=1
     break
   fi
   sleep 4
 done
+
+if [[ "$PODS_ARE_READY" == 1 ]]; then
+  echo "PODS are ready."
+else
+  echo "PODS are not ready after waiting for a long time. Exiting..."
+  exit 1
+fi
+
+# Wait until Airflow webserver is up
+MINIKUBE_IP=$(minikube ip)
+AIRFLOW_WEBSERVER_IS_READY=0
+CONSECUTIVE_SUCCESS_CALLS=0
+for i in {1..30}
+do
+  HTTP_CODE=$(curl -LI http://${MINIKUBE_IP}:30809/health -o /dev/null -w '%{http_code}\n' -sS) || true
+  if [[ "$HTTP_CODE" == 200 ]]; then
+    let "CONSECUTIVE_SUCCESS_CALLS+=1"
+  else
+    CONSECUTIVE_SUCCESS_CALLS=0
+  fi
+  if [[ "$CONSECUTIVE_SUCCESS_CALLS" == 3 ]]; then
+    AIRFLOW_WEBSERVER_IS_READY=1
+    break
+  fi
+  sleep 10
+done
+
+if [[ "$AIRFLOW_WEBSERVER_IS_READY" == 1 ]]; then
+  echo "Airflow webserver is ready."
+else
+  echo "Airflow webserver is not ready after waiting for a long time. Exiting..."
+  exit 1
+fi
 
 POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | grep airflow | head -1)
 

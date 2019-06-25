@@ -19,7 +19,7 @@ set -e
 
 # first bump up package.json manually, commit and tag
 if [ -d airflow/www/static/dist ]; then
-  rm airflow/www/static/dist/*
+  rm -f airflow/www/static/dist/*
 fi
 
 cd airflow/www/

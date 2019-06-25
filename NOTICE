@@ -17,3 +17,15 @@ This product contains a modified portion of 'Hue' developed by Cloudera, Inc.
 (https://github.com/cloudera/hue/).
 
 * Copyright 2009-2017 Cloudera Inc.
+
+python-slugify:
+---------------
+
+* Copyright (c) Val Neekman @ Neekware Inc. http://neekware.com
+
+python-nvd3:
+------------
+
+* Copyright (c) 2013 Arezqui Belaid <areski@gmail.com> and other contributors
+
+

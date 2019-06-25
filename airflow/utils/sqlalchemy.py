@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import datetime
 import os
@@ -78,7 +73,13 @@ def setup_event_handlers(engine,
                         err)
                     raise
                 if err.connection_invalidated:
-                    log.warning("DB connection invalidated. Reconnecting...")
+                    # Don't log the first time -- this happens a lot and unless
+                    # there is a problem reconnecting is not a sign of a
+                    # problem
+                    if backoff > initial_backoff_seconds:
+                        log.warning("DB connection invalidated. Reconnecting...")
+                    else:
+                        log.debug("DB connection invalidated. Initial reconnect")
 
                     # Use a truncated binary exponential backoff. Also includes
                     # a jitter to prevent the thundering herd problem of
@@ -134,6 +135,7 @@ class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
     ``timezone=True`` option, but it differs from that by:
+
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -142,6 +144,7 @@ class UtcDateTime(TypeDecorator):
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
     - Always returns DateTime in UTC
+
     """
 
     impl = DateTime(timezone=True)

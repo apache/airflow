@@ -5,6 +5,8 @@ Make sure you have checked _all_ steps below.
 - [ ] My PR addresses the following [Airflow Jira](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "\[AIRFLOW-XXX\] My Airflow PR"
   - https://issues.apache.org/jira/browse/AIRFLOW-XXX
   - In case you are fixing a typo in the documentation you can prepend your commit with \[AIRFLOW-XXX\], code changes always need a Jira issue.
+  - In case you are proposing a fundamental code change, you need to create an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals)).
+  - In case you are adding a dependency, check if the license complies with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
 
 ### Description
 
@@ -27,8 +29,8 @@ Make sure you have checked _all_ steps below.
 ### Documentation
 
 - [ ] In case of new functionality, my PR adds documentation that describes how to use it.
-  - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
   - All the public functions and the classes in the PR contain docstrings that explain what it does
+  - If you implement backwards incompatible changes, please leave a note in the [Updating.md](https://github.com/apache/airflow/blob/master/UPDATING.md) so we can assign it to a appropriate release
 
 ### Code Quality
 

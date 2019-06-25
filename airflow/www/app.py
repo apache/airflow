@@ -19,22 +19,23 @@
 #
 import logging
 import socket
-import six
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from six.moves.urllib.parse import urlparse
-from werkzeug.wsgi import DispatcherMiddleware
+from typing import Any
+from urllib.parse import urlparse
 from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.wsgi import DispatcherMiddleware
 
-from airflow import settings
 from airflow import configuration as conf
+from airflow import settings
 from airflow.logging_config import configure_logging
+from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
-app = None
+app = None  # type: Any
 appbuilder = None
 csrf = CSRFProtect()
 
@@ -48,11 +49,20 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
-    webserver_config_path = airflow_home_path + '/webserver_config.py'
-    app.config.from_pyfile(webserver_config_path, silent=True)
+    app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
+    app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+
+    if config:
+        app.config.from_mapping(config)
+
+    # Configure the JSON encoder used by `|tojson` filter from Flask
+    app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
 
@@ -60,7 +70,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
     # flake8: noqa: F841
     cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
@@ -130,7 +140,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 href='https://airflow.apache.org/',
                                 category="Docs",
                                 category_icon="fa-cube")
-            appbuilder.add_link("Github",
+            appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
             appbuilder.add_link('Version',
@@ -141,7 +151,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             def integrate_plugins():
                 """Integrate plugins to the context"""
                 from airflow.plugins_manager import (
-                    flask_appbuilder_views, flask_appbuilder_menu_links)
+                    flask_appbuilder_views, flask_appbuilder_menu_links
+                )
 
                 for v in flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
@@ -161,7 +172,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             # will add the new Views and Menus names to the backend, but will not
             # delete the old ones.
 
+        def init_plugin_blueprints(app):
+            from airflow.plugins_manager import flask_blueprints
+
+            for bp in flask_blueprints:
+                log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
+                app.register_blueprint(bp["blueprint"])
+
         init_views(appbuilder)
+        init_plugin_blueprints(app)
 
         security_manager = appbuilder.sm
         security_manager.sync_roles()
@@ -170,11 +189,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)  # noqa
-            else:
-                import importlib
-                importlib.reload(e)
+            import importlib
+            importlib.reload(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
@@ -193,7 +209,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
 
 def root_app(env, resp):
-    resp(b'404 Not Found', [(b'Content-Type', b'text/plain')])
+    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 
 
@@ -211,5 +227,5 @@ def cached_app(config=None, session=None, testing=False):
 
 def cached_appbuilder(config=None, testing=False):
     global appbuilder
-    cached_app(config, testing)
+    cached_app(config=config, testing=testing)
     return appbuilder

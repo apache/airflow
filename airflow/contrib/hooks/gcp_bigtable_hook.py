@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Bigtable Hook.
+"""
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.cluster import Cluster
@@ -33,12 +36,12 @@ class BigtableHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    _client = None
-
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(BigtableHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def _get_client(self, project_id):
         if not self._client:
@@ -185,7 +188,8 @@ class BigtableHook(GoogleCloudBaseHook):
             initially split the table.
         :type column_families: dict
         :param column_families: (Optional) A map of columns to create. The key is the
-            column_id str, and the value is a ``GarbageCollectionRule``.
+            column_id str, and the value is a
+            :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`.
         """
         if column_families is None:
             column_families = {}

@@ -24,10 +24,11 @@ import os
 import shutil
 import sys
 import unittest
+from unittest import mock
 from tempfile import mkdtemp
 
 import boto3
-import mock
+
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException

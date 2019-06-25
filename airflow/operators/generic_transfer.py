@@ -41,7 +41,7 @@ class GenericTransfer(BaseOperator):
     :type destination_conn_id: str
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
-    :type preoperator: str or list of str
+    :type preoperator: str or list[str]
     """
 
     template_fields = ('sql', 'destination_table', 'preoperator')
@@ -57,7 +57,7 @@ class GenericTransfer(BaseOperator):
             destination_conn_id,
             preoperator=None,
             *args, **kwargs):
-        super(GenericTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.destination_table = destination_table
         self.source_conn_id = source_conn_id

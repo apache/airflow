@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Dataflow operators.
+"""
+
 import os
 import re
 import uuid
@@ -32,6 +36,40 @@ class DataFlowJavaOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
+
+    **Example**: ::
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date':
+                (2016, 8, 1),
+            'email': ['alex@vanboxel.be'],
+            'email_on_failure': False,
+            'email_on_retry': False,
+            'retries': 1,
+            'retry_delay': timedelta(minutes=30),
+            'dataflow_default_options': {
+                'project': 'my-gcp-project',
+                'zone': 'us-central1-f',
+                'stagingLocation': 'gs://bucket/tmp/dataflow/staging/',
+            }
+        }
+
+        dag = DAG('test-dag', default_args=default_args)
+
+        task = DataFlowJavaOperator(
+            gcp_conn_id='gcp_default',
+            task_id='normalize-cal',
+            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            options={
+                'autoscalingAlgorithm': 'BASIC',
+                'maxNumWorkers': '50',
+                'start': '{{ds}}',
+                'partitionType': 'DAY'
+
+            },
+            dag=dag)
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -58,7 +96,7 @@ class DataFlowJavaOperator(BaseOperator):
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
-    :param job_class: The name of the dataflow job class to be executued, it
+    :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
     :type job_class: str
 
@@ -120,7 +158,7 @@ class DataFlowJavaOperator(BaseOperator):
             job_class=None,
             *args,
             **kwargs):
-        super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -238,7 +276,7 @@ class DataflowTemplateOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         parameters = parameters or {}
@@ -273,14 +311,14 @@ class DataFlowPythonOperator(BaseOperator):
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
-        /some/local/file/path/to/your/python/pipeline/file.
+        /some/local/file/path/to/your/python/pipeline/file. (templated)
     :type py_file: str
     :param job_name: The 'job_name' to use when executing the DataFlow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
-    :param py_options: Additional python options.
-    :type pyt_options: list of strings, e.g., ["-m", "-v"].
+    :param py_options: Additional python options, e.g., ["-m", "-v"].
+    :type pyt_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
@@ -297,7 +335,7 @@ class DataFlowPythonOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     """
-    template_fields = ['options', 'dataflow_default_options', 'job_name']
+    template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
 
     @apply_defaults
     def __init__(
@@ -313,7 +351,7 @@ class DataFlowPythonOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.py_file = py_file
         self.job_name = job_name
@@ -346,7 +384,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper(object):
+class GoogleCloudBucketHelper:
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 
@@ -365,7 +403,7 @@ class GoogleCloudBucketHelper(object):
         :param file_name: The full path of input file.
         :type file_name: str
         :return: The full path of local file.
-        :type: str
+        :rtype: str
         """
         if not file_name.startswith('gs://'):
             return file_name

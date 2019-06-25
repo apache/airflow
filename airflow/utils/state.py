@@ -16,13 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import unicode_literals
-
-from builtins import object
 
 
-class State(object):
+class State:
     """
     Static class with task instance states constants and color method to
     avoid hardcoding.

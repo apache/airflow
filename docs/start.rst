@@ -33,13 +33,17 @@ The installation is quick and straightforward.
     # initialize the database
     airflow initdb
 
+    # if you build with master
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+
     # start the web server, default port is 8080
     airflow webserver -p 8080
 
     # start the scheduler
     airflow scheduler
 
-    # visit localhost:8080 in the browser and enable the example dag in the home page
+    # visit localhost:8080 in the browser and use the admin account you just
+    # created to login. Enable the example dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
@@ -50,7 +54,7 @@ if started by systemd.
 
 Out of the box, Airflow uses a sqlite database, which you should outgrow
 fairly quickly since no parallelization is possible using this database
-backend. It works in conjunction with the ``SequentialExecutor`` which will
+backend. It works in conjunction with the :class:`airflow.executors.sequential_executor.SequentialExecutor` which will
 only run task instances sequentially. While this is very limiting, it allows
 you to get up and running quickly and take a tour of the UI and the
 command line utilities.

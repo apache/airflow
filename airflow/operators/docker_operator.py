@@ -59,9 +59,9 @@ class DockerOperator(BaseOperator):
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param dns: Docker custom DNS servers
-    :type dns: list of strings
+    :type dns: list[str]
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: list of strings
+    :type dns_search: list[str]
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -73,6 +73,9 @@ class DockerOperator(BaseOperator):
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
+    :param host_tmp_dir: Specify the location of the temporary directory on the host which will
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
+    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
     :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
@@ -97,12 +100,10 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :type volumes: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
-    :param xcom_push: Does the stdout will be pushed to the next step using XCom.
-        The default is False.
-    :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
@@ -126,6 +127,7 @@ class DockerOperator(BaseOperator):
             environment=None,
             force_pull=False,
             mem_limit=None,
+            host_tmp_dir=None,
             network_mode=None,
             tls_ca_cert=None,
             tls_client_cert=None,
@@ -136,7 +138,6 @@ class DockerOperator(BaseOperator):
             user=None,
             volumes=None,
             working_dir=None,
-            xcom_push=False,
             xcom_all=False,
             docker_conn_id=None,
             dns=None,
@@ -146,7 +147,7 @@ class DockerOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DockerOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
@@ -158,6 +159,7 @@ class DockerOperator(BaseOperator):
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
+        self.host_tmp_dir = host_tmp_dir
         self.network_mode = network_mode
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
@@ -168,10 +170,11 @@ class DockerOperator(BaseOperator):
         self.user = user
         self.volumes = volumes or []
         self.working_dir = working_dir
-        self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None
@@ -205,7 +208,7 @@ class DockerOperator(BaseOperator):
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
-        with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
+        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
@@ -228,7 +231,10 @@ class DockerOperator(BaseOperator):
             self.cli.start(self.container['Id'])
 
             line = ''
-            for line in self.cli.logs(container=self.container['Id'], stream=True):
+            for line in self.cli.attach(container=self.container['Id'],
+                                        stdout=True,
+                                        stderr=True,
+                                        stream=True):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
@@ -238,9 +244,10 @@ class DockerOperator(BaseOperator):
             if result['StatusCode'] != 0:
                 raise AirflowException('docker container failed: ' + repr(result))
 
-            if self.xcom_push_flag:
+            # duplicated conditional logic because of expensive operation
+            if self.do_xcom_push:
                 return self.cli.logs(container=self.container['Id']) \
-                    if self.xcom_all else str(line)
+                    if self.xcom_all else line.encode('utf-8')
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:

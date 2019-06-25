@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google BigQuery to GCS operator.
+"""
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -32,7 +35,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
     :param source_project_dataset_table: The dotted
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to use as the
-        source data. If <project> is not included, project will be the project
+        source data. If ``<project>`` is not included, project will be the project
         defined in the connection json. (templated)
     :type source_project_dataset_table: str
     :param destination_cloud_storage_uris: The destination Google Cloud
@@ -60,7 +63,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     """
     template_fields = ('source_project_dataset_table',
                        'destination_cloud_storage_uris', 'labels')
-    template_ext = ('.sql',)
+    template_ext = ()
     ui_color = '#e4e6f0'
 
     @apply_defaults
@@ -71,12 +74,12 @@ class BigQueryToCloudStorageOperator(BaseOperator):
                  export_format='CSV',
                  field_delimiter=',',
                  print_header=True,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
                  *args,
                  **kwargs):
-        super(BigQueryToCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
         self.compression = compression
@@ -96,10 +99,10 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_extract(
-            self.source_project_dataset_table,
-            self.destination_cloud_storage_uris,
-            self.compression,
-            self.export_format,
-            self.field_delimiter,
-            self.print_header,
-            self.labels)
+            source_project_dataset_table=self.source_project_dataset_table,
+            destination_cloud_storage_uris=self.destination_cloud_storage_uris,
+            compression=self.compression,
+            export_format=self.export_format,
+            field_delimiter=self.field_delimiter,
+            print_header=self.print_header,
+            labels=self.labels)

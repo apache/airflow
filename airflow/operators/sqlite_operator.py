@@ -43,7 +43,7 @@ class SqliteOperator(BaseOperator):
     def __init__(
             self, sql, sqlite_conn_id='sqlite_default', parameters=None,
             *args, **kwargs):
-        super(SqliteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sqlite_conn_id = sqlite_conn_id
         self.sql = sql
         self.parameters = parameters or []

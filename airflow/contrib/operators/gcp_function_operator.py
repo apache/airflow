@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Functions operators.
+"""
+
 import re
 
 from googleapiclient.errors import HttpError
@@ -83,6 +87,10 @@ class GcfFunctionDeployOperator(BaseOperator):
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeployOperator`
+
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
@@ -135,7 +143,7 @@ class GcfFunctionDeployOperator(BaseOperator):
                                                           api_version=api_version)
         self._hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_inputs()
-        super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.location:
@@ -232,10 +240,10 @@ class ZipPathPreprocessor:
         if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
-                    "Parameter '{}' is empty in the body and argument '{}' "
-                    "is missing or empty. You need to have non empty '{}' "
-                    "when '{}' is present and empty.".
-                    format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH, GCF_ZIP_PATH, GCF_SOURCE_UPLOAD_URL))
+                    "Parameter '{url}' is empty in the body and argument '{path}' "
+                    "is missing or empty. You need to have non empty '{path}' "
+                    "when '{url}' is present and empty.".
+                    format(url=GCF_SOURCE_UPLOAD_URL, path=GCF_ZIP_PATH))
 
     def _verify_upload_url_and_zip_path(self):
         if GCF_SOURCE_UPLOAD_URL in self.body and self.zip_path:
@@ -253,12 +261,21 @@ class ZipPathPreprocessor:
                                    .format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH))
 
     def should_upload_function(self):
+        """
+        Checks if function source should be uploaded.
+
+        :rtype: bool
+        """
         if self.upload_function is None:
             raise AirflowException('validate() method has to be invoked before '
                                    'should_upload_function')
         return self.upload_function
 
     def preprocess_body(self):
+        """
+        Modifies sourceUploadUrl body field in special way when zip_path
+        is not empty.
+        """
         self._verify_archive_url_and_zip_path()
         self._verify_upload_url_and_zip_path()
         self._verify_upload_url_and_no_zip_path()
@@ -273,6 +290,10 @@ FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 class GcfFunctionDeleteOperator(BaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeleteOperator`
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
@@ -297,7 +318,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
         self.api_version = api_version
         self._validate_inputs()
         self.hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
-        super(GcfFunctionDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.name:

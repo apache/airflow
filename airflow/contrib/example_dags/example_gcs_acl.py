@@ -30,6 +30,7 @@ This DAG relies on the following OS environment variables
 * GCS_ACL_BUCKET_ROLE - The access permission for the entity for the bucket.
 * GCS_ACL_OBJECT_ROLE - The access permission for the entity for the object.
 """
+
 import os
 
 import airflow

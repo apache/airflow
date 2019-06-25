@@ -94,7 +94,7 @@ class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):
                  method_name,
                  gcp_key,
                  project_extra=None):
-        super(BaseGcpSystemTestCase, self).__init__(methodName=method_name)
+        super().__init__(methodName=method_name)
         self.gcp_authenticator = GcpAuthenticator(gcp_key=gcp_key,
                                                   project_extra=project_extra)
         self.setup_called = False
@@ -119,15 +119,15 @@ class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):
 class DagGcpSystemTestCase(BaseGcpSystemTestCase):
     def __init__(self,
                  method_name,
-                 dag_id,
                  gcp_key,
+                 dag_id=None,
                  dag_name=None,
                  require_local_executor=False,
                  example_dags_folder=CONTRIB_OPERATORS_EXAMPLES_DAG_FOLDER,
                  project_extra=None):
-        super(DagGcpSystemTestCase, self).__init__(method_name=method_name,
-                                                   gcp_key=gcp_key,
-                                                   project_extra=project_extra)
+        super().__init__(method_name=method_name,
+                         gcp_key=gcp_key,
+                         project_extra=project_extra)
         self.dag_id = dag_id
         self.dag_name = self.dag_id + '.py' if not dag_name else dag_name
         self.example_dags_folder = example_dags_folder
@@ -161,24 +161,21 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
             target_path = os.path.join(target_folder, file_name)
             if remove:
                 try:
-                    self.log.info("Remove symlink: {} -> {} ".format(
-                        target_path, source_path))
+                    self.log.info("Remove symlink: %s -> %s", target_path, source_path)
                     os.remove(target_path)
                 except OSError:
                     pass
             else:
                 if not os.path.exists(target_path):
-                    self.log.info("Symlink: {} -> {} ".format(target_path, source_path))
+                    self.log.info("Symlink: %s -> %s ", target_path, source_path)
                     os.symlink(source_path, target_path)
                 else:
-                    self.log.info("Symlink {} already exists. Not symlinking it.".
-                                  format(target_path))
+                    self.log.info("Symlink %s already exists. Not symlinking it.", target_path)
 
     def _store_dags_to_temporary_directory(self):
         dag_folder = self._get_dag_folder()
         self.temp_dir = mkdtemp()
-        self.log.info("Storing DAGS from {} to temporary directory {}".
-                      format(dag_folder, self.temp_dir))
+        self.log.info("Storing DAGS from %s to temporary directory %s", dag_folder, self.temp_dir)
         try:
             os.mkdir(dag_folder)
         except OSError:
@@ -188,20 +185,19 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
 
     def _restore_dags_from_temporary_directory(self):
         dag_folder = self._get_dag_folder()
-        self.log.info("Restoring DAGS to {} from temporary directory {}"
-                      .format(dag_folder, self.temp_dir))
+        self.log.info("Restoring DAGS to %s from temporary directory %s", dag_folder, self.temp_dir)
         for file in os.listdir(self.temp_dir):
             move(os.path.join(self.temp_dir, file), os.path.join(dag_folder, file))
 
-    def _run_dag(self):
-        self.log.info("Attempting to run DAG: {}".format(self.dag_id))
+    def _run_dag(self, dag_id=None):
+        self.log.info("Attempting to run DAG: %s", self.dag_id)
         if not self.setup_called:
             raise AirflowException("Please make sure to call super.setUp() in your "
                                    "test class!")
         dag_folder = self._get_dag_folder()
         dag_bag = models.DagBag(dag_folder=dag_folder, include_examples=False)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = dag_bag.get_dag(self.dag_id)
+        dag = dag_bag.get_dag(self.dag_id or dag_id)
         if dag is None:
             raise AirflowException(
                 "The Dag {} could not be found. It's either an import problem or "
@@ -248,7 +244,7 @@ You can create the database via these commands:
             finally:
                 self._restore_dags_from_temporary_directory()
             self._symlink_dag_and_associated_files()
-            super(DagGcpSystemTestCase, self).setUp()
+            super().setUp()
 
         except Exception as e:
             # In case of any error during setup - restore the authentication
@@ -257,4 +253,4 @@ You can create the database via these commands:
 
     def tearDown(self):
         self._symlink_dag_and_associated_files(remove=True)
-        super(DagGcpSystemTestCase, self).tearDown()
+        super().tearDown()

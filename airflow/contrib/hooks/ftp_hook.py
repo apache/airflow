@@ -22,9 +22,6 @@ import datetime
 import ftplib
 import os.path
 from airflow.hooks.base_hook import BaseHook
-from past.builtins import basestring
-
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def mlsd(conn, path="", facts=None):
@@ -60,12 +57,13 @@ def mlsd(conn, path="", facts=None):
         yield (name, entry)
 
 
-class FTPHook(BaseHook, LoggingMixin):
+class FTPHook(BaseHook):
     """
     Interact with FTP.
 
-    Errors that may occur throughout but should be handled
-    downstream.
+    Errors that may occur throughout but should be handled downstream.
+    You can specify mode for data transfers in the extra field of your
+    connection as ``{"passive": "true"}``.
     """
 
     def __init__(self, ftp_conn_id='ftp_default'):
@@ -85,7 +83,9 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
             self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn.set_pasv(pasv)
 
         return self.conn
 
@@ -199,7 +199,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         # without a callback, default to writing to a user-provided file or
         # file-like buffer
@@ -237,7 +237,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
             input_handle = open(local_full_path_or_buffer, 'rb')
@@ -305,6 +305,7 @@ class FTPSHook(FTPHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
@@ -312,5 +313,6 @@ class FTPSHook(FTPHook):
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password
             )
+            self.conn.set_pasv(pasv)
 
         return self.conn

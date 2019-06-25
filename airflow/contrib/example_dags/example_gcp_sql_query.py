@@ -41,8 +41,7 @@ This DAG relies on the following OS environment variables
 import os
 import subprocess
 from os.path import expanduser
-
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 
 import airflow
 from airflow import models

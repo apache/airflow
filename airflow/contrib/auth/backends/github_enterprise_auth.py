@@ -75,7 +75,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class GHEAuthBackend(object):
+class GHEAuthBackend:
 
     def __init__(self):
         self.ghe_host = get_config_param('host')

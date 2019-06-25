@@ -30,7 +30,8 @@ SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
    in your my.cnf under `[mysqld]`
 
 .. note:: If you decide to use **Postgres**, we recommend using the ``psycopg2``
-   driver and specifying it in your SqlAlchemy connection string.
+   driver and specifying it in your SqlAlchemy connection string. (I.e.,
+   ``postgresql+psycopg2://<user>:<password>@<host>/<db>``.) 
    Also note that since SqlAlchemy does not expose a way to target a
    specific schema in the Postgres connection URI, you may
    want to set a default schema for your role with a

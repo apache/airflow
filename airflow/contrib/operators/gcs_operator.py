@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage Bucket operator.
+"""
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -34,6 +37,10 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
 
     :param bucket_name: The name of the bucket. (templated)
     :type bucket_name: str
+    :param resource: An optional dict with parameters for creating the bucket.
+            For information on available parameters, see Cloud Storage API doc:
+            https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+    :type resource: dict
     :param storage_class: This defines how objects in the bucket are stored
             and determines the SLA and the cost of storage (templated). Values include
 
@@ -78,7 +85,6 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             google_cloud_storage_conn_id='airflow-service-account'
         )
     """
-
     template_fields = ('bucket_name', 'storage_class',
                        'location', 'project_id')
     ui_color = '#f0eee4'
@@ -86,6 +92,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  bucket_name,
+                 resource=None,
                  storage_class='MULTI_REGIONAL',
                  location='US',
                  project_id=None,
@@ -94,8 +101,9 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageCreateBucketOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
+        self.resource = resource
         self.storage_class = storage_class
         self.location = location
         self.project_id = project_id
@@ -116,6 +124,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         )
 
         hook.create_bucket(bucket_name=self.bucket_name,
+                           resource=self.resource,
                            storage_class=self.storage_class,
                            location=self.location,
                            project_id=self.project_id,

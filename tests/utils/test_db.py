@@ -40,12 +40,6 @@ class DbTest(unittest.TestCase):
 
         # known diffs to ignore
         ignores = [
-            # users.password is not part of User model,
-            # otherwise it would show up in (old) UI
-            lambda t: (t[0] == 'remove_column' and
-                       t[2] == 'users' and
-                       t[3].name == 'password'),
-
             # ignore tables created by celery
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_taskmeta'),

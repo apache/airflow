@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+from typing import List, Dict
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
@@ -32,15 +33,7 @@ from airflow.contrib.operators.gcp_bigtable_operator import \
     BigtableTableWaitForReplicationSensor, \
     BigtableClusterUpdateOperator, \
     BigtableInstanceCreateOperator
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'
 INSTANCE_ID = 'test-instance-id'
@@ -48,8 +41,8 @@ CLUSTER_ID = 'test-cluster-id'
 CLUSTER_ZONE = 'us-central1-f'
 NODES = 5
 TABLE_ID = 'test-table-id'
-INITIAL_SPLIT_KEYS = []
-EMPTY_COLUMN_FAMILIES = {}
+INITIAL_SPLIT_KEYS = []  # type: List
+EMPTY_COLUMN_FAMILIES = {}  # type: Dict
 
 
 class BigtableInstanceCreateTest(unittest.TestCase):
