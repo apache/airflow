@@ -27,7 +27,7 @@ assists users migrating to a new version.
 ### `pool` config option in Celery section to support different Celery pool implementation
 
 The new `pool` config option allows users to choose different pool
-implementation. Default value is "prefork", while choices include "prefok" (default),
+implementation. Default value is "prefork", while choices include "prefork" (default),
 "eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
 in different scenarios.
 
