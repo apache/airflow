@@ -1721,7 +1721,7 @@ class CLIFactory:
             "store_true",
             default=False),
         'default_connection': Arg(
-            ("-d","--default_connection"), "Flag to create airflow default connections",
+            ("-d", "--default_connection"), "Flag to create airflow default connections",
             default=True),
 
         # list_dag_runs
