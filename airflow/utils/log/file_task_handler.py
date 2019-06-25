@@ -99,9 +99,9 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as f:
+                with open(location) as file:
                     log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(f.readlines())
+                    log += "".join(file.readlines())
             except Exception as e:
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))

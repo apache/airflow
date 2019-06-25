@@ -254,6 +254,16 @@ key2 = 1.23
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
+    def test_has_option(self):
+        TEST_CONFIG = '''[test]
+key1 = value1
+'''
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(TEST_CONFIG)
+        self.assertTrue(test_conf.has_option('test', 'key1'))
+        self.assertFalse(test_conf.has_option('test', 'key_not_exists'))
+        self.assertFalse(test_conf.has_option('section_not_exists', 'key1'))
+
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
 key1 = hello

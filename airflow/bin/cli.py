@@ -66,6 +66,7 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
+import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
@@ -367,18 +368,18 @@ def import_helper(filepath):
     except Exception:
         print("Invalid variables file.")
     else:
-        try:
-            n = 0
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    Variable.set(k, v, serialize_json=True)
-                else:
-                    Variable.set(k, v)
-                n += 1
-        except Exception:
-            pass
-        finally:
-            print("{} of {} variables successfully updated.".format(n, len(d)))
+        suc_count = fail_count = 0
+        for k, v in d.items():
+            try:
+                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+            except Exception as e:
+                print('Variable import failed: {}'.format(repr(e)))
+                fail_count += 1
+            else:
+                suc_count += 1
+        print("{} of {} variables successfully updated.".format(suc_count, len(d)))
+        if fail_count:
+            print("{} variable(s) failed to be updated.".format(fail_count))
 
 
 def export_helper(filepath):
@@ -977,8 +978,8 @@ def webserver(args):
                 # seem to return the right value with DaemonContext.
                 while True:
                     try:
-                        with open(pid) as f:
-                            gunicorn_master_proc_pid = int(f.read())
+                        with open(pid) as file:
+                            gunicorn_master_proc_pid = int(file.read())
                             break
                     except IOError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
@@ -1492,9 +1493,9 @@ def users(args):
             for user in users
         ]
 
-        with open(args.export, 'w') as f:
-            f.write(json.dumps(users, sort_keys=True, indent=4))
-            print("{} users successfully exported to {}".format(len(users), f.name))
+        with open(args.export, 'w') as file:
+            file.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), file.name))
 
     elif getattr(args, 'import'):  # "import" is a reserved word
         json_file = getattr(args, 'import')
@@ -1504,8 +1505,8 @@ def users(args):
 
         users_list = None
         try:
-            with open(json_file, 'r') as f:
-                users_list = json.loads(f.read())
+            with open(json_file, 'r') as file:
+                users_list = json.loads(file.read())
         except ValueError as e:
             print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
             exit(1)

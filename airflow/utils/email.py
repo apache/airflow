@@ -82,9 +82,9 @@ def send_email_smtp(to, subject, html_content, files=None,
 
     for fname in files or []:
         basename = os.path.basename(fname)
-        with open(fname, "rb") as f:
+        with open(fname, "rb") as file:
             part = MIMEApplication(
-                f.read(),
+                file.read(),
                 Name=basename
             )
             part['Content-Disposition'] = 'attachment; filename="%s"' % basename

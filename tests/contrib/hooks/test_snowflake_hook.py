@@ -71,8 +71,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                         serialization.PrivateFormat.PKCS8,
                                         serialization.NoEncryption())
 
-        with open(self.nonEncryptedPrivateKey, "wb") as f:
-            f.write(private_key)
+        with open(self.nonEncryptedPrivateKey, "wb") as file:
+            file.write(private_key)
 
         key = rsa.generate_private_key(
             backend=default_backend(),
@@ -84,8 +84,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                         encryption_algorithm=serialization.BestAvailableEncryption(
                                             self.conn.password.encode()))
 
-        with open(self.encryptedPrivateKey, "wb") as f:
-            f.write(private_key)
+        with open(self.encryptedPrivateKey, "wb") as file:
+            file.write(private_key)
 
     def tearDown(self):
         os.remove(self.encryptedPrivateKey)

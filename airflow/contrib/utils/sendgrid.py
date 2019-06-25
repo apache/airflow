@@ -95,8 +95,8 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
         attachment.disposition = "attachment"
         attachment.content_id = '<{0}>'.format(basename)
 
-        with open(fname, "rb") as f:
-            attachment.content = base64.b64encode(f.read()).decode('utf-8')
+        with open(fname, "rb") as file:
+            attachment.content = base64.b64encode(file.read()).decode('utf-8')
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())

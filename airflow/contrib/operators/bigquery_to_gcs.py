@@ -63,7 +63,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     """
     template_fields = ('source_project_dataset_table',
                        'destination_cloud_storage_uris', 'labels')
-    template_ext = ('.sql',)
+    template_ext = ()
     ui_color = '#e4e6f0'
 
     @apply_defaults

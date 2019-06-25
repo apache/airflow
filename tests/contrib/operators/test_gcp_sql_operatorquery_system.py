@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from os.path import dirname
 import random
 import string
 import unittest
-from os.path import dirname
 
 import time
 

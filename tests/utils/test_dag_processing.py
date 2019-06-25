@@ -23,9 +23,8 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-from datetime import timedelta
-
 from unittest.mock import MagicMock
+from datetime import timedelta
 
 from airflow import configuration as conf
 from airflow.jobs import DagFileProcessor

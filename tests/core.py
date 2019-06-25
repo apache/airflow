@@ -19,9 +19,9 @@
 
 import json
 import unittest
+from unittest import mock
 
 import doctest
-from unittest import mock
 import multiprocessing
 import os
 import pickle  # type: ignore
@@ -30,6 +30,7 @@ import signal
 import sqlalchemy
 import subprocess
 import tempfile
+from tempfile import NamedTemporaryFile
 import warnings
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -37,31 +38,26 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
-from tempfile import NamedTemporaryFile
 from time import sleep
 
-from airflow import configuration
+from airflow import configuration, jobs, models, DAG, utils, macros, settings, exceptions
+from airflow.bin import cli
+from airflow.configuration import AirflowConfigException, run_command
+from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable, TaskInstance
-
-from airflow import jobs, models, DAG, utils, macros, settings, exceptions
-from airflow.models import BaseOperator, Connection, TaskFail
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.sqlite_hook import SqliteHook
+from airflow.models import Variable, TaskInstance, BaseOperator, Connection, TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
-
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.bin import cli
+from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
 from airflow.utils import timezone
-from airflow.utils.timezone import datetime
-from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
-from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException, run_command
+from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 from pendulum import utcnow
 
 import six
@@ -1213,8 +1209,8 @@ class CliTests(unittest.TestCase):
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as f:
-            retrieved_users = json.loads(f.read())
+        with open(users_filename, mode='r') as file:
+            retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 
         # ensure that an export can be imported
@@ -1779,8 +1775,8 @@ class CliTests(unittest.TestCase):
                 "slots": 2
             }
         }
-        with open('pools_import.json', mode='w') as f:
-            json.dump(pool_config_input, f)
+        with open('pools_import.json', mode='w') as file:
+            json.dump(pool_config_input, file)
 
         # Import json
         try:
@@ -1794,8 +1790,8 @@ class CliTests(unittest.TestCase):
         except Exception as e:
             self.fail("The 'pool -e pools_export.json' failed: %s" % e)
 
-        with open('pools_export.json', mode='r') as f:
-            pool_config_output = json.load(f)
+        with open('pools_export.json', mode='r') as file:
+            pool_config_output = json.load(file)
             self.assertEqual(
                 pool_config_input,
                 pool_config_output,
@@ -1855,14 +1851,56 @@ class CliTests(unittest.TestCase):
         self.assertEqual('original', models.Variable.get('bar'))
         self.assertEqual('{"foo": "bar"}', models.Variable.get('foo'))
 
+        # Set a dict
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'dict', '{"foo": "oops"}']))
+        # Set a list
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'list', '["oops"]']))
+        # Set str
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'str', 'hello string']))
+        # Set int
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'int', '42']))
+        # Set float
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'float', '42.0']))
+        # Set true
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'true', 'true']))
+        # Set false
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'false', 'false']))
+        # Set none
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'null', 'null']))
+
+        # Export and then import
+        cli.variables(self.parser.parse_args([
+            'variables', '-e', 'variables3.json']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-i', 'variables3.json']))
+
+        # Assert value
+        self.assertEqual({'foo': 'oops'}, models.Variable.get('dict', deserialize_json=True))
+        self.assertEqual(['oops'], models.Variable.get('list', deserialize_json=True))
+        self.assertEqual('hello string', models.Variable.get('str'))  # cannot json.loads(str)
+        self.assertEqual(42, models.Variable.get('int', deserialize_json=True))
+        self.assertEqual(42.0, models.Variable.get('float', deserialize_json=True))
+        self.assertEqual(True, models.Variable.get('true', deserialize_json=True))
+        self.assertEqual(False, models.Variable.get('false', deserialize_json=True))
+        self.assertEqual(None, models.Variable.get('null', deserialize_json=True))
+
         os.remove('variables1.json')
         os.remove('variables2.json')
+        os.remove('variables3.json')
 
     def _wait_pidfile(self, pidfile):
         while True:
             try:
-                with open(pidfile) as f:
-                    return int(f.read())
+                with open(pidfile) as file:
+                    return int(file.read())
             except Exception:
                 sleep(1)
 

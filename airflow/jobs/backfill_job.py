@@ -23,7 +23,6 @@ from collections import OrderedDict
 
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf
 from airflow import executors, models
 from airflow.exceptions import (
     AirflowException,
@@ -542,32 +541,24 @@ class BackfillJob(BaseJob):
                 self.log.debug('Adding %s to not_ready', ti)
                 ti_status.not_ready.add(key)
 
-            non_pool_slots = conf.getint('core', 'non_pooled_backfill_task_slot_count')
-
             try:
                 for task in self.dag.topological_sort():
                     for key, ti in list(ti_status.to_run.items()):
                         if task.task_id != ti.task_id:
                             continue
-                        if task.pool:
-                            pool = session.query(models.Pool) \
-                                .filter(models.Pool.pool == task.pool) \
-                                .first()
-                            if not pool:
-                                raise PoolNotFound('Unknown pool: {}'.format(task.pool))
 
-                            open_slots = pool.open_slots(session=session)
-                            if open_slots <= 0:
-                                raise NoAvailablePoolSlot(
-                                    "Not scheduling since there are "
-                                    "%s open slots in pool %s".format(
-                                        open_slots, task.pool))
-                        else:
-                            if non_pool_slots <= 0:
-                                raise NoAvailablePoolSlot(
-                                    "Not scheduling since there are no "
-                                    "non_pooled_backfill_task_slot_count.")
-                            non_pool_slots -= 1
+                        pool = session.query(models.Pool) \
+                            .filter(models.Pool.pool == task.pool) \
+                            .first()
+                        if not pool:
+                            raise PoolNotFound('Unknown pool: {}'.format(task.pool))
+
+                        open_slots = pool.open_slots(session=session)
+                        if open_slots <= 0:
+                            raise NoAvailablePoolSlot(
+                                "Not scheduling since there are "
+                                "%s open slots in pool %s".format(
+                                    open_slots, task.pool))
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(
                             self.dag_id,

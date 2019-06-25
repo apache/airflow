@@ -21,6 +21,8 @@
 import datetime
 import re
 import unittest
+from unittest.mock import MagicMock, Mock, patch
+
 from typing import Dict
 
 import time
@@ -44,8 +46,6 @@ from tests.compat import mock
 
 from copy import deepcopy
 
-from unittest.mock import MagicMock, Mock
-from unittest.mock import patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'

@@ -469,8 +469,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         r = requests.get(download_url, allow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
-        with open(proxy_path_tmp, 'wb') as f:
-            f.write(r.content)
+        with open(proxy_path_tmp, 'wb') as file:
+            file.write(r.content)
         if r.status_code != 200:
             raise AirflowException(
                 "The cloud-sql-proxy could not be downloaded. Status code = {}. "
@@ -495,8 +495,8 @@ class CloudSqlProxyRunner(LoggingMixin):
             credential_file_content = json.loads(
                 connection.extra_dejson[GCP_CREDENTIALS_KEYFILE_DICT])
             self.log.info("Saving credentials to %s", self.credentials_path)
-            with open(self.credentials_path, "w") as f:
-                json.dump(credential_file_content, f)
+            with open(self.credentials_path, "w") as file:
+                json.dump(credential_file_content, file)
             credential_params = [
                 '-credential_file',
                 self.credentials_path
