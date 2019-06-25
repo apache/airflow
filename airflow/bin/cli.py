@@ -840,6 +840,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
 @cli_utils.action_logging
 def webserver(args):
+    py2_deprecation_waring()
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
@@ -975,6 +976,7 @@ def webserver(args):
 
 @cli_utils.action_logging
 def scheduler(args):
+    py2_deprecation_waring()
     print(settings.HEADER)
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
@@ -1092,12 +1094,14 @@ def worker(args):
 
 
 def initdb(args):  # noqa
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     db.initdb(settings.RBAC)
     print("Done.")
 
 
 def resetdb(args):
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
@@ -1109,12 +1113,14 @@ def resetdb(args):
 
 @cli_utils.action_logging
 def upgradedb(args):  # noqa
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
 
 
 @cli_utils.action_logging
 def version(args):  # noqa
+    py2_deprecation_waring()
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
@@ -2146,3 +2152,48 @@ class CLIFactory(object):
 
 def get_parser():
     return CLIFactory.get_parser()
+
+
+def py2_deprecation_waring():
+
+    if sys.version_info[0] != 2:
+        return
+
+    stream = sys.stderr
+    try:
+        from pip._vendor import colorama
+        WINDOWS = (sys.platform.startswith("win") or
+                   (sys.platform == 'cli' and os.name == 'nt'))
+        if WINDOWS:
+            stream = colorama.AnsiToWin32(sys.stderr)
+    except Exception:
+        colorama = None
+
+    def should_color():
+        # Don't colorize things if we do not have colorama or if told not to
+        if not colorama:
+            return False
+
+        real_stream = (
+            stream if not isinstance(stream, colorama.AnsiToWin32)
+            else stream.wrapped
+        )
+
+        # If the stream is a tty we should color it
+        if hasattr(real_stream, "isatty") and real_stream.isatty():
+            return True
+
+        if os.environ.get("TERM") and "color" in os.environ.get("TERM"):
+            return True
+
+        # If anything else we should not color it
+        return False
+
+    msg = (
+        "DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Airflow 1.10 "
+        "will be the last release series to support Python 2\n"
+    )
+    if should_color():
+        msg = "".join([colorama.Fore.YELLOW, msg, colorama.Style.RESET_ALL])
+    stream.write(msg)
+    stream.flush()

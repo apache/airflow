@@ -435,4 +435,11 @@ def do_setup():
 
 
 if __name__ == "__main__":
+    # Warn about py2 support going away. This likely won't show up if installed
+    # via pip, but we may as well have it here
+    if sys.version_info[0] == 2:
+        sys.stderr.writelines(
+            "DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Airflow 1.10 "
+            "will be the last release series to support Python 2\n"
+        )
     do_setup()

@@ -22,7 +22,13 @@ under the License.
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
-## Airflow Master
+## Airflow 1.10.4
+
+### Python 2 support is going away
+
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
+
+If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
 
 ### Changes to DatastoreHook
 * removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
