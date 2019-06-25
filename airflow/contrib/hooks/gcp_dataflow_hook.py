@@ -68,12 +68,24 @@ class _DataflowJob(LoggingMixin):
         self._poll_sleep = poll_sleep
 
     def is_job_running(self):
+        """
+        Helper method to check if jos is still running in dataflow
+
+        :return: True if job is running.
+        :rtype: bool
+        """
         for job in self._jobs:
             if job['currentState'] not in DataflowJobStatus.END_STATES:
                 return True
         return False
 
     def _get_job_id_from_name(self):
+        """
+        Helper method to get list of jobs that start with job name
+
+        :return: list of jobs including id's
+        :rtype: list
+        """
         jobs = self._dataflow.projects().locations().jobs().list(
             projectId=self._project_number,
             location=self._job_location
@@ -88,6 +100,12 @@ class _DataflowJob(LoggingMixin):
         return dataflow_jobs
 
     def _get_jobs(self):
+        """
+        Helper method to get all jobs by name
+
+        :return: jobs
+        :rtype: list
+        """
         if not self._multiple_jobs and self._job_id:
             self._jobs = []
             self._jobs.append(self._dataflow.projects().locations().jobs().get(
@@ -118,6 +136,43 @@ class _DataflowJob(LoggingMixin):
 
         return self._jobs
 
+    # pylint: disable=too-many-nested-blocks
+    def check_dataflow_job_state(self, job):
+        """
+        Helper method to check the state of all jobs in dataflow for this task
+        if job failed raise exception
+        :return: True if job is done.
+        :rtype: bool
+        :raise: Exception
+        """
+        if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
+            # check all jobs are done
+            count_not_done = 0
+            for inner_jobs in self._jobs:
+                if inner_jobs and 'currentState' in job:
+                    if not DataflowJobStatus.JOB_STATE_DONE == inner_jobs['currentState']:
+                        count_not_done += 1
+            if count_not_done == 0:
+                return True
+        elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
+                DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+            return True
+        elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
+            raise Exception("Google Cloud Dataflow job {} has failed.".format(
+                job['name']))
+        elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
+            raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
+                job['name']))
+        elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
+                                     DataflowJobStatus.JOB_STATE_PENDING}:
+            time.sleep(self._poll_sleep)
+        else:
+            self.log.debug(str(job))
+            raise Exception(
+                "Google Cloud Dataflow job {} was unknown state: {}".format(
+                    job['name'], job['currentState']))
+        return False
+
     def wait_for_done(self):
         """
         Helper method to wait for result of submitted job.
@@ -129,35 +184,10 @@ class _DataflowJob(LoggingMixin):
         while True:
             for job in self._jobs:
                 if job and 'currentState' in job:
-                    if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
-                        # check all jobs are done
-                        count_not_done = 0
-                        for inner_jobs in self._jobs:
-                            if inner_jobs and 'currentState' in job:
-                                if not DataflowJobStatus.JOB_STATE_DONE == inner_jobs['currentState']:
-                                    count_not_done += 1
-                        if count_not_done == 0:
-                            return True
-                    elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
-                            DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+                    if self.check_dataflow_job_state(job):
                         return True
-                    elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
-                        raise Exception("Google Cloud Dataflow job {} has failed.".format(
-                            job['name']))
-                    elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
-                        raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
-                            job['name']))
-                    elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
-                                                 DataflowJobStatus.JOB_STATE_PENDING}:
-                        time.sleep(15)
-                    else:
-                        self.log.debug(str(job))
-                        raise Exception(
-                            "Google Cloud Dataflow job {} was unknown state: {}".format(
-                                job['name'], job['currentState']))
-            else:
-                time.sleep(self._poll_sleep)
-
+                else:
+                    time.sleep(self._poll_sleep)
             self._jobs = self._get_jobs()
 
     def get(self):
@@ -419,6 +449,12 @@ class DataFlowHook(GoogleCloudBaseHook):
         return response
 
     def is_job_dataflow_running(self, name, variables):
+        """
+        Helper method to check if jos is still running in dataflow
+
+        :return: True if job is running.
+        :rtype: bool
+        """
         variables = self._set_variables(variables)
         job = _DataflowJob(self.get_conn(), variables['project'], name,
                            variables['region'], self.poll_sleep)

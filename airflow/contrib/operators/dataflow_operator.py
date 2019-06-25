@@ -34,6 +34,12 @@ from airflow.utils.decorators import apply_defaults
 
 
 class CheckJobRunning(Enum):
+    """
+    Helper enum for choosing what to do if job is already running
+    IgnoreJob - do not check if running
+    FinishIfRunning - finish current dag run with no action
+    WaitForRun - wait for job to finish and then continue with new job
+    """
     IgnoreJob = 1
     FinishIfRunning = 2
     WaitForRun = 3
@@ -156,6 +162,7 @@ class DataFlowJavaOperator(BaseOperator):
     template_fields = ['options', 'jar', 'job_name']
     ui_color = '#0273d4'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
