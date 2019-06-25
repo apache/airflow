@@ -59,7 +59,7 @@ preserve the previous behavior, set `ensure_utc` to `False.`
 
 ### Removal of Mesos Executor
 
-The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
 
 ### Increase standard Dataproc disk sizes
 
