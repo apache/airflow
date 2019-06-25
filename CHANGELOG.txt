@@ -35,7 +35,7 @@ New Feature
 
 Improvement
 """""""""""
-
+- [AIRFLOW-4298] Stop Scheduler repeatedly warning "connection invalidated" (#5470)
 - [AIRFLOW-4120] Modify SchedulerJob.manage_slas to respect zero timedelta SLAs (#4939)
 - [AIRFLOW-3823] Exclude branch's downstream tasks from the tasks to skip (#4666)
 - [AIRFLOW-3274] Add run_as_user and fs_group options for Kubernetes (#4648)
