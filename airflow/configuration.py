@@ -73,7 +73,7 @@ def run_command(command):
     Runs command and returns stdout
     """
     process = subprocess.Popen(
-        shlex.split(command),
+        shlex.split(os.path.expandvars(command)),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         close_fds=True)

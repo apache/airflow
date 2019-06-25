@@ -963,6 +963,10 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
+        os.environ["FOO"] = "bar"
+        self.assertEqual(run_command('echo "$FOO"'), "bar\n")
+        del os.environ["FOO"]
+
     def test_trigger_dagrun_with_execution_date(self):
         utc_now = timezone.utcnow()
         run_id = 'trig__' + utc_now.isoformat()
