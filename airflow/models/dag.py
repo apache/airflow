@@ -160,6 +160,10 @@ class DAG(BaseDag, LoggingMixin):
     :param access_control: Specify optional DAG-level permissions, e.g.,
         "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
     :type access_control: dict
+    :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
+        If the dag exists already, this flag will be ignored. If this optional parameter
+        is not specified, the global config setting will be used.
+    :type is_paused_upon_creation: bool or None
     """
 
     def __init__(
@@ -186,7 +190,8 @@ class DAG(BaseDag, LoggingMixin):
         on_failure_callback: Optional[Callable] = None,
         doc_md: Optional[str] = None,
         params: Optional[Dict] = None,
-        access_control: Optional[Dict] = None
+        access_control: Optional[Dict] = None,
+        is_paused_upon_creation: Optional[bool] = None,
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -273,6 +278,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
+        self.is_paused_upon_creation = is_paused_upon_creation
 
         self._comps = {
             'dag_id',
@@ -1286,6 +1292,8 @@ class DAG(BaseDag, LoggingMixin):
             DagModel).filter(DagModel.dag_id == self.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=self.dag_id)
+            if self.is_paused_upon_creation is not None:
+                orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
         orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
         orm_dag.is_subdag = self.is_subdag
