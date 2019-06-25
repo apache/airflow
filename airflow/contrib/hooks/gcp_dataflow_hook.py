@@ -91,7 +91,7 @@ class _DataflowJob(LoggingMixin):
             location=self._job_location
         ).execute(num_retries=self._num_retries)
         dataflow_jobs = []
-        if len(jobs) > 0:
+        if jobs:
             for job in jobs['jobs']:
                 if job['name'].startswith(self._job_name.lower()):
                     dataflow_jobs.append(job)
