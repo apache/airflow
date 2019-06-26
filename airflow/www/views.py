@@ -1779,7 +1779,7 @@ class Airflow(AirflowBaseView):
                 'duration': (end_date - start_date).total_seconds(),
                 'status': state,
                 'executionDate': dttm.isoformat(),
-                'try_count': try_count,
+                'try_number': try_count,
                 'extraLinks': extra_links[ti.task_id],
             })
 
