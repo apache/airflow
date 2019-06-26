@@ -114,7 +114,7 @@ class DataFlowJavaOperator(BaseOperator):
     :type job_class: str
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
     :type multiple_jobs: boolean
-    :parma check_if_running: before running job, validate that a previous run is not in process
+    :param check_if_running: before running job, validate that a previous run is not in process
     :type check_if_running: CheckJobRunning(IgnoreJob = do not check if running, FinishIfRunning=
         if job is running finish with nothing, WaitForRun= wait until job finished and the run job)
     ``jar``, ``options``, and ``job_name`` are templated so you can use variables in them.
@@ -430,7 +430,7 @@ class GoogleCloudBucketHelper:
         :param file_name: The full path of input file.
         :type file_name: str
         :return: The full path of local file.
-        :type: str
+        :rtype: str
         """
         if not file_name.startswith('gs://'):
             return file_name

@@ -193,6 +193,8 @@ class _DataflowJob(LoggingMixin):
     def get(self):
         """
         Returns Dataflow job.
+        :return: list of jobs
+        :rtype: list
         """
         return self._jobs
 
@@ -244,7 +246,7 @@ class _Dataflow(LoggingMixin):
         """
         Waits for Dataflow job to complete.
 
-        :return: Job id.
+        :return: Job id
         :rtype: str
         """
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
