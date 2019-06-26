@@ -48,11 +48,11 @@ Variable                                Description
 ``{{ ts }}``                            same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
 ``{{ ts_nodash }}``                     same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
 ``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
-``{{ execution_date }}``                the execution_date (pendulum.Pendulum)
-``{{ prev_execution_date }}``           the previous execution date (if available) (pendulum.Pendulum)
-``{{ prev_execution_date_success }}``   execution date from prior succesful dag run (if available) (pendulum.Pendulum)
-``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (pendulum.Pendulum)
-``{{ next_execution_date }}``           the next execution date (pendulum.Pendulum)
+``{{ execution_date }}``                the execution_date (`pendulum.Pendulum`_)
+``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date_success }}``   execution date from prior succesful dag run (if available) (`pendulum.Pendulum`_)
+``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)
+``{{ next_execution_date }}``           the next execution date (`pendulum.Pendulum`_)
 ``{{ dag }}``                           the DAG object
 ``{{ task }}``                          the Task object
 ``{{ macros }}``                        a reference to the macros package, described below
@@ -118,3 +118,4 @@ Some airflow specific macros are also defined:
 
 .. autofunction:: airflow.macros.hive.closest_ds_partition
 .. autofunction:: airflow.macros.hive.max_partition
+.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/1.x/#introduction
