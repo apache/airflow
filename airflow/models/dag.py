@@ -38,8 +38,8 @@ from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
 
 from airflow import configuration, settings, utils
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, AirflowDagCycleException
-from airflow.executors import LocalExecutor, get_default_executor
+from airflow.exceptions import AirflowException, AirflowDagCycleException, AirflowConfigException
+from airflow.executors import LocalExecutor, get_default_executor, SequentialExecutor
 from airflow.models.base import Base, ID_LEN
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
@@ -1204,6 +1204,13 @@ class DAG(BaseDag, LoggingMixin):
             executor = LocalExecutor()
         elif not executor:
             executor = get_default_executor()
+
+        # SubDagOperator will occupy the only slot in the SequentialExecutor
+        # and wait for the subtasks to finish and forms a deadlock.
+        if len(self.subdags) > 0 and isinstance(executor, SequentialExecutor):
+            raise AirflowConfigException(
+                'Backfill DAGs with subdags using SequentialExecutor is not supported.')
+
         job = BackfillJob(
             self,
             start_date=start_date,
