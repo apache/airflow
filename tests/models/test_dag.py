@@ -31,7 +31,8 @@ import pendulum
 import six
 
 from airflow import models, settings, configuration
-from airflow.exceptions import AirflowException, AirflowDagCycleException
+from airflow.exceptions import AirflowException, AirflowDagCycleException, AirflowConfigException
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import DAG, DagModel, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -83,6 +84,13 @@ class DagTest(unittest.TestCase):
         params_combined = params1.copy()
         params_combined.update(params2)
         self.assertEqual(params_combined, dag.params)
+
+    def test_run_dag_with_subdag_not_support_sequential_executor(self):
+        dag = DAG('parent', start_date=DEFAULT_DATE)
+        subdag = DAG('parent.test', start_date=DEFAULT_DATE)
+        SubDagOperator(task_id='test', subdag=subdag, dag=dag)
+        with self.assertRaises(AirflowConfigException):
+            dag.run(executor=SequentialExecutor())
 
     def test_dag_as_context_manager(self):
         """
