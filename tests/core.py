@@ -1835,6 +1835,12 @@ class WebUiTests(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.example_xcom = self.dagbag.dags['example_xcom']
 
+        session = Session()
+        session.query(models.DagRun).delete()
+        session.query(models.TaskInstance).delete()
+        session.commit()
+        session.close()
+
         self.dagrun_python = self.dag_python.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=EXAMPLE_DAG_DEFAULT_DATE,
@@ -2020,10 +2026,10 @@ class WebUiTests(unittest.TestCase):
         response = self.app.post("/admin/airflow/success", data=dict(
             task_id="print_the_context",
             dag_id="example_python_operator",
-            upstream="false",
-            downstream="false",
-            future="false",
-            past="false",
+            success_upstream="false",
+            success_downstream="false",
+            success_future="false",
+            success_past="false",
             execution_date=EXAMPLE_DAG_DEFAULT_DATE,
             origin="/admin"))
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
@@ -2042,10 +2048,10 @@ class WebUiTests(unittest.TestCase):
         form = dict(
             task_id="section-1",
             dag_id="example_subdag_operator",
-            upstream="true",
-            downstream="true",
-            future="false",
-            past="false",
+            success_upstream="true",
+            success_downstream="true",
+            success_future="false",
+            success_past="false",
             execution_date=EXAMPLE_DAG_DEFAULT_DATE,
             origin="/admin")
         response = self.app.post("/admin/airflow/success", data=form)
