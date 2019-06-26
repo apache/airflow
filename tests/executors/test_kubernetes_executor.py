@@ -396,6 +396,25 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                         'value': '/etc/git-secret/known_hosts'} in env)
         self.assertFalse({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
 
+    def test_make_pod_run_as_user_0(self):
+        # Tests the pod created with run-as-user 0 actually gets that in it's config
+        self.kube_config.worker_run_as_user = 0
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        self.assertEqual(0, pod.security_context['runAsUser'])
+
     def test_make_pod_git_sync_ssh_without_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct without known hosts
         self.kube_config.airflow_configmap = 'airflow-configmap'
