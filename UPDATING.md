@@ -58,6 +58,17 @@ By default tasks are running in `default_pool`.
 `default_pool` is initialized with 128 slots and user can change the
 number of slots through UI/CLI. `default_pool` cannot be removed.
 
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series
