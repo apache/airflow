@@ -118,4 +118,4 @@ Some airflow specific macros are also defined:
 
 .. autofunction:: airflow.macros.hive.closest_ds_partition
 .. autofunction:: airflow.macros.hive.max_partition
-.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/#introduction
+.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/1.x/#introduction
