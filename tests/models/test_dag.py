@@ -971,4 +971,33 @@ class DagTest(unittest.TestCase):
             DagModel.is_paused.is_(True)
         ).count()
 
-        self.assertEquals(2, paused_dags)
+        self.assertEqual(2, paused_dags)
+
+    def test_existing_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'dag'
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        self.assertFalse(orm_dag.is_paused)
+        dag = DAG(
+            'dag',
+            is_paused_upon_creation=True
+        )
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        # Since the dag existed before, it should not follow the pause flag upon creation
+        self.assertFalse(orm_dag.is_paused)
+
+    def test_new_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'new_nonexisting_dag',
+            is_paused_upon_creation=True
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
+        # Since the dag didn't exist before, it should follow the pause flag upon creation
+        self.assertTrue(orm_dag.is_paused)
