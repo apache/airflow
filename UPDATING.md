@@ -24,6 +24,17 @@ assists users migrating to a new version.
 ## Airflow Master
 
 
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+
 ### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
 
 `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
