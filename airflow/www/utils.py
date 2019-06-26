@@ -448,6 +448,8 @@ class AceEditorWidget(wtforms.widgets.TextArea):
 class UtcDateTimeFilterMixin(object):
     def clean(self, value):
         dt = super(UtcDateTimeFilterMixin, self).clean(value)
+        if isinstance(dt, list):
+            return [timezone.make_aware(d, timezone=timezone.utc) for d in dt]
         return timezone.make_aware(dt, timezone=timezone.utc)
 
 
