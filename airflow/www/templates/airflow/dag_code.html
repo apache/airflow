@@ -21,20 +21,32 @@
 {% block content %}
     {{ super() }}
     <h4>{{ title }}</h4>
+    <div class="active">
+      <a onclick="toggleWrap()">Toggle wrap</a>
+    </div>
     {{ html_code|safe }}
 {% endblock %}
 
 {% block tail %}
     {{ super() }}
     <script>
+      function toggleWrap() {
+        $('.code pre').toggleClass('wrap')
+      };
+
       // We blur task_ids in demo mode
-    $( document ).ready(function() {
-      if ("{{ demo_mode }}" == "True") {
-          $("pre span.s").css({
-              'text-shadow': '0px 0px 10px red',
-              'color': 'transparent',
-          });
-      }
-    });
+      $( document ).ready(function() {
+        if ("{{ demo_mode }}" == "True") {
+            $("pre span.s").css({
+                'text-shadow': '0px 0px 10px red',
+                'color': 'transparent',
+            });
+        }
+      });
+
+      // pygments generates the HTML so set wrap toggle via js
+      if ("{{ wrapped }}" == "True") {
+        toggleWrap();
+      };
     </script>
 {% endblock %}
