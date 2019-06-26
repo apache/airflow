@@ -1172,10 +1172,10 @@ class Airflow(AirflowBaseView):
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('upstream') == "true"
-        downstream = request.form.get('downstream') == "true"
-        future = request.form.get('future') == "true"
-        past = request.form.get('past') == "true"
+        upstream = request.form.get('failed_upstream') == "true"
+        downstream = request.form.get('failed_downstream') == "true"
+        future = request.form.get('failed_future') == "true"
+        past = request.form.get('failed_past') == "true"
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
@@ -1192,10 +1192,10 @@ class Airflow(AirflowBaseView):
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('upstream') == "true"
-        downstream = request.form.get('downstream') == "true"
-        future = request.form.get('future') == "true"
-        past = request.form.get('past') == "true"
+        upstream = request.form.get('success_upstream') == "true"
+        downstream = request.form.get('success_downstream') == "true"
+        future = request.form.get('success_future') == "true"
+        past = request.form.get('success_past') == "true"
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
