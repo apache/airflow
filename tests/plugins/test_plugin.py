@@ -25,7 +25,7 @@ from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 
@@ -75,13 +75,31 @@ appbuilder_mitem = {"name": "Google",
                     "category_icon": "fa-th",
                     "href": "https://www.google.com"}
 
-
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
     template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
     static_folder='static',
     static_url_path='/static/test_plugin')
+
+
+# Create a handler to validate statsd stat name
+def stat_name_dummy_handler(stat_name):
+    return stat_name
+
+
+class AirflowLink(BaseOperatorLink):
+    name = 'airflow'
+
+    def get_link(self, operator, dttm):
+        return 'should_be_overridden'
+
+
+class GithubLink(BaseOperatorLink):
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'
 
 
 # Defining the plugin class
@@ -95,6 +113,11 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+    stat_name_handler = staticmethod(stat_name_dummy_handler)
+    global_operator_extra_links = [
+        AirflowLink(),
+        GithubLink(),
+    ]
 
 
 class MockPluginA(AirflowPlugin):

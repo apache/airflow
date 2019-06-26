@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 import requests
 import tenacity
 
@@ -44,7 +42,7 @@ class HttpHook(BaseHook):
         http_conn_id='http_default'
     ):
         self.http_conn_id = http_conn_id
-        self.method = method
+        self.method = method.upper()
         self.base_url = None
         self._retry_obj = None
 
@@ -57,25 +55,26 @@ class HttpHook(BaseHook):
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         """
-        conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
+        if self.http_conn_id:
+            conn = self.get_connection(self.http_conn_id)
 
-        if "://" in conn.host:
-            self.base_url = conn.host
-        else:
-            # schema defaults to HTTP
-            schema = conn.schema if conn.schema else "http"
-            self.base_url = schema + "://" + conn.host
+            if "://" in conn.host:
+                self.base_url = conn.host
+            else:
+                # schema defaults to HTTP
+                schema = conn.schema if conn.schema else "http"
+                self.base_url = schema + "://" + conn.host
 
-        if conn.port:
-            self.base_url = self.base_url + ":" + str(conn.port)
-        if conn.login:
-            session.auth = (conn.login, conn.password)
-        if conn.extra:
-            try:
-                session.headers.update(conn.extra_dejson)
-            except TypeError:
-                self.log.warn('Connection to %s has invalid extra field.', conn.host)
+            if conn.port:
+                self.base_url = self.base_url + ":" + str(conn.port)
+            if conn.login:
+                session.auth = (conn.login, conn.password)
+            if conn.extra:
+                try:
+                    session.headers.update(conn.extra_dejson)
+                except TypeError:
+                    self.log.warn('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 
@@ -100,10 +99,11 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        if not self.base_url.endswith('/') and not endpoint.startswith('/'):
+        if self.base_url and not self.base_url.endswith('/') and \
+           endpoint and not endpoint.startswith('/'):
             url = self.base_url + '/' + endpoint
         else:
-            url = self.base_url + endpoint
+            url = (self.base_url or '') + (endpoint or '')
 
         req = None
         if self.method == 'GET':
@@ -164,7 +164,7 @@ class HttpHook(BaseHook):
             response = session.send(
                 prepped_request,
                 stream=extra_options.get("stream", False),
-                verify=extra_options.get("verify", False),
+                verify=extra_options.get("verify", True),
                 proxies=extra_options.get("proxies", {}),
                 cert=extra_options.get("cert"),
                 timeout=extra_options.get("timeout"),
@@ -206,4 +206,4 @@ class HttpHook(BaseHook):
             **_retry_args
         )
 
-        self._retry_obj(self.run, *args, **kwargs)
+        return self._retry_obj(self.run, *args, **kwargs)

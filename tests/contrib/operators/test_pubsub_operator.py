@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import unicode_literals
-
 from base64 import b64encode as b64e
 import unittest
 
@@ -26,15 +24,7 @@ from airflow.contrib.operators.pubsub_operator import (
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
     PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubPublishOperator)
-
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'

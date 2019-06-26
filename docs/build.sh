@@ -23,7 +23,20 @@ set -e
 FWDIR="$(cd "`dirname "$0"`"; pwd)"
 cd "$FWDIR"
 
-[ -d _build ] && rm -r _build
+NUM_INCORRECT_USE_LITERALINCLUDE_DIRECTIVE=$(grep -inR --include \*.rst 'literalinclude::.\+example_dags' .\
+    tee /dev/tty |\
+    wc -l |\
+    tr -d '[:space:]')
+
+if [[ "${NUM_INCORRECT_USE_LITERALINCLUDE_DIRECTIVE}" -ne "0" ]]; then
+    echo "Unexpected problems found in the documentation. "
+    echo "You should use a exampleinclude directive to include example DAGs."
+    echo "Currently, ${NUM_INCORRECT_USE_LITERALINCLUDE_DIRECTIVE} problem found."
+    exit 1
+fi
+
+[[ -d "_build" ]] && rm -r _build
+[[ -d "_api" ]] && rm -r _api
 
 SUCCEED_LINE=$(make html |\
     tee /dev/tty |\
@@ -36,7 +49,7 @@ NUM_CURRENT_WARNINGS=$(echo $SUCCEED_LINE |\
 if echo $SUCCEED_LINE | grep -q "warning"; then
     echo
     echo "Unexpected problems found in the documentation. "
-    echo "Currently, ${NUM_CURRENT_WARNINGS} warnings found"
+    echo "Currently, ${NUM_CURRENT_WARNINGS} warnings found. "
     echo
     exit 1
 fi

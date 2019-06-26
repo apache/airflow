@@ -44,7 +44,7 @@ class AwsLambdaHook(AwsHook):
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
-        super(AwsLambdaHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_client_type('lambda', self.region_name)

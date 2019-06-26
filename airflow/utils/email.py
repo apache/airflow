@@ -17,13 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from past.builtins import basestring
-
 import importlib
 import os
 import smtplib
@@ -89,9 +82,9 @@ def send_email_smtp(to, subject, html_content, files=None,
 
     for fname in files or []:
         basename = os.path.basename(fname)
-        with open(fname, "rb") as f:
+        with open(fname, "rb") as file:
             part = MIMEApplication(
-                f.read(),
+                file.read(),
                 Name=basename
             )
             part['Content-Disposition'] = 'attachment; filename="%s"' % basename
@@ -129,7 +122,7 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
 
 
 def get_email_address_list(address_string):
-    if isinstance(address_string, basestring):
+    if isinstance(address_string, str):
         if ',' in address_string:
             address_string = [address.strip() for address in address_string.split(',')]
         elif ';' in address_string:

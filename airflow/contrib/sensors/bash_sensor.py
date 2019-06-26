@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import bytes
 import os
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
@@ -52,7 +51,7 @@ class BashSensor(BaseSensorOperator):
                  env=None,
                  output_encoding='utf-8',
                  *args, **kwargs):
-        super(BashSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding

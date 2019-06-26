@@ -22,16 +22,12 @@ import unittest
 from airflow import configuration
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
 from airflow.contrib.sensors.aws_glue_catalog_partition_sensor import AwsGlueCatalogPartitionSensor
+from tests.compat import mock
 
 try:
     from moto import mock_glue
 except ImportError:
     mock_glue = None
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 
 @unittest.skipIf(mock_glue is None,

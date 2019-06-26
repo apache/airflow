@@ -69,7 +69,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                  check_existence=False,
                  *args,
                  **kwargs):
-        super(ExternalTaskSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
         if external_task_id:
             if not set(self.allowed_states) <= set(State.task_states):

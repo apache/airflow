@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import absolute_import
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -43,7 +42,7 @@ class CeleryQueueSensor(BaseSensorOperator):
             *args,
             **kwargs):
 
-        super(CeleryQueueSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 

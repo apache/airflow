@@ -18,7 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
 import importlib
 import logging
 
@@ -33,7 +32,6 @@ import getpass
 import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
-from builtins import input
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -57,9 +55,9 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
-from airflow.models.connection import Connection
-from airflow.models.dagpickle import DagPickle
+from airflow.models import (
+    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
+)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
@@ -68,11 +66,12 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
+import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.api_auth.client_auth)
+                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
 log = LoggingMixin().log
 
@@ -117,17 +116,13 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.err'.format(process))
+        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.out'.format(process))
+        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.log'.format(process))
+        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.pid'.format(process))
+        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
@@ -166,6 +161,8 @@ def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
+
+    signal.signal(signal.SIGTERM, sigint_handler)
 
     dag = dag or get_dag(args)
 
@@ -342,8 +339,7 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        with db.create_session() as session:
-            session.query(Variable).filter_by(key=args.delete).delete()
+        Variable.delete(args.delete)
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword
@@ -372,18 +368,18 @@ def import_helper(filepath):
     except Exception:
         print("Invalid variables file.")
     else:
-        try:
-            n = 0
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    Variable.set(k, v, serialize_json=True)
-                else:
-                    Variable.set(k, v)
-                n += 1
-        except Exception:
-            pass
-        finally:
-            print("{} of {} variables successfully updated.".format(n, len(d)))
+        suc_count = fail_count = 0
+        for k, v in d.items():
+            try:
+                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+            except Exception as e:
+                print('Variable import failed: {}'.format(repr(e)))
+                fail_count += 1
+            else:
+                suc_count += 1
+        print("{} of {} variables successfully updated.".format(suc_count, len(d)))
+        if fail_count:
+            print("{} variable(s) failed to be updated.".format(fail_count))
 
 
 def export_helper(filepath):
@@ -405,24 +401,21 @@ def export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args, dag=None):
-    set_is_paused(True, args, dag)
+def pause(args):
+    set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args, dag=None):
-    set_is_paused(False, args, dag)
+def unpause(args):
+    set_is_paused(False, args)
 
 
-def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+def set_is_paused(is_paused, args):
+    DagModel.get_dagmodel(args.dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
-    with db.create_session() as session:
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-        dm.is_paused = is_paused
-        session.commit()
-
-    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
+    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
 def _run(args, dag, ti):
@@ -453,7 +446,8 @@ def _run(args, dag, ti):
                     session.add(pickle)
                     pickle_id = pickle.id
                     # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
+                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
+                        dag=dag, pickle_id=pickle_id))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -666,8 +660,6 @@ def list_jobs(args, dag=None):
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -913,12 +905,15 @@ def webserver(args):
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
-                Workers: {num_workers} {args.workerclass}
-                Host: {args.hostname}:{args.port}
+                Workers: {num_workers} {workerclass}
+                Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 =================================================================\
-            '''.format(**locals())))
+            '''.format(num_workers=num_workers, workerclass=args.workerclass,
+                       hostname=args.hostname, port=args.port,
+                       worker_timeout=worker_timeout, access_logfile=access_logfile,
+                       error_logfile=error_logfile)))
 
         run_args = [
             'gunicorn',
@@ -983,8 +978,8 @@ def webserver(args):
                 # seem to return the right value with DaemonContext.
                 while True:
                     try:
-                        with open(pid) as f:
-                            gunicorn_master_proc_pid = int(f.read())
+                        with open(pid) as file:
+                            gunicorn_master_proc_pid = int(file.read())
                             break
                     except IOError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
@@ -1180,8 +1175,6 @@ def connections(args):
             msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                    'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                            tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
             print(msg)
             return
 
@@ -1377,8 +1370,6 @@ def users(args):
         users = [[user.__getattribute__(field) for field in fields] for user in users]
         msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
         return
@@ -1502,9 +1493,9 @@ def users(args):
             for user in users
         ]
 
-        with open(args.export, 'w') as f:
-            f.write(json.dumps(users, sort_keys=True, indent=4))
-            print("{} users successfully exported to {}".format(len(users), f.name))
+        with open(args.export, 'w') as file:
+            file.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), file.name))
 
     elif getattr(args, 'import'):  # "import" is a reserved word
         json_file = getattr(args, 'import')
@@ -1514,8 +1505,8 @@ def users(args):
 
         users_list = None
         try:
-            with open(json_file, 'r') as f:
-                users_list = json.loads(f.read())
+            with open(json_file, 'r') as file:
+                users_list = json.loads(file.read())
         except ValueError as e:
             print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
             exit(1)
@@ -1561,7 +1552,7 @@ def _import_users(users_list):
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing ther username is not allowed - "
+                print("Error: Changing the username is not allowed - "
                       "please delete and recreate the user with "
                       "email '{}'".format(user['email']))
                 exit(1)
@@ -1605,8 +1596,6 @@ def roles(args):
         msg = tabulate(role_names,
                        headers=['Role'],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1675,7 +1664,7 @@ def sync_perm(args):
             dag.access_control)
 
 
-class Arg(object):
+class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
         self.flags = flags
@@ -1688,7 +1677,7 @@ class Arg(object):
         self.metavar = metavar
 
 
-class CLIFactory(object):
+class CLIFactory:
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),
@@ -2000,7 +1989,7 @@ class CLIFactory(object):
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=conf.getint('scheduler', 'num_runs'), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
@@ -2395,7 +2384,7 @@ class CLIFactory(object):
         subparsers.required = True
 
         subparser_list = cls.dag_subparsers if dag_parser else cls.subparsers_dict.keys()
-        for sub in subparser_list:
+        for sub in sorted(subparser_list):
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
             sp.formatter_class = RawTextHelpFormatter

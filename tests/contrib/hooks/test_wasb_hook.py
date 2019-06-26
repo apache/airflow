@@ -25,16 +25,9 @@ from collections import namedtuple
 
 from airflow import configuration, AirflowException
 from airflow.contrib.hooks.wasb_hook import WasbHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestWasbHook(unittest.TestCase):

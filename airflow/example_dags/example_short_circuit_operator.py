@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the ShortCircuitOperator."""
+
 import airflow.utils.helpers
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator

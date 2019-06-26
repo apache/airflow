@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import next
-from builtins import zip
 from tempfile import NamedTemporaryFile
 from airflow.utils.file import TemporaryDirectory
 import gzip
@@ -124,7 +122,7 @@ class S3ToHiveTransfer(BaseOperator):
             tblproperties=None,
             select_expression=None,
             *args, **kwargs):
-        super(S3ToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict
         self.hive_table = hive_table
@@ -249,8 +247,8 @@ class S3ToHiveTransfer(BaseOperator):
                                     tblproperties=self.tblproperties)
 
     def _get_top_row_as_list(self, file_name):
-        with open(file_name, 'rt') as f:
-            header_line = f.readline().strip()
+        with open(file_name, 'rt') as file:
+            header_line = file.readline().strip()
             header_list = header_line.split(self.delimiter)
             return header_list
 

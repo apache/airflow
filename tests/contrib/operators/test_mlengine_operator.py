@@ -15,15 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import, division, print_function
-
 import copy
 import datetime
 import unittest
 
 import httplib2
 from googleapiclient.errors import HttpError
-from mock import ANY, patch
+from unittest.mock import ANY, patch
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.mlengine_operator import (MLEngineBatchPredictionOperator,
@@ -63,7 +61,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(MLEngineBatchPredictionOperatorTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

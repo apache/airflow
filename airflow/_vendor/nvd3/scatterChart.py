@@ -108,7 +108,7 @@ class scatterChart(TemplateMixin, NVD3Chart):
     template_chart_nvd3 = NVD3Chart.template_environment.get_template(CHART_FILENAME)
 
     def __init__(self, **kwargs):
-        super(scatterChart, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.model = 'scatterChart'
         height = kwargs.get('height', 450)
         width = kwargs.get('width', None)

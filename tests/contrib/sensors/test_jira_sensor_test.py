@@ -20,12 +20,12 @@
 
 import unittest
 
-from mock import Mock
-from mock import patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from airflow import DAG, configuration
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

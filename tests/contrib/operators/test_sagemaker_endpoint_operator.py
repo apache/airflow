@@ -18,19 +18,13 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_endpoint_operator \
     import SageMakerEndpointOperator
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'

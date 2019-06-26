@@ -20,9 +20,9 @@
 
 import json
 import unittest
+from unittest import mock
 import datetime
 
-import mock
 import pandas as pd
 
 from airflow import configuration, DAG

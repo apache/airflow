@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import six
 
 from typing import List
@@ -28,7 +29,7 @@ def _inherited(cls):
     )
 
 
-class DataSet(object):
+class DataSet:
     attributes = []  # type: List[str]
     type_name = "dataSet"
 
@@ -62,7 +63,11 @@ class DataSet(object):
         if attr in self.attributes:
             if self.context:
                 env = Environment()
-                return env.from_string(self._data.get(attr)).render(**self.context)
+                # dump to json here in order to be able to manage dicts and lists
+                rendered = env.from_string(
+                    json.dumps(self._data.get(attr))
+                ).render(**self.context)
+                return json.loads(rendered)
 
             return self._data.get(attr)
 
@@ -82,7 +87,9 @@ class DataSet(object):
         env = Environment()
         if self.context:
             for key, value in six.iteritems(attributes):
-                attributes[key] = env.from_string(value).render(**self.context)
+                attributes[key] = json.loads(
+                    env.from_string(json.dumps(value)).render(**self.context)
+                )
 
         d = {
             "typeName": self.type_name,
@@ -112,7 +119,7 @@ class File(DataSet):
     attributes = ["name", "path", "isFile", "isSymlink"]
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = 'file://' + self.name
         self._data['path'] = self.name
@@ -125,7 +132,7 @@ class HadoopFile(File):
     type_name = "hdfs_file"
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = "{}@{}".format(self.name, self.cluster_name)
         self._data['path'] = self.name

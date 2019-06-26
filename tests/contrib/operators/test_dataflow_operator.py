@@ -25,14 +25,7 @@ from airflow.contrib.operators.dataflow_operator import \
     DataflowTemplateOperator, GoogleCloudBucketHelper
 
 from airflow.version import version
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 TASK_ID = 'test-dataflow-operator'

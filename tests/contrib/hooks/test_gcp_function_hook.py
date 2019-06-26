@@ -22,14 +22,7 @@ import unittest
 from airflow import AirflowException
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 from airflow.contrib.hooks.gcp_function_hook import GcfHook
 

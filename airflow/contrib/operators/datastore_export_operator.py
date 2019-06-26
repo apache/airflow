@@ -69,7 +69,7 @@ class DatastoreExportOperator(BaseOperator):
                  overwrite_existing=False,
                  *args,
                  **kwargs):
-        super(DatastoreExportOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
         self.delegate_to = delegate_to

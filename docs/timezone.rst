@@ -109,8 +109,8 @@ it is therefore important to make sure this setting is equal on all Airflow node
 Time zone aware DAGs
 --------------------
 
-Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware `start_date`. It is
-recommended to use `pendulum` for this, but `pytz` (to be installed manually) can also be used for this.
+Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware `start_date`
+using `pendulum`.
 
 .. code:: python
 
