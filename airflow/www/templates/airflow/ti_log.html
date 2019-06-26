@@ -32,13 +32,17 @@ limitations under the License.
   <li class="active" style="float: right">
     <a onclick='scrollBottom()'>Jump to end</a>
   </li>
+  <li class="active" style="float: right">
+    <a onclick='toggleWrap()'>Toggle wrap</a>
+  </li>
+
 </ul>
 <div class="tab-content">
   {% for log in logs %}
   <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
     <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
          alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-    <pre><code id="try-{{ loop.index }}">{{ log }}</code></pre>
+    <pre><code id="try-{{ loop.index }}" class="{{ 'wrap' if wrapped else '' }}">{{ log }}</code></pre>
   </div>
   {% endfor %}
   </div>
@@ -71,6 +75,10 @@ limitations under the License.
       console.debug($(document).height())
       return $(window).scrollTop() != 0
              && ($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET);
+    }
+
+    function toggleWrap() {
+      $("pre code").toggleClass("wrap")
     }
 
     function scrollBottom() {

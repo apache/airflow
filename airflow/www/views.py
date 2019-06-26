@@ -680,7 +680,8 @@ class Airflow(AirflowViewMixin, BaseView):
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
-            demo_mode=conf.getboolean('webserver', 'demo_mode'))
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
+            wrapped=conf.getboolean('webserver', 'default_wrap'))
 
     @expose('/dag_details')
     @login_required
@@ -909,7 +910,7 @@ class Airflow(AirflowViewMixin, BaseView):
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
             execution_date=execution_date, form=form,
-            root=root)
+            root=root, wrapped=conf.getboolean('webserver', 'default_wrap'))
 
     @expose('/elasticsearch')
     @login_required
