@@ -65,11 +65,24 @@ def should_hide_value_for_key(key_name):
 
 
 def get_params(**kwargs):
+    hide_paused_dags_by_default = conf.getboolean('webserver',
+                                                  'hide_paused_dags_by_default')
     if 'showPaused' in kwargs:
-        v = kwargs['showPaused']
-        if v or v is None:
+        show_paused_dags_url_param = kwargs['showPaused']
+        if _should_remove_show_paused_from_url_params(
+            show_paused_dags_url_param,
+            hide_paused_dags_by_default
+        ):
             kwargs.pop('showPaused')
     return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
+
+
+def _should_remove_show_paused_from_url_params(show_paused_dags_url_param,
+                                               hide_paused_dags_by_default):
+    return any([
+        show_paused_dags_url_param != hide_paused_dags_by_default,
+        show_paused_dags_url_param is None
+    ])
 
 
 def generate_pages(current_page, num_of_pages,
