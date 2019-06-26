@@ -190,29 +190,10 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config()
         )
 
-    def execute(self, context):
+    def _execute(self):
         self.log.info('Starting docker container from image %s', self.image)
 
-        tls_config = self.__get_tls_config()
-
-        if self.docker_conn_id:
-            self.cli = self.get_hook().get_conn()
-        else:
-            self.cli = APIClient(
-                base_url=self.docker_url,
-                version=self.api_version,
-                tls=tls_config
-            )
-
-        if self.force_pull or len(self.cli.images(name=self.image)) == 0:
-            self.log.info('Pulling docker image %s', self.image)
-            for l in self.cli.pull(self.image, stream=True):
-                output = json.loads(l.decode('utf-8').strip())
-                if 'status' in output:
-                    self.log.info("%s", output['status'])
-
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
@@ -247,6 +228,29 @@ class DockerOperator(BaseOperator):
             if self.xcom_push_flag:
                 return self.cli.logs(container=self.container['Id']) \
                     if self.xcom_all else str(line)
+
+    def execute(self, context):
+        tls_config = self.__get_tls_config()
+
+        if self.docker_conn_id:
+            self.cli = self.get_hook().get_conn()
+        else:
+            self.cli = APIClient(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
+            )
+
+        if self.force_pull or len(self.cli.images(name=self.image)) == 0:
+            self.log.info('Pulling docker image %s', self.image)
+            for l in self.cli.pull(self.image, stream=True):
+                output = json.loads(l.decode('utf-8').strip())
+                if 'status' in output:
+                    self.log.info("%s", output['status'])
+
+        self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+
+        self._execute()
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
