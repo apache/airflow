@@ -29,7 +29,7 @@ assists users migrating to a new version.
 to schedule tasks in the subdag. User no longer need to specify the executor
 in `SubDagOperator`.
 
-`SubDagOperator` will not support `SequentialExecutor`.
+`SubDagOperator` will not support backfilling with `SequentialExecutor`.
 
 ### `pool` config option in Celery section to support different Celery pool implementation
 

@@ -139,7 +139,7 @@ class ImpersonationTest(unittest.TestCase):
         )
 
     @unittest.skipIf(conf.get('core', 'executor') == 'SequentialExecutor',
-                     'SubDagOperator does not support SequentialExecutor.')
+                     'SubDagOperator does not support backfilling with SequentialExecutor.')
     def test_impersonation_subdag(self):
         """
         Tests that impersonation using a subdag correctly passes the right configuration
