@@ -59,7 +59,6 @@
 ./airflow/contrib/hooks/pinot_hook.py
 ./airflow/contrib/hooks/qubole_check_hook.py
 ./airflow/contrib/hooks/qubole_hook.py
-./airflow/contrib/hooks/redis_hook.py
 ./airflow/contrib/hooks/redshift_hook.py
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/salesforce_hook.py
@@ -449,14 +448,12 @@
 ./tests/contrib/hooks/test_ftp_hook.py
 ./tests/contrib/hooks/test_gcp_api_base_hook.py
 ./tests/contrib/hooks/test_gcp_bigtable_hook.py
-./tests/contrib/hooks/test_gcp_compute_hook.py
 ./tests/contrib/hooks/test_gcp_dataflow_hook.py
 ./tests/contrib/hooks/test_gcp_dataproc_hook.py
 ./tests/contrib/hooks/test_gcp_function_hook.py
 ./tests/contrib/hooks/test_gcp_kms_hook.py
 ./tests/contrib/hooks/test_gcp_mlengine_hook.py
 ./tests/contrib/hooks/test_gcp_pubsub_hook.py
-./tests/contrib/hooks/test_gcp_spanner_hook.py
 ./tests/contrib/hooks/test_gcp_sql_hook.py
 ./tests/contrib/hooks/test_gcp_transfer_hook.py
 ./tests/contrib/hooks/test_gcp_vision_hook.py
@@ -487,7 +484,6 @@
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
 ./tests/contrib/operators/test_bigquery_operator.py
 ./tests/contrib/operators/test_cassandra_to_gcs_operator.py
-./tests/contrib/operators/test_databricks_operator.py
 ./tests/contrib/operators/test_dataflow_operator.py
 ./tests/contrib/operators/test_dataproc_operator.py
 ./tests/contrib/operators/test_druid_operator.py
@@ -498,7 +494,6 @@
 ./tests/contrib/operators/test_gcp_compute_operator.py
 ./tests/contrib/operators/test_gcp_container_operator.py
 ./tests/contrib/operators/test_gcp_function_operator.py
-./tests/contrib/operators/test_gcp_natural_language_operator.py
 ./tests/contrib/operators/test_gcp_spanner_operator.py
 ./tests/contrib/operators/test_gcp_speech_to_text_operator.py
 ./tests/contrib/operators/test_gcp_sql_operator.py
@@ -506,10 +501,7 @@
 ./tests/contrib/operators/test_gcp_sql_operator_system_helper.py
 ./tests/contrib/operators/test_gcp_transfer_operator.py
 ./tests/contrib/operators/test_gcp_transfer_operator_system_helper.py
-./tests/contrib/operators/test_gcp_translate_operator.py
-./tests/contrib/operators/test_gcp_translate_speech_operator.py
 ./tests/contrib/operators/test_gcp_video_intelligence_operator_system_helper.py
-./tests/contrib/operators/test_gcp_vision_operator.py
 ./tests/contrib/operators/test_gcs_to_s3_operator.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_hive_to_dynamodb_operator.py
@@ -517,10 +509,8 @@
 ./tests/contrib/operators/test_mssql_to_gcs_operator.py
 ./tests/contrib/operators/test_mysql_to_gcs_operator.py
 ./tests/contrib/operators/test_oracle_to_azure_data_lake_transfer.py
-./tests/contrib/operators/test_oracle_to_oracle_transfer.py
 ./tests/contrib/operators/test_postgres_to_gcs_operator.py
 ./tests/contrib/operators/test_qubole_check_operator.py
-./tests/contrib/operators/test_qubole_operator.py
 ./tests/contrib/operators/test_redis_publish_operator.py
 ./tests/contrib/operators/test_s3_copy_object_operator.py
 ./tests/contrib/operators/test_s3_delete_objects_operator.py
@@ -537,18 +527,14 @@
 ./tests/contrib/operators/test_snowflake_operator.py
 ./tests/contrib/operators/test_spark_submit_operator.py
 ./tests/contrib/operators/test_ssh_operator.py
-./tests/contrib/operators/test_vertica_operator.py
 ./tests/contrib/operators/test_vertica_to_mysql.py
-./tests/contrib/operators/test_winrm_operator.py
 ./tests/contrib/sensors/test_athena_sensor.py
-./tests/contrib/sensors/test_aws_glue_catalog_partition_sensor.py
 ./tests/contrib/sensors/test_aws_redshift_cluster_sensor.py
 ./tests/contrib/sensors/test_bash_sensor.py
 ./tests/contrib/sensors/test_celery_queue_sensor.py
 ./tests/contrib/sensors/test_emr_step_sensor.py
 ./tests/contrib/sensors/test_file_sensor.py
 ./tests/contrib/sensors/test_ftp_sensor.py
-./tests/contrib/sensors/test_gcp_transfer_sensor.py
 ./tests/contrib/sensors/test_jira_sensor_test.py
 ./tests/contrib/sensors/test_python_sensor.py
 ./tests/contrib/sensors/test_redis_pub_sub_sensor.py
@@ -573,7 +559,6 @@
 ./tests/dags/test_impersonation.py
 ./tests/dags/test_impersonation_custom.py
 ./tests/dags/test_no_impersonation.py
-./tests/dags/test_on_kill.py
 ./tests/dags/test_retry_handling_job.py
 ./tests/dags/test_task_view_type_check.py
 ./tests/executors/test_base_executor.py
@@ -627,7 +612,6 @@
 ./tests/operators/test_s3_file_transform_operator.py
 ./tests/operators/test_s3_to_hive_operator.py
 ./tests/operators/test_s3_to_redshift_operator.py
-./tests/operators/test_subdag_operator.py
 ./tests/operators/test_virtualenv_operator.py
 ./tests/plugins/test_plugin.py
 ./tests/security/test_kerberos.py

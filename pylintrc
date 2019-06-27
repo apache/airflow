@@ -447,7 +447,12 @@ good-names=e,
            j,
            k,
            _,
-           ti  # Commonly used in Airflow as shorthand for taskinstance
+           ti,  # Commonly used in Airflow as shorthand for taskinstance
+           op,  # Commonly used in Airflow as shorthand for operator
+           dr,  # Commonly used in Airflow as shorthand for dag run
+           f,   # Commonly used as shorthand for file
+           db,  # Commonly used as shorthand for database
+           cm   # Commonly used as shorthand for context manager
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no
