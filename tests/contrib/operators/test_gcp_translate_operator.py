@@ -20,15 +20,7 @@
 import unittest
 
 from airflow.contrib.operators.gcp_translate_operator import CloudTranslateTextOperator
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 GCP_CONN_ID = 'google_cloud_default'
 

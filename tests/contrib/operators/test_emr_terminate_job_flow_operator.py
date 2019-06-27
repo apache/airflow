@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from airflow import configuration
 from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator

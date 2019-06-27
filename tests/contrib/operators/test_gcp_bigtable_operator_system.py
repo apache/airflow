@@ -28,7 +28,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_BIGTABLE_KEY
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_BIGTABLE_KEY), SKIP_TEST_WARNING)
 class BigTableExampleDagsSystemTest(DagGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
-        super(BigTableExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_bigtable_operators',
             require_local_executor=True,
@@ -44,4 +44,4 @@ class BigTableExampleDagsSystemTest(DagGcpSystemTestCase):
             self.helper.delete_instance()
         finally:
             self.gcp_authenticator.gcp_revoke_authentication()
-        super(BigTableExampleDagsSystemTest, self).tearDown()
+        super().tearDown()

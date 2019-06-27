@@ -20,7 +20,7 @@
 # A collection of fake models used for unit testing
 
 
-class FakeTI(object):
+class FakeTI:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -41,13 +41,13 @@ class FakeTI(object):
         return self.dependents_done
 
 
-class FakeTask(object):
+class FakeTask:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
 
-class FakeDag(object):
+class FakeDag:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -56,7 +56,7 @@ class FakeDag(object):
         return self.running_dagruns
 
 
-class FakeContext(object):
+class FakeContext:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

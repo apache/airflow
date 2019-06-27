@@ -99,8 +99,8 @@ class S3ToSFTPOperatorTest(unittest.TestCase):
         conn.create_bucket(Bucket=self.s3_bucket)
         self.assertTrue((self.s3_hook.check_for_bucket(self.s3_bucket)))
 
-        with open(LOCAL_FILE_PATH, 'w') as f:
-            f.write(test_remote_file_content)
+        with open(LOCAL_FILE_PATH, 'w') as file:
+            file.write(test_remote_file_content)
         self.s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3

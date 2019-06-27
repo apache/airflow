@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage ACL entry operator.
+"""
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -53,8 +56,8 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     @apply_defaults
     def __init__(self, bucket, entity, role, user_project=None,
                  google_cloud_storage_conn_id='google_cloud_default', *args, **kwargs):
-        super(GoogleCloudStorageBucketCreateAclEntryOperator, self).__init__(*args,
-                                                                             **kwargs)
+        super().__init__(*args,
+                         **kwargs)
         self.bucket = bucket
         self.entity = entity
         self.role = role
@@ -65,7 +68,7 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
         )
-        hook.insert_bucket_acl(bucket=self.bucket, entity=self.entity, role=self.role,
+        hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
                                user_project=self.user_project)
 
 
@@ -90,9 +93,6 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER".
     :type role: str
-    :param generation: (Optional) If present, selects a specific revision of this object
-        (as opposed to the latest version, the default).
-    :type generation: str
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :type user_project: str
@@ -111,17 +111,15 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
                  object_name,
                  entity,
                  role,
-                 generation=None,
                  user_project=None,
                  google_cloud_storage_conn_id='google_cloud_default',
                  *args, **kwargs):
-        super(GoogleCloudStorageObjectCreateAclEntryOperator, self).__init__(*args,
-                                                                             **kwargs)
+        super().__init__(*args,
+                         **kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.entity = entity
         self.role = role
-        self.generation = generation
         self.user_project = user_project
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
 
@@ -129,6 +127,5 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
         )
-        hook.insert_object_acl(bucket=self.bucket, object_name=self.object_name,
-                               entity=self.entity, role=self.role,
-                               generation=self.generation, user_project=self.user_project)
+        hook.insert_object_acl(bucket_name=self.bucket, object_name=self.object_name,
+                               entity=self.entity, role=self.role, user_project=self.user_project)

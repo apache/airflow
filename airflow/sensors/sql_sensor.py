@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
 from typing import Iterable
 
 from airflow.exceptions import AirflowException
@@ -48,7 +47,7 @@ class SqlSensor(BaseSensorOperator):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
-        super(SqlSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         conn = BaseHook.get_connection(self.conn_id)

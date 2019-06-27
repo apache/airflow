@@ -46,7 +46,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
             session.query(TaskInstance).delete()
 
     def setUp(self):
-        super(TestFileTaskLogHandler, self).setUp()
+        super().setUp()
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
         self.cleanUp()
@@ -54,7 +54,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
     def tearDown(self):
         self.cleanUp()
-        super(TestFileTaskLogHandler, self).tearDown()
+        super().tearDown()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.

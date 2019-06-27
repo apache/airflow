@@ -24,7 +24,7 @@ implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
-from builtins import object
+
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -37,13 +37,12 @@ from airflow import settings, configuration as conf
 from airflow.models import DAG
 from airflow.exceptions import AirflowException
 
-if settings.DAGS_FOLDER not in sys.path:
-    sys.path.append(settings.DAGS_FOLDER)  # type: ignore
+settings.initialize()
 
 login = None
 
 
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
     def __init__(self, namespace):
         self.namespace = namespace
 

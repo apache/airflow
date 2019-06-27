@@ -31,7 +31,7 @@ class AwsFirehoseHook(AwsHook):
     def __init__(self, delivery_stream, region_name=None, *args, **kwargs):
         self.delivery_stream = delivery_stream
         self.region_name = region_name
-        super(AwsFirehoseHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         """

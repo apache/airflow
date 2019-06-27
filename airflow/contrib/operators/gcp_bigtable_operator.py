@@ -16,20 +16,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Bigtable operators.
+"""
 
 from typing import Iterable
+
 import google.api_core.exceptions
+from google.cloud.bigtable_admin_v2 import enums
+from google.cloud.bigtable.table import ClusterState
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
 from airflow.utils.decorators import apply_defaults
-from google.cloud.bigtable_admin_v2 import enums
-from google.cloud.bigtable.table import ClusterState
 
 
-class BigtableValidationMixin(object):
+class BigtableValidationMixin:
     """
     Common class for Cloud Bigtable operators for validating required fields.
     """
@@ -93,7 +97,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
                        'main_cluster_zone']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  instance_id,
                  main_cluster_id,
                  main_cluster_zone,
@@ -121,7 +125,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         self.timeout = timeout
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -184,7 +188,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.instance_id = instance_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         try:
@@ -247,7 +251,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self._validate_inputs()
         self.hook = BigtableHook()
         self.instance = None
-        super(BigtableTableCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _compare_column_families(self):
         table_column_families = self.hook.get_column_families_for_table(self.instance,
@@ -259,7 +263,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
             self.log.error("Actual: %s", table_column_families.keys())
             return False
 
-        for key in table_column_families.keys():
+        for key in table_column_families:
             # There is difference in structure between local Column Families
             # and remote ones
             # Local `self.column_families` is dict with column_id as key
@@ -333,7 +337,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.app_profile_id = app_profile_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -394,7 +398,7 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
         self.nodes = nodes
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableClusterUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,
@@ -451,7 +455,7 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
         self.table_id = table_id
         self._validate_inputs()
         self.hook = BigtableHook()
-        super(BigtableTableWaitForReplicationSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         instance = self.hook.get_instance(project_id=self.project_id,

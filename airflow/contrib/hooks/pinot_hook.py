@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import six
-
 from pinotdb import connect
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -33,7 +31,7 @@ class PinotDbApiHook(DbApiHook):
     supports_autocommit = False
 
     def __init__(self, *args, **kwargs):
-        super(PinotDbApiHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         """
@@ -73,9 +71,6 @@ class PinotDbApiHook(DbApiHook):
             sql statements to execute
         :type sql: str
         """
-        if six.PY2:
-            sql = sql.encode('utf-8')
-
         with self.get_conn() as cur:
             cur.execute(sql)
             return cur.fetchall()
@@ -88,9 +83,6 @@ class PinotDbApiHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         """
-        if six.PY2:
-            sql = sql.encode('utf-8')
-
         with self.get_conn() as cur:
             cur.execute(sql)
             return cur.fetchone()

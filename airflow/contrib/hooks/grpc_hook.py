@@ -104,7 +104,7 @@ class GrpcHook(BaseHook):
                         yield single_response
             except grpc.RpcError as ex:
                 self.log.exception(
-                    "Error occured when calling the grpc service: {0}, method: {1} \
+                    "Error occurred when calling the grpc service: {0}, method: {1} \
                     status code: {2}, error details: {3}"
                     .format(stub.__class__.__name__, call_func, ex.code(), ex.details()))
                 raise ex

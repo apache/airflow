@@ -20,16 +20,9 @@
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from tests.compat import mock
 
 import unittest
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 class TestACIOperator(unittest.TestCase):

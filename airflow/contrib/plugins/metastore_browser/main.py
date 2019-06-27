@@ -57,7 +57,7 @@ class MetastoreBrowserView(BaseView):
         FROM DBS a
         JOIN TBLS b ON a.DB_ID = b.DB_ID
         GROUP BY a.name, db_location_uri, a.desc
-        """.format(**locals())
+        """
         h = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = h.get_pandas_df(sql)
         df.db = (
@@ -108,7 +108,7 @@ class MetastoreBrowserView(BaseView):
             b.TBL_NAME like '{table}' AND
             d.NAME like '{schema}'
         ORDER BY PART_NAME DESC
-        """.format(**locals())
+        """.format(table=table, schema=schema)
         h = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = h.get_pandas_df(sql)
         return df.to_html(

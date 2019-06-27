@@ -23,16 +23,9 @@ import unittest
 import boto3
 
 from airflow import configuration
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 try:
     from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam

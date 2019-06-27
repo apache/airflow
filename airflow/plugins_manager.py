@@ -16,22 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from builtins import object
 import imp
 import inspect
 import os
 import re
-import sys
 import pkg_resources
 from typing import List, Any
 
-from airflow import configuration
+from airflow import settings
+from airflow.models.baseoperator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -43,7 +37,7 @@ class AirflowPluginException(Exception):
     pass
 
 
-class AirflowPlugin(object):
+class AirflowPlugin:
     name = None  # type: str
     operators = []  # type: List[Any]
     sensors = []  # type: List[Any]
@@ -61,7 +55,8 @@ class AirflowPlugin(object):
     #
     # The function should have the following signature:
     # def func_name(stat_name: str) -> str:
-    stat_name_handler = None  # type:Any
+    stat_name_handler = None  # type: Any
+    global_operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod
     def validate(cls):
@@ -77,7 +72,6 @@ class AirflowPlugin(object):
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
         """
-        pass
 
 
 def load_entrypoint_plugins(entry_points, airflow_plugins):
@@ -122,20 +116,12 @@ def is_valid_plugin(plugin_obj, existing_plugins):
     return False
 
 
-plugins_folder = configuration.conf.get('core', 'plugins_folder')
-if not plugins_folder:
-    plugins_folder = configuration.conf.get('core', 'airflow_home') + '/plugins'
-plugins_folder = os.path.expanduser(plugins_folder)
-
-if plugins_folder not in sys.path:
-    sys.path.append(plugins_folder)
-
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
-for root, dirs, files in os.walk(plugins_folder, followlinks=True):
+for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
     for f in files:
         try:
             filepath = os.path.join(root, f)
@@ -190,6 +176,7 @@ menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
+global_operator_extra_links = []  # type: List[Any]
 
 stat_name_handlers = []
 for p in plugins:
@@ -213,6 +200,7 @@ for p in plugins:
     } for bp in p.flask_blueprints])
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
+    global_operator_extra_links.extend(p.global_operator_extra_links)
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(

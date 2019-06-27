@@ -27,7 +27,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 import json
 
 
-class DagRunOrder(object):
+class DagRunOrder:
     def __init__(self, run_id=None, payload=None):
         self.run_id = run_id
         self.payload = payload
@@ -62,7 +62,7 @@ class TriggerDagRunOperator(BaseOperator):
             python_callable=None,
             execution_date=None,
             *args, **kwargs):
-        super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 

@@ -24,14 +24,7 @@ import unittest
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "jobName": "51455483-c62c-48ac-9b88-53a6a725baa3",

@@ -101,7 +101,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  *args,
                  **kwargs):
 
-        super(S3ToGoogleCloudStorageOperator, self).__init__(
+        super().__init__(
             bucket=bucket,
             prefix=prefix,
             delimiter=delimiter,
@@ -124,7 +124,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
     def execute(self, context):
         # use the super method to list all the files in an S3 bucket/key
-        files = super(S3ToGoogleCloudStorageOperator, self).execute(context)
+        files = super().execute(context)
 
         gcs_hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.dest_gcs_conn_id,

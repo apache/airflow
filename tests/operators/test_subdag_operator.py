@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import Mock
+from unittest.mock import Mock
 
 import airflow
 from airflow.exceptions import AirflowException

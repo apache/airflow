@@ -29,7 +29,7 @@ from freezegun import freeze_time
 
 class TestFileProcessorHandler(unittest.TestCase):
     def setUp(self):
-        super(TestFileProcessorHandler, self).setUp()
+        super().setUp()
         self.base_log_folder = "/tmp/log_test"
         self.filename = "{filename}"
         self.filename_template = "{{ filename }}.log"

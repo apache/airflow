@@ -21,14 +21,7 @@ import unittest
 
 from airflow.contrib.operators.gcs_operator import GoogleCloudStorageCreateBucketOperator
 from airflow.version import version
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-gcs-operator'
 TEST_BUCKET = 'test-bucket'

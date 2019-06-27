@@ -51,7 +51,7 @@ class PostgresOperator(BaseOperator):
             parameters=None,
             database=None,
             *args, **kwargs):
-        super(PostgresOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.postgres_conn_id = postgres_conn_id
         self.autocommit = autocommit

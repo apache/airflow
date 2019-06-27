@@ -32,7 +32,7 @@ class TimeSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, target_time, *args, **kwargs):
-        super(TimeSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.target_time = target_time
 
     def poke(self, context):

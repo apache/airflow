@@ -62,7 +62,7 @@ class EmailOperator(BaseOperator):
             mime_subtype='mixed',
             mime_charset='utf-8',
             *args, **kwargs):
-        super(EmailOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.to = to
         self.subject = subject
         self.html_content = html_content
