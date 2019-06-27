@@ -54,6 +54,9 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
+    template_fields = ['webhook_token', 'message', 'attachments', 'channel',
+                       'username', 'proxy', ]
+
     @apply_defaults
     def __init__(self,
                  http_conn_id=None,
