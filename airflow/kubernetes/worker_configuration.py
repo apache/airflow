@@ -122,7 +122,7 @@ class WorkerConfiguration(LoggingMixin):
                 'value': 'false'
             })
 
-        init_containers =  [{
+        init_containers = [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
             'env': init_environment,
@@ -130,7 +130,9 @@ class WorkerConfiguration(LoggingMixin):
         }]
 
         if self.kube_config.git_sync_run_as_user != "":
-            init_containers[0]['securityContext'] = {'runAsUser': self.kube_config.git_sync_run_as_user} # git-sync user
+            init_containers[0]['securityContext'] = {
+                'runAsUser': self.kube_config.git_sync_run_as_user  # git-sync user
+            }  
 
         return init_containers
 
