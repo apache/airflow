@@ -121,11 +121,10 @@ class WorkerConfiguration(LoggingMixin):
                 'name': 'GIT_KNOWN_HOSTS',
                 'value': 'false'
             })
-
         return [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
-            'securityContext': {'runAsUser': 65533},  # git-sync user
+            'securityContext': {'runAsUser': self.kube_config.worker_run_as_user},  # git-sync user
             'env': init_environment,
             'volumeMounts': volume_mounts
         }]
