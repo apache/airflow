@@ -64,8 +64,8 @@ class _DataflowJob(LoggingMixin):
         self._num_retries = num_retries
         if self._num_retries is None:
             self._num_retries = 0
-        self._jobs = self._get_jobs()
         self._poll_sleep = poll_sleep
+        self._jobs = self._get_jobs()
 
     def is_job_running(self):
         """
