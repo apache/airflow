@@ -413,7 +413,10 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
                                      kube_executor_config)
 
+        init_containers = worker_config._get_init_containers()
+
         self.assertEqual(0, pod.security_context['runAsUser'])
+        self.assertEqual(0, init_containers.security_context['runAsUser'])
 
     def test_make_pod_git_sync_ssh_without_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct without known hosts
