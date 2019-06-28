@@ -22,7 +22,6 @@ import unittest
 from unittest.mock import patch
 from collections import namedtuple
 
-from airflow import configuration
 from airflow.models import Connection
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.utils import db
@@ -39,7 +38,6 @@ from azure.mgmt.containerinstance.models import (Container,
 class TestAzureContainerInstanceHook(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='azure_container_instance_test',

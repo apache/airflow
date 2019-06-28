@@ -19,7 +19,6 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_training_operator \
     import SageMakerTrainingOperator
@@ -83,7 +82,6 @@ create_training_params = \
 class TestSageMakerTrainingOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.sagemaker = SageMakerTrainingOperator(
             task_id='test_sagemaker_operator',
             aws_conn_id='sagemaker_test_id',

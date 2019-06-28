@@ -20,8 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
-
+from airflow import DAG
 from airflow.contrib.operators.slack_webhook_operator import SlackWebhookOperator
 from airflow.utils import timezone
 
@@ -42,7 +41,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

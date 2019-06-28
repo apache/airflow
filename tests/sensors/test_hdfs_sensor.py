@@ -20,13 +20,10 @@ import unittest
 
 from datetime import timedelta
 
-from airflow import configuration
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.hdfs_sensor import HdfsSensor
 from airflow.utils.timezone import datetime
 from tests.core import FakeHDFSHook
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'

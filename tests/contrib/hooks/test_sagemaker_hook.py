@@ -23,7 +23,6 @@ import time
 from datetime import datetime
 from tzlocal import get_localzone
 
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
                                                   secondary_training_status_message, LogState)
 from airflow.hooks.S3_hook import S3Hook
@@ -245,10 +244,6 @@ test_evaluation_config = {
 
 
 class TestSageMakerHook(unittest.TestCase):
-
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch.object(SageMakerHook, 'log_stream')
     def test_multi_stream_iter(self, mock_log_stream):
         event = {'timestamp': 1}
