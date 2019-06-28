@@ -508,7 +508,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         upstream.set_downstream(short_op)
         dag.clear()
 
-        logging.error("Tasks {}".format(dag.tasks))
+        logging.error("Tasks %s", dag.tasks)
         dr = dag.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
