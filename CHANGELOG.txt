@@ -1,8 +1,10 @@
-Airflow 1.10.4
---------------
+Airflow 1.10.4, - 2019-07-01
+----------------------------
 
 New Features
 """"""""""""
+- [AIRFLOW-4591] Make default_pool a real pool (#5349)
+- [AIRFLOW-4844] Add optional is_paused_upon_creation argument to DAG (#5473)
 - [AIRFLOW-4456] Add sub-classable BaseBranchOperator (#5231)
 - [AIRFLOW-4343] Show warning in UI if scheduler is not running (#5127)
 - [AIRFLOW-4739] Add ability to arbitrarily define kubernetes worker pod labels (#5376)
@@ -22,7 +24,6 @@ New Features
 - [AIRFLOW-3359] Add option to pass customer encryption keys to Dataproc (#4200)
 - [AIRFLOW-4318] Create Google Cloud Translate Speech Operator (#5102)
 - [AIRFLOW-3960] Adds Google Cloud Speech operators (#4780)
-- [AIRFLOW-1684] - Branching based on XCom variable (Docs) (#4365)
 - [AIRFLOW-1501] Add GoogleCloudStorageDeleteOperator (#5230)
 - [AIRFLOW-3672] Add support for Mongo DB DNS Seedlist Connection Format (#4481)
 - [AIRFLOW-4397] add integrations docs manually for gcs sensors (#5204)
@@ -44,6 +45,11 @@ New Features
 
 Improvement
 """""""""""
+- [AIRFLOW-4857] Add templated fields to SlackWebhookOperator (#5490)
+- [AIRFLOW-3502] Add celery config option for setting "pool" (#4308)
+- [AIRFLOW-3217] Button to toggle line wrapping in log and code views  (#4277)
+- [AIRFLOW-4491] Add a "Jump to end" button for logs (#5266)
+- [AIRFLOW-4422] Pool utilization stats (#5453)
 - [AIRFLOW-4805] Add py_file as templated field in DataflowPythonOperator (#5451)
 - [AIRFLOW-4838] Surface Athena errors in AWSAthenaOperator (#5467)
 - [AIRFLOW-4831] conf.has_option no longer throws if section is missing. (#5455)
@@ -126,6 +132,10 @@ Improvement
 
 Bug fixes
 """""""""
+- [AIRFLOW-4524] Fix incorrect field names in view for Mark Success/Failure (#5486)
+- [AIRFLOW-3671] Remove arg `replace` of MongoToS3Operator from `kwargs` (#4480)
+- [AIRFLOW-4845] Fix bug where runAsUser 0 doesn't get set in k8s security context (#5474)
+- [AIRFLOW-4354] Fix exception in "between" date filter in classic UI (#5480)
 - [AIRFLOW-4587] Replace self.conn with self.get_conn() in AWSAthenaHook (#5462)
 - [AIRFLOW-4516] K8s runAsUser and fsGroup cannot be strings (#5429)
 - [AIRFLOW-4298] Stop Scheduler repeatedly warning "connection invalidated" (#5470)
@@ -218,6 +228,9 @@ Misc/Internal
 
 Doc-only changes
 """"""""""""""""
+- [AIRFLOW-4860] Remove Redundant Information in Example Dags (#5497)
+- [AIRFLOW-4767] Fix errors in the documentation of Dataproc Operator (#5487)
+- [AIRFLOW-1684] Branching based on XCom variable (Docs) (#4365)
 - [AIRFLOW-3341] FAQ return DAG object example (#4605)
 - [AIRFLOW-4433] Add missing type in DockerOperator doc string (#5205)
 - [AIRFLOW-4321] Replace incorrect info of Max Size limit of GCS Object Size (#5106)
