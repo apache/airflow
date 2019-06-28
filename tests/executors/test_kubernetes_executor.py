@@ -406,7 +406,12 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
         init_containers = worker_config._get_init_containers()
-        self.assertIsNone(init_containers[0]['securityContext'])
+        self.assertTrue(init_containers)  # check not empty
+
+        self.assertNotIn(
+            'securityContext', init_containers[0],
+            "securityContext shouldn't be defined"
+        )
 
     def test_make_pod_run_as_user_0(self):
         # Tests the pod created with run-as-user 0 actually gets that in it's config
