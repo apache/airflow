@@ -391,6 +391,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         start_dttm = datetime.now()
         dag_folder = dag_folder or self.dag_folder
 
+        dags_by_name = {}
+
         # Used to store stats around DagBag processing
         stats = []
         FileLoadStat = namedtuple(
@@ -419,16 +421,19 @@ class DagBag(BaseDagBag, LoggingMixin):
                             ts = datetime.now()
                             found_dags = self.process_file(
                                 filepath, only_if_updated=only_if_updated)
+                            dag_ids = [dag.dag_id for dag in found_dags]
+                            dag_id_names = str(dag_ids)
 
                             td = datetime.now() - ts
                             td = td.total_seconds() + (
                                 float(td.microseconds) / 1000000)
+                            dags_by_name[dag_id_names] = dag_ids
                             stats.append(FileLoadStat(
                                 filepath.replace(dag_folder, ''),
                                 td,
                                 len(found_dags),
                                 sum([len(dag.tasks) for dag in found_dags]),
-                                str([dag.dag_id for dag in found_dags]),
+                                dag_id_names,
                             ))
                     except Exception as e:
                         logging.warning(e)
@@ -440,6 +445,16 @@ class DagBag(BaseDagBag, LoggingMixin):
             'dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
+
+        for file_stat in self.dagbag_stats:
+            dag_ids = dags_by_name[file_stat.dags]
+            if file_stat.dag_num >= 1:
+                # if we found multiple dags per file, the stat is 'dag_id1 _ dag_id2'
+                dag_names = '_'.join(dag_ids)
+                Stats.timing('dag.loading-duration.{}'.
+                             format(dag_names),
+                             file_stat.duration)
+
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
