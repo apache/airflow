@@ -112,12 +112,13 @@ class DataFlowJavaOperator(BaseOperator):
     :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
     :type job_class: str
+
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
     :type multiple_jobs: boolean
     :param check_if_running: before running job, validate that a previous run is not in process
     :type check_if_running: CheckJobRunning(IgnoreJob = do not check if running, FinishIfRunning=
         if job is running finish with nothing, WaitForRun= wait until job finished and the run job)
-    ``jar``, ``options``, and ``job_name`` are templated so you can use variables in them.
+        ``jar``, ``options``, and ``job_name`` are templated so you can use variables in them.
 
     Note that both
     ``dataflow_default_options`` and ``options`` will be merged to specify pipeline
