@@ -106,6 +106,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
                  cluster_nodes=None,
                  cluster_storage_type=None,
                  timeout=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
@@ -120,7 +121,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         self.cluster_storage_type = cluster_storage_type
         self.timeout = timeout
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super(BigtableInstanceCreateOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -179,11 +180,12 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
     def __init__(self,
                  instance_id,
                  project_id=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super(BigtableInstanceDeleteOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -238,6 +240,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
                  project_id=None,
                  initial_split_keys=None,
                  column_families=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
@@ -245,7 +248,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self.initial_split_keys = initial_split_keys or list()
         self.column_families = column_families or dict()
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         self.instance = None
         super(BigtableTableCreateOperator, self).__init__(*args, **kwargs)
 
@@ -326,13 +329,14 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
                  table_id,
                  project_id=None,
                  app_profile_id=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
         self.app_profile_id = app_profile_id
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super(BigtableTableDeleteOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -387,13 +391,14 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
                  cluster_id,
                  nodes,
                  project_id=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
         self.cluster_id = cluster_id
         self.nodes = nodes
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super(BigtableClusterUpdateOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -445,12 +450,13 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
                  instance_id,
                  table_id,
                  project_id=None,
+                 gcp_conn_id='google_cloud_default',
                  *args, **kwargs):
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
         self._validate_inputs()
-        self.hook = BigtableHook()
+        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super(BigtableTableWaitForReplicationSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
