@@ -99,12 +99,9 @@
 ./airflow/contrib/operators/kubernetes_pod_operator.py
 ./airflow/contrib/operators/mlengine_operator.py
 ./airflow/contrib/operators/mongo_to_s3.py
-./airflow/contrib/operators/mssql_to_gcs.py
-./airflow/contrib/operators/mysql_to_gcs.py
 ./airflow/contrib/operators/opsgenie_alert_operator.py
 ./airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py
 ./airflow/contrib/operators/oracle_to_oracle_transfer.py
-./airflow/contrib/operators/postgres_to_gcs_operator.py
 ./airflow/contrib/operators/pubsub_operator.py
 ./airflow/contrib/operators/qubole_check_operator.py
 ./airflow/contrib/operators/qubole_operator.py
@@ -464,7 +461,6 @@
 ./tests/contrib/operators/test_gcs_to_s3_operator.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_mlengine_operator.py
-./tests/contrib/operators/test_mysql_to_gcs_operator.py
 ./tests/contrib/operators/test_oracle_to_azure_data_lake_transfer.py
 ./tests/contrib/operators/test_qubole_check_operator.py
 ./tests/contrib/operators/test_redis_publish_operator.py
