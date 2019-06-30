@@ -770,6 +770,7 @@ class CloudSqlQueryOperator(BaseOperator):
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         self.cloudsql_db_hook = CloudSqlDatabaseHook(
             gcp_cloudsql_conn_id=gcp_cloudsql_conn_id,
+            gcp_conn_id=gcp_conn_id,
             default_gcp_project_id=self.gcp_connection.extra_dejson.get(
                 'extra__google_cloud_platform__project'))
         self.cloud_sql_proxy_runner = None
