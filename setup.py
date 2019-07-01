@@ -141,12 +141,12 @@ async_packages = [
 atlas = ['atlasclient>=0.1.2']
 azure_blob_storage = ['azure-storage>=0.34.0']
 azure_data_lake = [
-    'azure-mgmt-resource==1.2.2',
-    'azure-mgmt-datalake-store==0.4.0',
-    'azure-datalake-store==0.0.19'
+    'azure-mgmt-resource>=2.2.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-datalake-store>=0.0.45'
 ]
 azure_cosmos = ['azure-cosmos>=3.0.1']
-azure_container_instances = ['azure-mgmt-containerinstance']
+azure_container_instances = ['azure-mgmt-containerinstance>=1.5.0']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery~=4.3',
