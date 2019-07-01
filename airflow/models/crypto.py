@@ -39,7 +39,7 @@ class NullFernet:
     """
     is_encrypted = False
 
-    def decrpyt(self, b):
+    def decrypt(self, b):
         return b
 
     def encrypt(self, b):
