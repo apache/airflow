@@ -2338,7 +2338,6 @@ class PoolModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
 
     def delete_model(self, model):
-        __import__('ipdb').set_trace()
         if model.pool == models.Pool.DEFAULT_POOL_NAME:
             flash("default_pool cannot be deleted", 'error')
             return False
