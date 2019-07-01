@@ -34,8 +34,6 @@ from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
 
-configuration.load_test_config()
-
 
 class TestMarkTasks(unittest.TestCase):
 

@@ -27,7 +27,6 @@ try:
 except ImportError:
     mock_mesos = None  # type: ignore
 
-from airflow import configuration
 from queue import Queue
 
 
@@ -36,7 +35,6 @@ class MesosExecutorTest(unittest.TestCase):
 
     @unittest.skipIf(mock_mesos is None, "mesos python eggs are not present")
     def setUp(self):
-        configuration.load_test_config()
         self.framework_id = mesos_pb2.FrameworkID(value=self.FRAMEWORK_ID)
         self.framework_info = mesos_pb2.FrameworkInfo(
             user='fake_user',

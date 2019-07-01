@@ -27,7 +27,7 @@ import unittest
 
 from subprocess import CalledProcessError
 
-from airflow import configuration, DAG
+from airflow import DAG
 from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.utils import timezone
 
@@ -43,7 +43,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def setUp(self):
         super(TestPythonVirtualenvOperator, self).setUp()
-        configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
             default_args={

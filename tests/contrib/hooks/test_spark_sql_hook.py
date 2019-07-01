@@ -24,7 +24,6 @@ from itertools import dropwhile
 
 from mock import patch, call
 
-from airflow import configuration
 from airflow.models import Connection
 from airflow.utils import db
 from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
@@ -52,7 +51,6 @@ class TestSparkSqlHook(unittest.TestCase):
 
     def setUp(self):
 
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='spark_default', conn_type='spark',

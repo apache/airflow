@@ -21,7 +21,6 @@ import unittest
 
 from mock import patch, Mock
 
-from airflow import configuration
 from airflow.contrib.sensors.imap_attachment_sensor import ImapAttachmentSensor
 from airflow.models import Connection
 from airflow.utils import db
@@ -32,7 +31,6 @@ imap_hook_string = 'airflow.contrib.sensors.imap_attachment_sensor.ImapHook'
 class TestImapAttachmentSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='imap_test',

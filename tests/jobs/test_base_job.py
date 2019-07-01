@@ -20,11 +20,8 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.jobs import BaseJob
 from airflow.utils.state import State
-
-configuration.load_test_config()
 
 
 class BaseJobTest(unittest.TestCase):

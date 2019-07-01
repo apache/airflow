@@ -23,7 +23,6 @@ import unittest
 from urllib.parse import quote_plus
 
 
-from airflow import configuration as conf
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
@@ -35,7 +34,6 @@ from tests.test_utils.db import clear_db_pools
 
 class TestBase(unittest.TestCase):
     def setUp(self):
-        conf.load_test_config()
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
         self.app.config['SECRET_KEY'] = 'secret_key'

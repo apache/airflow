@@ -43,6 +43,8 @@ from airflow.utils.timezone import datetime
 from airflow.www import app as application
 from airflow import configuration as conf
 
+from tests.test_utils.config import conf_vars
+
 
 class TestChartModelView(unittest.TestCase):
 
@@ -62,7 +64,6 @@ class TestChartModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestChartModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -119,7 +120,6 @@ class TestVariableView(unittest.TestCase):
 
     def setUp(self):
         super(TestVariableView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -191,7 +191,6 @@ class TestKnownEventView(unittest.TestCase):
 
     def setUp(self):
         super(TestKnownEventView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -256,7 +255,6 @@ class TestPoolModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestPoolModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -335,10 +333,7 @@ class TestLogView(unittest.TestCase):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
-        conf.load_test_config()
-
         # Create a custom logging configuration
-        configuration.load_test_config()
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
@@ -490,7 +485,6 @@ class TestVarImportView(unittest.TestCase):
 
     def setUp(self):
         super(TestVarImportView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -563,11 +557,10 @@ class TestVarImportView(unittest.TestCase):
             self.assertEqual(case_b_dict, db_dict['dict_key'])
 
 
+@conf_vars({("webserver", "base_url"): "http://localhost:8080/test"})
 class TestMountPoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "base_url", "http://localhost:8080/test")
         # Clear cached app to remount base_url forcefully
         application.app = None
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
@@ -604,7 +597,6 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.endpoint = endpoint
 
     def setUp(self):
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -836,7 +828,6 @@ class TestTaskInstanceView(unittest.TestCase):
 
     def setUp(self):
         super(TestTaskInstanceView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -852,7 +843,6 @@ class TestTaskInstanceView(unittest.TestCase):
 class TestDeleteDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -885,7 +875,6 @@ class TestDeleteDag(unittest.TestCase):
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()

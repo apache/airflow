@@ -25,13 +25,11 @@ from __future__ import unicode_literals
 import unittest
 
 
-from airflow.configuration import conf
 from airflow.www_rbac import app as application
 
 
 class PluginsTestRBAC(unittest.TestCase):
     def setUp(self):
-        conf.load_test_config()
         self.app, self.appbuilder = application.create_app(testing=True)
 
     def test_flaskappbuilder_views(self):

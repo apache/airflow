@@ -23,7 +23,6 @@ import requests
 import requests_mock
 import tenacity
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import Connection
@@ -58,7 +57,6 @@ class TestHttpHook(unittest.TestCase):
         self.get_hook = HttpHook(method='GET')
         self.get_lowercase_hook = HttpHook(method='get')
         self.post_hook = HttpHook(method='POST')
-        configuration.load_test_config()
 
     @requests_mock.mock()
     def test_raise_for_status_with_200(self, m):

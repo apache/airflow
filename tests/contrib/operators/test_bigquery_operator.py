@@ -24,7 +24,7 @@ from datetime import datetime
 
 import six
 
-from airflow import configuration, models
+from airflow import models
 from airflow.contrib.operators.bigquery_get_data import BigQueryGetDataOperator
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
@@ -170,7 +170,6 @@ class BigQueryOperatorTest(unittest.TestCase):
             w[0].message.args[0])
 
     def setUp(self):
-        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder='/dev/null', include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}

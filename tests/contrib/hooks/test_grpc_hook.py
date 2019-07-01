@@ -22,7 +22,6 @@ try:
 except ImportError:
     from io import StringIO
 
-from airflow import configuration
 from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
 from airflow.models import Connection
@@ -70,7 +69,6 @@ class StubClass(object):
 
 class TestGrpcHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.channel_mock = mock.patch('grpc.Channel').start()
 
     # noinspection PyUnusedLocal

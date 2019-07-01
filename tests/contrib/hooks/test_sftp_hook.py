@@ -25,7 +25,6 @@ import shutil
 import os
 import pysftp
 
-from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
 from airflow.utils.db import provide_session
@@ -50,7 +49,6 @@ class SFTPHookTest(unittest.TestCase):
         return old_login
 
     def setUp(self):
-        configuration.load_test_config()
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))

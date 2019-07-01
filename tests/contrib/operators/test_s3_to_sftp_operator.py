@@ -60,7 +60,6 @@ reset()
 class S3ToSFTPOperatorTest(unittest.TestCase):
     @mock_s3
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         from airflow.hooks.S3_hook import S3Hook
 

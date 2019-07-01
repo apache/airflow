@@ -23,7 +23,7 @@ import unittest
 from mock import Mock
 from mock import patch
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow.models import Connection
 from airflow.utils import db, timezone
@@ -49,7 +49,6 @@ minimal_test_ticket = {
 
 class TestJiraSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

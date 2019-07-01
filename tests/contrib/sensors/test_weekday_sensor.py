@@ -19,7 +19,7 @@
 #
 
 import unittest
-from airflow import DAG, configuration, models
+from airflow import DAG, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
@@ -37,7 +37,6 @@ DEV_NULL = '/dev/null'
 class DayOfWeekSensorTests(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.dagbag = DagBag(
             dag_folder=DEV_NULL,
             include_examples=True

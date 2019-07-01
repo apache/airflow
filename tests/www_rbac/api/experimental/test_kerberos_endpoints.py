@@ -28,27 +28,17 @@ from datetime import datetime
 from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www_rbac import app as application
+from tests.test_utils.config import conf_vars
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
+@conf_vars({('api', 'auth_backend'): 'airflow.contrib.auth.backends.kerberos_auth'})
 class ApiKerberosTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        try:
-            configuration.conf.add_section("api")
-        except Exception:
-            pass
-        configuration.conf.set("api",
-                               "auth_backend",
-                               "airflow.api.auth.backend.kerberos_auth")
-        try:
-            configuration.conf.add_section("kerberos")
-        except Exception:
-            pass
         configuration.conf.set("kerberos",
-                               "keytab",
-                               os.environ['KRB5_KTNAME'])
+                 "keytab",
+                 os.environ['KRB5_KTNAME'])
 
         self.app, _ = application.create_app(testing=True)
 

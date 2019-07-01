@@ -24,8 +24,6 @@ import unittest
 
 from botocore.exceptions import NoCredentialsError
 
-from airflow import configuration
-
 try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
@@ -45,7 +43,6 @@ except ImportError:
 class TestS3Hook(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):

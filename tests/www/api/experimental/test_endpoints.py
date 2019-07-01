@@ -22,7 +22,6 @@ import json
 import unittest
 from six.moves.urllib.parse import quote_plus
 
-from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
 from airflow.settings import Session
@@ -48,7 +47,6 @@ class TestApiExperimental(unittest.TestCase):
 
     def setUp(self):
         super(TestApiExperimental, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         self.app = app.test_client()
 
@@ -298,7 +296,6 @@ class TestPoolApiExperimental(unittest.TestCase):
 
     def setUp(self):
         super(TestPoolApiExperimental, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         self.app = app.test_client()
         self.session = Session()

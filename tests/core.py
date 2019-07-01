@@ -108,7 +108,6 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -1055,7 +1054,6 @@ class CliTests(unittest.TestCase):
     def setUp(self):
         super(CliTests, self).setUp()
         from airflow.www_rbac import app as application
-        configuration.load_test_config()
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1719,11 +1717,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'expose_config'): 'True'})
 class SecurityTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -1804,15 +1800,12 @@ class SecurityTests(unittest.TestCase):
             self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3.id))
 
     def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'expose_config'): 'True'})
 class WebUiTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
@@ -2160,7 +2153,6 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("A __call__ method", response.data.decode('utf-8'))
 
     def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=EXAMPLE_DAG_DEFAULT_DATE,
                             end_date=timezone.utcnow())
         session = Session()
@@ -2170,11 +2162,9 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'secure_mode'): 'True'})
 class SecureModeWebUiTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("core", "secure_mode", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2186,9 +2176,6 @@ class SecureModeWebUiTests(unittest.TestCase):
     def test_charts(self):
         response = self.app.get('/admin/chart/')
         self.assertEqual(response.status_code, 404)
-
-    def tearDown(self):
-        configuration.conf.remove_option("core", "SECURE_MODE")
 
 
 class PasswordUserTest(unittest.TestCase):
@@ -2234,11 +2221,10 @@ class PasswordUserTest(unittest.TestCase):
         session.close()
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.password_auth'})
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
-
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2291,30 +2277,24 @@ class WebPasswordAuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
 
     def tearDown(self):
-        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
         session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.ldap_auth',
+            ('ldap', 'uri'): 'ldap://openldap:389',
+            ('ldap', 'user_filter'): 'objectClass=*',
+            ('ldap', 'user_name_attr'): 'uid',
+            ('ldap', 'bind_user'): 'cn=Manager,dc=example,dc=com',
+            ('ldap', 'bind_password'): 'insecure',
+            ('ldap', 'basedn'): 'dc=example,dc=com',
+            ('ldap', 'cacert'): '',
+            })
 class WebLdapAuthTest(unittest.TestCase):
     def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2360,12 +2340,9 @@ class WebLdapAuthTest(unittest.TestCase):
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
         self.assertIn('Connections', response.data.decode('utf-8'))
 
+    @conf_vars({('ldap', 'superuser_filter'): 'description=superuser',
+                ('ldap', 'data_profiler_filter'): 'description=dataprofiler'})
     def test_with_filters(self):
-        configuration.conf.set('ldap', 'superuser_filter',
-                               'description=superuser')
-        configuration.conf.set('ldap', 'data_profiler_filter',
-                               'description=dataprofiler')
-
         response = self.login('dataprofiler', 'dataprofiler')
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
 
@@ -2376,30 +2353,23 @@ class WebLdapAuthTest(unittest.TestCase):
         self.assertIn('Connections', response.data.decode('utf-8'))
 
     def tearDown(self):
-        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
         session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.ldap_auth',
+            ('ldap', 'uri'): 'ldap://openldap:389',
+            ('ldap', 'user_filter'): 'objectClass=*',
+            ('ldap', 'user_name_attr'): 'uid',
+            ('ldap', 'bind_user'): 'cn=Manager,dc=example,dc=com',
+            ('ldap', 'bind_password'): 'insecure',
+            ('ldap', 'basedn'): 'dc=example,dc=com',
+            ('ldap', 'cacert'): '',
+            })
 class LdapGroupTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
     def test_group_belonging(self):
         from airflow.contrib.auth.backends.ldap_auth import LdapUser
         users = {"user1": ["group1", "group3"],
@@ -2410,10 +2380,6 @@ class LdapGroupTest(unittest.TestCase):
                              is_superuser=False)
             auth = LdapUser(mu)
             self.assertEqual(set(users[user]), set(auth.ldap_groups))
-
-    def tearDown(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
 class FakeWebHDFSHook(object):
@@ -2581,7 +2547,6 @@ class FakeHDFSHook(object):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
@@ -2660,9 +2625,6 @@ class ConnectionTest(unittest.TestCase):
 
 
 class WebHDFSHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2684,7 +2646,6 @@ if six.PY2:
                  "Skipping test because HDFSHook is not installed")
 class HDFSHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
     def test_get_client(self):
@@ -2726,10 +2687,8 @@ class HDFSHookTest(unittest.TestCase):
 send_email_test = mock.Mock()
 
 
+@conf_vars({('email', 'email_backend'): None})
 class EmailTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.remove_option('email', 'EMAIL_BACKEND')
-
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
         res = utils.email.send_email('to', 'subject', 'content')
@@ -2746,10 +2705,8 @@ class EmailTest(unittest.TestCase):
         self.assertFalse(mock_send_email.called)
 
 
+@conf_vars({('smtp', 'smtp_ssl'): 'False'})
 class EmailSmtpTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set('smtp', 'SMTP_SSL', 'False')
-
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()

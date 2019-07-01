@@ -31,8 +31,6 @@ from tests.test_utils.config import conf_vars
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class KerberosTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-
         if not configuration.conf.has_section("kerberos"):
             configuration.conf.add_section("kerberos")
         configuration.conf.set("kerberos", "keytab",

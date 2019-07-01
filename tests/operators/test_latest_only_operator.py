@@ -22,13 +22,14 @@ from __future__ import print_function, unicode_literals
 import datetime
 import unittest
 
-from airflow import configuration, DAG, settings
+from freezegun import freeze_time
+
+from airflow import DAG, settings
 from airflow.models import TaskInstance
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
-from freezegun import freeze_time
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -49,7 +50,6 @@ class LatestOnlyOperatorTest(unittest.TestCase):
 
     def setUp(self):
         super(LatestOnlyOperatorTest, self).setUp()
-        configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
             default_args={
