@@ -1,8 +1,9 @@
-Airflow 1.10.4, - 2019-07-01
+Airflow 1.10.4, - 2019-07-04
 ----------------------------
 
 New Features
 """"""""""""
+- [AIRFLOW-4871] Allow creating DagRuns via RBAC UI (#5507)
 - [AIRFLOW-4591] Make default_pool a real pool (#5349)
 - [AIRFLOW-4844] Add optional is_paused_upon_creation argument to DAG (#5473)
 - [AIRFLOW-4456] Add sub-classable BaseBranchOperator (#5231)
@@ -45,6 +46,9 @@ New Features
 
 Improvement
 """""""""""
+- [AIRFLOW-4564] AzureContainerInstance bugfixes and improvements (#5319)
+- [AIRFLOW-4237] Including Try Number of Task in Gantt Chart (#5037)
+- [AIRFLOW-4862] Allow directly using IP address as hostname for webserver logs (#5501)
 - [AIRFLOW-4857] Add templated fields to SlackWebhookOperator (#5490)
 - [AIRFLOW-3502] Add celery config option for setting "pool" (#4308)
 - [AIRFLOW-3217] Button to toggle line wrapping in log and code views  (#4277)
@@ -132,6 +136,9 @@ Improvement
 
 Bug fixes
 """""""""
+- [AIRFLOW-4406] Fix a method name typo: NullFernet.decrpyt to decrypt (#5509)
+- [AIRFLOW-4849] Add gcp_conn_id to cloudsqldatabehook class to use correctly CloudSqlProxyRunner class (#5478)
+- [AIRFLOW-4769] Pass gcp_conn_id to BigtableHook (#5445)
 - [AIRFLOW-4524] Fix incorrect field names in view for Mark Success/Failure (#5486)
 - [AIRFLOW-3671] Remove arg `replace` of MongoToS3Operator from `kwargs` (#4480)
 - [AIRFLOW-4845] Fix bug where runAsUser 0 doesn't get set in k8s security context (#5474)
