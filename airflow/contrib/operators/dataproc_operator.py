@@ -810,6 +810,8 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
         self.variables = variables
 
     def execute(self, context):
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
         self.create_job_template()
         if self.query is None:
             self.job_template.add_query_uri(self.query_uri)
@@ -851,6 +853,8 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
         self.variables = variables
 
     def execute(self, context):
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
         self.create_job_template()
         if self.query is None:
             self.job_template.add_query_uri(self.query_uri)
