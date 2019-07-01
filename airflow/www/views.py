@@ -2039,7 +2039,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 'status': state,
                 'executionDate': dttm.isoformat(),
             })
-        states = {ti.state: ti.state for ti in tis}
+        states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,

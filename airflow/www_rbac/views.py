@@ -1805,7 +1805,7 @@ class Airflow(AirflowBaseView):
                 'executionDate': dttm.isoformat(),
                 'extraLinks': extra_links[ti.task_id],
             })
-        states = {ti.state: ti.state for ti in tis}
+        states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
