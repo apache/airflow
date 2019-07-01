@@ -55,7 +55,6 @@ from airflow.www import app as application
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        conf.load_test_config()
         cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
@@ -286,7 +285,6 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        conf.load_test_config()
         conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
@@ -654,8 +652,6 @@ class TestLogView(TestBase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
-
-        conf.load_test_config()
 
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)

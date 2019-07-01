@@ -21,7 +21,6 @@
 import sys
 import unittest
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
 from tests.compat import mock
@@ -36,8 +35,6 @@ class TestAWSBatchOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.awsbatch_operator.AwsHook')
     def setUp(self, aws_hook_mock):
-        configuration.load_test_config()
-
         self.aws_hook_mock = aws_hook_mock
         self.batch = AWSBatchOperator(
             task_id='task',
