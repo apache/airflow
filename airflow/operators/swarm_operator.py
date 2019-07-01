@@ -1,3 +1,6 @@
+'''
+Run ephemeral Docker Swarm services
+'''
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -17,16 +20,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from docker import types
+
 from airflow.exceptions import AirflowException
 from airflow.operators.docker_operator import DockerOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.strings import get_random_string
-from docker import types
 
 
 class SwarmOperator(DockerOperator):
     """
-    Execute a command as a ephemeral docker swarm service.
+    Execute a command as an ephemeral docker swarm service.
     Example use-case - Using Docker Swarm orchestration to make one-time
     scripts highly available.
 
@@ -91,43 +95,11 @@ class SwarmOperator(DockerOperator):
     def __init__(
             self,
             image,
-            api_version=None,
-            command=None,
-            docker_url='unix://var/run/docker.sock',
-            environment=None,
-            force_pull=False,
-            mem_limit=None,
-            tls_ca_cert=None,
-            tls_client_cert=None,
-            tls_client_key=None,
-            tls_hostname=None,
-            tls_ssl_version=None,
-            tmp_dir='/tmp/airflow',
-            user=None,
-            docker_conn_id=None,
-            auto_remove=False,
             *args,
             **kwargs):
 
         super().__init__(image=image, *args, **kwargs)
-        self.api_version = api_version
-        self.auto_remove = auto_remove
-        self.command = command
-        self.docker_url = docker_url
-        self.environment = environment or {}
-        self.force_pull = force_pull
-        self.image = image
-        self.mem_limit = mem_limit
-        self.tls_ca_cert = tls_ca_cert
-        self.tls_client_cert = tls_client_cert
-        self.tls_client_key = tls_client_key
-        self.tls_hostname = tls_hostname
-        self.tls_ssl_version = tls_ssl_version
-        self.tmp_dir = tmp_dir
-        self.user = user
-        self.docker_conn_id = docker_conn_id
 
-        self.cli = None
         self.service = None
 
     def _execute(self):
@@ -148,7 +120,7 @@ class SwarmOperator(DockerOperator):
             labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)}
         )
 
-        self.log.info('Service started: %s' % str(self.service))
+        self.log.info('Service started: %s', str(self.service))
 
         status = None
         # wait for the service to start the task
@@ -160,7 +132,7 @@ class SwarmOperator(DockerOperator):
                 filters={'service': self.service['ID']}
             )[0]['Status']['State']
             if status in ['failed', 'complete']:
-                self.log.info('Service status before exiting: %s' % status)
+                self.log.info('Service status before exiting: %s', status)
                 break
 
         if self.auto_remove:
@@ -170,5 +142,5 @@ class SwarmOperator(DockerOperator):
 
     def on_kill(self):
         if self.cli is not None:
-            self.log.info('Removing docker service: %s' % self.service['ID'])
+            self.log.info('Removing docker service: %s', self.service['ID'])
             self.cli.remove_service(self.service['ID'])

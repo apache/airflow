@@ -1,3 +1,6 @@
+'''
+Common utility functions with strings
+'''
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +25,7 @@ from random import choice
 
 
 def get_random_string(length=8, choices=string.ascii_letters + string.digits):
+    '''
+    Generate random string
+    '''
     return ''.join([choice(choices) for i in range(length)])

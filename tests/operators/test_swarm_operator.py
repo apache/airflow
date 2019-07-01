@@ -19,15 +19,11 @@
 
 import unittest
 
-try:
-    # Gracefully fail unit tests when docker-py isn't installed
-    from airflow.operators.swarm_operator import SwarmOperator
-    from docker import APIClient
-except ImportError:
-    pass
-
-from airflow.exceptions import AirflowException
+from docker import APIClient
 from tests.compat import mock
+
+from airflow.operators.swarm_operator import SwarmOperator
+from airflow.exceptions import AirflowException
 
 
 class SwarmOperatorTestCase(unittest.TestCase):
@@ -39,7 +35,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
         mock_obj = mock.Mock()
 
         def _client_tasks_side_effect():
-            for i in range(2):
+            for _ in range(2):
                 yield [{'Status': {'State': 'pending'}}]
             yield [{'Status': {'State': 'complete'}}]
 
