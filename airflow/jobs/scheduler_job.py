@@ -1259,6 +1259,15 @@ class SchedulerJob(BaseJob):
                         session.merge(ti)
                         session.commit()
 
+                elif ti.try_number == try_number - 1 and ti.state == State.QUEUED \
+                        and not self.executor.has_task(ti):
+                    msg = ("Executor reports task instance {} finished ({}) although the "
+                           "task says its {} and was never tried.".format(ti, state, ti.state))
+                    self.log.error(msg)
+                    ti.state = State.NONE
+                    session.merge(ti)
+                    session.commit()
+
     def _execute(self):
         self.log.info("Starting the scheduler")
 
