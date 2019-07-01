@@ -22,14 +22,14 @@ import unittest
 from docker import APIClient
 from tests.compat import mock
 
-from airflow.operators.swarm_operator import SwarmOperator
+from airflow.contrib.operators.swarm_operator import SwarmOperator
 from airflow.exceptions import AirflowException
 
 
 class SwarmOperatorTestCase(unittest.TestCase):
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.swarm_operator.types')
     def test_execute(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
@@ -82,7 +82,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
         client_mock.remove_service.assert_called_with('akki')
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.swarm_operator.types')
     def test_no_auto_remove(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
@@ -108,7 +108,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
         )
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.swarm_operator.types')
     def test_failed_service_raises_error(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()

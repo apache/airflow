@@ -21,7 +21,8 @@
 from datetime import timedelta
 import airflow
 from airflow import DAG
-from airflow.operators.swarm_operator import SwarmOperator
+from airflow.contrib.operators.swarm_operator import SwarmOperator
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -30,12 +31,14 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False
 }
+
 dag = DAG(
     'swarm_sample',
     default_args=default_args,
     schedule_interval=timedelta(minutes=10),
     catchup=False
 )
+
 with dag as dag:
     t1 = SwarmOperator(
         api_version='auto',
