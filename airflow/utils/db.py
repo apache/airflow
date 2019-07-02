@@ -98,7 +98,7 @@ def initdb(create_connection=True):
     from airflow.models import Connection
     upgradedb()
 
-    if create_connection:        
+    if create_connection:
         merge_conn(
             Connection(
                 conn_id='airflow_db', conn_type='mysql',

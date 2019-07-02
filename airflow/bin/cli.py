@@ -1722,8 +1722,7 @@ class CLIFactory:
             default=False),
         'default_connection': Arg(
             ("-d", "--default-connection"), "Flag to create airflow default connections",
-            default=True),            
-
+            default=True),
         # list_dag_runs
         'no_backfill': Arg(
             ("--no_backfill",),
