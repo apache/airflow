@@ -1400,7 +1400,7 @@ class CliTests(unittest.TestCase):
 
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
-        cli.initdb(self.parser.parse_args(['initdb', '--default-connection']))
+        cli.initdb(self.parser.parse_args(['initdb', '--default-connection','True']))
 
         initdb_mock.assert_called_once_with()
 
