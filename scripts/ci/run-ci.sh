@@ -56,5 +56,6 @@ else
                      --rednose \
                      --with-timer \
                      -v \
-                     --logging-level=DEBUG
+                     --logging-level=DEBUG \
+                     --default-connection=True
 fi
