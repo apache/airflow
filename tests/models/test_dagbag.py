@@ -611,6 +611,8 @@ class DagBagTest(unittest.TestCase):
             task = dag.get_task(task_id='run_this_first')
 
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            ti.try_number = 2
+            ti.max_tries = 3
 
             session.add(ti)
             session.commit()
@@ -622,6 +624,12 @@ class DagBagTest(unittest.TestCase):
                                     configuration.getboolean('core',
                                                              'unit_test_mode'),
                                     ANY)
+
+            args, _ = mock_ti_handle_failure.call_args_list[0]
+            captured_context = args[2]
+
+            self.assertEqual(ti.max_tries, captured_context["ti"].max_tries)
+            self.assertEqual(ti.try_number, captured_context["ti"].try_number)
 
     def test_deactivate_unknown_dags(self):
         """

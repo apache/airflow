@@ -197,6 +197,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             lj.state = State.SHUTDOWN
             lj.id = 1
             ti.job_id = lj.id
+            ti.try_number = 2
+            ti.max_tries = 3
 
             session.add(lj)
             session.add(ti)
@@ -210,6 +212,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             self.assertEqual(ti.dag_id, zombies[0].dag_id)
             self.assertEqual(ti.task_id, zombies[0].task_id)
             self.assertEqual(ti.execution_date, zombies[0].execution_date)
+            self.assertEqual(ti.max_tries, zombies[0].max_tries)
+            self.assertEqual(ti.try_number, zombies[0].try_number)
 
             session.query(TI).delete()
             session.query(LJ).delete()
