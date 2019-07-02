@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import json
-from airflow.exceptions import AirflowException
+import unittest
+
 from airflow.operators.slack_operator import SlackAPIPostOperator
-from tests.compat import mock
 
 
 class SlackAPIPostOperatorTestCase(unittest.TestCase):
@@ -81,49 +80,6 @@ class SlackAPIPostOperatorTestCase(unittest.TestCase):
             api_params=test_api_params,
             kwarg=self.test_kwarg
         )
-
-    @mock.patch('airflow.operators.slack_operator.SlackHook')
-    def test_execute_with_token_only(self, slack_hook_class_mock):
-        slack_hook_mock = mock.Mock()
-        slack_hook_class_mock.return_value = slack_hook_mock
-
-        test_token = 'test_token'
-        slack_api_post_operator = self.__construct_operator(test_token, None)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_with(token=test_token, slack_conn_id=None)
-
-        slack_hook_mock.call.assert_called_with(self.expected_method, self.expected_api_params)
-
-        slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_with(token=test_token, slack_conn_id=None)
-
-        slack_hook_mock.call.assert_called_with(self.expected_method, self.test_api_params)
-
-    @mock.patch('airflow.operators.slack_operator.SlackHook')
-    def test_execute_with_slack_conn_id_only(self, slack_hook_class_mock):
-        slack_hook_mock = mock.Mock()
-        slack_hook_class_mock.return_value = slack_hook_mock
-
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_with(token=None, slack_conn_id=test_slack_conn_id)
-
-        slack_hook_mock.call.assert_called_with(self.expected_method, self.expected_api_params)
-
-    def test_init_with_invalid_params(self):
-        test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
-        self.assertRaises(AirflowException, self.__construct_operator, test_token, test_slack_conn_id)
-
-        self.assertRaises(AirflowException, self.__construct_operator, None, None)
 
     def test_init_with_valid_params(self):
         test_token = 'test_token'
