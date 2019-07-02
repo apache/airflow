@@ -145,6 +145,7 @@ class SimpleTaskInstance:
         self._start_date = ti.start_date
         self._end_date = ti.end_date
         self._try_number = ti.try_number
+        self._max_tries = ti.max_tries
         self._state = ti.state
         self._executor_config = ti.executor_config
         if hasattr(ti, 'run_as_user'):
@@ -185,6 +186,10 @@ class SimpleTaskInstance:
     @property
     def try_number(self):
         return self._try_number
+
+    @property
+    def max_tries(self):
+        return self._max_tries
 
     @property
     def state(self):
