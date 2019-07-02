@@ -1121,7 +1121,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    db.initdb()
+    db.initdb(args.default_connection)
     print("Done.")
 
 
@@ -1720,6 +1720,9 @@ class CLIFactory:
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
+        'default_connection': Arg(
+            ("-d", "--default-connection"), "Flag to create airflow default connections",
+            default=True),            
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -2271,7 +2274,7 @@ class CLIFactory:
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",
-            'args': tuple(),
+            'args': ('default_connection',),
         }, {
             'func': list_dags,
             'help': "List all the DAGs",

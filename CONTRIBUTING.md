@@ -134,7 +134,8 @@ There are three ways to setup an Apache Airflow development environment.
   # for your test.  See setup.py for the possible requirements. For example:
   pip install -e '.[gcp,devel]'
 
-  # Init the database
+  # Init the database,  parameter create_connection is True by default if the default connection is not required 
+  # then pass False
   airflow initdb
 
   nosetests -v tests/hooks/test_druid_hook.py
