@@ -48,7 +48,8 @@ if [ -z "$nose_args" ]; then
   --rednose \
   --with-timer \
   -v \
-  --logging-level=DEBUG "
+  --logging-level=DEBUG \
+  --default-connection=True "
 fi
 
 # For impersonation tests running on SQLite on Travis, make the database world readable so other
