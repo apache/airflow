@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint:disable=too-many-lines
+
 import ast
 import unittest
 from copy import deepcopy
@@ -70,7 +73,7 @@ class GceInstanceStartTest(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceInstanceStartOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -103,7 +106,7 @@ class GceInstanceStartTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
-    def test_start_should_not_throw_ex_when_project_id_None(self, _):
+    def test_start_should_not_throw_ex_when_project_id_none(self, _):
         op = GceInstanceStartOperator(
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
@@ -164,7 +167,7 @@ class GceInstanceStopTest(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceInstanceStopOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -268,7 +271,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceSetMachineTypeOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',

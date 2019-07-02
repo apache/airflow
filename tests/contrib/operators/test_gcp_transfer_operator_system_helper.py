@@ -144,7 +144,7 @@ class GCPTransferTestHelper(LoggingCommandExecutor):
         credentials = with_scopes(credentials, scopes=['https://www.googleapis.com/auth/cloud-platform'])
         service = discovery.build('storagetransfer', 'v1', cache_discovery=False, credentials=credentials)
 
-        request = service.googleServiceAccounts().get(projectId=GCP_PROJECT_ID)
+        request = service.googleServiceAccounts().get(projectId=GCP_PROJECT_ID)  # pylint: disable=no-member
         return request.execute()
 
 
