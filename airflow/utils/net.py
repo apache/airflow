@@ -23,7 +23,7 @@ from airflow.configuration import (conf, AirflowConfigException)
 
 
 def get_host_ip_address():
-    socket.gethostbyname(socket.getfqdn())
+    return socket.gethostbyname(socket.getfqdn())
 
 
 def get_hostname():
