@@ -78,7 +78,9 @@ if [ -z "$nose_args" ]; then
   --rednose \
   --with-timer \
   -v \
-  --logging-level=INFO"
+  --logging-level=INFO
+  --default-connection=True"
+
 fi
 
 if [ -z "$KUBERNETES_VERSION" ]; then
