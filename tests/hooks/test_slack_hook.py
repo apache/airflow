@@ -27,47 +27,97 @@ from tests.compat import mock
 
 
 class SlackHookTestCase(unittest.TestCase):
-    def test_init_with_token_only(self):
-        test_token = 'test_token'
-        slack_hook = SlackHook(token=test_token, slack_conn_id=None)
 
-        self.assertEqual(slack_hook.token, test_token)
+    def test___get_token_with_token_only(self):
+        """ tests `__get_token` method when only token is provided """
+        # Given
+        test_token = 'test_token'
+        test_conn_id = None
+
+        # Creating a dummy subclass is the easiest way to avoid running init
+        #  which is actually using the method we are testing
+        class DummySlackHook(SlackHook):
+            def __init__(self, *args, **kwargs):
+                pass
+
+        # Run
+        hook = DummySlackHook()
+
+        # Assert
+        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        expected = test_token
+        self.assertEqual(output, expected)
 
     @mock.patch('airflow.hooks.slack_hook.SlackHook.get_connection')
-    def test_init_with_valid_slack_conn_id_only(self, get_connection_mock):
+    def test___get_token_with_valid_slack_conn_id_only(self, get_connection_mock):
+        """ tests `__get_token` method when only connection is provided """
+        # Given
+        test_token = None
+        test_conn_id = 'x'
         test_password = 'test_password'
+
+        # Mock
         get_connection_mock.return_value = mock.Mock(password=test_password)
 
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_hook = SlackHook(token=None, slack_conn_id=test_slack_conn_id)
+        # Creating a dummy subclass is the easiest way to avoid running init
+        #  which is actually using the method we are testing
+        class DummySlackHook(SlackHook):
+            def __init__(self, *args, **kwargs):
+                pass
 
-        get_connection_mock.assert_called_with(test_slack_conn_id)
-        self.assertEqual(slack_hook.token, test_password)
+        # Run
+        hook = DummySlackHook()
+
+        # Assert
+        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        expected = test_password
+        self.assertEqual(output, expected)
 
     @mock.patch('airflow.hooks.slack_hook.SlackHook.get_connection')
-    def test_init_with_no_password_slack_conn_id_only(self, get_connection_mock):
+    def test___get_token_with_no_password_slack_conn_id_only(self, get_connection_mock):
+        """ tests `__get_token` method when only connection is provided """
+
+        # Mock
         conn = mock.Mock()
         del conn.password
         get_connection_mock.return_value = conn
 
-        test_slack_conn_id = 'test_slack_conn_id'
-        self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=test_slack_conn_id)
+        # Assert
+        self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id='x')
 
     @mock.patch('airflow.hooks.slack_hook.SlackHook.get_connection')
-    def test_init_with_empty_password_slack_conn_id_only(self, get_connection_mock):
+    def test___get_token_with_empty_password_slack_conn_id_only(self, get_connection_mock):
+        """ tests `__get_token` method when only connection is provided """
+
+        # Mock
         get_connection_mock.return_value = mock.Mock(password=None)
 
-        test_slack_conn_id = 'test_slack_conn_id'
-        self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=test_slack_conn_id)
+        # Assert
+        self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id='x')
 
-    def test_init_with_token_and_slack_conn_id(self):
+    def test___get_token_with_token_and_slack_conn_id(self):
+        """ tests `__get_token` method when both arguments are provided """
+        # Given
         test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_hook = SlackHook(token=test_token, slack_conn_id=test_slack_conn_id)
+        test_conn_id = 'x'
 
-        self.assertEqual(slack_hook.token, test_token)
+        # Creating a dummy subclass is the easiest way to avoid running init
+        #  which is actually using the method we are testing
+        class DummySlackHook(SlackHook):
+            def __init__(self, *args, **kwargs):
+                pass
 
-    def test_init_with_out_token_nor_slack_conn_id(self):
+        # Run
+        hook = DummySlackHook()
+
+        # Assert
+        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        expected = test_token
+        self.assertEqual(output, expected)
+
+    def test___get_token_with_out_token_nor_slack_conn_id(self):
+        """ tests `__get_token` method when no arguments are provided """
+
         self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=None)
 
     @mock.patch('airflow.hooks.slack_hook.WebClient')
