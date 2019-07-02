@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Storage Transfer Service Hook.
+"""
 
 import json
 import time
@@ -32,12 +35,18 @@ TIME_TO_SLEEP_IN_SECONDS = 10
 
 
 class GcpTransferJobsStatus:
+    """
+    Class with GCP Transfer jobs statuses.
+    """
     ENABLED = "ENABLED"
     DISABLED = "DISABLED"
     DELETED = "DELETED"
 
 
 class GcpTransferOperationStatus:
+    """
+    Class with GCP Transfer operations statuses.
+    """
     IN_PROGRESS = "IN_PROGRESS"
     PAUSED = "PAUSED"
     SUCCESS = "SUCCESS"
@@ -92,14 +101,15 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 class GCPTransferServiceHook(GoogleCloudBaseHook):
     """
     Hook for Google Storage Transfer Service.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
-
-    _conn = None
-
     def __init__(self, api_version='v1', gcp_conn_id='google_cloud_default', delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
         self.num_retries = self._get_field('num_retries', 5)
+        self._conn = None
 
     def get_conn(self):
         """
@@ -129,7 +139,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :rtype: dict
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
-        return self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
+        return self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
+            num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     @GoogleCloudBaseHook.catch_http_exception
@@ -148,33 +159,43 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()
+            self.get_conn()  # pylint: disable=no-member
             .transferJobs()
             .get(jobName=job_name, projectId=project_id)
             .execute(num_retries=self.num_retries)
         )
 
-    def list_transfer_job(self, filter):
+    def list_transfer_job(self, request_filter=None, **kwargs):
         """
         Lists long-running operations in Google Storage Transfer
         Service that match the specified filter.
 
-        :param filter: (Required) A request filter, as described in
+        :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
-        :type filter: dict
+        :type request_filter: dict
         :return: List of Transfer Jobs
         :rtype: list[dict]
         """
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if request_filter is None:
+            if 'filter' in kwargs:
+                request_filter = kwargs['filter']
+                DeprecationWarning("Use 'request_filter' instead of 'filter'")
+            else:
+                TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
+
         conn = self.get_conn()
-        filter = self._inject_project_id(filter, FILTER, FILTER_PROJECT_ID)
-        request = conn.transferJobs().list(filter=json.dumps(filter))
+        request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
+        request = conn.transferJobs().list(filter=json.dumps(request_filter))  # pylint: disable=no-member
         jobs = []
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             jobs.extend(response[TRANSFER_JOBS])
 
-            request = conn.transferJobs().list_next(previous_request=request, previous_response=response)
+            request = conn.transferJobs().list_next(previous_request=request,  # pylint: disable=no-member
+                                                    previous_response=response)
 
         return jobs
 
@@ -193,7 +214,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         return (
-            self.get_conn()
+            self.get_conn()  # pylint: disable=no-member
             .transferJobs()
             .patch(jobName=job_name, body=body)
             .execute(num_retries=self.num_retries)
@@ -218,7 +239,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
 
         return (
-            self.get_conn()
+            self.get_conn()  # pylint: disable=no-member
             .transferJobs()
             .patch(
                 jobName=job_name,
@@ -240,7 +261,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().cancel(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().cancel(  # pylint: disable=no-member
+            name=operation_name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.catch_http_exception
     def get_transfer_operation(self, operation_name):
@@ -255,18 +277,18 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()
+            self.get_conn()  # pylint: disable=no-member
             .transferOperations()
             .get(name=operation_name)
             .execute(num_retries=self.num_retries)
         )
 
     @GoogleCloudBaseHook.catch_http_exception
-    def list_transfer_operations(self, filter):
+    def list_transfer_operations(self, request_filter=None, **kwargs):
         """
         Gets an transfer operation in Google Storage Transfer Service.
 
-        :param filter: (Required) A request filter, as described in
+        :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
             With one additional improvement:
 
@@ -274,24 +296,34 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
               in the connection
               See: :ref:`howto/connection:gcp`
 
-        :type filter: dict
+        :type request_filter: dict
         :return: transfer operation
         :rtype: list[dict]
         """
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if request_filter is None:
+            if 'filter' in kwargs:
+                request_filter = kwargs['filter']
+                DeprecationWarning("Use 'request_filter' instead of 'filter'")
+            else:
+                TypeError("list_transfer_operations missing 1 required positional argument: 'request_filter'")
+
         conn = self.get_conn()
 
-        filter = self._inject_project_id(filter, FILTER, FILTER_PROJECT_ID)
+        request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
 
         operations = []
 
-        request = conn.transferOperations().list(name=TRANSFER_OPERATIONS, filter=json.dumps(filter))
+        request = conn.transferOperations().list(  # pylint: disable=no-member
+            name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter))
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             if OPERATIONS in response:
                 operations.extend(response[OPERATIONS])
 
-            request = conn.transferOperations().list_next(
+            request = conn.transferOperations().list_next(  # pylint: disable=no-member
                 previous_request=request, previous_response=response
             )
 
@@ -306,7 +338,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().pause(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().pause(  # pylint: disable=no-member
+            name=operation_name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.catch_http_exception
     def resume_transfer_operation(self, operation_name):
@@ -317,7 +350,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().resume(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().resume(  # pylint: disable=no-member
+            name=operation_name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.catch_http_exception
     def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,), timeout=60):
@@ -338,7 +372,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         while timeout > 0:
             operations = self.list_transfer_operations(
-                filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
+                request_filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
             )
 
             if GCPTransferServiceHook.operations_contain_expected_statuses(operations, expected_statuses):
@@ -380,7 +414,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         expected_statuses = (
             {expected_statuses} if isinstance(expected_statuses, six.string_types) else set(expected_statuses)
         )
-        if len(operations) == 0:
+        if not operations:
             return False
 
         current_statuses = {operation[METADATA][STATUS] for operation in operations}

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import datetime
 from dateutil.tz import tzlocal
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 DESCRIBE_CLUSTER_RUNNING_RETURN = {
@@ -131,8 +131,6 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
 
 class TestEmrJobFlowSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-
         # Mock out the emr_client (moto has incorrect response)
         self.mock_emr_client = MagicMock()
         self.mock_emr_client.describe_cluster.side_effect = [

@@ -168,11 +168,11 @@ aws = [
 ]
 azure = [
     'azure-storage>=0.34.0',
-    'azure-mgmt-resource==1.2.2',
-    'azure-mgmt-datalake-store==0.4.0',
-    'azure-datalake-store==0.0.19',
+    'azure-mgmt-resource>=2.2.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-datalake-store>=0.0.45',
     'azure-cosmos>=3.0.1',
-    'azure-mgmt-containerinstance',
+    'azure-mgmt-containerinstance>=1.5.0',
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [

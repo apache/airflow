@@ -144,7 +144,7 @@ def clear_dag_runs():
         DagRun.dag_id.in_(DAG_IDS),
     ).all()
     for dr in drs:
-        logging.info('Deleting DagRun :: {}'.format(dr))
+        logging.info('Deleting DagRun :: %s', dr)
         session.delete(dr)
 
 
@@ -161,7 +161,7 @@ def clear_dag_task_instances():
         .all()
     )
     for ti in tis:
-        logging.info('Deleting TaskInstance :: {}'.format(ti))
+        logging.info('Deleting TaskInstance :: %s', ti)
         session.delete(ti)
     session.commit()
 
@@ -174,7 +174,7 @@ def set_dags_paused_state(is_paused):
     dms = session.query(DagModel).filter(
         DagModel.dag_id.in_(DAG_IDS))
     for dm in dms:
-        logging.info('Setting DAG :: {} is_paused={}'.format(dm, is_paused))
+        logging.info('Setting DAG :: %s is_paused=%s', dm, is_paused)
         dm.is_paused = is_paused
     session.commit()
 

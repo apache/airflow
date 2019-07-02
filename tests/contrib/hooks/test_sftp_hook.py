@@ -23,7 +23,6 @@ import shutil
 import os
 import pysftp
 
-from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
 
@@ -34,7 +33,6 @@ TMP_FILE_FOR_TESTS = 'test_file.txt'
 
 class SFTPHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:

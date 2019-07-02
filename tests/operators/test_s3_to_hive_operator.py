@@ -217,10 +217,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
         for (ext, has_header) in product(['.txt', '.gz', '.bz2', '.GZ'], [True, False]):
             self.kwargs['headers'] = has_header
             self.kwargs['check_headers'] = has_header
-            logging.info("Testing {0} format {1} header".
-                         format(ext,
-                                ('with' if has_header else 'without'))
-                         )
+            logging.info("Testing %s format %s header", ext, 'with' if has_header else 'without')
             self.kwargs['input_compressed'] = ext.lower() != '.txt'
             self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs['headers'])

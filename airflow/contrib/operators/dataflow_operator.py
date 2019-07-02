@@ -311,7 +311,7 @@ class DataFlowPythonOperator(BaseOperator):
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
-        /some/local/file/path/to/your/python/pipeline/file.
+        /some/local/file/path/to/your/python/pipeline/file. (templated)
     :type py_file: str
     :param job_name: The 'job_name' to use when executing the DataFlow job
         (templated). This ends up being set in the pipeline options, so any entry
@@ -335,7 +335,7 @@ class DataFlowPythonOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     """
-    template_fields = ['options', 'dataflow_default_options', 'job_name']
+    template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
 
     @apply_defaults
     def __init__(

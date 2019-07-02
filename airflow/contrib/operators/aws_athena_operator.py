@@ -75,7 +75,6 @@ class AWSAthenaOperator(BaseOperator):
         Run Presto Query on Athena
         """
         self.hook = self.get_hook()
-        self.hook.get_conn()
 
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location

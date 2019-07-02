@@ -741,7 +741,7 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     :param query: The query or reference to the query
         file (pg or pig extension). (templated)
     :type query: str
-    :param query_uri: The uri of a pig script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Pig queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
@@ -784,7 +784,7 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension).
     :type query: str
-    :param query_uri: The uri of a hive script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query.
     :type variables: dict
@@ -826,7 +826,7 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension). (templated)
     :type query: str
-    :param query_uri: The uri of a spark sql script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
@@ -865,8 +865,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file that contains the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -916,8 +916,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file containing the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).

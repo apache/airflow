@@ -55,7 +55,6 @@ from airflow.www import app as application
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        conf.load_test_config()
         cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
@@ -85,10 +84,10 @@ class TestBase(unittest.TestCase):
     def logout(self):
         return self.client.get('/logout/')
 
-    def clear_table(self, model):
-        self.session.query(model).delete()
-        self.session.commit()
-        self.session.close()
+    @classmethod
+    def clear_table(cls, model):
+        with create_session() as session:
+            session.query(model).delete()
 
     def check_content_in_response(self, text, resp, resp_code=200):
         resp_html = resp.data.decode('utf-8')
@@ -286,7 +285,6 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        conf.load_test_config()
         conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
@@ -654,8 +652,6 @@ class TestLogView(TestBase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
-
-        conf.load_test_config()
 
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
@@ -1856,6 +1852,33 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': None,
             'error': 'No URL found for no_response'})
+
+
+class TestDagRunModelView(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super(TestDagRunModelView, cls).setUpClass()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.clear_table(models.DagRun)
+
+    def tearDown(self):
+        self.clear_table(models.DagRun)
+
+    def test_create_dagrun(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03",
+            "run_id": "manual_abc",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
 
 
 if __name__ == '__main__':

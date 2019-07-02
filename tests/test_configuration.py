@@ -53,7 +53,6 @@ class ConfTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
         os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
-        configuration.load_test_config()
         conf.set('core', 'percent', 'with%%inside')
 
     @classmethod

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Bigtable Hook.
+"""
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.cluster import Cluster
@@ -33,12 +36,12 @@ class BigtableHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    _client = None
-
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def _get_client(self, project_id):
         if not self._client:

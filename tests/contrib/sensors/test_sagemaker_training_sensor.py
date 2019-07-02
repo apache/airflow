@@ -20,7 +20,6 @@
 import unittest
 from datetime import datetime
 
-from airflow import configuration
 from airflow.contrib.sensors.sagemaker_training_sensor \
     import SageMakerTrainingSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook, LogState
@@ -53,9 +52,6 @@ DESCRIBE_TRAINING_STOPPING_RESPONSE.update({'TrainingJobStatus': 'Stopping'})
 
 
 class TestSageMakerTrainingSensor(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
