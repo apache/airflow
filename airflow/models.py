@@ -3672,7 +3672,10 @@ class DAG(BaseDag, LoggingMixin):
             orm_dag = DagModel(dag_id=dag.dag_id)
             logging.info("Creating ORM DAG for %s",
                          dag.dag_id)
-        orm_dag.fileloc = dag.fileloc
+        if dag.is_subdag:
+            orm_dag.fileloc = dag.fileloc
+        else:
+            orm_dag.fileloc = dag.full_filepath
         orm_dag.is_subdag = dag.is_subdag
         orm_dag.owners = owner
         orm_dag.is_active = True
