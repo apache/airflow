@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Dataflow operators.
+"""
+
 import os
 import re
 import uuid
@@ -154,7 +158,7 @@ class DataFlowJavaOperator(BaseOperator):
             job_class=None,
             *args,
             **kwargs):
-        super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -272,7 +276,7 @@ class DataflowTemplateOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         parameters = parameters or {}
@@ -307,7 +311,7 @@ class DataFlowPythonOperator(BaseOperator):
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
-        /some/local/file/path/to/your/python/pipeline/file.
+        /some/local/file/path/to/your/python/pipeline/file. (templated)
     :type py_file: str
     :param job_name: The 'job_name' to use when executing the DataFlow job
         (templated). This ends up being set in the pipeline options, so any entry
@@ -331,7 +335,7 @@ class DataFlowPythonOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     """
-    template_fields = ['options', 'dataflow_default_options', 'job_name']
+    template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
 
     @apply_defaults
     def __init__(
@@ -347,7 +351,7 @@ class DataFlowPythonOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.py_file = py_file
         self.job_name = job_name
@@ -380,7 +384,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper(object):
+class GoogleCloudBucketHelper:
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 

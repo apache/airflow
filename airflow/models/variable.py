@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import bytes
 from typing import Any
 
 from sqlalchemy import Column, Integer, String, Text, Boolean
@@ -102,9 +101,9 @@ class Variable(Base, LoggingMixin):
     @provide_session
     def get(
         cls,
-        key,  # type: str
-        default_var=__NO_DEFAULT_SENTINEL,  # type: Any
-        deserialize_json=False,  # type: bool
+        key: str,
+        default_var: Any = __NO_DEFAULT_SENTINEL,
+        deserialize_json: bool = False,
         session=None
     ):
         obj = session.query(cls).filter(cls.key == key).first()
@@ -123,9 +122,9 @@ class Variable(Base, LoggingMixin):
     @provide_session
     def set(
         cls,
-        key,  # type: str
-        value,  # type: Any
-        serialize_json=False,  # type: bool
+        key: str,
+        value: Any,
+        serialize_json: bool = False,
         session=None
     ):
 

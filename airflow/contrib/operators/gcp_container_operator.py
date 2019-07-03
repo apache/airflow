@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains Google Kubernetes Engine operators.
+"""
+
 import os
 import subprocess
 import tempfile
@@ -70,7 +74,7 @@ class GKEClusterDeleteOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        super(GKEClusterDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -86,8 +90,8 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        delete_result = hook.delete_cluster(name=self.name)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
 
 
@@ -145,7 +149,7 @@ class GKEClusterCreateOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        super(GKEClusterCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if body is None:
             body = {}
@@ -173,8 +177,8 @@ class GKEClusterCreateOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        create_op = hook.create_cluster(cluster=self.body)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
 
 
@@ -232,7 +236,7 @@ class GKEPodOperator(KubernetesPodOperator):
                  gcp_conn_id='google_cloud_default',
                  *args,
                  **kwargs):
-        super(GKEPodOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
@@ -277,7 +281,7 @@ class GKEPodOperator(KubernetesPodOperator):
 
             # Tell `KubernetesPodOperator` where the config file is located
             self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-            return super(GKEPodOperator, self).execute(context)
+            return super().execute(context)
 
     def _set_env_from_extras(self, extras):
         """
@@ -296,8 +300,10 @@ class GKEPodOperator(KubernetesPodOperator):
 
         if not key_path and not keyfile_json_str:
             self.log.info('Using gcloud with application default credentials.')
+            return None
         elif key_path:
             os.environ[G_APP_CRED] = key_path
+            return None
         else:
             # Write service account JSON to secure file for gcloud to reference
             service_key = tempfile.NamedTemporaryFile(delete=False)

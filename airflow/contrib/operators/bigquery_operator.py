@@ -16,15 +16,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google BigQuery operators.
+"""
 
 import json
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
 
 
+class BigQueryConsoleLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+    name = 'BigQuery Console'
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        return 'https://console.cloud.google.com/bigquery?j={job_id}'.format(
+            job_id=job_id) if job_id else ''
+
+
+# pylint: disable=too-many-instance-attributes
 class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
@@ -111,6 +129,11 @@ class BigQueryOperator(BaseOperator):
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
+    operator_extra_links = (
+        BigQueryConsoleLink(),
+    )
+
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  sql,
@@ -135,7 +158,7 @@ class BigQueryOperator(BaseOperator):
                  location=None,
                  *args,
                  **kwargs):
-        super(BigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
@@ -169,7 +192,7 @@ class BigQueryOperator(BaseOperator):
             )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
-        self.bq_cursor.run_query(
+        job_id = self.bq_cursor.run_query(
             sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
@@ -187,9 +210,10 @@ class BigQueryOperator(BaseOperator):
             api_resource_configs=self.api_resource_configs,
             cluster_fields=self.cluster_fields,
         )
+        context['task_instance'].xcom_push(key='job_id', value=job_id)
 
     def on_kill(self):
-        super(BigQueryOperator, self).on_kill()
+        super().on_kill()
         if self.bq_cursor is not None:
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
@@ -288,6 +312,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                        'gcs_schema_object', 'labels')
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  dataset_id,
@@ -302,7 +327,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  labels=None,
                  *args, **kwargs):
 
-        super(BigQueryCreateEmptyTableOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.project_id = project_id
         self.dataset_id = dataset_id
@@ -345,6 +370,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         )
 
 
+# pylint: disable=too-many-instance-attributes
 class BigQueryCreateExternalTableOperator(BaseOperator):
     """
     Creates a new external table in the dataset with the data in Google Cloud
@@ -421,6 +447,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                        'schema_object', 'destination_project_dataset_table', 'labels')
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  bucket,
@@ -443,7 +470,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  labels=None,
                  *args, **kwargs):
 
-        super(BigQueryCreateExternalTableOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # GCS config
         self.bucket = bucket
@@ -543,7 +570,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
 
-        super(BigQueryDeleteDatasetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -606,7 +633,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
 
-        super(BigQueryCreateEmptyDatasetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,

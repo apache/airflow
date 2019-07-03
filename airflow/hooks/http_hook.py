@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 import requests
 import tenacity
 
@@ -44,7 +42,7 @@ class HttpHook(BaseHook):
         http_conn_id='http_default'
     ):
         self.http_conn_id = http_conn_id
-        self.method = method
+        self.method = method.upper()
         self.base_url = None
         self._retry_obj = None
 
@@ -208,4 +206,4 @@ class HttpHook(BaseHook):
             **_retry_args
         )
 
-        self._retry_obj(self.run, *args, **kwargs)
+        return self._retry_obj(self.run, *args, **kwargs)

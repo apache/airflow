@@ -20,8 +20,8 @@
 from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
-from airflow.utils.db import provide_session
 from airflow.utils.state import State
+from airflow.utils.db import provide_session
 
 
 class Pool(Base):
@@ -32,8 +32,20 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
+    DEFAULT_POOL_NAME = 'default_pool'
+
     def __repr__(self):
         return self.pool
+
+    @staticmethod
+    @provide_session
+    def get_pool(pool_name, session=None):
+        return session.query(Pool).filter(Pool.pool == pool_name).first()
+
+    @staticmethod
+    @provide_session
+    def get_default_pool(session=None):
+        return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
 
     def to_json(self):
         return {
@@ -44,9 +56,23 @@ class Pool(Base):
         }
 
     @provide_session
+    def occupied_slots(self, session):
+        """
+        Returns the number of slots used by running/queued tasks at the moment.
+        """
+        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        return (
+            session
+            .query(TaskInstance)
+            .filter(TaskInstance.pool == self.pool)
+            .filter(TaskInstance.state.in_([State.QUEUED, State.RUNNING]))
+            .count()
+        )
+
+    @provide_session
     def used_slots(self, session):
         """
-        Returns the number of slots used at the moment
+        Returns the number of slots used by running tasks at the moment.
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
@@ -62,7 +88,7 @@ class Pool(Base):
     @provide_session
     def queued_slots(self, session):
         """
-        Returns the number of slots used at the moment
+        Returns the number of slots used by queued tasks at the moment.
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
@@ -79,6 +105,4 @@ class Pool(Base):
         """
         Returns the number of slots open at the moment
         """
-        used_slots = self.used_slots(session=session)
-        queued_slots = self.queued_slots(session=session)
-        return self.slots - used_slots - queued_slots
+        return self.slots - self.occupied_slots(session)

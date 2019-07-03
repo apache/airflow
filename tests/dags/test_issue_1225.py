@@ -30,7 +30,6 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
-import time
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(
@@ -39,17 +38,6 @@ default_args = dict(
 
 
 def fail():
-    raise ValueError('Expected failure.')
-
-
-def delayed_fail():
-    """
-    Delayed failure to make sure that processes are running before the error
-    is raised.
-
-    TODO handle more directly (without sleeping)
-    """
-    time.sleep(5)
     raise ValueError('Expected failure.')
 
 

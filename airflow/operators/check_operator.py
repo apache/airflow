@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str, zip
 from typing import Optional, Any, Iterable, Dict, SupportsAbs
 
 from airflow.exceptions import AirflowException
@@ -69,12 +68,12 @@ class CheckOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        sql,  # type: str
-        conn_id=None,  # type: Optional[str]
+        sql: str,
+        conn_id: Optional[str] = None,
         *args,
         **kwargs
     ):
-        super(CheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql
 
@@ -132,14 +131,14 @@ class ValueCheckOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        sql,  # type: str
-        pass_value,  # type: Any
-        tolerance=None,  # type: Any
-        conn_id=None,  # type: Optional[str]
+        sql: str,
+        pass_value: Any,
+        tolerance: Any = None,
+        conn_id: Optional[str] = None,
         *args,
         **kwargs
     ):
-        super(ValueCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.pass_value = str(pass_value)
@@ -244,16 +243,16 @@ class IntervalCheckOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        table,  # type: str
-        metrics_thresholds,  # type: Dict[str, int]
-        date_filter_column='ds',  # type: Optional[str]
-        days_back=-7,  # type: SupportsAbs[int]
-        ratio_formula='max_over_min',  # type: Optional[str]
-        ignore_zero=True,  # type: Optional[bool]
-        conn_id=None,  # type: Optional[str]
+        table: str,
+        metrics_thresholds: Dict[str, int],
+        date_filter_column: Optional[str] = 'ds',
+        days_back: SupportsAbs[int] = -7,
+        ratio_formula: Optional[str] = 'max_over_min',
+        ignore_zero: Optional[bool] = True,
+        conn_id: Optional[str] = None,
         *args, **kwargs
     ):
-        super(IntervalCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = "Invalid diff_method: {diff_method}. " \
                            "Supported diff methods are: {diff_methods}"

@@ -20,7 +20,7 @@
 import unittest
 
 from cryptography.fernet import Fernet
-from mock import patch
+from unittest.mock import patch
 
 from airflow import settings
 from airflow.models import crypto, Variable

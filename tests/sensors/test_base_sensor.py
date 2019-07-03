@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
-from airflow import DAG, configuration, settings
+from airflow import DAG, settings
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
                                 AirflowRescheduleException)
 from airflow.models import DagRun, TaskInstance, TaskReschedule
@@ -34,8 +34,6 @@ from datetime import timedelta
 from time import sleep
 from freezegun import freeze_time
 
-configuration.load_test_config()
-
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 DUMMY_OP = 'dummy_op'
@@ -44,7 +42,7 @@ SENSOR_OP = 'sensor_op'
 
 class DummySensor(BaseSensorOperator):
     def __init__(self, return_value=False, **kwargs):
-        super(DummySensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.return_value = return_value
 
     def poke(self, context):
@@ -53,7 +51,6 @@ class DummySensor(BaseSensorOperator):
 
 class BaseSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

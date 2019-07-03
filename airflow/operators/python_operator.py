@@ -23,12 +23,10 @@ import pickle
 import subprocess
 import sys
 import types
-from builtins import str
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
 
 import dill
-import six
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
@@ -78,16 +76,16 @@ class PythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        op_args=None,  # type: Optional[Iterable]
-        op_kwargs=None,  # type: Optional[Dict]
-        provide_context=False,  # type: bool
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        op_args: Optional[Iterable] = None,
+        op_kwargs: Optional[Dict] = None,
+        provide_context: bool = False,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
-        super(PythonOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
@@ -133,30 +131,8 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
     def execute(self, context):
-        branch = super(BranchPythonOperator, self).execute(context)
-        if isinstance(branch, six.string_types):
-            branch = [branch]
-        self.log.info("Following branch %s", branch)
-        self.log.info("Marking other directly downstream tasks as skipped")
-
-        downstream_tasks = context['task'].downstream_list
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-
-        if downstream_tasks:
-            # Also check downstream tasks of the branch task. In case the task to skip
-            # is a downstream task of the branch task, we exclude it from skipping.
-            branch_downstream_task_ids = set()
-            for b in branch:
-                branch_downstream_task_ids.update(context["dag"].
-                                                  get_task(b).
-                                                  get_flat_relative_ids(upstream=False))
-            skip_tasks = [t
-                          for t in downstream_tasks
-                          if t.task_id not in branch and
-                          t.task_id not in branch_downstream_task_ids]
-            self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
-
-        self.log.info("Done.")
+        branch = super().execute(context)
+        self.skip_all_except(context['ti'], branch)
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -172,7 +148,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
     def execute(self, context):
-        condition = super(ShortCircuitOperator, self).execute(context)
+        condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
         if condition:
@@ -246,21 +222,21 @@ class PythonVirtualenvOperator(PythonOperator):
     @apply_defaults
     def __init__(
         self,
-        python_callable,  # type: Callable
-        requirements=None,  # type: Optional[Iterable[str]]
-        python_version=None,  # type: Optional[str]
-        use_dill=False,  # type: bool
-        system_site_packages=True,  # type: bool
-        op_args=None,  # type: Iterable
-        op_kwargs=None,  # type: Dict
-        provide_context=False,  # type: bool
-        string_args=None,  # type: Optional[Iterable[str]]
-        templates_dict=None,  # type: Optional[Dict]
-        templates_exts=None,  # type: Optional[Iterable[str]]
+        python_callable: Callable,
+        requirements: Optional[Iterable[str]] = None,
+        python_version: Optional[str] = None,
+        use_dill: bool = False,
+        system_site_packages: bool = True,
+        op_args: Iterable = None,
+        op_kwargs: Dict = None,
+        provide_context: bool = False,
+        string_args: Optional[Iterable[str]] = None,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
     ):
-        super(PythonVirtualenvOperator, self).__init__(
+        super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
@@ -342,28 +318,28 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _write_string_args(self, filename):
         # writes string_args to a file, which are read line by line
-        with open(filename, 'w') as f:
-            f.write('\n'.join(map(str, self.string_args)))
+        with open(filename, 'w') as file:
+            file.write('\n'.join(map(str, self.string_args)))
 
     def _write_args(self, input_filename):
         # serialize args to file
         if self._pass_op_args():
-            with open(input_filename, 'wb') as f:
+            with open(input_filename, 'wb') as file:
                 arg_dict = ({'args': self.op_args, 'kwargs': self.op_kwargs})
                 if self.use_dill:
-                    dill.dump(arg_dict, f)
+                    dill.dump(arg_dict, file)
                 else:
-                    pickle.dump(arg_dict, f)
+                    pickle.dump(arg_dict, file)
 
     def _read_result(self, output_filename):
         if os.stat(output_filename).st_size == 0:
             return None
-        with open(output_filename, 'rb') as f:
+        with open(output_filename, 'rb') as file:
             try:
                 if self.use_dill:
-                    return dill.load(f)
+                    return dill.load(file)
                 else:
-                    return pickle.load(f)
+                    return pickle.load(file)
             except ValueError:
                 self.log.error("Error deserializing result. "
                                "Note that result deserialization "
@@ -371,10 +347,10 @@ class PythonVirtualenvOperator(PythonOperator):
                 raise
 
     def _write_script(self, script_filename):
-        with open(script_filename, 'w') as f:
+        with open(script_filename, 'w') as file:
             python_code = self._generate_python_code()
-            self.log.debug('Writing code to file\n{}'.format(python_code))
-            f.write(python_code)
+            self.log.debug('Writing code to file\n', python_code)
+            file.write(python_code)
 
     def _generate_virtualenv_cmd(self, tmp_dir):
         cmd = ['virtualenv', tmp_dir]
@@ -407,7 +383,7 @@ class PythonVirtualenvOperator(PythonOperator):
         fn = self.python_callable
         # dont try to read pickle if we didnt pass anything
         if self._pass_op_args():
-            load_args_line = 'with open(sys.argv[1], "rb") as f: arg_dict = {}.load(f)'\
+            load_args_line = 'with open(sys.argv[1], "rb") as file: arg_dict = {}.load(file)'\
                 .format(pickling_library)
         else:
             load_args_line = 'arg_dict = {"args": [], "kwargs": {}}'
@@ -421,12 +397,12 @@ class PythonVirtualenvOperator(PythonOperator):
         {load_args_code}
         args = arg_dict["args"]
         kwargs = arg_dict["kwargs"]
-        with open(sys.argv[3], 'r') as f:
-            virtualenv_string_args = list(map(lambda x: x.strip(), list(f)))
+        with open(sys.argv[3], 'r') as file:
+            virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
         {python_callable_lines}
         res = {python_callable_name}(*args, **kwargs)
-        with open(sys.argv[2], 'wb') as f:
-            res is not None and {pickling_library}.dump(res, f)
+        with open(sys.argv[2], 'wb') as file:
+            res is not None and {pickling_library}.dump(res, file)
         """).format(load_args_code=load_args_line,
                     python_callable_lines=dedent(inspect.getsource(fn)),
                     python_callable_name=fn.__name__,

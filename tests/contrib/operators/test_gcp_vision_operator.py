@@ -35,6 +35,10 @@ from airflow.contrib.operators.gcp_vision_operator import (
     CloudVisionAddProductToProductSetOperator,
     CloudVisionRemoveProductFromProductSetOperator,
     CloudVisionAnnotateImageOperator,
+    CloudVisionDetectTextOperator,
+    CloudVisionDetectDocumentTextOperator,
+    CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator,
 )
 
 from tests.compat import mock
@@ -46,8 +50,13 @@ PRODUCT_ID_TEST = 'my-product'
 REFERENCE_IMAGE_TEST = ReferenceImage(uri='gs://bucket_name/file.txt')
 REFERENCE_IMAGE_ID_TEST = 'my-reference-image'
 ANNOTATE_REQUEST_TEST = {'image': {'source': {'image_uri': 'https://foo.com/image.jpg'}}}
+ANNOTATE_REQUEST_BATCH_TEST = [
+    {'image': {'source': {'image_uri': 'https://foo.com/image1.jpg'}}},
+    {'image': {'source': {'image_uri': 'https://foo.com/image2.jpg'}}}
+]
 LOCATION_TEST = 'europe-west1'
 GCP_CONN_ID = 'google_cloud_default'
+DETECT_TEST_IMAGE = {"source": {"image_uri": "test_uri"}}
 
 
 class CloudVisionProductSetCreateTest(unittest.TestCase):
@@ -331,10 +340,96 @@ class CloudVisionRemoveProductFromProductSetOperatorTest(unittest.TestCase):
 
 class CloudVisionAnnotateImageOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_vision_operator.CloudVisionHook')
-    def test_minimal_green_path(self, mock_hook):
+    def test_minimal_green_path_for_one_image(self, mock_hook):
         op = CloudVisionAnnotateImageOperator(request=ANNOTATE_REQUEST_TEST, task_id='id')
         op.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.annotate_image.assert_called_once_with(
             request=ANNOTATE_REQUEST_TEST, retry=None, timeout=None
+        )
+
+    @mock.patch('airflow.contrib.operators.gcp_vision_operator.CloudVisionHook')
+    def test_minimal_green_path_for_batch(self, mock_hook):
+        op = CloudVisionAnnotateImageOperator(request=ANNOTATE_REQUEST_BATCH_TEST, task_id='id')
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.batch_annotate_images.assert_called_once_with(
+            requests=ANNOTATE_REQUEST_BATCH_TEST, retry=None, timeout=None
+        )
+
+
+class CloudVisionDetectTextOperatorTest(unittest.TestCase):
+    @mock.patch("airflow.contrib.operators.gcp_vision_operator.CloudVisionHook")
+    def test_minimal_green_path(self, mock_hook):
+        op = CloudVisionDetectTextOperator(image=DETECT_TEST_IMAGE, task_id="id")
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.text_detection.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+        )
+
+    @mock.patch("airflow.contrib.operators.gcp_vision_operator.CloudVisionHook")
+    def test_additional_params(self, mock_hook):
+        op = CloudVisionDetectTextOperator(
+            image=DETECT_TEST_IMAGE,
+            task_id="id",
+            language_hints="pl",
+            web_detection_params={'param': 'test'},
+            additional_properties={
+                'image_context': {
+                    'additional_property_1': 'add_1'
+                },
+                'additional_property_2': 'add_2'
+            }
+        )
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.text_detection.assert_called_once_with(
+            image=DETECT_TEST_IMAGE,
+            max_results=None,
+            retry=None,
+            timeout=None,
+            additional_properties={
+                'additional_property_2': 'add_2',
+                'image_context': {
+                    'language_hints': 'pl',
+                    'additional_property_1': 'add_1',
+                    'web_detection_params': {
+                        'param': 'test'
+                    }
+                }
+            }
+        )
+
+
+class CloudVisionDetectDocumentTextOperatorTest(unittest.TestCase):
+    @mock.patch("airflow.contrib.operators.gcp_vision_operator.CloudVisionHook")
+    def test_minimal_green_path(self, mock_hook):
+        op = CloudVisionDetectDocumentTextOperator(image=DETECT_TEST_IMAGE, task_id="id")
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.document_text_detection.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+        )
+
+
+class CloudVisionDetectImageLabelsOperatorTest(unittest.TestCase):
+    @mock.patch("airflow.contrib.operators.gcp_vision_operator.CloudVisionHook")
+    def test_minimal_green_path(self, mock_hook):
+        op = CloudVisionDetectImageLabelsOperator(image=DETECT_TEST_IMAGE, task_id="id")
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.label_detection.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+        )
+
+
+class CloudVisionDetectImageSafeSearchOperatorTest(unittest.TestCase):
+    @mock.patch("airflow.contrib.operators.gcp_vision_operator.CloudVisionHook")
+    def test_minimal_green_path(self, mock_hook):
+        op = CloudVisionDetectImageSafeSearchOperator(image=DETECT_TEST_IMAGE, task_id="id")
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.safe_search_detection.assert_called_once_with(
+            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
         )

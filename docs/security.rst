@@ -18,6 +18,11 @@
 Security
 ========
 
+.. include:: ../.github/SECURITY.rst
+
+Web Authentication
+------------------
+
 By default, Airflow requires users to specify a password prior to login. You can use the
 following CLI commands to create an account:
 
@@ -37,30 +42,6 @@ Be sure to checkout :doc:`api` for securing the API.
    '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
    environment variables) as ``%%``, otherwise Airflow might leak these
    passwords on a config parser exception to a log.
-
-Reporting Vulnerabilities
--------------------------
-
-The Apache Software Foundation takes security issues very seriously. Apache
-Airflow specifically offers security features and is responsive to issues
-around its features. If you have any concern around Airflow Security or believe
-you have uncovered a vulnerability, we suggest that you get in touch via the
-e-mail address security@apache.org. In the message, try to provide a
-description of the issue and ideally a way of reproducing it. The security team
-will get back to you after assessing the description.
-
-Note that this security address should be used only for undisclosed
-vulnerabilities. Dealing with fixed issues or general questions on how to use
-the security features should be handled regularly via the user and the dev
-lists. Please report any security problems to the project security address
-before disclosing it publicly.
-
-The `ASF Security team's page <https://www.apache.org/security/>`_ describes
-how vulnerability reports are handled, and includes PGP keys if you wish to use
-that.
-
-Web Authentication
-------------------
 
 Password
 ''''''''
@@ -449,85 +430,27 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited viewer permissions
 
-.. code:: python
-
-    VIEWER_PERMS = {
-        'menu_access',
-        'can_index',
-        'can_list',
-        'can_show',
-        'can_chart',
-        'can_dag_stats',
-        'can_dag_details',
-        'can_task_stats',
-        'can_code',
-        'can_log',
-        'can_get_logs_with_metadata',
-        'can_tries',
-        'can_graph',
-        'can_tree',
-        'can_task',
-        'can_task_instances',
-        'can_xcom',
-        'can_gantt',
-        'can_landing_times',
-        'can_duration',
-        'can_blocked',
-        'can_rendered',
-        'can_pickle_info',
-        'can_version',
-    }
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_perms]
+    :end-before: [END security_viewer_perms]
 
 on limited web views
 
-.. code:: python
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_vms]
+    :end-before: [END security_viewer_vms]
 
-    VIEWER_VMS = {
-        'Airflow',
-        'DagModelView',
-        'Browse',
-        'DAG Runs',
-        'DagRunModelView',
-        'Task Instances',
-        'TaskInstanceModelView',
-        'SLA Misses',
-        'SlaMissModelView',
-        'Jobs',
-        'JobModelView',
-        'Logs',
-        'LogModelView',
-        'Docs',
-        'Documentation',
-        'GitHub',
-        'About',
-        'Version',
-        'VersionView',
-    }
 
 User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional user permissions
 
-.. code:: python
-
-    USER_PERMS = {
-        'can_dagrun_clear',
-        'can_run',
-        'can_trigger',
-        'can_add',
-        'can_edit',
-        'can_delete',
-        'can_paused',
-        'can_refresh',
-        'can_success',
-        'muldelete',
-        'set_failed',
-        'set_running',
-        'set_success',
-        'clear',
-        'can_clear',
-    }
-
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_user_perms]
+    :end-before: [END security_user_perms]
 
 on User web views which is the same as Viewer web views.
 
@@ -535,30 +458,18 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional op permissions
 
-.. code:: python
-
-    OP_PERMS = {
-        'can_conf',
-        'can_varimport',
-    }
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_perms]
+    :end-before: [END security_op_perms]
 
 on ``User`` web views plus these additional op web views
 
-.. code:: python
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_vms]
+    :end-before: [END security_op_vms]
 
-    OP_VMS = {
-        'Admin',
-        'Configurations',
-        'ConfigurationView',
-        'Connections',
-        'ConnectionModelView',
-        'Pools',
-        'PoolModelView',
-        'Variables',
-        'VariableModelView',
-        'XComs',
-        'XComModelView',
-    }
 
 Custom Roles
 '''''''''''''

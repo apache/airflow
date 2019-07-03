@@ -23,8 +23,9 @@ try:
 except ImportError:
     mongomock = None
 
-from airflow import configuration
 from airflow.contrib.hooks.mongo_hook import MongoHook
+from airflow.models import Connection
+from airflow.utils import db
 
 
 class MongoHookTest(MongoHook):
@@ -33,7 +34,7 @@ class MongoHookTest(MongoHook):
     to get_collection()
     """
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
-        super(MongoHookTest, self).__init__(conn_id=conn_id, *args, **kwargs)
+        super().__init__(conn_id=conn_id, *args, **kwargs)
 
     def get_collection(self, mock_collection, mongo_db=None):
         return mock_collection
@@ -41,14 +42,22 @@ class MongoHookTest(MongoHook):
 
 class TestMongoHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.hook = MongoHookTest(conn_id='mongo_default', mongo_db='default')
         self.conn = self.hook.get_conn()
+        db.merge_conn(
+            Connection(
+                conn_id='mongo_default_with_srv', conn_type='mongo',
+                host='mongo', port='27017', extra='{"srv": true}'))
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_get_conn(self):
         self.assertEqual(self.hook.connection.port, 27017)
         self.assertIsInstance(self.conn, pymongo.MongoClient)
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_srv(self):
+        hook = MongoHook(conn_id='mongo_default_with_srv')
+        self.assertTrue(hook.uri.startswith('mongodb+srv://'))
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_insert_one(self):

@@ -16,8 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module is deprecated. Please use `airflow.contrib.operators.gcp_transfer_operator`.
+"""
+
 import warnings
 
+# pylint: disable=unused-import
 from airflow.contrib.operators.gcp_transfer_operator import (  # noqa
     GoogleCloudStorageToGoogleCloudStorageTransferOperator,
 )

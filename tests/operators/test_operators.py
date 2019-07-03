@@ -17,18 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 
 from collections import OrderedDict
 
 import os
-import mock
+from unittest import mock
 import unittest
-
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -38,7 +34,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class MySqlTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -187,7 +182,6 @@ class MySqlTest(unittest.TestCase):
 
 class PostgresTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -297,7 +291,6 @@ class PostgresTest(unittest.TestCase):
 
 class TransferTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

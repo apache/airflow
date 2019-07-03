@@ -16,13 +16,72 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
 ## Airflow Master
+
+
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+
+### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+
+`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+are removed in favor of a real pool, e.g. `default_pool`.
+
+By default tasks are running in `default_pool`.
+`default_pool` is initialized with 128 slots and user can change the
+number of slots through UI/CLI. `default_pool` cannot be removed.
+
+### Changes to Google Transfer Operator
+To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
+has been renamed to `request_filter`.
+
+### Changes in  Google Cloud Transfer Hook
+ To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and 
+ `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
+
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
+### Changes to the Google Cloud Storage Hook
+
+Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
+
+### Export MySQL timestamps as UTC
+
+`MySqlToGoogleCloudStorageOperator` now exports TIMESTAMP columns as UTC
+by default, rather than using the default timezone of the MySQL server.
+This is the correct behavior for use with BigQuery, since BigQuery
+assumes that TIMESTAMP columns without time zones are in UTC. To
+preserve the previous behavior, set `ensure_utc` to `False.`
+
+### Removal of Mesos Executor
+
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
+
+### Increase standard Dataproc disk sizes
+
+It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
+https://cloud.google.com/compute/docs/disks/performance
+
+Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator has beeen changes from 500GB to 1TB.
+
+### Changes to SalesforceHook
+
+* renamed `sign_in` function to `get_conn` 
 
 ### HTTPHook verify default value changed from False to True.
 
@@ -32,24 +91,17 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 ### Changes to GoogleCloudStorageHook
 
 * the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
-* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method has been removed:
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
   
-  **Old**:
-  ```python
-  def upload(self, bucket, object, filename,
-             mime_type='application/octet-stream', gzip=False,
-             multipart=False, num_retries=0):
-  ```
-  
-  **New**:
-  ```python
-  def upload(self, bucket, object, filename,
-             mime_type='application/octet-stream', gzip=False):
-  ```
-  
-  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997).
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
-* the `generation` parameter is no longer supported in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name` 
+  
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Changes to CloudantHook
 
@@ -95,14 +147,14 @@ compatibility, this option is enabled by default.
 
 The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
 
-For example: `from airflow.operators import BashOperator` 
+For example: `from airflow.operators import BashOperator`
 becomes `from airflow.operators.bash_operator import BashOperator`
 
 ### Changes to sensor imports
 
 Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
 
-For example: `from airflow.operators.sensors import BaseSensorOperator` 
+For example: `from airflow.operators.sensors import BaseSensorOperator`
 becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 
 ### Renamed "extra" requirements for cloud providers
@@ -183,6 +235,12 @@ airflow users --remove-role --username jondoe --role Public
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+### Changes to Dataproc related Operators
+The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
+`dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
+and `dataproc_jars`respectively. 
+Arguments for dataproc_properties dataproc_jars 
 
 ## Airflow 1.10.3
 
@@ -421,6 +479,30 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+      
+### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
+
+GoogleCloudStorageToBigQueryOperator is now support schema auto-detection is available when you load data into BigQuery. Unfortunately, changes can be required.
+
+If BigQuery tables are created outside of airflow and the schema is not defined in the task, multiple options are available:
+
+define a schema_fields:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_fields={...})
+      
+or define a schema_object:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      schema_object='path/to/schema/object)
+
+or enabled autodetect of schema:
+
+    gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+      ...
+      autodetect=True)
 
 ## Airflow 1.10.1
 

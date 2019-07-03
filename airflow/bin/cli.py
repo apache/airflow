@@ -18,7 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
 import importlib
 import logging
 
@@ -33,7 +32,6 @@ import getpass
 import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
-from builtins import input
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -68,11 +66,12 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
+import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.api_auth.client_auth)
+                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
 log = LoggingMixin().log
 
@@ -369,18 +368,18 @@ def import_helper(filepath):
     except Exception:
         print("Invalid variables file.")
     else:
-        try:
-            n = 0
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    Variable.set(k, v, serialize_json=True)
-                else:
-                    Variable.set(k, v)
-                n += 1
-        except Exception:
-            pass
-        finally:
-            print("{} of {} variables successfully updated.".format(n, len(d)))
+        suc_count = fail_count = 0
+        for k, v in d.items():
+            try:
+                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+            except Exception as e:
+                print('Variable import failed: {}'.format(repr(e)))
+                fail_count += 1
+            else:
+                suc_count += 1
+        print("{} of {} variables successfully updated.".format(suc_count, len(d)))
+        if fail_count:
+            print("{} variable(s) failed to be updated.".format(fail_count))
 
 
 def export_helper(filepath):
@@ -402,24 +401,21 @@ def export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args, dag=None):
-    set_is_paused(True, args, dag)
+def pause(args):
+    set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args, dag=None):
-    set_is_paused(False, args, dag)
+def unpause(args):
+    set_is_paused(False, args)
 
 
-def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+def set_is_paused(is_paused, args):
+    DagModel.get_dagmodel(args.dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
-    with db.create_session() as session:
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-        dm.is_paused = is_paused
-        session.commit()
-
-    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
+    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
 def _run(args, dag, ti):
@@ -664,8 +660,6 @@ def list_jobs(args, dag=None):
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -984,8 +978,8 @@ def webserver(args):
                 # seem to return the right value with DaemonContext.
                 while True:
                     try:
-                        with open(pid) as f:
-                            gunicorn_master_proc_pid = int(f.read())
+                        with open(pid) as file:
+                            gunicorn_master_proc_pid = int(file.read())
                             break
                     except IOError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
@@ -1181,8 +1175,6 @@ def connections(args):
             msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                    'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                            tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
             print(msg)
             return
 
@@ -1378,8 +1370,6 @@ def users(args):
         users = [[user.__getattribute__(field) for field in fields] for user in users]
         msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
         return
@@ -1503,9 +1493,9 @@ def users(args):
             for user in users
         ]
 
-        with open(args.export, 'w') as f:
-            f.write(json.dumps(users, sort_keys=True, indent=4))
-            print("{} users successfully exported to {}".format(len(users), f.name))
+        with open(args.export, 'w') as file:
+            file.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), file.name))
 
     elif getattr(args, 'import'):  # "import" is a reserved word
         json_file = getattr(args, 'import')
@@ -1515,8 +1505,8 @@ def users(args):
 
         users_list = None
         try:
-            with open(json_file, 'r') as f:
-                users_list = json.loads(f.read())
+            with open(json_file, 'r') as file:
+                users_list = json.loads(file.read())
         except ValueError as e:
             print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
             exit(1)
@@ -1562,7 +1552,7 @@ def _import_users(users_list):
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing ther username is not allowed - "
+                print("Error: Changing the username is not allowed - "
                       "please delete and recreate the user with "
                       "email '{}'".format(user['email']))
                 exit(1)
@@ -1606,8 +1596,6 @@ def roles(args):
         msg = tabulate(role_names,
                        headers=['Role'],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1676,7 +1664,7 @@ def sync_perm(args):
             dag.access_control)
 
 
-class Arg(object):
+class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
         self.flags = flags
@@ -1689,7 +1677,7 @@ class Arg(object):
         self.metavar = metavar
 
 
-class CLIFactory(object):
+class CLIFactory:
     args = {
         # Shared
         'dag_id': Arg(("dag_id",), "The id of the dag"),

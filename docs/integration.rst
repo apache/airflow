@@ -263,9 +263,9 @@ For more instructions on using Amazon SageMaker in Airflow, please see `the Sage
 Databricks
 ----------
 
-`Databricks <https://databricks.com/>`__ has contributed an Airflow operator which enables
-submitting runs to the Databricks platform. Internally the operator talks to the
-``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+With contributions from `Databricks <https://databricks.com/>`__, Airflow has several operators
+which enable the submitting and running of jobs to the Databricks platform. Internally the
+operators talk to the ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 
 
 :class:`airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator`
@@ -273,6 +273,12 @@ submitting runs to the Databricks platform. Internally the operator talks to the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
     API endpoint.
+
+:class:`airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator`
+    Runs an existing Spark job in Databricks using the
+        `api/2.0/jobs/run-now
+        <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+        API endpoint.
 
 
 .. _GCP:
@@ -425,6 +431,15 @@ Cloud Bigtable
 
 
 They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to communicate with Google Cloud Platform.
+
+Cloud Build
+'''''''''''
+
+:class:`airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator`
+     Starts a build with the specified configuration.
+
+
+They also use :class:`airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook` to communicate with Google Cloud Platform.
 
 
 Compute Engine
@@ -579,6 +594,27 @@ Cloud Storage
 :class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
     Copy data from any MySQL Database to Google cloud storage in JSON format.
 
+:class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
+    Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor`
+    Checks for the existence of a file in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor`
+    Checks if an object is updated in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor`
+    Checks for the existence of a objects at prefix in Google Cloud Storage.
+
+:class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSession`
+    Checks for changes in the number of objects at prefix in Google Cloud Storage
+    bucket and returns True if the inactivity period has passed with no
+    increase in the number of objects for situations when many objects
+    are being uploaded to a bucket with no formal success signal.
+
+:class:`airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator`
+    Deletes objects from a Google Cloud Storage bucket.
+
 
 They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
 
@@ -646,6 +682,16 @@ Cloud Vision Product Search Operators
     Creates a new ReferenceImage resource.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
     Removes a Product from the specified ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
+    Run image detection and annotation for an image.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator`
+    Run text detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator`
+    Run document text detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator`
+    Run image labels detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`
+    Run safe search detection for an image
 
 They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
 
@@ -665,6 +711,14 @@ Cloud Speech to Text
 
 They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
 
+Cloud Speech Translate Operators
+--------------------------------
+
+:class:`airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator`
+    Recognizes speech in audio input and translates it.
+
+They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` and
+    :class:`airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook` to communicate with Google Cloud Platform.
 
 Cloud Translate
 '''''''''''''''
@@ -675,6 +729,18 @@ Cloud Translate Text Operators
 :class:`airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
     Translate a string or list of strings.
 
+
+Cloud Video Intelligence
+''''''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator`
+    Performs video annotation, annotating video labels.
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
+    Performs video annotation, annotating explicit content.
+:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator`
+    Performs video annotation, annotating video shots.
+
+They also use :class:`airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook` to communicate with Google Cloud Platform.
 
 Google Kubernetes Engine
 ''''''''''''''''''''''''

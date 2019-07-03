@@ -46,6 +46,16 @@
       <div class="row">
           {% block messages %}
             {% include 'appbuilder/flash.html' %}
+            {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
+              <div class="alert alert-warning">
+                <p>The scheduler does not appear to be running.
+                {% if scheduler_job %}
+                Last heartbeat was received <time title="{{ scheduler_job.latest_heartbeat.isoformat() }}" datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
+                {% endif %}
+                </p>
+                <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
+              </div>
+            {% endif %}
           {% endblock %}
           {% block content %}
           {% endblock %}
@@ -70,6 +80,7 @@
   // below variables are used in base.js
   var hostName = '{{ hostname }}';
   var csrfToken = '{{ csrf_token() }}';
+  $("time[title]").tooltip()
 </script>
 <script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
 {% endblock %}

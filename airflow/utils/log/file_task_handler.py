@@ -40,7 +40,7 @@ class FileTaskHandler(logging.Handler):
         :param base_log_folder: Base log folder to place logs.
         :param filename_template: template filename string
         """
-        super(FileTaskHandler, self).__init__()
+        super().__init__()
         self.handler = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = \
@@ -99,9 +99,9 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as f:
+                with open(location) as file:
                     log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(f.readlines())
+                    log += "".join(file.readlines())
             except Exception as e:
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))

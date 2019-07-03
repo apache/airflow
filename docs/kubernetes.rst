@@ -49,6 +49,7 @@ Kubernetes Operator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.volume_mount import VolumeMount
+    from airflow.contrib.kubernetes.pod import Port
 
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
@@ -58,7 +59,7 @@ Kubernetes Operator
                                 mount_path='/root/mount_file',
                                 sub_path=None,
                                 read_only=True)
-
+    port = Port('http', 80)
     configmaps = ['test-configmap-1', 'test-configmap-2']
 
     volume_config= {
@@ -132,8 +133,9 @@ Kubernetes Operator
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file, secret_env, secret_all_keys],
+                              ports=[port]
                               volumes=[volume],
-                              volume_mounts=[volume_mount]
+                              volume_mounts=[volume_mount],
                               name="test",
                               task_id="task",
                               affinity=affinity,
@@ -145,3 +147,21 @@ Kubernetes Operator
 
 
 See :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator`
+
+
+Pod Mutation Hook
+^^^^^^^^^^^^^^^^^
+
+Your local Airflow settings file can define a ``pod_mutation_hook`` function that
+has the ability to mutate pod objects before sending them to the Kubernetes client
+for scheduling. It receives a single argument as a reference to pod objects, and
+is expected to alter its attributes.
+
+This could be used, for instance, to add sidecar or init containers
+to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
+
+
+.. code:: python
+
+    def pod_mutation_hook(pod: Pod):
+      pod.annotations['airflow.apache.org/launched-by'] = 'Tests'

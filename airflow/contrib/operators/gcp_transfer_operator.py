@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains Google Cloud Transfer operators.
+"""
+
 from copy import deepcopy
 from datetime import date, time
 
@@ -59,22 +63,23 @@ except ImportError:  # pragma: no cover
 
 
 class TransferJobPreprocessor:
+    """
+    Helper class for preprocess of transfer job body.
+    """
     def __init__(self, body, aws_conn_id='aws_default'):
         self.body = body
         self.aws_conn_id = aws_conn_id
 
     def _inject_aws_credentials(self):
-        if TRANSFER_SPEC not in self.body or AWS_S3_DATA_SOURCE not in self.body[TRANSFER_SPEC]:
-            return
-
-        aws_hook = AwsHook(self.aws_conn_id)
-        aws_credentials = aws_hook.get_credentials()
-        aws_access_key_id = aws_credentials.access_key
-        aws_secret_access_key = aws_credentials.secret_key
-        self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
-            ACCESS_KEY_ID: aws_access_key_id,
-            SECRET_ACCESS_KEY: aws_secret_access_key,
-        }
+        if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
+            aws_hook = AwsHook(self.aws_conn_id)
+            aws_credentials = aws_hook.get_credentials()
+            aws_access_key_id = aws_credentials.access_key
+            aws_secret_access_key = aws_credentials.secret_key
+            self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
+                ACCESS_KEY_ID: aws_access_key_id,
+                SECRET_ACCESS_KEY: aws_secret_access_key,
+            }
 
     def _reformat_date(self, field_key):
         schedule = self.body[SCHEDULE]
@@ -98,6 +103,14 @@ class TransferJobPreprocessor:
         self._reformat_time(START_TIME_OF_DAY)
 
     def process_body(self):
+        """
+        Injects AWS credentials into body if needed and
+        reformats schedule information.
+
+        :return: Preprocessed body
+        :rtype: dict
+        """
+
         self._inject_aws_credentials()
         self._reformat_schedule()
         return self.body
@@ -110,15 +123,21 @@ class TransferJobPreprocessor:
         return {DAY: field_date.day, MONTH: field_date.month, YEAR: field_date.year}
 
     @staticmethod
-    def _convert_time_to_dict(time):
+    def _convert_time_to_dict(time_object):
         """
         Convert native python ``datetime.time`` object  to a format supported by the API
         """
-        return {HOURS: time.hour, MINUTES: time.minute, SECONDS: time.second}
+        return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
 
 
 class TransferJobValidator:
+    """
+    Helper class for validating transfer job body.
+    """
     def __init__(self, body):
+        if not body:
+            raise AirflowException("The required parameter 'body' is empty or None")
+
         self.body = body
 
     def _verify_data_source(self):
@@ -127,34 +146,31 @@ class TransferJobValidator:
         is_http = HTTP_DATA_SOURCE in self.body[TRANSFER_SPEC]
 
         sources_count = sum([is_gcs, is_aws_s3, is_http])
-        if sources_count != 0 and sources_count != 1:
+        if sources_count > 1:
             raise AirflowException(
                 "More than one data source detected. Please choose exactly one data source from: "
                 "gcsDataSource, awsS3DataSource and httpDataSource."
             )
 
     def _restrict_aws_credentials(self):
-        if AWS_S3_DATA_SOURCE not in self.body[TRANSFER_SPEC]:
-            return
-
-        if AWS_ACCESS_KEY in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]:
+        aws_transfer = AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]
+        if aws_transfer and AWS_ACCESS_KEY in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]:
             raise AirflowException(
                 "AWS credentials detected inside the body parameter (awsAccessKey). This is not allowed, "
                 "please use Airflow connections to store credentials."
             )
 
-    def _restrict_empty_body(self):
-        if not self.body:
-            raise AirflowException("The required parameter 'body' is empty or None")
-
     def validate_body(self):
-        self._restrict_empty_body()
+        """
+        Validates the body. Checks if body specifies `transferSpec`
+        if yes, then check if AWS credentials are passed correctly and
+        no more than 1 data source was selected.
 
-        if TRANSFER_SPEC not in self.body:
-            return
-
-        self._restrict_aws_credentials()
-        self._verify_data_source()
+        :raises: AirflowException
+        """
+        if TRANSFER_SPEC in self.body:
+            self._restrict_aws_credentials()
+            self._verify_data_source()
 
 
 class GcpTransferServiceJobCreateOperator(BaseOperator):
@@ -189,7 +205,6 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_job_create_template_fields]
     template_fields = ('body', 'gcp_conn_id', 'aws_conn_id')
     # [END gcp_transfer_job_create_template_fields]
@@ -204,7 +219,7 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(GcpTransferServiceJobCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -249,7 +264,6 @@ class GcpTransferServiceJobUpdateOperator(BaseOperator):
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_job_update_template_fields]
     template_fields = ('job_name', 'body', 'gcp_conn_id', 'aws_conn_id')
     # [END gcp_transfer_job_update_template_fields]
@@ -265,7 +279,7 @@ class GcpTransferServiceJobUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(GcpTransferServiceJobUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.body = body
         self.gcp_conn_id = gcp_conn_id
@@ -307,7 +321,6 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_job_delete_template_fields]
     template_fields = ('job_name', 'project_id', 'gcp_conn_id', 'api_version')
     # [END gcp_transfer_job_delete_template_fields]
@@ -316,7 +329,7 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
     def __init__(
         self, job_name, gcp_conn_id='google_cloud_default', api_version='v1', project_id=None, *args, **kwargs
     ):
-        super(GcpTransferServiceJobDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -350,14 +363,13 @@ class GcpTransferServiceOperationGetOperator(BaseOperator):
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_operation_get_template_fields]
     template_fields = ('operation_name', 'gcp_conn_id')
     # [END gcp_transfer_operation_get_template_fields]
 
     @apply_defaults
     def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -391,14 +403,27 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_operations_list_template_fields]
     template_fields = ('filter', 'gcp_conn_id')
     # [END gcp_transfer_operations_list_template_fields]
 
-    def __init__(self, filter, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationsListOperator, self).__init__(*args, **kwargs)
-        self.filter = filter
+    def __init__(self,
+                 request_filter=None,
+                 gcp_conn_id='google_cloud_default',
+                 api_version='v1',
+                 *args,
+                 **kwargs):
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if request_filter is None:
+            if 'filter' in kwargs:
+                request_filter = kwargs['filter']
+                DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
+            else:
+                TypeError("__init__() missing 1 required positional argument: 'request_filter'")
+
+        super().__init__(*args, **kwargs)
+        self.filter = request_filter
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
@@ -409,7 +434,7 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
-        operations_list = hook.list_transfer_operations(filter=self.filter)
+        operations_list = hook.list_transfer_operations(request_filter=self.filter)
         self.log.info(operations_list)
         return operations_list
 
@@ -429,14 +454,13 @@ class GcpTransferServiceOperationPauseOperator(BaseOperator):
     :param api_version:  API version used (e.g. v1).
     :type api_version: str
     """
-
     # [START gcp_transfer_operation_pause_template_fields]
     template_fields = ('operation_name', 'gcp_conn_id', 'api_version')
     # [END gcp_transfer_operation_pause_template_fields]
 
     @apply_defaults
     def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationPauseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -466,7 +490,6 @@ class GcpTransferServiceOperationResumeOperator(BaseOperator):
     :type api_version: str
     :type gcp_conn_id: str
     """
-
     # [START gcp_transfer_operation_resume_template_fields]
     template_fields = ('operation_name', 'gcp_conn_id', 'api_version')
     # [END gcp_transfer_operation_resume_template_fields]
@@ -477,7 +500,7 @@ class GcpTransferServiceOperationResumeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        super(GcpTransferServiceOperationResumeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.operation_name:
@@ -504,14 +527,13 @@ class GcpTransferServiceOperationCancelOperator(BaseOperator):
         Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START gcp_transfer_operation_cancel_template_fields]
     template_fields = ('operation_name', 'gcp_conn_id', 'api_version')
     # [END gcp_transfer_operation_cancel_template_fields]
 
     @apply_defaults
     def __init__(self, operation_name, api_version='v1', gcp_conn_id='google_cloud_default', *args, **kwargs):
-        super(GcpTransferServiceOperationCancelOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -592,7 +614,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
     ui_color = '#e09411'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         s3_bucket,
         gcs_bucket,
@@ -610,7 +632,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         **kwargs
     ):
 
-        super(S3ToGoogleCloudStorageTransferOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
         self.project_id = project_id
@@ -731,7 +753,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
     ui_color = '#e09411'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         source_bucket,
         destination_bucket,
@@ -748,7 +770,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
         **kwargs
     ):
 
-        super(GoogleCloudStorageToGoogleCloudStorageTransferOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
         self.project_id = project_id

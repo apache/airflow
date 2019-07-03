@@ -22,7 +22,7 @@ from collections import namedtuple
 from airflow.utils.db import provide_session
 
 
-class BaseTIDep(object):
+class BaseTIDep:
     """
     Abstract base class for dependencies that must be satisfied in order for task
     instances to run. For example, a task that can only run if a certain number of its

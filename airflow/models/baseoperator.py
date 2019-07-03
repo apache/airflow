@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from abc import ABCMeta, abstractmethod
+from cached_property import cached_property
 import copy
 import functools
 import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Iterable, Optional, Dict, Callable, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
 import six
@@ -32,6 +34,7 @@ from airflow import configuration, settings
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -230,43 +233,46 @@ class BaseOperator(LoggingMixin):
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs = ()  # type: Iterable[str]
 
+    # Defines the operator level extra links
+    operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+
     @apply_defaults
     def __init__(
         self,
-        task_id,  # type: str
-        owner=configuration.conf.get('operators', 'DEFAULT_OWNER'),  # type: str
-        email=None,  # type: Optional[str]
-        email_on_retry=True,  # type: bool
-        email_on_failure=True,  # type: bool
-        retries=0,  # type: int
-        retry_delay=timedelta(seconds=300),  # type: timedelta
-        retry_exponential_backoff=False,  # type: bool
-        max_retry_delay=None,  # type: Optional[datetime]
-        start_date=None,  # type: Optional[datetime]
-        end_date=None,  # type: Optional[datetime]
+        task_id: str,
+        owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
+        email: Optional[str] = None,
+        email_on_retry: bool = True,
+        email_on_failure: bool = True,
+        retries: int = 0,
+        retry_delay: timedelta = timedelta(seconds=300),
+        retry_exponential_backoff: bool = False,
+        max_retry_delay: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         schedule_interval=None,  # not hooked as of now
-        depends_on_past=False,  # type: bool
-        wait_for_downstream=False,  # type: bool
-        dag=None,  # type: Optional[DAG]
-        params=None,  # type: Optional[Dict]
-        default_args=None,  # type: Optional[Dict]
-        priority_weight=1,  # type: int
-        weight_rule=WeightRule.DOWNSTREAM,  # type: str
-        queue=configuration.conf.get('celery', 'default_queue'),  # type: str
-        pool=None,  # type: Optional[str]
-        sla=None,  # type: Optional[timedelta]
-        execution_timeout=None,  # type: Optional[timedelta]
-        on_failure_callback=None,  # type: Optional[Callable]
-        on_success_callback=None,  # type: Optional[Callable]
-        on_retry_callback=None,  # type: Optional[Callable]
-        trigger_rule=TriggerRule.ALL_SUCCESS,  # type: str
-        resources=None,  # type: Optional[Dict]
-        run_as_user=None,  # type: Optional[str]
-        task_concurrency=None,  # type: Optional[int]
-        executor_config=None,  # type: Optional[Dict]
-        do_xcom_push=True,  # type: bool
-        inlets=None,  # type: Optional[Dict]
-        outlets=None,  # type: Optional[Dict]
+        depends_on_past: bool = False,
+        wait_for_downstream: bool = False,
+        dag: Optional[DAG] = None,
+        params: Optional[Dict] = None,
+        default_args: Optional[Dict] = None,
+        priority_weight: int = 1,
+        weight_rule: str = WeightRule.DOWNSTREAM,
+        queue: str = configuration.conf.get('celery', 'default_queue'),
+        pool: str = Pool.DEFAULT_POOL_NAME,
+        sla: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = None,
+        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[Callable] = None,
+        on_retry_callback: Optional[Callable] = None,
+        trigger_rule: str = TriggerRule.ALL_SUCCESS,
+        resources: Optional[Dict] = None,
+        run_as_user: Optional[str] = None,
+        task_concurrency: Optional[int] = None,
+        executor_config: Optional[Dict] = None,
+        do_xcom_push: bool = True,
+        inlets: Optional[Dict] = None,
+        outlets: Optional[Dict] = None,
         *args,
         **kwargs
     ):
@@ -363,8 +369,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -560,12 +566,20 @@ class BaseOperator(LoggingMixin):
                 self.get_flat_relative_ids(upstream=upstream))
         )
 
+    @cached_property
+    def operator_extra_link_dict(self):
+        return {link.name: link for link in self.operator_extra_links}
+
+    @cached_property
+    def global_operator_extra_link_dict(self):
+        from airflow.plugins_manager import global_operator_extra_links
+        return {link.name: link for link in global_operator_extra_links}
+
     @prepare_lineage
     def pre_execute(self, context):
         """
         This hook is triggered right before self.execute() is called.
         """
-        pass
 
     def execute(self, context):
         """
@@ -583,7 +597,6 @@ class BaseOperator(LoggingMixin):
         It is passed the execution context and any results returned by the
         operator.
         """
-        pass
 
     def on_kill(self):
         """
@@ -592,7 +605,6 @@ class BaseOperator(LoggingMixin):
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
         """
-        pass
 
     def __deepcopy__(self, memo):
         """
@@ -606,7 +618,7 @@ class BaseOperator(LoggingMixin):
 
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
-        for k, v in list(self.__dict__.items()):
+        for k, v in self.__dict__.items():
             if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
@@ -670,7 +682,6 @@ class BaseOperator(LoggingMixin):
         content of the file before the template is rendered,
         it should override this method to do so.
         """
-        pass
 
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
@@ -892,11 +903,11 @@ class BaseOperator(LoggingMixin):
             if dag and not task.has_dag():
                 task.dag = dag
             if upstream:
-                task.add_only_new(task._downstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
             else:
                 self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task._upstream_task_ids, self.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
     def set_downstream(self, task_or_task_list):
         """
@@ -941,3 +952,49 @@ class BaseOperator(LoggingMixin):
             task_ids=task_ids,
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
+
+    @cached_property
+    def extra_links(self) -> Iterable[str]:
+        return list(set(self.operator_extra_link_dict.keys())
+                    .union(self.global_operator_extra_link_dict.keys()))
+
+    def get_extra_links(self, dttm, link_name):
+        """
+        For an operator, gets the URL that the external links specified in
+        `extra_links` should point to.
+        :raise ValueError: The error message of a ValueError will be passed on through to
+        the fronted to show up as a tooltip on the disabled link
+        :param dttm: The datetime parsed execution date for the URL being searched for
+        :param link_name: The name of the link we're looking for the URL for. Should be
+        one of the options specified in `extra_links`
+        :return: A URL
+        """
+        if link_name in self.operator_extra_link_dict:
+            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
+        elif link_name in self.global_operator_extra_link_dict:
+            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
+
+
+class BaseOperatorLink(metaclass=ABCMeta):
+    """
+    Abstract base class that defines how we get an operator link.
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """
+        Name of the link. This will be the button name on the task UI.
+
+        :return: link name
+        """
+
+    @abstractmethod
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+        """
+        Link to external system.
+
+        :param operator: airflow operator
+        :param dttm: datetime
+        :return: link to external system
+        """

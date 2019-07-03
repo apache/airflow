@@ -17,11 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import unittest
+from unittest import mock
 import logging
-import mock
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose

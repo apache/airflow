@@ -17,15 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
-import mock
+from unittest import mock
 import unittest
 import shutil
 import os
 import pysftp
 
-from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
 
@@ -36,11 +33,10 @@ TMP_FILE_FOR_TESTS = 'test_file.txt'
 
 class SFTPHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as f:
-            f.write('Test file')
+        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:
+            file.write('Test file')
 
     def test_get_conn(self):
         output = self.hook.get_conn()

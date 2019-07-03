@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Vision operator.
+"""
+
+# pylint: disable=too-many-lines
+
+from copy import deepcopy
+
 from google.api_core.exceptions import AlreadyExists
 
 from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook
@@ -57,7 +65,6 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_productset_create_template_fields]
     template_fields = ("location", "project_id", "product_set_id", "gcp_conn_id")
     # [END vision_productset_create_template_fields]
@@ -76,7 +83,7 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set = product_set
@@ -134,7 +141,6 @@ class CloudVisionProductSetGetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_productset_get_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_get_template_fields]
@@ -152,7 +158,7 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -221,7 +227,6 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_productset_update_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_update_template_fields]
@@ -241,7 +246,7 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set = product_set
         self.update_mask = update_mask
         self.location = location
@@ -297,7 +302,6 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_productset_delete_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_delete_template_fields]
@@ -315,7 +319,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductSetDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -377,7 +381,6 @@ class CloudVisionProductCreateOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_product_create_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_create_template_fields]
@@ -396,7 +399,7 @@ class CloudVisionProductCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product = product
         self.project_id = project_id
@@ -458,7 +461,6 @@ class CloudVisionProductGetOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_product_get_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_get_template_fields]
@@ -476,7 +478,7 @@ class CloudVisionProductGetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -555,7 +557,6 @@ class CloudVisionProductUpdateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_product_update_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_update_template_fields]
@@ -575,7 +576,7 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product = product
         self.location = location
         self.product_id = product_id
@@ -635,7 +636,6 @@ class CloudVisionProductDeleteOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_product_delete_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_delete_template_fields]
@@ -653,7 +653,7 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionProductDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -676,16 +676,17 @@ class CloudVisionProductDeleteOperator(BaseOperator):
 
 class CloudVisionAnnotateImageOperator(BaseOperator):
     """
-    Run image detection and annotation for an image.
+    Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudVisionAnnotateImageOperator`
 
-    :param request: (Required) Individual file annotation requests.
+    :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
         message class:`google.cloud.vision_v1.types.AnnotateImageRequest`
-    :type request: dict or google.cloud.vision_v1.types.AnnotateImageRequest
+    :type request: list[dict or google.cloud.vision_v1.types.AnnotateImageRequest] for batch or
+        dict or google.cloud.vision_v1.types.AnnotateImageRequest for single image.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -696,7 +697,6 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_annotate_image_template_fields]
     template_fields = ('request', 'gcp_conn_id')
     # [END vision_annotate_image_template_fields]
@@ -705,7 +705,7 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
     def __init__(
         self, request, retry=None, timeout=None, gcp_conn_id='google_cloud_default', *args, **kwargs
     ):
-        super(CloudVisionAnnotateImageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.request = request
         self.retry = retry
         self.timeout = timeout
@@ -713,7 +713,17 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+
+        if not isinstance(self.request, list):
+            response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+        else:
+            response = hook.batch_annotate_images(
+                requests=self.request,
+                retry=self.retry,
+                timeout=self.timeout
+            )
+
+        return response
 
 
 class CloudVisionReferenceImageCreateOperator(BaseOperator):
@@ -754,7 +764,6 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_reference_image_create_template_fields]
     template_fields = (
         "location",
@@ -781,7 +790,7 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionReferenceImageCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
         self.reference_image = reference_image
@@ -849,7 +858,6 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_add_product_to_product_set_template_fields]
     template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
     # [END vision_add_product_to_product_set_template_fields]
@@ -868,7 +876,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionAddProductToProductSetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -921,7 +929,6 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_remove_product_from_product_set_template_fields]
     template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
     # [END vision_remove_product_from_product_set_template_fields]
@@ -940,7 +947,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVisionRemoveProductFromProductSetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -961,3 +968,278 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+
+class CloudVisionDetectTextOperator(BaseOperator):
+    """
+    Detects Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectTextOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: (Optional) Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param language_hints: List of languages to use for TEXT_DETECTION.
+        In most cases, an empty value yields the best results since it enables automatic language detection.
+        For languages based on the Latin alphabet, setting language_hints is not needed.
+    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :param web_detection_params: Parameters for web detection.
+    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        :class:`google.cloud.vision_v1.types.AnnotateImageRequest`
+    :type additional_properties: dict
+    """
+    # [START vision_detect_text_set_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_text_set_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        language_hints=None,
+        web_detection_params=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.kwargs = kwargs
+        self.additional_properties = prepare_additional_parameters(
+            additional_properties=additional_properties,
+            language_hints=language_hints,
+            web_detection_params=web_detection_params,
+        )
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.text_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectDocumentTextOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectDocumentTextOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param language_hints: List of languages to use for TEXT_DETECTION.
+        In most cases, an empty value yields the best results since it enables automatic language detection.
+        For languages based on the Latin alphabet, setting language_hints is not needed.
+    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :param web_detection_params: Parameters for web detection.
+    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+    # [START vision_document_detect_text_set_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_document_detect_text_set_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        language_hints=None,
+        web_detection_params=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = prepare_additional_parameters(
+            additional_properties=additional_properties,
+            language_hints=language_hints,
+            web_detection_params=web_detection_params,
+        )
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.document_text_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectImageLabelsOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectImageLabelsOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+    # [START vision_detect_labels_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_labels_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = additional_properties
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.label_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectImageSafeSearchOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+    # [START vision_detect_safe_search_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_safe_search_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = additional_properties
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.safe_search_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+def prepare_additional_parameters(additional_properties, language_hints, web_detection_params):
+    """
+    Creates additional_properties parameter based on language_hints, web_detection_params and
+    additional_properties parameters specified by the user
+    """
+    if language_hints is None and web_detection_params is None:
+        return additional_properties
+
+    if additional_properties is None:
+        return {}
+
+    merged_additional_parameters = deepcopy(additional_properties)
+
+    if 'image_context' not in merged_additional_parameters:
+        merged_additional_parameters['image_context'] = {}
+
+    merged_additional_parameters['image_context']['language_hints'] = merged_additional_parameters[
+        'image_context'
+    ].get('language_hints', language_hints)
+    merged_additional_parameters['image_context']['web_detection_params'] = merged_additional_parameters[
+        'image_context'
+    ].get('web_detection_params', web_detection_params)
+
+    return merged_additional_parameters

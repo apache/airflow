@@ -233,8 +233,6 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ti2.max_tries, 1)
 
     def test_xcom_disable_pickle_type(self):
-        configuration.load_test_config()
-
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test1"
@@ -295,7 +293,7 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ret_value, json_obj)
 
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
-        class PickleRce(object):
+        class PickleRce:
             def __reduce__(self):
                 return os.system, ("ls -alt",)
 

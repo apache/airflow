@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import json
 import unittest
+from unittest import mock
 
 import doctest
-import mock
 import multiprocessing
 import os
+import pickle  # type: ignore
 import re
 import signal
 import sqlalchemy
 import subprocess
 import tempfile
+from tempfile import NamedTemporaryFile
 import warnings
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -38,36 +38,31 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
-from tempfile import NamedTemporaryFile
 from time import sleep
 
-from airflow import configuration
+from airflow import configuration, jobs, models, DAG, utils, macros, settings, exceptions
+from airflow.bin import cli
+from airflow.configuration import AirflowConfigException, run_command
+from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable, TaskInstance
-
-from airflow import jobs, models, DAG, utils, macros, settings, exceptions
-from airflow.models import BaseOperator, Connection, TaskFail
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.sqlite_hook import SqliteHook
+from airflow.models import Variable, TaskInstance, BaseOperator, Connection, TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
-
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.bin import cli
+from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
 from airflow.utils import timezone
-from airflow.utils.timezone import datetime
-from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
-from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException, run_command
+from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 18
+NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -77,12 +72,6 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
 EXAMPLE_DAG_DEFAULT_DATE = days_ago(2)
 
-try:
-    import cPickle as pickle
-except ImportError:
-    # Python 3
-    import pickle  # type: ignore
-
 
 class OperatorSubclass(BaseOperator):
     """
@@ -91,7 +80,7 @@ class OperatorSubclass(BaseOperator):
     template_fields = ['some_templated_field']
 
     def __init__(self, some_templated_field, *args, **kwargs):
-        super(OperatorSubclass, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.some_templated_field = some_templated_field
 
     def execute(*args, **kwargs):
@@ -102,7 +91,6 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -450,7 +438,7 @@ class CoreTest(unittest.TestCase):
     def test_bash_operator_multi_byte_output(self):
         t = BashOperator(
             task_id='test_multi_byte_bash_operator',
-            bash_command=u"echo \u2600",
+            bash_command="echo \u2600",
             dag=self.dag,
             output_encoding='utf-8')
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -614,7 +602,7 @@ class CoreTest(unittest.TestCase):
 
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
-                             u'{"foo": "bar"}')
+                             '{"foo": "bar"}')
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -628,7 +616,7 @@ class CoreTest(unittest.TestCase):
         Test templates can handle objects with no sense of truthiness
         """
 
-        class NonBoolObject(object):
+        class NonBoolObject:
             def __len__(self):
                 return NotImplemented
 
@@ -965,17 +953,13 @@ class CoreTest(unittest.TestCase):
         self.assertGreaterEqual(sum([f.duration for f in f_fails]), 3)
 
     def test_run_command(self):
-        if six.PY3:
-            write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
-        else:
-            write = r'sys.stdout.write(u"\u1000foo".encode("utf8"))'
+        write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
 
         cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
 
-        self.assertEqual(run_command("python -c '{0}'".format(cmd)),
-                         u'\u1000foo' if six.PY3 else 'foo')
+        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
 
-        self.assertEqual(run_command('echo "foo bar"'), u'foo bar\n')
+        self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
     def test_trigger_dagrun_with_execution_date(self):
@@ -1078,8 +1062,7 @@ class CliTests(unittest.TestCase):
         cls._cleanup()
 
     def setUp(self):
-        super(CliTests, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
@@ -1099,7 +1082,7 @@ class CliTests(unittest.TestCase):
             if self.appbuilder.sm.find_role(role_name):
                 self.appbuilder.sm.delete_role(role_name)
 
-        super(CliTests, self).tearDown()
+        super().tearDown()
 
     @staticmethod
     def _cleanup(session=None):
@@ -1224,8 +1207,8 @@ class CliTests(unittest.TestCase):
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as f:
-            retrieved_users = json.loads(f.read())
+        with open(users_filename, mode='r') as file:
+            retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 
         # ensure that an export can be imported
@@ -1722,23 +1705,6 @@ class CliTests(unittest.TestCase):
         with self.assertRaises(AirflowException):
             cli.get_dags(self.parser.parse_args(['clear', 'foobar', '-dx', '-c']))
 
-    def test_backfill(self):
-        cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator',
-            '-s', DEFAULT_DATE.isoformat()]))
-
-        cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
-            '-s', DEFAULT_DATE.isoformat()]))
-
-        cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator', '--dry_run',
-            '-s', DEFAULT_DATE.isoformat()]))
-
-        cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator', '-l',
-            '-s', DEFAULT_DATE.isoformat()]))
-
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
@@ -1807,8 +1773,8 @@ class CliTests(unittest.TestCase):
                 "slots": 2
             }
         }
-        with open('pools_import.json', mode='w') as f:
-            json.dump(pool_config_input, f)
+        with open('pools_import.json', mode='w') as file:
+            json.dump(pool_config_input, file)
 
         # Import json
         try:
@@ -1822,8 +1788,8 @@ class CliTests(unittest.TestCase):
         except Exception as e:
             self.fail("The 'pool -e pools_export.json' failed: %s" % e)
 
-        with open('pools_export.json', mode='r') as f:
-            pool_config_output = json.load(f)
+        with open('pools_export.json', mode='r') as file:
+            pool_config_output = json.load(file)
             self.assertEqual(
                 pool_config_input,
                 pool_config_output,
@@ -1883,14 +1849,56 @@ class CliTests(unittest.TestCase):
         self.assertEqual('original', models.Variable.get('bar'))
         self.assertEqual('{"foo": "bar"}', models.Variable.get('foo'))
 
+        # Set a dict
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'dict', '{"foo": "oops"}']))
+        # Set a list
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'list', '["oops"]']))
+        # Set str
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'str', 'hello string']))
+        # Set int
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'int', '42']))
+        # Set float
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'float', '42.0']))
+        # Set true
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'true', 'true']))
+        # Set false
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'false', 'false']))
+        # Set none
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'null', 'null']))
+
+        # Export and then import
+        cli.variables(self.parser.parse_args([
+            'variables', '-e', 'variables3.json']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-i', 'variables3.json']))
+
+        # Assert value
+        self.assertEqual({'foo': 'oops'}, models.Variable.get('dict', deserialize_json=True))
+        self.assertEqual(['oops'], models.Variable.get('list', deserialize_json=True))
+        self.assertEqual('hello string', models.Variable.get('str'))  # cannot json.loads(str)
+        self.assertEqual(42, models.Variable.get('int', deserialize_json=True))
+        self.assertEqual(42.0, models.Variable.get('float', deserialize_json=True))
+        self.assertEqual(True, models.Variable.get('true', deserialize_json=True))
+        self.assertEqual(False, models.Variable.get('false', deserialize_json=True))
+        self.assertEqual(None, models.Variable.get('null', deserialize_json=True))
+
         os.remove('variables1.json')
         os.remove('variables2.json')
+        os.remove('variables3.json')
 
     def _wait_pidfile(self, pidfile):
         while True:
             try:
-                with open(pidfile) as f:
-                    return int(f.read())
+                with open(pidfile) as file:
+                    return int(file.read())
             except Exception:
                 sleep(1)
 
@@ -1963,7 +1971,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class FakeWebHDFSHook(object):
+class FakeWebHDFSHook:
     def __init__(self, conn_id):
         self.conn_id = conn_id
 
@@ -1978,7 +1986,7 @@ class FakeSnakeBiteClientException(Exception):
     pass
 
 
-class FakeSnakeBiteClient(object):
+class FakeSnakeBiteClient:
 
     def __init__(self):
         self.started = True
@@ -1994,7 +2002,7 @@ class FakeSnakeBiteClient(object):
             return []
         elif path[0] == '/datadirectory/datafile':
             return [{
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2002,12 +2010,12 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 0,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/datafile'
             }]
         elif path[0] == '/datadirectory/empty_directory' and include_toplevel:
             return [{
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 493,
                 'file_type': 'd',
                 'access_time': 0,
@@ -2015,12 +2023,12 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481132141540,
                 'length': 0,
                 'blocksize': 0,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/empty_directory'
             }]
         elif path[0] == '/datadirectory/not_empty_directory' and include_toplevel:
             return [{
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 493,
                 'file_type': 'd',
                 'access_time': 0,
@@ -2028,10 +2036,10 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481132141540,
                 'length': 0,
                 'blocksize': 0,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/empty_directory'
             }, {
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2039,12 +2047,12 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 0,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/not_empty_directory/test_file'
             }]
         elif path[0] == '/datadirectory/not_empty_directory':
             return [{
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2052,24 +2060,24 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 0,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/not_empty_directory/test_file'
             }]
         elif path[0] == '/datadirectory/not_existing_file_or_directory':
             raise FakeSnakeBiteClientException
         elif path[0] == '/datadirectory/regex_dir':
             return [{
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
                 'block_replication': 3,
                 'modification_time': 1481122343862, 'length': 12582912,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/regex_dir/test1file'
             }, {
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2077,10 +2085,10 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 12582912,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/regex_dir/test2file'
             }, {
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2088,10 +2096,10 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 12582912,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/regex_dir/test3file'
             }, {
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2099,10 +2107,10 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 12582912,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/regex_dir/copying_file_1.txt._COPYING_'
             }, {
-                'group': u'supergroup',
+                'group': 'supergroup',
                 'permission': 420,
                 'file_type': 'f',
                 'access_time': 1481122343796,
@@ -2110,14 +2118,14 @@ class FakeSnakeBiteClient(object):
                 'modification_time': 1481122343862,
                 'length': 12582912,
                 'blocksize': 134217728,
-                'owner': u'hdfs',
+                'owner': 'hdfs',
                 'path': '/datadirectory/regex_dir/copying_file_3.txt.sftp'
             }]
         else:
             raise FakeSnakeBiteClientException
 
 
-class FakeHDFSHook(object):
+class FakeHDFSHook:
     def __init__(self, conn_id=None):
         self.conn_id = conn_id
 
@@ -2128,7 +2136,6 @@ class FakeHDFSHook(object):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
@@ -2207,9 +2214,6 @@ class ConnectionTest(unittest.TestCase):
 
 
 class WebHDFSHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2222,16 +2226,12 @@ class WebHDFSHookTest(unittest.TestCase):
 
 
 HDFSHook = None
-if six.PY2:
-    from airflow.hooks.hdfs_hook import HDFSHook
-    import snakebite
-
+snakebite = None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
 class HDFSHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
     def test_get_client(self):
@@ -2311,8 +2311,8 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual('subject', msg['Subject'])
         self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
-        self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
+        filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
+        self.assertEqual(filename, msg.get_payload()[-1].get('Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
 
@@ -2339,8 +2339,8 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual('subject', msg['Subject'])
         self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-                         msg.get_payload()[-1].get(u'Content-Disposition'))
+        self.assertEqual('attachment; filename="' + os.path.basename(attachment.name) + '"',
+                         msg.get_payload()[-1].get('Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
 

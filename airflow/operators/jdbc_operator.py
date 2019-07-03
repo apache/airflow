@@ -52,7 +52,7 @@ class JdbcOperator(BaseOperator):
                  autocommit=False,
                  parameters=None,
                  *args, **kwargs):
-        super(JdbcOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.parameters = parameters
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id

@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime, timezone
 import inspect
 import os
 import shutil
 import textwrap
 import unittest
+from unittest.mock import patch, ANY
 from tempfile import mkdtemp, NamedTemporaryFile
-
-from mock import patch, ANY
 
 from airflow import models, configuration
 from airflow.models import DagModel, DagBag, TaskInstance as TI
@@ -32,6 +32,7 @@ from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
+import airflow.example_dags
 
 
 class DagBagTest(unittest.TestCase):
@@ -128,7 +129,7 @@ class DagBagTest(unittest.TestCase):
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        from mock import Mock
+        from unittest.mock import Mock
         with patch('airflow.models.DagBag.log') as log_mock:
             log_mock.info = Mock()
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
@@ -177,7 +178,7 @@ class DagBagTest(unittest.TestCase):
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
                 if 'example_bash_operator.py' == os.path.basename(filepath):
                     TestDagBag.process_file_calls += 1
-                super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
+                super().process_file(filepath, only_if_updated, safe_mode)
 
         dagbag = TestDagBag(include_examples=True)
         dagbag.process_file_calls
@@ -190,20 +191,87 @@ class DagBagTest(unittest.TestCase):
     def test_get_dag_fileloc(self):
         """
         Test that fileloc is correctly set when we load example DAGs,
-        specifically SubDAGs.
+        specifically SubDAGs and packaged DAGs.
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
 
         expected = {
-            'example_bash_operator': 'example_bash_operator.py',
-            'example_subdag_operator': 'example_subdag_operator.py',
-            'example_subdag_operator.section-1': 'subdags/subdag.py'
+            'example_bash_operator': 'airflow/example_dags/example_bash_operator.py',
+            'example_subdag_operator': 'airflow/example_dags/example_subdag_operator.py',
+            'example_subdag_operator.section-1': 'airflow/example_dags/subdags/subdag.py',
+            'test_zip_dag': 'dags/test_zip.zip/test_zip.py'
         }
 
         for dag_id, path in expected.items():
             dag = dagbag.get_dag(dag_id)
-            self.assertTrue(
-                dag.fileloc.endswith('airflow/example_dags/' + path))
+            self.assertTrue(dag.fileloc.endswith(path))
+
+    @patch.object(DagModel, "get_current")
+    def test_refresh_py_dag(self, mock_dagmodel):
+        """
+        Test that we can refresh an ordinary .py DAG
+        """
+        EXAMPLE_DAGS_FOLDER = airflow.example_dags.__path__[0]
+
+        dag_id = "example_bash_operator"
+        fileloc = os.path.realpath(
+            os.path.join(EXAMPLE_DAGS_FOLDER, "example_bash_operator.py")
+        )
+
+        mock_dagmodel.return_value = DagModel()
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(
+            tzinfo=timezone.utc
+        )
+        mock_dagmodel.return_value.fileloc = fileloc
+
+        class TestDagBag(DagBag):
+            process_file_calls = 0
+
+            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+                if filepath == fileloc:
+                    TestDagBag.process_file_calls += 1
+                return super().process_file(filepath, only_if_updated, safe_mode)
+
+        dagbag = TestDagBag(dag_folder=self.empty_dir, include_examples=True)
+
+        self.assertEqual(1, dagbag.process_file_calls)
+        dag = dagbag.get_dag(dag_id)
+        self.assertIsNotNone(dag)
+        self.assertEqual(dag_id, dag.dag_id)
+        self.assertEqual(2, dagbag.process_file_calls)
+
+    @patch.object(DagModel, "get_current")
+    def test_refresh_packaged_dag(self, mock_dagmodel):
+        """
+        Test that we can refresh a packaged DAG
+        """
+        dag_id = "test_zip_dag"
+        fileloc = os.path.realpath(
+            os.path.join(TEST_DAGS_FOLDER, "test_zip.zip/test_zip.py")
+        )
+
+        mock_dagmodel.return_value = DagModel()
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(
+            tzinfo=timezone.utc
+        )
+        mock_dagmodel.return_value.fileloc = fileloc
+
+        class TestDagBag(DagBag):
+            process_file_calls = 0
+
+            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+                if filepath in fileloc:
+                    TestDagBag.process_file_calls += 1
+                return super().process_file(filepath, only_if_updated, safe_mode)
+
+        dagbag = TestDagBag(dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False)
+
+        self.assertEqual(1, dagbag.process_file_calls)
+        dag = dagbag.get_dag(dag_id)
+        self.assertIsNotNone(dag)
+        self.assertEqual(dag_id, dag.dag_id)
+        self.assertEqual(2, dagbag.process_file_calls)
 
     def process_dag(self, create_dag):
         """
@@ -536,7 +604,7 @@ class DagBagTest(unittest.TestCase):
         """
         Test that kill zombies call TIs failure handler with proper context
         """
-        dagbag = models.DagBag()
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
         with create_session() as session:
             session.query(TI).delete()
             dag = dagbag.get_dag('example_branch_operator')

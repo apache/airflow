@@ -30,16 +30,10 @@ if [ -d $HOME/.minikube ]; then
     sudo chown -R airflow.airflow $HOME/.kube $HOME/.minikube
 fi
 
-if [[ $PYTHON_VERSION == '3' ]]; then
-  PIP=pip3
-else
-  PIP=pip2
-fi
+sudo -H pip3 install --upgrade pip
+sudo -H pip3 install tox
 
-sudo -H $PIP install --upgrade pip
-sudo -H $PIP install tox
-
-cd $AIRFLOW_ROOT && $PIP --version && tox --version
+cd $AIRFLOW_ROOT && pip3 --version && tox --version
 
 if [ -z "$KUBERNETES_VERSION" ];
 then
@@ -52,7 +46,7 @@ else
   fi
   sudo ln -s /home/airflow/.minikube /home/travis/.minikube
 
-  tox -e $TOX_ENV -- tests.contrib.minikube \
+  tox -e $TOX_ENV -- tests.minikube \
                      --with-coverage \
                      --cover-erase \
                      --cover-html \

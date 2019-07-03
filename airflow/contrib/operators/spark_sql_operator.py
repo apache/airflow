@@ -73,7 +73,7 @@ class SparkSqlOperator(BaseOperator):
                  yarn_queue='default',
                  *args,
                  **kwargs):
-        super(SparkSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._sql = sql
         self._conf = conf
         self._conn_id = conn_id

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import requests
 import time
 
@@ -124,7 +122,7 @@ class DruidDbApiHook(DbApiHook):
     supports_autocommit = False
 
     def __init__(self, *args, **kwargs):
-        super(DruidDbApiHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         """

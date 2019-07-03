@@ -16,15 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage to BigQuery operator.
+"""
 
 import json
 
+from airflow import AirflowException
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=too-many-instance-attributes
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
     Loads files from Google cloud storage into BigQuery.
@@ -51,9 +56,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
+        Parameter must be defined if 'schema_object' is null and autodetect is False.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
+        Parameter must be defined if 'schema_fields' is null and autodetect is False.
     :type schema_object: str
     :param source_format: File format to export.
     :type source_format: str
@@ -125,7 +132,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Not applicable for external tables.
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
-        options and schema for CSV and JSON sources. (Default: ``False``)
+        options and schema for CSV and JSON sources. (Default: ``False``).
+        Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
+        It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
     """
     template_fields = ('bucket', 'source_objects',
@@ -133,6 +142,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-locals,too-many-arguments
     @apply_defaults
     def __init__(self,
                  bucket,
@@ -163,7 +173,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  autodetect=False,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # GCS config
         if src_fmt_configs is None:
@@ -214,8 +224,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                     self.bucket,
                     self.schema_object).decode("utf-8"))
             elif self.schema_object is None and self.autodetect is False:
-                raise ValueError('At least one of `schema_fields`, `schema_object`, '
-                                 'or `autodetect` must be passed.')
+                raise AirflowException('At least one of `schema_fields`, '
+                                       '`schema_object`, or `autodetect` must be passed.')
             else:
                 schema_fields = None
 
@@ -274,4 +284,3 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 'Loaded BQ data with max %s.%s=%s',
                 self.destination_project_dataset_table, self.max_id_key, max_id
             )
-            return max_id

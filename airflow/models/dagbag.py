@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import division
-from __future__ import unicode_literals
-
 import hashlib
 import imp
 import importlib
@@ -39,7 +36,7 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_processing import list_py_file_paths
+from airflow.utils.dag_processing import list_py_file_paths, correct_maybe_zipped
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -133,7 +130,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         ):
             # Reprocess source file
             found_dags = self.process_file(
-                filepath=orm_dag.fileloc, only_if_updated=False)
+                filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False)
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
@@ -173,9 +170,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         mods = []
         is_zipfile = zipfile.is_zipfile(filepath)
         if not is_zipfile:
-            if safe_mode and os.path.isfile(filepath):
-                with open(filepath, 'rb') as f:
-                    content = f.read()
+            if safe_mode:
+                with open(filepath, 'rb') as file:
+                    content = file.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
                         self.file_last_changed[filepath] = file_last_changed_on_disk
                         # Don't want to spam user with skip messages
@@ -358,11 +355,14 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
-
         # Used to store stats around DagBag processing
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
+
+        dag_folder = correct_maybe_zipped(dag_folder)
+
+        dags_by_name = {}
 
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
@@ -371,16 +371,19 @@ class DagBag(BaseDagBag, LoggingMixin):
                 found_dags = self.process_file(
                     filepath, only_if_updated=only_if_updated,
                     safe_mode=safe_mode)
+                dag_ids = [dag.dag_id for dag in found_dags]
+                dag_id_names = str(dag_ids)
 
                 td = timezone.utcnow() - ts
                 td = td.total_seconds() + (
                     float(td.microseconds) / 1000000)
+                dags_by_name[dag_id_names] = dag_ids
                 stats.append(FileLoadStat(
                     filepath.replace(dag_folder, ''),
                     td,
                     len(found_dags),
                     sum([len(dag.tasks) for dag in found_dags]),
-                    str([dag.dag_id for dag in found_dags]),
+                    dag_id_names,
                 ))
             except Exception as e:
                 self.log.exception(e)
@@ -392,6 +395,14 @@ class DagBag(BaseDagBag, LoggingMixin):
             'dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
+        for file_stat in self.dagbag_stats:
+            dag_ids = dags_by_name[file_stat.dags]
+            if file_stat.dag_num >= 1:
+                # if we found multiple dags per file, the stat is 'dag_id1 _ dag_id2'
+                dag_names = '_'.join(dag_ids)
+                Stats.timing('dag.loading-duration.{}'.
+                             format(dag_names),
+                             file_stat.duration)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""

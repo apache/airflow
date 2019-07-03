@@ -130,8 +130,6 @@ def slugify(text, entities=True, decimal=True, hexadecimal=True, max_length=0, w
 
     # translate
     text = unicodedata.normalize('NFKD', text)
-    if sys.version_info < (3,):
-        text = text.encode('ascii', 'ignore')
 
     # make the text lowercase (optional)
     if lowercase:
