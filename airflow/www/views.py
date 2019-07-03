@@ -122,10 +122,15 @@ def dag_link(v, c, m, p):
 
 
 def log_url_formatter(v, c, m, p):
+    url = url_for(
+        'airflow.log',
+        dag_id=m.dag_id,
+        task_id=m.task_id,
+        execution_date=m.execution_date.isoformat())
     return Markup(
-        '<a href="{m.log_url}">'
+        '<a href="{log_url}">'
         '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-        '</span></a>').format(**locals())
+        '</span></a>').format(log_url=url)
 
 
 def dag_run_link(v, c, m, p):
