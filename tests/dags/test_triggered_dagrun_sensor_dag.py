@@ -47,7 +47,7 @@ with DAG(dag_id=TEST_DAG_PARENT,
          default_args=args,
          start_date=DEFAULT_DATE,
          schedule_interval=None) as dag_parent:
-    def triggerchild(*args, **kwargs):
+    def triggerchild(*posargs, **kwargs):
         dr = trigger_dag(TEST_DAG_CHILD)
         return [dr.run_id]
     t0 = PythonOperator(python_callable=triggerchild,
