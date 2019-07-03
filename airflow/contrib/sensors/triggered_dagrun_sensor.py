@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Contains the TriggeredDagSensor which allows for checking the status
+of triggered DAG runs."""
 from airflow.exceptions import AirflowException
 from airflow.utils import db
 from airflow.utils.state import State
