@@ -63,10 +63,15 @@ class TriggeredDagRunSensor(BaseSensorOperator):
                     DagRun.run_id.in_(dagrun_ids),
                     DagRun.state == State.SUCCESS,
                 ).count()
+                if successcount == 0:
+                    raise AirflowException("No dagruns completed successfully.")
                 if self.sensor_rule == TriggerRule.ONE_SUCCESS:
-                    if successcount == 0:
-                        raise AirflowException('No dagruns completed successfully.')
+                    pass
+                elif self.sensor_rule == TriggerRule.ALL_SUCCESS:
+                    if successcount != len(dagrun_ids):
+                        raise AirflowException(
+                            "All dagruns did not complete successfully.")
                 else:
-                    raise AirflowException("sensor rule '{}' is not supported".format(
-                        self.sensor_rule))
+                    raise AirflowException(
+                        "sensor rule '{}' is not supported".format(self.sensor_rule))
             return runcount == 0
