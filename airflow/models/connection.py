@@ -72,6 +72,7 @@ class Connection(Base, LoggingMixin):
         ('google_cloud_platform', 'Google Cloud Platform'),
         ('hdfs', 'HDFS',),
         ('http', 'HTTP',),
+        ('https', 'HTTP',),
         ('pig_cli', 'Pig Client Wrapper',),
         ('hive_cli', 'Hive Client Wrapper',),
         ('hive_metastore', 'Hive Metastore Thrift',),
