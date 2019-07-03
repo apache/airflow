@@ -115,26 +115,67 @@ class TestBase(unittest.TestCase):
 
 
 class TestConnectionModelView(TestBase):
-    def setUp(self):
-        super(TestConnectionModelView, self).setUp()
-        self.connection = {
-            'conn_id': 'test_conn',
-            'conn_type': 'http',
-            'host': 'localhost',
-            'port': 8080,
-            'username': 'root',
-            'password': 'admin'
-        }
+
+    CONN_ID = "test_conn"
+
+    CONN = {
+        "conn_id": CONN_ID,
+        "conn_type": "http",
+        "host": "https://example.com",
+    }
 
     def tearDown(self):
-        self.clear_table(Connection)
+        self.session.query(Connection).filter(Connection.conn_id == self.CONN_ID).delete()
+        self.session.commit()
+        self.session.close()
         super(TestConnectionModelView, self).tearDown()
 
     def test_create_connection(self):
         resp = self.client.post('/connection/add',
-                                data=self.connection,
+                                data=self.CONN,
                                 follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
+        self.assertEqual(
+            self.session.query(Connection).filter(Connection.conn_id == self.CONN_ID).count(),
+            1
+        )
+
+    def test_create_error(self):
+        response = self.client.post(
+            '/connection/add',
+            data={"conn_type": "http"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'alert-danger', response.data)
+        with create_session() as session:
+            self.assertEqual(
+                session.query(Connection).filter(Connection.conn_id == self.CONN_ID).count(),
+                0
+            )
+
+    def test_create_extras(self):
+        data = self.CONN.copy()
+        data.update({
+            "conn_type": "google_cloud_platform",
+            "extra__google_cloud_platform__num_retries": "2",
+        })
+        response = self.client.post(
+            '/connection/add',
+            data=data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        with create_session() as session:
+            conn = session.query(Connection).filter(Connection.conn_id == self.CONN_ID).one()
+
+        self.assertEqual(conn.extra_dejson['extra__google_cloud_platform__num_retries'], 2)
+
+    def test_get_form(self):
+        resp = self.client.get('/connection/add',
+                               data=self.CONN,
+                               follow_redirects=True)
+        self.assertEqual(200, resp.status_code)
 
 
 class TestVariableModelView(TestBase):

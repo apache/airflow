@@ -2067,7 +2067,7 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__scope',
                     'extra__google_cloud_platform__num_retries',
                     'extra__grpc__auth_type',
-                    'extra__grpc__credentials_pem_file',
+                    'extra__grpc__credential_pem_file',
                     'extra__grpc__scopes']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
