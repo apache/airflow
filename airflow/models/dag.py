@@ -195,7 +195,7 @@ class DAG(BaseDag, LoggingMixin):
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
-        self.default_args = default_args or {}
+        self.default_args = copy.deepcopy(default_args or {})
         self.params = params or {}
 
         # merging potentially conflicting default_args['params'] into params
