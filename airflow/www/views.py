@@ -3025,6 +3025,9 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_default_sort = ('conn_id', False)
     column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
     form_overrides = dict(_password=PasswordField, _extra=TextAreaField)
+    form_args = dict(
+        conn_id=dict(validators=[validators.DataRequired()])
+    )
     form_widget_args = {
         'is_extra_encrypted': {'disabled': True},
         'is_encrypted': {'disabled': True},
@@ -3041,7 +3044,13 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
         'extra__google_cloud_platform__keyfile_dict': PasswordField('Keyfile JSON'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
-        'extra__google_cloud_platform__num_retries': IntegerField('Number of Retries'),
+        'extra__google_cloud_platform__num_retries': IntegerField(
+            'Number of Retries',
+            validators=[
+                validators.Optional(strip_whitespace=True),
+                validators.NumberRange(min=0),
+            ],
+        ),
         'extra__grpc__auth_type': StringField('Grpc Auth Type'),
         'extra__grpc__credentials_pem_file': StringField('Credential Keyfile Path'),
         'extra__grpc__scopes': StringField('Scopes (comma separated)'),
