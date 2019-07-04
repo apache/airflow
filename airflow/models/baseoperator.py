@@ -236,6 +236,28 @@ class BaseOperator(LoggingMixin):
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
 
+    _comps = {
+        'task_id',
+        'dag_id',
+        'owner',
+        'email',
+        'email_on_retry',
+        'retry_delay',
+        'retry_exponential_backoff',
+        'max_retry_delay',
+        'start_date',
+        'schedule_interval',
+        'depends_on_past',
+        'wait_for_downstream',
+        'priority_weight',
+        'sla',
+        'execution_timeout',
+        'on_failure_callback',
+        'on_success_callback',
+        'on_retry_callback',
+        'do_xcom_push',
+    }
+
     @apply_defaults
     def __init__(
         self,
@@ -351,7 +373,7 @@ class BaseOperator(LoggingMixin):
                         d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
         self.weight_rule = weight_rule
 
-        self.resources = Resources(**(resources or {}))
+        self.resources = Resources(*resources) if resources is not None else None
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
@@ -388,28 +410,6 @@ class BaseOperator(LoggingMixin):
 
         if outlets:
             self._outlets.update(outlets)
-
-        self._comps = {
-            'task_id',
-            'dag_id',
-            'owner',
-            'email',
-            'email_on_retry',
-            'retry_delay',
-            'retry_exponential_backoff',
-            'max_retry_delay',
-            'start_date',
-            'schedule_interval',
-            'depends_on_past',
-            'wait_for_downstream',
-            'priority_weight',
-            'sla',
-            'execution_timeout',
-            'on_failure_callback',
-            'on_success_callback',
-            'on_retry_callback',
-            'do_xcom_push',
-        }
 
     def __eq__(self, other):
         if (type(self) == type(other) and
