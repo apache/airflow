@@ -1001,3 +1001,13 @@ class DagTest(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         self.assertTrue(orm_dag.is_paused)
+
+    def test_dag_naive_default_args_start_date_with_timezone(self):
+        local_tz = pendulum.timezone('Europe/Zurich')
+        default_args = {'start_date': datetime.datetime(2018, 1, 1, tzinfo=local_tz)}
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)
