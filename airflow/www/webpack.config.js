@@ -36,6 +36,7 @@ const config = {
   entry: {
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     base: `${STATIC_DIR}/js/base.js`,
+    ie: `${STATIC_DIR}/js/ie.js`,
     graph: `${STATIC_DIR}/js/graph.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,

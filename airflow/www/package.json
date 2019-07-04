@@ -67,6 +67,7 @@
     "lodash": "^4.17.11",
     "moment-timezone": "^0.5.21",
     "npm": "^6.4.1",
-    "nvd3": "^1.8.6"
+    "nvd3": "^1.8.6",
+    "url-search-params-polyfill": "^6.0.0"
   }
 }
