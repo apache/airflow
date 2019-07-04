@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import inspect
 import os
 import shutil
@@ -27,10 +27,11 @@ from unittest.mock import patch, ANY
 from tempfile import mkdtemp, NamedTemporaryFile
 
 from airflow import models, configuration
+from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagModel, DagBag, TaskInstance as TI
-from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.db import create_session
 from airflow.utils.state import State
+from airflow.utils.timezone import utcnow
 from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
 import airflow.example_dags
 
@@ -600,28 +601,91 @@ class DagBagTest(unittest.TestCase):
         self.assertEqual([], dagbag.process_file(None))
 
     @patch.object(TI, 'handle_failure')
-    def test_kill_zombies(self, mock_ti_handle_failure):
+    def test_kill_zombies_when_job_state_is_not_running(self, mock_ti_handle_failure):
         """
-        Test that kill zombies call TIs failure handler with proper context
+        Test that kill zombies calls TI's failure handler with proper context
         """
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
         with create_session() as session:
             session.query(TI).delete()
+            session.query(LJ).delete()
             dag = dagbag.get_dag('example_branch_operator')
             task = dag.get_task(task_id='run_this_first')
 
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            lj = LJ(ti)
+            lj.state = State.SHUTDOWN
+            lj.id = 1
+            ti.job_id = lj.id
 
+            session.add(lj)
             session.add(ti)
             session.commit()
 
-            zombies = [SimpleTaskInstance(ti)]
-            dagbag.kill_zombies(zombies)
+            dagbag.kill_zombies()
             mock_ti_handle_failure \
                 .assert_called_with(ANY,
                                     configuration.getboolean('core',
                                                              'unit_test_mode'),
                                     ANY)
+
+    @patch.object(TI, 'handle_failure')
+    def test_kill_zombie_when_job_received_no_heartbeat(self, mock_ti_handle_failure):
+        """
+        Test that kill zombies calls TI's failure handler with proper context
+        """
+        zombie_threshold_secs = (
+            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        with create_session() as session:
+            session.query(TI).delete()
+            session.query(LJ).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
+
+            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            lj = LJ(ti)
+            lj.latest_heartbeat = utcnow() - timedelta(seconds=zombie_threshold_secs)
+            lj.state = State.RUNNING
+            lj.id = 1
+            ti.job_id = lj.id
+
+            session.add(lj)
+            session.add(ti)
+            session.commit()
+
+            dagbag.kill_zombies()
+            mock_ti_handle_failure \
+                .assert_called_with(ANY,
+                                    configuration.getboolean('core',
+                                                             'unit_test_mode'),
+                                    ANY)
+
+    @patch.object(TI, 'handle_failure')
+    def test_kill_zombies_doesn_nothing(self, mock_ti_handle_failure):
+        """
+        Test that kill zombies does nothing when job is running and received heartbeat
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        with create_session() as session:
+            session.query(TI).delete()
+            session.query(LJ).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
+
+            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            lj = LJ(ti)
+            lj.latest_heartbeat = utcnow()
+            lj.state = State.RUNNING
+            lj.id = 1
+            ti.job_id = lj.id
+
+            session.add(lj)
+            session.add(ti)
+            session.commit()
+
+            dagbag.kill_zombies()
+            mock_ti_handle_failure.assert_not_called()
 
     def test_deactivate_unknown_dags(self):
         """
