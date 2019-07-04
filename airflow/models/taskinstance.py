@@ -29,10 +29,11 @@ import time
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
-import lazy_object_proxy
-import pendulum
 
 import dill
+import lazy_object_proxy
+import pendulum
+from six.moves.urllib.parse import quote_plus
 from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
@@ -374,14 +375,14 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def log_url(self):
-        iso = quote(self.execution_date.isoformat())
+        iso = self.execution_date.isoformat()
         base_url = configuration.conf.get('webserver', 'BASE_URL')
-        return base_url + (
-            "/log?"
-            "execution_date={iso}"
-            "&task_id={task_id}"
-            "&dag_id={dag_id}"
-        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+        relative_url = '/log?execution_date={iso}&task_id={task_id}&dag_id={dag_id}'.format(
+            iso=quote_plus(iso), task_id=quote_plus(self.task_id), dag_id=quote_plus(self.dag_id))
+
+        if configuration.conf.getboolean('webserver', 'rbac'):
+            return '{base_url}{relative_url}'.format(base_url=base_url, relative_url=relative_url)
+        return '{base_url}/admin/airflow{relative_url}'.format(base_url=base_url, relative_url=relative_url)
 
     @property
     def mark_success_url(self):
