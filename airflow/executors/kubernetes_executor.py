@@ -45,7 +45,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels={}):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -59,7 +59,7 @@ class KubernetesExecutorConfig:
         self.volumes = volumes
         self.volume_mounts = volume_mounts
         self.tolerations = tolerations
-        self.labels = labels
+        self.labels = labels or {}
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
