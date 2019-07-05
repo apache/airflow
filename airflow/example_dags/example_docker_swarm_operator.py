@@ -21,7 +21,7 @@
 from datetime import timedelta
 import airflow
 from airflow import DAG
-from airflow.contrib.operators.swarm_operator import SwarmOperator
+from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
 
 default_args = {
     'owner': 'airflow',
@@ -33,18 +33,18 @@ default_args = {
 }
 
 dag = DAG(
-    'swarm_sample',
+    'docker_swarm_sample',
     default_args=default_args,
     schedule_interval=timedelta(minutes=10),
     catchup=False
 )
 
 with dag as dag:
-    t1 = SwarmOperator(
+    t1 = DockerSwarmOperator(
         api_version='auto',
-        docker_url='tcp://localhost:2375', #Set your docker URL
-        command='sleep 10',
-        image='reg-hk.agodadev.io/adp-messaging/adp-airflow:1.10.3',
+        docker_url='tcp://localhost:2375', # Set your docker URL
+        command='/bin/sleep 10',
+        image='centos:latest',
         auto_remove=True,
         task_id='sleep_with_swarm',
     )

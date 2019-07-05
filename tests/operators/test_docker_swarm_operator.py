@@ -22,14 +22,14 @@ import unittest
 from docker import APIClient
 from tests.compat import mock
 
-from airflow.contrib.operators.swarm_operator import SwarmOperator
+from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
 from airflow.exceptions import AirflowException
 
 
-class SwarmOperatorTestCase(unittest.TestCase):
+class DockerSwarmOperatorTestCase(unittest.TestCase):
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.contrib.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
     def test_execute(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
@@ -40,7 +40,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
             yield [{'Status': {'State': 'complete'}}]
 
         client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {'ID': 'akki'}
+        client_mock.create_service.return_value = {'ID': 'some_id'}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.side_effect = _client_tasks_side_effect()
@@ -51,7 +51,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = SwarmOperator(
+        operator = DockerSwarmOperator(
             api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
             mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True
         )
@@ -79,16 +79,16 @@ class SwarmOperatorTestCase(unittest.TestCase):
         self.assertEqual(cskwargs['labels'], {'name': 'airflow__adhoc_airflow__unittest'})
         self.assertTrue(cskwargs['name'].startswith('airflow-'))
         self.assertEqual(client_mock.tasks.call_count, 3)
-        client_mock.remove_service.assert_called_with('akki')
+        client_mock.remove_service.assert_called_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.contrib.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
     def test_no_auto_remove(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
 
         client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {'ID': 'akki'}
+        client_mock.create_service.return_value = {'ID': 'some_id'}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.return_value = [{'Status': {'State': 'complete'}}]
@@ -99,7 +99,7 @@ class SwarmOperatorTestCase(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = SwarmOperator(image='', auto_remove=False, task_id='unittest')
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
         operator.execute(None)
 
         self.assertEqual(
@@ -108,13 +108,13 @@ class SwarmOperatorTestCase(unittest.TestCase):
         )
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.contrib.operators.swarm_operator.types')
+    @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
     def test_failed_service_raises_error(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
 
         client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {'ID': 'akki'}
+        client_mock.create_service.return_value = {'ID': 'some_id'}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.return_value = [{'Status': {'State': 'failed'}}]
@@ -125,8 +125,8 @@ class SwarmOperatorTestCase(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = SwarmOperator(image='', auto_remove=False, task_id='unittest')
-        msg = "Service failed: {'ID': 'akki'}"
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
+        msg = "Service failed: {'ID': 'some_id'}"
         with self.assertRaises(AirflowException) as error:
             operator.execute(None)
         self.assertEqual(str(error.exception), msg)
@@ -134,10 +134,10 @@ class SwarmOperatorTestCase(unittest.TestCase):
     def test_on_kill(self):
         client_mock = mock.Mock(spec=APIClient)
 
-        operator = SwarmOperator(image='', auto_remove=False, task_id='unittest')
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
         operator.cli = client_mock
-        operator.service = {'ID': 'akki'}
+        operator.service = {'ID': 'some_id'}
 
         operator.on_kill()
 
-        client_mock.remove_service.assert_called_with('akki')
+        client_mock.remove_service.assert_called_with('some_id')

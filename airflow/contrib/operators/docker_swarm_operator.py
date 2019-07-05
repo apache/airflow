@@ -28,7 +28,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.strings import get_random_string
 
 
-class SwarmOperator(DockerOperator):
+class DockerSwarmOperator(DockerOperator):
     """
     Execute a command as an ephemeral docker swarm service.
     Example use-case - Using Docker Swarm orchestration to make one-time
