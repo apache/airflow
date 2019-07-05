@@ -20,7 +20,7 @@
 """
 This module contains Google Dataproc operators.
 """
-# pylint: disable=too-many-lines
+# pylint: disable=C0302
 
 import ntpath
 import os
