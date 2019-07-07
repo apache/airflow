@@ -84,7 +84,7 @@ class FileProcessorHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, filename):
-        filename = os.path.relpath(filename, self.dag_dir)
+        filename = os.path.relpath(filename, self.dag_dir).replace("../", "")
         ctx = dict()
         ctx['filename'] = filename
 
