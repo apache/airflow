@@ -95,7 +95,7 @@ class AWSAthenaHook(AwsHook):
         :type query_execution_id: str
         :return: str
         """
-        response = self.conn.get_query_execution(QueryExecutionId=query_execution_id)
+        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
         reason = None
         try:
             reason = response['QueryExecution']['Status']['StateChangeReason']
