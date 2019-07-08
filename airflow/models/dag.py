@@ -40,6 +40,7 @@ from airflow import configuration, settings, utils
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException, AirflowDagCycleException
 from airflow.executors import LocalExecutor, get_default_executor
+from airflow.models import BaseOperator
 from airflow.models.base import Base, ID_LEN
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
@@ -225,7 +226,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, TaskInstance]
+        self.task_dict: Dict[str, BaseOperator] = dict()
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
