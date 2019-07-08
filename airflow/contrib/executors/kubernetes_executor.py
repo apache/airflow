@@ -791,8 +791,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 task = self.task_queue.get_nowait()
                 try:
                     self.kube_scheduler.run_next(task)
-                except ApiException:
-                    self.log.exception('ApiException when attempting to run task, re-queueing.')
+                except ApiException as e:
+                    self.log.warning('ApiException when attempting to run task, re-queueing. '
+                                     'Message: %s' % json.loads(e.body)['message'])
                     self.task_queue.put(task)
                 finally:
                     self.task_queue.task_done()

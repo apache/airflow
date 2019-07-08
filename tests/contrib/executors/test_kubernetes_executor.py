@@ -674,20 +674,11 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_run_next_exception(self, mock_get_kube_client, mock_kubernetes_job_watcher):
 
         # When a quota is exceeded this is the ApiException we get
-        r = HTTPResponse()
-        r.body = {
-            "kind": "Status",
-            "apiVersion": "v1",
-            "metadata": {},
-            "status": "Failure",
-            "message": "pods \"podname\" is forbidden: " +
-            "exceeded quota: compute-resources, " +
-            "requested: limits.memory=4Gi, " +
-            "used: limits.memory=6508Mi, " +
-            "limited: limits.memory=10Gi",
-            "reason": "Forbidden",
-            "details": {"name": "podname", "kind": "pods"},
-            "code": 403},
+        r = HTTPResponse(
+            body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
+                 '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
+                 'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
+                 '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}')
         r.status = 403
         r.reason = "Forbidden"
 
