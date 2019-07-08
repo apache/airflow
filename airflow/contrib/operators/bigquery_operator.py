@@ -753,3 +753,155 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             dataset_reference=self.dataset_reference)
+
+
+class BigQueryGetDatasetOperator(BaseOperator):
+    """
+    This operator is used to return the dataset specified by dataset_id.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id,
+                 project_id=None,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 *args, **kwargs):
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.get_dataset(
+            dataset_id=self.dataset_id,
+            project_id=self.project_id)
+
+
+class BigQueryPatchDatasetOperator(BaseOperator):
+    """
+    This operator is used to patch dataset for your Project in BigQuery.
+    It only replaces fields that are provided in the submitted dataset resource.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param dataset_resource: Dataset resource that will be provided with request body.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    :type dataset_resource: dict
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id,
+                 dataset_resource,
+                 project_id=None,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 *args, **kwargs):
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.dataset_resource = dataset_resource
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start patching dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.patch_dataset(
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id)
+
+
+class BigQueryUpdateDatasetOperator(BaseOperator):
+    """
+    This operator is used to update dataset for your Project in BigQuery.
+    The update method replaces the entire dataset resource, whereas the patch
+    method only replaces fields that are provided in the submitted dataset resource.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param dataset_resource: Dataset resource that will be provided with request body.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    :type dataset_resource: dict
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id,
+                 dataset_resource,
+                 project_id=None,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 *args, **kwargs):
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.dataset_resource = dataset_resource
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.update_dataset(
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id)

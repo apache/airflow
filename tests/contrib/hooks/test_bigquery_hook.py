@@ -716,6 +716,63 @@ class TestDatasetsOperations(unittest.TestCase):
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id,
                                        deleteContents=delete_contents)
 
+    def test_patch_dataset(self):
+        dataset_resource = {
+            "access": [
+                {
+                    "role": "WRITER",
+                    "groupByEmail": "cloud-logs@google.com"
+                }
+            ]
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
+
+    def test_update_dataset(self):
+        dataset_resource = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "your-project:dataset_2_test",
+            "datasetReference": {
+                "projectId": "your-project",
+                "datasetId": "dataset_2_test"
+            }
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.update)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.update_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')

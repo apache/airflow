@@ -1795,6 +1795,97 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    def patch_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Patches information in an existing dataset.
+        It only replaces fields that are provided in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .patch(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully patched: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
+
+    def update_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Updates information in an existing dataset. The update method replaces the entire
+        dataset resource, whereas the patch method only replaces fields that are provided
+        in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .update(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully updated: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
+
     def insert_all(self, project_id, dataset_id, table_id,
                    rows, ignore_unknown_values=False,
                    skip_invalid_rows=False, fail_on_error=False):

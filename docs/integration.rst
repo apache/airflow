@@ -333,6 +333,18 @@ BigQuery
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator`
     Deletes an existing BigQuery dataset.
 
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryGetDatasetOperator`
+    This operator is used to return the dataset specified by dataset_id.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryUpdateDatasetOperator`
+    This operator is used to update dataset for your Project in BigQuery.
+    The update method replaces the entire dataset resource, whereas the patch
+    method only replaces fields that are provided in the submitted dataset resource.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryPatchDatasetOperator`
+    This operator is used to patch dataset for your Project in BigQuery.
+    It only replaces fields that are provided in the submitted dataset resource.
+
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryOperator`
     Executes BigQuery SQL queries in a specific BigQuery database.
 
