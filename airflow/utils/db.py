@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from functools import wraps
 
@@ -28,6 +23,7 @@ import os
 import contextlib
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -77,15 +73,29 @@ def provide_session(func):
 
 @provide_session
 def merge_conn(conn, session=None):
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
 
 
+@provide_session
+def add_default_pool_if_not_exists(session=None):
+    from airflow.models.pool import Pool
+    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+        default_pool = Pool(
+            pool=Pool.DEFAULT_POOL_NAME,
+            slots=conf.getint(section='core', key='non_pooled_task_slot_count',
+                              fallback=128),
+            description="Default pool",
+        )
+        session.add(default_pool)
+        session.commit()
+
+
 def initdb():
     from airflow import models
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     upgradedb()
 
     merge_conn(
@@ -93,15 +103,6 @@ def initdb():
             conn_id='airflow_db', conn_type='mysql',
             host='mysql', login='root', password='',
             schema='airflow'))
-    merge_conn(
-        Connection(
-            conn_id='beeline_default', conn_type='beeline', port="10000",
-            host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
-            schema='default'))
-    merge_conn(
-        Connection(
-            conn_id='bigquery_default', conn_type='google_cloud_platform',
-            schema='default'))
     merge_conn(
         Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -118,7 +119,12 @@ def initdb():
             schema='default',))
     merge_conn(
         Connection(
-            conn_id='hive_cli_default', conn_type='hive_cli',
+            conn_id='hive_cli_default', conn_type='hive_cli', port=10000,
+            host='localhost', extra='{"use_beeline": true, "auth": ""}',
+            schema='default',))
+    merge_conn(
+        Connection(
+            conn_id='pig_cli_default', conn_type='pig_cli',
             schema='default',))
     merge_conn(
         Connection(
@@ -286,6 +292,14 @@ def initdb():
         Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
+    merge_conn(
+        Connection(
+            conn_id='dingding_default', conn_type='http',
+            host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='opsgenie_default', conn_type='http',
+            host='', password=''))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
@@ -312,6 +326,7 @@ def upgradedb():
     config.set_main_option('script_location', directory.replace('%', '%%'))
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
+    add_default_pool_if_not_exists()
 
 
 def resetdb():
@@ -325,12 +340,13 @@ def resetdb():
 
     log.info("Dropping tables that exist")
 
-    models.base.Base.metadata.drop_all(settings.engine)
-    mc = MigrationContext.configure(settings.engine)
-    if mc._version.exists(settings.engine):
-        mc._version.drop(settings.engine)
+    connection = settings.engine.connect()
+    models.base.Base.metadata.drop_all(connection)
+    mc = MigrationContext.configure(connection)
+    if mc._version.exists(connection):
+        mc._version.drop(connection)
 
     from flask_appbuilder.models.sqla import Base
-    Base.metadata.drop_all(settings.engine)
+    Base.metadata.drop_all(connection)
 
     initdb()

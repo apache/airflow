@@ -16,11 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import unicode_literals
 
 import unittest
-import mock
-from builtins import str
+from unittest import mock
 from airflow.contrib.operators.cassandra_to_gcs import \
     CassandraToGoogleCloudStorageOperator
 

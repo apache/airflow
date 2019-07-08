@@ -30,7 +30,7 @@ class EmrHook(AwsHook):
     def __init__(self, emr_conn_id=None, region_name=None, *args, **kwargs):
         self.emr_conn_id = emr_conn_id
         self.region_name = region_name
-        super(EmrHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_client_type('emr', self.region_name)

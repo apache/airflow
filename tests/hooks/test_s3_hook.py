@@ -17,19 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import mock
-import tempfile
 import unittest
+from unittest import mock
+import tempfile
 
 from botocore.exceptions import NoCredentialsError
-
-from airflow import configuration
 
 try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
-    S3Hook = None
+    S3Hook = None  # type: ignore
 
 try:
     import boto3
@@ -45,7 +42,6 @@ except ImportError:
 class TestS3Hook(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):
@@ -205,15 +201,15 @@ class TestS3Hook(unittest.TestCase):
         conn.create_bucket(Bucket='mybucket')
         conn.put_object(Bucket='mybucket', Key='my_key', Body=b'Cont\xC3\xA9nt')
 
-        self.assertEqual(hook.read_key('my_key', 'mybucket'), u'Contént')
+        self.assertEqual(hook.read_key('my_key', 'mybucket'), 'Contént')
 
     # As of 1.3.2, Moto doesn't support select_object_content yet.
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_select_key(self, mock_get_client_type):
         mock_get_client_type.return_value.select_object_content.return_value = \
-            {'Payload': [{'Records': {'Payload': u'Contént'}}]}
+            {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
         hook = S3Hook(aws_conn_id=None)
-        self.assertEqual(hook.select_key('my_key', 'mybucket'), u'Contént')
+        self.assertEqual(hook.select_key('my_key', 'mybucket'), 'Contént')
 
     @mock_s3
     def test_check_for_wildcard_key(self):
@@ -263,7 +259,7 @@ class TestS3Hook(unittest.TestCase):
         # AWS account
         conn.create_bucket(Bucket="mybucket")
 
-        hook.load_string(u"Contént", "my_key", "mybucket")
+        hook.load_string("Contént", "my_key", "mybucket")
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')

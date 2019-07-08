@@ -22,9 +22,6 @@ import datetime
 import ftplib
 import os.path
 from airflow.hooks.base_hook import BaseHook
-from past.builtins import basestring
-
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def mlsd(conn, path="", facts=None):
@@ -60,7 +57,7 @@ def mlsd(conn, path="", facts=None):
         yield (name, entry)
 
 
-class FTPHook(BaseHook, LoggingMixin):
+class FTPHook(BaseHook):
     """
     Interact with FTP.
 
@@ -202,7 +199,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         # without a callback, default to writing to a user-provided file or
         # file-like buffer
@@ -240,7 +237,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
             input_handle = open(local_full_path_or_buffer, 'rb')

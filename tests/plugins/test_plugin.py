@@ -21,13 +21,11 @@
 from airflow.plugins_manager import AirflowPlugin
 
 from flask import Blueprint
-from flask_admin import BaseView, expose
-from flask_admin.base import MenuLink
-from flask_appbuilder import BaseView as AppBuilderBaseView
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 
@@ -57,18 +55,6 @@ def plugin_macro():
     pass
 
 
-# Creating a flask admin BaseView
-class PluginTestView(BaseView):
-    @expose('/')
-    def test(self):
-        # in this example, put your test_plugin/test.html
-        # template at airflow/plugins/templates/test_plugin/test.html
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
-
-
-v = PluginTestView(category="Test Plugin", name="Test View")
-
-
 # Creating a flask appbuilder BaseView
 class PluginTestAppBuilderBaseView(AppBuilderBaseView):
     default_view = "test"
@@ -89,7 +75,6 @@ appbuilder_mitem = {"name": "Google",
                     "category_icon": "fa-th",
                     "href": "https://www.google.com"}
 
-
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
@@ -98,10 +83,23 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-ml = MenuLink(
-    category='Test Plugin',
-    name="Test Menu Link",
-    url="https://airflow.apache.org/")
+# Create a handler to validate statsd stat name
+def stat_name_dummy_handler(stat_name):
+    return stat_name
+
+
+class AirflowLink(BaseOperatorLink):
+    name = 'airflow'
+
+    def get_link(self, operator, dttm):
+        return 'should_be_overridden'
+
+
+class GithubLink(BaseOperatorLink):
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'
 
 
 # Defining the plugin class
@@ -112,11 +110,14 @@ class AirflowTestPlugin(AirflowPlugin):
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]
-    admin_views = [v]
     flask_blueprints = [bp]
-    menu_links = [ml]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+    stat_name_handler = staticmethod(stat_name_dummy_handler)
+    global_operator_extra_links = [
+        AirflowLink(),
+        GithubLink(),
+    ]
 
 
 class MockPluginA(AirflowPlugin):

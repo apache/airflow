@@ -18,15 +18,15 @@
 # under the License.
 
 import json
-import mock
+import unittest
+from unittest import mock
 import os
 import socket
-import unittest
 
 from datetime import datetime
 
 from airflow import configuration
-from airflow.api.auth.backend.kerberos_auth import client_auth
+from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www import app as application
 
 
@@ -34,7 +34,6 @@ from airflow.www import app as application
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class ApiKerberosTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         try:
             configuration.conf.add_section("api")
         except Exception:
@@ -64,7 +63,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
-            class Request(object):
+            class Request:
                 headers = {}
 
             response.request = Request()
@@ -74,12 +73,12 @@ class ApiKerberosTests(unittest.TestCase):
             response.connection.send = mock.MagicMock()
 
             # disable mutual authentication for testing
-            client_auth.mutual_authentication = 3
+            CLIENT_AUTH.mutual_authentication = 3
 
             # case can influence the results
-            client_auth.hostname_override = socket.getfqdn()
+            CLIENT_AUTH.hostname_override = socket.getfqdn()
 
-            client_auth.handle_response(response)
+            CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
             response2 = c.post(

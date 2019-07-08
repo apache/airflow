@@ -36,12 +36,12 @@
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
               <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
             </div>
         </form>
       </div>
     </div>
-    <table id="dags" class="table table-striped table-bordered">
+    <table id="dags" class="table table-striped table-bordered table-hover">
         <thead>
             <tr>
                 <th></th>
@@ -103,13 +103,11 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                  {% if last_run and last_run.execution_date %}
-                    <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
-                      {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                    </a>
-                    <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
-                  {% endif %}
+                  <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
+                    <a></a>
+                    <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                    <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
+                  </div>
                 </td>
 
                 <!-- Column 8: Dag Runs -->
@@ -123,7 +121,7 @@
 
                 <!-- Trigger Dag -->
                 <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}"
-                   onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
+                   onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
@@ -169,14 +167,14 @@
                 {% endif %}
 
                 <!-- Refresh -->
-                <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}">
+                <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
                 <!-- Delete -->
                 <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-                  onclick="return confirmDeleteDag('{{ dag.dag_id }}')">
+                  onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
                    <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>
@@ -198,9 +196,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -220,8 +218,9 @@
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
-          search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          var query = new URLSearchParams(window.location.search);
+          query.set("search", e.target.value.trim())
+          window.location = DAGS_INDEX + "?" + query.toString();
           e.preventDefault();
         }
       });
@@ -231,15 +230,22 @@
         window.location = DAGS_INDEX + "?page_size=" + p_size;
       });
 
-      function confirmDeleteDag(dag_id){
-          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          EXCEPT Log.\n\
-          This cannot be undone.");
+      function confirmTriggerDag(link, dag_id){
+        if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
+          postAsForm(link.href, {});
+        }
+        // Never follow the link
+        return false;
       }
 
-      function confirmTriggerDag(dag_id){
-          return confirm("Are you sure you want to run '"+dag_id+"' now?");
+      function confirmDeleteDag(link, dag_id){
+        if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          EXCEPT Log.\n\
+          This cannot be undone.")) {
+          postAsForm(link.href, {});
+        }
+        return false;
       }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
@@ -257,10 +263,8 @@
 
       var $input = $(".typeahead");
       unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
+      ]);
 
       $input.typeahead({
         source: [...unique_options_search],
@@ -268,14 +272,15 @@
         afterSelect: function(value) {
           search_query = value.trim()
           if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+            var query = new URLSearchParams(window.location.search);
+            query.set("search", search_query)
+            window.location = DAGS_INDEX + "?" + query;
           }
         }
       });
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
 
       $('#dags').dataTable({
@@ -302,10 +307,25 @@
           }
         });
       });
+      d3.json("{{ url_for('Airflow.last_dagruns') }}", function(error, json) {
+        for(var safe_dag_id in json) {
+          dag_id = json[safe_dag_id].dag_id;
+          last_run = json[safe_dag_id].last_run;
+          g = d3.select('div#last-run-' + safe_dag_id)
+          g.selectAll('a')
+            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
+            .text(last_run);
+          g.selectAll('span')
+            .attr("data-original-title", "Start Date: " + last_run)
+            .style('display', null);
+          g.selectAll(".loading-last-run").remove();
+        }
+        d3.selectAll(".loading-last-run").remove();
+      });
       d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#dag-run-' + dag_id)
+            g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '110px')
               .selectAll("g")
@@ -384,7 +404,7 @@
       d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#task-run-' + dag_id)
+            g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '300px')
               .selectAll("g")

@@ -23,9 +23,9 @@ from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
 
 from airflow import DAG
-from airflow.models import State
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
+from airflow.utils.state import State
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -89,13 +89,12 @@ class BashOperatorTest(unittest.TestCase):
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
 
-    def test_return_value_to_xcom(self):
+    def test_return_value(self):
         bash_operator = BashOperator(
             bash_command='echo "stdout"',
-            xcom_push=True,
-            task_id='test_return_value_to_xcom',
+            task_id='test_return_value',
             dag=None
         )
-        xcom_return_value = bash_operator.execute(context={})
+        return_value = bash_operator.execute(context={})
 
-        self.assertEqual(xcom_return_value, u'stdout')
+        self.assertEqual(return_value, 'stdout')

@@ -46,7 +46,7 @@ class MongoSensor(BaseSensorOperator):
                               when connecting to MongoDB.
         :type mongo_conn_id: str
         """
-        super(MongoSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query

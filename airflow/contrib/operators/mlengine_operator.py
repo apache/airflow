@@ -106,7 +106,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param input_paths: A list of GCS paths of input data for batch
         prediction. Accepting wildcard operator ``*``, but only at the end. (templated)
-    :type input_paths: list of string
+    :type input_paths: list[str]
 
     :param output_path: The GCS path where the prediction results are
         written to. (templated)
@@ -140,6 +140,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
     :type runtime_version: str
+
+    :param signature_name: The name of the signature defined in the SavedModel
+        to use for this job.
+    :type signature_name: str
 
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
@@ -178,11 +182,12 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  uri=None,
                  max_worker_count=None,
                  runtime_version=None,
+                 signature_name=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self._project_id = project_id
         self._job_id = job_id
@@ -195,6 +200,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         self._uri = uri
         self._max_worker_count = max_worker_count
         self._runtime_version = runtime_version
+        self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
 
@@ -252,6 +258,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
             prediction_request['predictionInput'][
                 'runtimeVersion'] = self._runtime_version
 
+        if self._signature_name:
+            prediction_request['predictionInput'][
+                'signatureName'] = self._signature_name
+
         hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
 
         # Helper method to check if the existing job's prediction input is the
@@ -267,8 +277,9 @@ class MLEngineBatchPredictionOperator(BaseOperator):
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
-            self.log.error('MLEngine batch prediction job failed: {}'.format(
-                str(finished_prediction_job)))
+            self.log.error(
+                'MLEngine batch prediction job failed: %s', str(finished_prediction_job)
+            )
             raise RuntimeError(finished_prediction_job['errorMessage'])
 
         return finished_prediction_job['predictionOutput']
@@ -314,7 +325,7 @@ class MLEngineModelOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(MLEngineModelOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model = model
         self._operation = operation
@@ -406,7 +417,7 @@ class MLEngineVersionOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(MLEngineVersionOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version_name = version_name
@@ -534,7 +545,7 @@ class MLEngineTrainingOperator(BaseOperator):
                  mode='PRODUCTION',
                  *args,
                  **kwargs):
-        super(MLEngineTrainingOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._package_uris = package_uris
@@ -597,8 +608,7 @@ class MLEngineTrainingOperator(BaseOperator):
 
         if self._mode == 'DRY_RUN':
             self.log.info('In dry_run mode.')
-            self.log.info('MLEngine Training job request is: {}'.format(
-                training_request))
+            self.log.info('MLEngine Training job request is: %s', training_request)
             return
 
         hook = MLEngineHook(
@@ -617,6 +627,5 @@ class MLEngineTrainingOperator(BaseOperator):
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':
-            self.log.error('MLEngine training job failed: {}'.format(
-                str(finished_training_job)))
+            self.log.error('MLEngine training job failed: %s', str(finished_training_job))
             raise RuntimeError(finished_training_job['errorMessage'])

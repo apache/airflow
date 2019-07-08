@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud SQL operators.
+"""
+
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
@@ -161,7 +165,7 @@ class CloudSqlBaseOperator(BaseOperator):
         self._validate_inputs()
         self._hook = CloudSqlHook(gcp_conn_id=self.gcp_conn_id,
                                   api_version=self.api_version)
-        super(CloudSqlBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -205,6 +209,10 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceCreateOperator`
+
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
         #request-body
@@ -236,12 +244,12 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceCreateOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceCreateOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -257,8 +265,8 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                 project_id=self.project_id,
                 body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID {} already exists. "
-                          "Aborting create.".format(self.instance))
+            self.log.info("Cloud SQL instance with ID %s already exists. "
+                          "Aborting create.", self.instance)
 
         instance_resource = self._hook.get_instance(project_id=self.project_id,
                                                     instance=self.instance)
@@ -277,6 +285,10 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
     In the request body, supply the relevant portions of an instance resource, according
     to the rules of patch semantics.
     https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstancePatchOperator`
 
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
@@ -304,12 +316,12 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
                  api_version='v1beta4',
                  *args, **kwargs):
         self.body = body
-        super(CloudSqlInstancePatchOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstancePatchOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -328,6 +340,10 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
 class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a Cloud SQL instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDeleteOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -350,7 +366,7 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
-        super(CloudSqlInstanceDeleteOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
@@ -368,6 +384,10 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
 class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
     """
     Creates a new database inside a Cloud SQL instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabaseCreateOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -399,12 +419,12 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceDatabaseCreateOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabaseCreateOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -418,13 +438,11 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
         database = self.body.get("name")
         if not database:
             self.log.error("Body doesn't contain 'name'. Cannot check if the"
-                           " database already exists in the instance {}."
-                           .format(self.instance))
+                           " database already exists in the instance %s.", self.instance)
             return False
         if self._check_if_db_exists(database):
-            self.log.info("Cloud SQL instance with ID {} already contains database"
-                          " '{}'. Aborting database insert."
-                          .format(self.instance, database))
+            self.log.info("Cloud SQL instance with ID %s already contains database"
+                          " '%s'. Aborting database insert.", self.instance, database)
             return True
         else:
             return self._hook.create_database(project_id=self.project_id,
@@ -437,6 +455,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     Updates a resource containing information about a database inside a Cloud SQL
     instance using patch semantics.
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabasePatchOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -472,12 +494,12 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
         self.database = database
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceDatabasePatchOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabasePatchOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
         if not self.database:
@@ -491,10 +513,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     def execute(self, context):
         self._validate_body_fields()
         if not self._check_if_db_exists(self.database):
-            raise AirflowException("Cloud SQL instance with ID {} does not contain "
-                                   "database '{}'. "
-                                   "Please specify another database to patch."
-                                   .format(self.instance, self.database))
+            raise AirflowException("Cloud SQL instance with ID {instance} does not contain "
+                                   "database '{database}'. "
+                                   "Please specify another database to patch.".
+                                   format(instance=self.instance, database=self.database))
         else:
             return self._hook.patch_database(
                 project_id=self.project_id,
@@ -506,6 +528,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
 class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a database from a Cloud SQL instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabaseDeleteOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -533,12 +559,12 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
                  api_version='v1beta4',
                  *args, **kwargs):
         self.database = database
-        super(CloudSqlInstanceDatabaseDeleteOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabaseDeleteOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.database:
             raise AirflowException("The required parameter 'database' is empty")
 
@@ -562,6 +588,10 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceImportOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -593,12 +623,12 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceExportOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceExportOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -635,6 +665,10 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
     If the import file was generated in a different way, idempotence is not guaranteed.
     It has to be ensured on the SQL file level.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceImportOperator`
+
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
     :param body: The request body, as described in
@@ -665,12 +699,12 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceImportOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceImportOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -692,12 +726,16 @@ class CloudSqlQueryOperator(BaseOperator):
     Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
     cloud-sql-proxy to establish secure connection with the database.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlQueryOperator`
+
     :param sql: SQL query or list of queries to run (should be DML or DDL query -
         this operator does not return any data from the database,
         so it is useless to pass it DQL queries. Note that it is responsibility of the
         author of the queries to make sure that the queries are idempotent. For example
         you can use CREATE TABLE IF NOT EXISTS to create a table.
-    :type sql: str or [str]
+    :type sql: str or list[str]
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: mapping or iterable
     :param autocommit: if True, each command is automatically committed.
@@ -708,7 +746,7 @@ class CloudSqlQueryOperator(BaseOperator):
     :type gcp_conn_id: str
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
-       See :class:`~airflow.contrib.hooks.gcp_sql_hooks.CloudSqlDatabaseHook` for
+       See :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` for
        details on how to define gcpcloudsql:// connection.
     :type gcp_cloudsql_conn_id: str
     """
@@ -725,7 +763,7 @@ class CloudSqlQueryOperator(BaseOperator):
                  gcp_conn_id='google_cloud_default',
                  gcp_cloudsql_conn_id='google_cloud_sql_default',
                  *args, **kwargs):
-        super(CloudSqlQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
@@ -734,34 +772,39 @@ class CloudSqlQueryOperator(BaseOperator):
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         self.cloudsql_db_hook = CloudSqlDatabaseHook(
             gcp_cloudsql_conn_id=gcp_cloudsql_conn_id,
+            gcp_conn_id=gcp_conn_id,
             default_gcp_project_id=self.gcp_connection.extra_dejson.get(
                 'extra__google_cloud_platform__project'))
         self.cloud_sql_proxy_runner = None
         self.database_hook = None
 
+    def _execute_query(self):
+        try:
+            if self.cloudsql_db_hook.use_proxy:
+                self.cloud_sql_proxy_runner = self.cloudsql_db_hook. \
+                    get_sqlproxy_runner()
+                self.cloudsql_db_hook.free_reserved_port()
+                # There is very, very slim chance that the socket will
+                # be taken over here by another bind(0).
+                # It's quite unlikely to happen though!
+                self.cloud_sql_proxy_runner.start_proxy()
+            self.log.info('Executing: "%s"', self.sql)
+            self.database_hook.run(self.sql, self.autocommit,
+                                   parameters=self.parameters)
+        finally:
+            if self.cloud_sql_proxy_runner:
+                self.cloud_sql_proxy_runner.stop_proxy()
+                self.cloud_sql_proxy_runner = None
+
     def execute(self, context):
         self.cloudsql_db_hook.validate_ssl_certs()
         self.cloudsql_db_hook.create_connection()
+
         try:
             self.cloudsql_db_hook.validate_socket_path_length()
             self.database_hook = self.cloudsql_db_hook.get_database_hook()
             try:
-                try:
-                    if self.cloudsql_db_hook.use_proxy:
-                        self.cloud_sql_proxy_runner = self.cloudsql_db_hook.\
-                            get_sqlproxy_runner()
-                        self.cloudsql_db_hook.free_reserved_port()
-                        # There is very, very slim chance that the socket will
-                        # be taken over here by another bind(0).
-                        # It's quite unlikely to happen though!
-                        self.cloud_sql_proxy_runner.start_proxy()
-                    self.log.info('Executing: "%s"', self.sql)
-                    self.database_hook.run(self.sql, self.autocommit,
-                                           parameters=self.parameters)
-                finally:
-                    if self.cloud_sql_proxy_runner:
-                        self.cloud_sql_proxy_runner.stop_proxy()
-                        self.cloud_sql_proxy_runner = None
+                self._execute_query()
             finally:
                 self.cloudsql_db_hook.cleanup_database_hook()
         finally:

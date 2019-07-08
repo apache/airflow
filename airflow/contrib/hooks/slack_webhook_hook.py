@@ -27,7 +27,8 @@ class SlackWebhookHook(HttpHook):
     """
     This hook allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
-    If both supplied, Slack webhook token will be used.
+    If both supplied, http_conn_id will be used as base_url,
+    and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -66,8 +67,7 @@ class SlackWebhookHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(SlackWebhookHook, self).__init__(*args, **kwargs)
-        self.http_conn_id = http_conn_id
+        super().__init__(http_conn_id=http_conn_id, *args, **kwargs)
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments
@@ -81,7 +81,9 @@ class SlackWebhookHook(HttpHook):
         """
         Given either a manually set token or a conn_id, return the webhook_token to use
         :param token: The manually provided token
-        :param conn_id: The conn_id provided
+        :type token: str
+        :param http_conn_id: The conn_id provided
+        :type http_conn_id: str
         :return: webhook_token (str) to use
         """
         if token:
@@ -119,9 +121,6 @@ class SlackWebhookHook(HttpHook):
     def execute(self):
         """
         Remote Popen (actually execute the slack webhook call)
-
-        :param cmd: command to remotely execute
-        :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
         proxies = {}
         if self.proxy:

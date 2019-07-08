@@ -18,10 +18,13 @@
 # under the License.
 import os
 
+from cached_property import cached_property
+from urllib.parse import urlparse
+
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -32,14 +35,15 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     failure, it reads from host machine's local disk.
     """
     def __init__(self, base_log_folder, gcs_log_folder, filename_template):
-        super(GCSTaskHandler, self).__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
 
-    def _build_hook(self):
+    @cached_property
+    def hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -49,18 +53,12 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
-                '"{}". {}\n\nPlease make sure that airflow[gcp_api] is installed '
-                'and the GCS connection exists.'.format(remote_conn_id, str(e))
+                '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
+                'and the GCS connection exists.', remote_conn_id, str(e)
             )
 
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
-
     def set_context(self, ti):
-        super(GCSTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
@@ -78,7 +76,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        super(GCSTaskHandler, self).close()
+        super().close()
 
         if not self.upload_on_close:
             return
@@ -118,7 +116,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
-            local_log, metadata = super(GCSTaskHandler, self)._read(ti, try_number)
+            local_log, metadata = super()._read(ti, try_number)
             log += local_log
             return log, metadata
 
@@ -170,13 +168,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
         tuple containing the corresponding bucket and blob.
         """
-        # Python 3
-        try:
-            from urllib.parse import urlparse
-        # Python 2
-        except ImportError:
-            from urlparse import urlparse
-
         parsed_url = urlparse(gsurl)
         if not parsed_url.netloc:
             raise AirflowException('Please provide a bucket name')

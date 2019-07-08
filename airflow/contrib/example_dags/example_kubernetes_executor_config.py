@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import print_function
+
 import airflow
 from airflow.operators.python_operator import PythonOperator
 from libs.helper import print_stuff
@@ -73,4 +73,17 @@ second_task = PythonOperator(
     }
 )
 
+# Test that we can run tasks as a normal user
+third_task = PythonOperator(
+    task_id="non_root_task", python_callable=print_stuff, dag=dag,
+    executor_config={
+        "KubernetesExecutor": {
+            "securityContext": {
+                "runAsUser": 1000
+            }
+        }
+    }
+)
+
 start_task.set_downstream(second_task)
+second_task.set_downstream(third_task)

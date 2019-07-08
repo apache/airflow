@@ -21,14 +21,7 @@ import unittest
 import json
 from airflow.exceptions import AirflowException
 from airflow.operators.slack_operator import SlackAPIPostOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class SlackAPIPostOperatorTestCase(unittest.TestCase):

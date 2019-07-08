@@ -27,10 +27,9 @@ from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SSHHook(BaseHook, LoggingMixin):
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -67,7 +66,7 @@ class SSHHook(BaseHook, LoggingMixin):
                  timeout=10,
                  keepalive_interval=30
                  ):
-        super(SSHHook, self).__init__(ssh_conn_id)
+        super().__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
@@ -99,7 +98,8 @@ class SSHHook(BaseHook, LoggingMixin):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                self.key_file = extra_options.get("key_file")
+                if "key_file" in extra_options:
+                    self.key_file = extra_options.get("key_file")
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
@@ -146,7 +146,7 @@ class SSHHook(BaseHook, LoggingMixin):
         """
         Opens a ssh connection to the remote host.
 
-        :return paramiko.SSHClient object
+        :rtype: paramiko.client.SSHClient
         """
 
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)

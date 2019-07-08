@@ -23,19 +23,19 @@ from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
 from airflow.www.app import csrf
 from airflow import models
-from airflow.utils.db import create_session
 
 from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
 
-requires_authentication = airflow.api.api_auth.requires_authentication
+requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
@@ -85,9 +85,9 @@ def trigger_dag(dag_id):
         return response
 
     if getattr(g, 'user', None):
-        _log.info("User {} created {}".format(g.user, dr))
+        _log.info("User %s created %s", g.user, dr)
 
-    response = jsonify(message="Created {}".format(dr))
+    response = jsonify(message="Created {}".format(dr), execution_date=dr.execution_date.isoformat())
     return response
 
 
@@ -136,6 +136,19 @@ def test():
     return jsonify(status='OK')
 
 
+@api_experimental.route('/dags/<string:dag_id>/code', methods=['GET'])
+@requires_authentication
+def get_dag_code(dag_id):
+    """Return python code of a given dag_id."""
+    try:
+        return get_code(dag_id)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
 @requires_authentication
 def task_info(dag_id, task_id):
@@ -161,18 +174,11 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    DagModel = models.DagModel
-    with create_session() as session:
-        orm_dag = (
-            session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
-        )
-        if paused == 'true':
-            orm_dag.is_paused = True
-        else:
-            orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+    is_paused = True if paused == 'true' else False
+
+    models.DagModel.get_dagmodel(dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
     return jsonify({'response': 'ok'})
 

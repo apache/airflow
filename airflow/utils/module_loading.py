@@ -16,22 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import sys
 
-from airflow import configuration as conf
 from importlib import import_module
-
-
-def prepare_classpath():
-    """
-    Ensures that the Airflow home directory is on the classpath
-    """
-    config_path = os.path.join(conf.get('core', 'airflow_home'), 'config')
-    config_path = os.path.expanduser(config_path)
-
-    if config_path not in sys.path:
-        sys.path.append(config_path)
 
 
 def import_string(dotted_path):

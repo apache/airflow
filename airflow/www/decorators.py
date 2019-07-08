@@ -21,8 +21,8 @@ import gzip
 import functools
 import pendulum
 from io import BytesIO as IO
-from flask import after_this_request, redirect, request, url_for, g
-from airflow import models
+from flask import after_this_request, flash, redirect, request, url_for, g
+from airflow.models import Log
 from airflow.utils.db import create_session
 
 
@@ -39,7 +39,7 @@ def action_logging(f):
             else:
                 user = g.user.username
 
-            log = models.Log(
+            log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
@@ -102,7 +102,7 @@ def has_dag_access(**dag_kwargs):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
-            dag_id = request.args.get('dag_id')
+            dag_id = request.values.get('dag_id')
             # if it is false, we need to check whether user has write access on the dag
             can_dag_edit = dag_kwargs.get('can_dag_edit', False)
 
@@ -120,6 +120,7 @@ def has_dag_access(**dag_kwargs):
                                                                    dag_id)))):
                 return f(self, *args, **kwargs)
             else:
+                flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper

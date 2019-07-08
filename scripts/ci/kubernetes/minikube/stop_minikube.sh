@@ -34,6 +34,9 @@ sudo minikube status
 if [[ $? = 0 ]]; then
   sudo minikube delete
   sudo rm -rf HOME/.kube $HOME/.minikube
+  if [[ "${TRAVIS}" == true ]]; then
+    sudo rm -rf /etc/kubernetes/*.conf
+  fi
 fi
 
 sudo chown -R travis.travis .

@@ -28,7 +28,7 @@ class StandardTaskRunner(BaseTaskRunner):
     Runs the raw Airflow task by invoking through the Bash shell.
     """
     def __init__(self, local_task_job):
-        super(StandardTaskRunner, self).__init__(local_task_job)
+        super().__init__(local_task_job)
 
     def start(self):
         self.process = self.run_command()
@@ -41,4 +41,4 @@ class StandardTaskRunner(BaseTaskRunner):
             reap_process_group(self.process.pid, self.log)
 
     def on_finish(self):
-        super(StandardTaskRunner, self).on_finish()
+        super().on_finish()

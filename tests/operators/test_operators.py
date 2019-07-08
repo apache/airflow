@@ -17,18 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 
 from collections import OrderedDict
 
 import os
-import mock
+from unittest import mock
 import unittest
-
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -38,7 +34,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class MySqlTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -135,7 +130,7 @@ class MySqlTest(unittest.TestCase):
         hook.bulk_dump(table, tmp_file)
 
         from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-        mock_execute.assert_called_once()
+        assert mock_execute.call_count == 1
         query = """
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
@@ -187,7 +182,6 @@ class MySqlTest(unittest.TestCase):
 
 class PostgresTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -297,7 +291,6 @@ class PostgresTest(unittest.TestCase):
 
 class TransferTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -391,7 +384,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -406,7 +399,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive_part',
             partition={'ds': DEFAULT_DATE_DS},
@@ -423,7 +416,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -458,13 +451,13 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table='test_mysql_to_hive',
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             d = OrderedDict()
             d["c0"] = "SMALLINT"
             d["c1"] = "INT"
@@ -525,7 +518,7 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table=hive_table,
                 recreate=True,

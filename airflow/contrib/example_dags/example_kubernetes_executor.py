@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import print_function
+
 import airflow
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
@@ -94,4 +94,10 @@ three_task = PythonOperator(
                                "affinity": affinity}}
 )
 
-start_task.set_downstream([one_task, two_task, three_task])
+# Add arbitrary labels to worker pods
+four_task = PythonOperator(
+    task_id="four_task", python_callable=print_stuff, dag=dag,
+    executor_config={"KubernetesExecutor": {"labels": {"foo": "bar"}}}
+)
+
+start_task.set_downstream([one_task, two_task, three_task, four_task])

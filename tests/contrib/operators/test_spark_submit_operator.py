@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.models import TaskInstance
 
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
@@ -40,7 +40,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
         },
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
-        'driver_classpath': 'parquet.jar',
+        'archives': 'sample_archive.zip#SAMPLE',
+        'driver_class_path': 'parquet.jar',
         'jars': 'parquet.jar',
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -66,7 +67,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -91,7 +91,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
             },
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
-            'driver_classpath': 'parquet.jar',
+            'archives': 'sample_archive.zip#SAMPLE',
+            'driver_class_path': 'parquet.jar',
             'jars': 'parquet.jar',
             'packages': 'com.databricks:spark-avro_2.11:3.2.0',
             'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -122,7 +123,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['conf'], operator._conf)
         self.assertEqual(expected_dict['files'], operator._files)
         self.assertEqual(expected_dict['py_files'], operator._py_files)
-        self.assertEqual(expected_dict['driver_classpath'], operator._driver_classpath)
+        self.assertEqual(expected_dict['archives'], operator._archives)
+        self.assertEqual(expected_dict['driver_class_path'], operator._driver_class_path)
         self.assertEqual(expected_dict['jars'], operator._jars)
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
@@ -151,13 +153,13 @@ class TestSparkSubmitOperator(unittest.TestCase):
         ti.render_templates()
 
         # Then
-        expected_application_args = [u'-f', 'foo',
-                                     u'--bar', 'bar',
-                                     u'--start', (DEFAULT_DATE - timedelta(days=1))
+        expected_application_args = ['-f', 'foo',
+                                     '--bar', 'bar',
+                                     '--start', (DEFAULT_DATE - timedelta(days=1))
                                      .strftime("%Y-%m-%d"),
-                                     u'--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
-                                     u'--with-spaces',
-                                     u'args should keep embdedded spaces',
+                                     '--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
+                                     '--with-spaces',
+                                     'args should keep embdedded spaces',
                                      ]
         expected_name = "spark_submit_job"
         self.assertListEqual(expected_application_args,

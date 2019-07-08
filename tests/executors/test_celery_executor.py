@@ -19,10 +19,10 @@
 import os
 import sys
 import unittest
+from unittest import mock
 import contextlib
 from multiprocessing import Pool
 
-import mock
 
 from celery import Celery
 from celery import states as celery_states
@@ -34,10 +34,9 @@ from airflow.utils.state import State
 from airflow.executors import celery_executor
 
 from airflow import configuration
-configuration.load_test_config()
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401
+import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
 
 
 def _prepare_test_bodies():
@@ -78,7 +77,7 @@ class CeleryExecutorTest(unittest.TestCase):
             executor = celery_executor.CeleryExecutor()
             executor.start()
 
-            with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
+            with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
                 success_command = ['true', 'some_parameter']
                 fail_command = ['false', 'some_parameter']
 
@@ -153,14 +152,24 @@ class CeleryExecutorTest(unittest.TestCase):
             executor.tasks = {'key': fake_celery_task()}
             executor.sync()
 
-        mock_log.error.assert_called_once()
+        assert mock_log.error.call_count == 1
         args, kwargs = mock_log.error.call_args_list[0]
-        log = args[0]
         # Result of queuing is not a celery task but a dict,
         # and it should raise AttributeError and then get propagated
         # to the error log.
-        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, log)
-        self.assertIn('AttributeError', log)
+        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, args[0])
+        self.assertIn('AttributeError', args[1])
+
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.sync')
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.trigger_tasks')
+    @mock.patch('airflow.stats.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = celery_executor.CeleryExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

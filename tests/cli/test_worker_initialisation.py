@@ -21,15 +21,7 @@ import unittest
 import sqlalchemy
 import airflow
 from argparse import Namespace
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-from mock import patch
+from tests.compat import mock, patch
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
 from airflow.bin import cli # noqa
@@ -37,10 +29,6 @@ mock_args = Namespace(queues=1, concurrency=1)
 
 
 class TestWorkerPrecheck(unittest.TestCase):
-
-    def setUp(self):
-        airflow.configuration.load_test_config()
-
     @mock.patch('airflow.settings.validate_session')
     def test_error(self, mock_validate_session):
         """
@@ -53,7 +41,7 @@ class TestWorkerPrecheck(unittest.TestCase):
             cli.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
-    @mock.patch('airflow.configuration.getboolean')
+    @mock.patch('airflow.configuration.conf.getboolean')
     def test_worker_precheck_exception(self, mock_getboolean):
         """
         Test to check the behaviour of validate_session method
@@ -65,7 +53,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_getboolean.assert_called_once_with('core', 'worker_precheck', fallback=False)
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @mock.patch('airflow.configuration.getboolean')
+    @mock.patch('airflow.configuration.conf.getboolean')
     def test_validate_session_dbapi_exception(self, mock_getboolean, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query

@@ -21,10 +21,9 @@ from jira.exceptions import JIRAError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class JiraHook(BaseHook, LoggingMixin):
+class JiraHook(BaseHook):
     """
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
@@ -34,7 +33,7 @@ class JiraHook(BaseHook, LoggingMixin):
     def __init__(self,
                  jira_conn_id='jira_default',
                  proxies=None):
-        super(JiraHook, self).__init__(jira_conn_id)
+        super().__init__(jira_conn_id)
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
         self.client = None

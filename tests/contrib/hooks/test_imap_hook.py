@@ -20,11 +20,11 @@
 import imaplib
 import unittest
 
-from mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch, mock_open
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow.contrib.hooks.imap_hook import ImapHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 imaplib_string = 'airflow.contrib.hooks.imap_hook.imaplib'
@@ -54,8 +54,6 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'
 
 class TestImapHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-
         db.merge_conn(
             Connection(
                 conn_id='imap_default',
@@ -74,7 +72,7 @@ class TestImapHook(unittest.TestCase):
 
         mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
         mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
-        mock_conn.logout.assert_called_once()
+        assert mock_conn.logout.call_count == 1
 
     @patch(imaplib_string)
     def test_has_mail_attachments_found(self, mock_imaplib):
@@ -262,7 +260,7 @@ class TestImapHook(unittest.TestCase):
                 local_output_directory='test_directory'
             )
 
-        mock_is_symlink.assert_called_once()
+        assert mock_is_symlink.call_count == 1
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
 

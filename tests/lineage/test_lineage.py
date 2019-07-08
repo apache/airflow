@@ -23,16 +23,9 @@ from airflow.lineage.datasets import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from tests.compat import mock
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 class TestLineage(unittest.TestCase):

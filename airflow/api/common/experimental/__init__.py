@@ -16,3 +16,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Experimental APIs."""
+from datetime import datetime
+from typing import Optional
+
+from airflow.exceptions import DagNotFound, TaskNotFound, DagRunNotFound
+from airflow.models import DagBag, DagModel, DagRun
+
+
+def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
+    """Checks that DAG exists and in case it is specified that Task exist"""
+    dagbag = DagBag()
+    if dag_id not in dagbag.dags:
+        error_message = "Dag id {} not found".format(dag_id)
+        raise DagNotFound(error_message)
+    dag = dagbag.get_dag(dag_id)
+    if task_id and not dag.has_task(task_id):
+        error_message = 'Task {} not found in dag {}'.format(task_id, dag_id)
+        raise TaskNotFound(error_message)
+    return dag
+
+
+def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
+    """Get DagRun object and check that it exists"""
+    dagrun = dag.get_dagrun(execution_date=execution_date)
+    if not dagrun:
+        error_message = ('Dag Run for date {} not found in dag {}'
+                         .format(execution_date, dag.dag_id))
+        raise DagRunNotFound(error_message)
+    return dagrun

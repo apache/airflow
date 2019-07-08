@@ -18,10 +18,7 @@
 # under the License.
 
 import os
-try:
-    import unittest2 as unittest  # PY27
-except ImportError:
-    import unittest
+import unittest
 from argparse import Namespace
 from airflow import configuration
 from airflow.security.kerberos import renew_from_kt
@@ -32,8 +29,6 @@ from airflow import LoggingMixin
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class KerberosTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-
         if not configuration.conf.has_section("kerberos"):
             configuration.conf.add_section("kerberos")
         configuration.conf.set("kerberos", "keytab",

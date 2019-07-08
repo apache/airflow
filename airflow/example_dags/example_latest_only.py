@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example of the LatestOnlyOperator
-"""
+
+"""Example of the LatestOnlyOperator"""
+
 import datetime as dt
 
 import airflow

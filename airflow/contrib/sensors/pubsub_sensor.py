@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google PubSub sensor.
+"""
 
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -75,7 +78,7 @@ class PubSubPullSensor(BaseSensorOperator):
             must have domain-wide delegation enabled.
         :type delegate_to: str
         """
-        super(PubSubPullSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -89,7 +92,7 @@ class PubSubPullSensor(BaseSensorOperator):
 
     def execute(self, context):
         """Overridden to allow messages to be passed"""
-        super(PubSubPullSensor, self).execute(context)
+        super().execute(context)
         return self._messages
 
     def poke(self, context):

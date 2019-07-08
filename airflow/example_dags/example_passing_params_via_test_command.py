@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the params arguments in templated arguments."""
+
 from datetime import timedelta
 
 import airflow
@@ -35,10 +37,12 @@ dag = DAG(
 )
 
 
-def my_py_command(ds, **kwargs):
-    # Print out the "foo" param passed in via
-    # `airflow test example_passing_params_via_test_command run_this <date>
-    # -tp '{"foo":"bar"}'`
+def my_py_command(**kwargs):
+    """
+    Print out the "foo" param passed in via
+    `airflow test example_passing_params_via_test_command run_this <date>
+    -tp '{"foo":"bar"}'`
+    """
     if kwargs["test_mode"]:
         print(" 'foo' was passed in via test={} command : kwargs[params][foo] \
                = {}".format(kwargs["test_mode"], kwargs["params"]["foo"]))

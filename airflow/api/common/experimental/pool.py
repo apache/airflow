@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Pool APIs."""
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.db import provide_session
@@ -71,6 +71,9 @@ def delete_pool(name, session=None):
     """Delete pool by a given name."""
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
+
+    if name == Pool.DEFAULT_POOL_NAME:
+        raise AirflowBadRequest("default_pool cannot be deleted")
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:

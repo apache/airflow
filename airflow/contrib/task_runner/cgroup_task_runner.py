@@ -25,8 +25,9 @@ import uuid
 from cgroupspy import trees
 import psutil
 
-from airflow.task_runner.base_task_runner import BaseTaskRunner
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import reap_process_group
+from airflow.utils.operator_resources import Resources
 
 
 class CgroupTaskRunner(BaseTaskRunner):
@@ -34,6 +35,11 @@ class CgroupTaskRunner(BaseTaskRunner):
     Runs the raw Airflow task in a cgroup that has containment for memory and
     cpu. It uses the resource requirements defined in the task to construct
     the settings for the cgroup.
+
+    Cgroup must be mounted first otherwise CgroupTaskRunner
+    will not be able to work.
+
+    cgroup-bin Ubuntu package must be installed to use cgexec command.
 
     Note that this task runner will only work if the Airflow user has root privileges,
     e.g. if the airflow user is called `airflow` then the following entries (or an even
@@ -54,7 +60,7 @@ class CgroupTaskRunner(BaseTaskRunner):
     """
 
     def __init__(self, local_task_job):
-        super(CgroupTaskRunner, self).__init__(local_task_job)
+        super().__init__(local_task_job)
         self.process = None
         self._finished_running = False
         self._cpu_shares = None
@@ -75,14 +81,16 @@ class CgroupTaskRunner(BaseTaskRunner):
         node = trees.Tree().root
         path_split = path.split(os.sep)
         for path_element in path_split:
-            name_to_node = {x.name: x for x in node.children}
+            # node.name is encoded to bytes:
+            # https://github.com/cloudsigma/cgroupspy/blob/e705ac4ccdfe33d8ecc700e9a35a9556084449ca/cgroupspy/nodes.py#L64
+            name_to_node = {x.name.decode(): x for x in node.children}
             if path_element not in name_to_node:
-                self.log.debug("Creating cgroup %s in %s", path_element, node.path)
+                self.log.debug("Creating cgroup %s in %s", path_element, node.path.decode())
                 node = node.create_cgroup(path_element)
             else:
                 self.log.debug(
                     "Not creating cgroup %s in %s since it already exists",
-                    path_element, node.path
+                    path_element, node.path.decode()
                 )
                 node = name_to_node[path_element]
         return node
@@ -97,7 +105,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         node = trees.Tree().root
         path_split = path.split("/")
         for path_element in path_split:
-            name_to_node = {x.name: x for x in node.children}
+            name_to_node = {x.name.decode(): x for x in node.children}
             if path_element not in name_to_node:
                 self.log.warning("Cgroup does not exist: %s", path)
                 return
@@ -106,12 +114,13 @@ class CgroupTaskRunner(BaseTaskRunner):
         # node is now the leaf node
         parent = node.parent
         self.log.debug("Deleting cgroup %s/%s", parent, node.name)
-        parent.delete_cgroup(node.name)
+        parent.delete_cgroup(node.name.decode())
 
     def start(self):
         # Use bash if it's already in a cgroup
         cgroups = self._get_cgroup_names()
-        if cgroups["cpu"] != "/" or cgroups["memory"] != "/":
+        if ((cgroups.get("cpu") and cgroups.get("cpu") != "/") or
+                (cgroups.get("memory") and cgroups.get("memory") != "/")):
             self.log.debug(
                 "Already running in a cgroup (cpu: %s memory: %s) so not "
                 "creating another one",
@@ -130,7 +139,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
         # Get the resource requirements from the task
         task = self._task_instance.task
-        resources = task.resources
+        resources = task.resources if task.resources is not None else Resources()
         cpus = resources.cpus.qty
         self._cpu_shares = cpus * 1024
         self._mem_mb_limit = resources.ram.qty
@@ -192,6 +201,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             self._delete_cgroup(self.mem_cgroup_name)
         if self._created_cpu_cgroup:
             self._delete_cgroup(self.cpu_cgroup_name)
+        super().on_finish()
 
     @staticmethod
     def _get_cgroup_names():
@@ -199,8 +209,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         :return: a mapping between the subsystem name to the cgroup name
         :rtype: dict[str, str]
         """
-        with open("/proc/self/cgroup") as f:
-            lines = f.readlines()
+        with open("/proc/self/cgroup") as file:
+            lines = file.readlines()
             d = {}
             for line in lines:
                 line_split = line.rstrip().split(":")

@@ -25,7 +25,7 @@ import time
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.contrib.kubernetes import kube_client
+from airflow.kubernetes import kube_client
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -45,8 +45,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
-    :param driver_classpath: Additional, driver-specific, classpath settings.
-    :type driver_classpath: str
+    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+        the application working directory.
+    :param driver_class_path: Additional, driver-specific, classpath settings.
+    :type driver_class_path: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
     :param java_class: the main class of the Java application
@@ -87,14 +89,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type verbose: bool
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit.
-    :type spark_binary: string
+    :type spark_binary: str
     """
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
-                 driver_classpath=None,
+                 archives=None,
+                 driver_class_path=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -116,7 +119,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
-        self._driver_classpath = driver_classpath
+        self._archives = archives
+        self._driver_class_path = driver_class_path
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -244,8 +248,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--files", self._files]
         if self._py_files:
             connection_cmd += ["--py-files", self._py_files]
-        if self._driver_classpath:
-            connection_cmd += ["--driver-classpath", self._driver_classpath]
+        if self._archives:
+            connection_cmd += ["--archives", self._archives]
+        if self._driver_class_path:
+            connection_cmd += ["--driver-class-path", self._driver_class_path]
         if self._jars:
             connection_cmd += ["--jars", self._jars]
         if self._packages:
@@ -446,16 +452,25 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
 
         Possible status:
-            SUBMITTED: Submitted but not yet scheduled on a worker
-            RUNNING: Has been allocated to a worker to run
-            FINISHED: Previously ran and exited cleanly
-            RELAUNCHING: Exited non-zero or due to worker failure, but has not yet
+
+        SUBMITTED
+            Submitted but not yet scheduled on a worker
+        RUNNING
+            Has been allocated to a worker to run
+        FINISHED
+            Previously ran and exited cleanly
+        RELAUNCHING
+            Exited non-zero or due to worker failure, but has not yet
             started running again
-            UNKNOWN: The status of the driver is temporarily not known due to
-             master failure recovery
-            KILLED: A user manually killed this driver
-            FAILED: The driver exited non-zero and was not supervised
-            ERROR: Unable to run or restart due to an unrecoverable error
+        UNKNOWN
+            The status of the driver is temporarily not known due to
+            master failure recovery
+        KILLED
+            A user manually killed this driver
+        FAILED
+            The driver exited non-zero and was not supervised
+        ERROR
+            Unable to run or restart due to an unrecoverable error
             (e.g. missing jar file)
         """
 
@@ -559,11 +574,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                 # Currently only instantiate Kubernetes client for killing a spark pod.
                 try:
+                    import kubernetes
                     client = kube_client.get_kube_client()
                     api_response = client.delete_namespaced_pod(
                         self._kubernetes_driver_pod,
                         self._connection['namespace'],
-                        body=client.V1DeleteOptions(),
+                        body=kubernetes.client.V1DeleteOptions(),
                         pretty=True)
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)

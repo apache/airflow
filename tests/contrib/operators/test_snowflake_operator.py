@@ -17,22 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.utils import timezone
 
 from airflow.contrib.operators.snowflake_operator import SnowflakeOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -46,8 +37,7 @@ LONG_MOCK_PATH += 'SnowflakeOperator.get_hook'
 class TestSnowflakeOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestSnowflakeOperator, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
