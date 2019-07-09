@@ -61,7 +61,7 @@ class TriggeredDagRunSensor(BaseSensorOperator):
                     self.trigger_task_id))
             self.log.info('runcount=%s', runcount)
             if runcount == 0:
-                successcount = session.query(DagRun).filter(
+                success_count = session.query(DagRun).filter(
                     DagRun.run_id.in_(dagrun_ids),
                     DagRun.state == State.SUCCESS,
                 ).count()
