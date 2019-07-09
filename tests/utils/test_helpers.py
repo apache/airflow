@@ -273,7 +273,8 @@ class HelpersTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             helpers.chain([t1, t2], [t3, t4, t5])
 
-    def test_update_dictionary_recursively(self):
+    @staticmethod
+    def test_update_dictionary_recursively():
         dict_value_list = OrderedDict(
             [('key1', 'value1'), ('key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
 
@@ -307,13 +308,6 @@ class HelpersTest(unittest.TestCase):
             [('key', 'value1'),
              ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4'), ('key5', 'new_value5')]))])
         updated_dict = helpers.update_dictionary_recursively(dict_value_new_key, 'key2.key5', 'new_value5')
-        assert expected_dict == updated_dict
-
-        dict_value_new_key = OrderedDict(
-            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
-        expected_dict = OrderedDict(
-            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
-        updated_dict = helpers.update_dictionary_recursively(dict_value_new_key, 'key.key1', 'new_value1')
         assert expected_dict == updated_dict
 
 
