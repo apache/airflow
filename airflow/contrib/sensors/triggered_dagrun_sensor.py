@@ -37,7 +37,7 @@ class TriggeredDagRunSensor(BaseSensorOperator):
     def __init__(
             self,
             trigger_task_id,
-            sensor_rule=None,
+            sensor_rule=TriggerRule.ONE_SUCCESS,
             *args, **kwargs):
         super(TriggeredDagRunSensor, self).__init__(*args, **kwargs)
         self.sensor_rule = sensor_rule or TriggerRule.ONE_SUCCESS
