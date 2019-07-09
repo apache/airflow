@@ -46,36 +46,16 @@ class TestTriggeredDagRunSensor(unittest.TestCase):
 
     def test_poke(self):
         dag_parent = self.dagbag.get_dag(TEST_DAG_PARENT)
-        # dag_parent.run()
+        sess = Session()
+        TI = TaskInstance
+        DR = DagRun
 
         # One of the following two runs should succeed, while the
         # other should have its sensor time out.
+        # TBD: successful first run. Currently not working because
+        # triggered child DagRun is not being executed.
 
-        sess = Session()
-        TI = TaskInstance
-        # sensor_tis = sess.query(TI).filter(
-        #     TI.dag_id == TEST_DAG_PARENT,
-        #     TI.task_id == 'sense_child',
-        #     TI.state == State.SUCCESS,
-        # ).all()
-        # self.assertEqual(len(sensor_tis), 1)
-
-        # do_stuff_tis = sess.query(TI).filter(
-        #     TI.dag_id == TEST_DAG_PARENT,
-        #     TI.task_id == 'do_stuff',
-        #     TI.state == State.SUCCESS,
-        # ).all()
-        # self.assertEqual(len(do_stuff_tis), 1)
-
-        DR = DagRun
-        # drs = sess.query(DR).filter(
-        #     DR.dag_id == TEST_DAG_ID + '_parent',
-        #     DR.state == State.SUCCESS,
-        #     DR.execution_date == DEFAULT_DATE,
-        # ).all()
-        # self.assertEqual(len(drs), 1)
-
-        # second run
+        # failed second run
         with self.assertRaises(AirflowException):
             # the AirflowTaskTimeout raised by the sensor is caught by
             # the executor, and what we see is an AirflowException for
