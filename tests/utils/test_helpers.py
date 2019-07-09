@@ -30,10 +30,10 @@ import psutil
 import six
 
 from airflow import DAG
-from airflow.utils import helpers
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.exceptions import AirflowException
+from airflow.utils import helpers
 
 
 class TestHelpers(unittest.TestCase):
@@ -53,6 +53,7 @@ class TestHelpers(unittest.TestCase):
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
         def signal_handler(signum, frame):
             pass
+
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)
         child_setup_done = multiprocessing.Semaphore(0)
@@ -282,6 +283,15 @@ class HelpersTest(unittest.TestCase):
         updated_dict = helpers.update_dictionary_recursively(dict_value_list, 'key2[0].key3', 'new_value3')
         assert expected_dict == updated_dict
 
+        dict_ = OrderedDict(
+            [('key1', 'value1'), ('key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
+
+        expected_dict = OrderedDict([('key1', 'new_value1'), (
+            'key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
+
+        updated_dict = helpers.update_dictionary_recursively(dict_, 'key1', 'new_value1')
+        assert expected_dict == updated_dict
+
         dict_value_dict = OrderedDict(
             [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
         expected_dict = OrderedDict(
@@ -297,6 +307,13 @@ class HelpersTest(unittest.TestCase):
             [('key', 'value1'),
              ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4'), ('key5', 'new_value5')]))])
         updated_dict = helpers.update_dictionary_recursively(dict_value_new_key, 'key2.key5', 'new_value5')
+        assert expected_dict == updated_dict
+
+        dict_value_new_key = OrderedDict(
+            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
+        expected_dict = OrderedDict(
+            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
+        updated_dict = helpers.update_dictionary_recursively(dict_value_new_key, 'key.key1', 'new_value1')
         assert expected_dict == updated_dict
 
 

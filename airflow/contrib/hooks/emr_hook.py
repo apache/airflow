@@ -51,10 +51,9 @@ class EmrHook(AwsHook):
         emr_conn = self.get_connection(self.emr_conn_id)
 
         config = emr_conn.extra_dejson.copy()
-        updated_dict = None
         for key, value in job_flow_overrides.items():
-            updated_dict = helpers.update_dictionary_recursively(config, key, value, key_separator=".")
+            config = helpers.update_dictionary_recursively(config, key, value, key_separator=".")
 
-        response = self.get_conn().run_job_flow(**updated_dict)
+        response = self.get_conn().run_job_flow(**config)
 
         return response
