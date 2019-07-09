@@ -51,7 +51,6 @@ with DAG(dag_id=TEST_DAG_PARENT,
         dr = trigger_dag(TEST_DAG_CHILD)
         return [dr.run_id]
     t0 = PythonOperator(python_callable=triggerchild,
-                        provide_context=True,
                         task_id='trigger_child')
     t1 = TriggeredDagRunSensor(
         task_id='sense_child',
