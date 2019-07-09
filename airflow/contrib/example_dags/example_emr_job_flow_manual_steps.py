@@ -54,7 +54,9 @@ SPARK_TEST_STEPS = [
 ]
 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc'
+    'Name': 'PiCalc',
+    "Instances.KeepJobFlowAliveWhenNoSteps": False
+
 }
 
 dag = DAG(

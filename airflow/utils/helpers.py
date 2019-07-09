@@ -346,3 +346,50 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def update_dictionary_recursively(dictionary, key, value, key_separator="."):
+    """Update given `dictionary` with the given `key` and `value`.
+
+    Consider dictionary 1) :- {key1:value1, key2:{key3, {key4:value4}}} and you have to update key4 then `key`
+    should be given as `key2.key3.key4`.
+    Consider dictionary 2) :- {key1:value1, key2:{key3, [{key4:value4}]}}
+        and you have to update key4 at index 1 then `key` should be given as `key2.key3.key4[0]`.
+
+    :param dictionary: Dictionary that is to be updated.
+    :type dictionary: dict
+    :param key: Dictionary key for which dictionary's value is to be updated.
+    :type key: str
+    :param value: The value which will be used to update the dictionary for the given key.
+    :type value: object
+    :param key_separator: Separator with which key is separated.
+    :type key_separator str
+    :return: Return updated dict.
+    :rtype: dict
+    """
+    index = key.find(key_separator)
+    if index != -1:
+        current_key = key[0:index]
+        key = key[index + 1:]
+        try:
+            if '[' in current_key:
+                key_index = current_key.split('[')
+                current_key = key_index[0]
+                list_index = int(key_index[1].strip(']'))
+                dictionary[current_key][list_index] = update_dictionary_recursively(
+                    dictionary[current_key][list_index], key, value, key_separator)
+            else:
+                dictionary[current_key] = update_dictionary_recursively(dictionary[current_key],
+                                                                        key, value, key_separator)
+        except (KeyError, IndexError):
+            return dictionary
+    else:
+        if '[' in key:
+            key_index = key.split('[')
+            list_index = int(key_index[1].strip(']'))
+            if list_index > len(dictionary) - 1:
+                return dictionary
+            dictionary[list_index] = value
+        else:
+            dictionary[key] = value
+    return dictionary
