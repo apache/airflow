@@ -22,7 +22,6 @@ from tests.contrib.sensors.test_triggered_dagrun_sensor import (
 
 args = {
     'start_date': DEFAULT_DATE,
-    'owner': 'airflow',
     'depends_on_past': False
 }
 
