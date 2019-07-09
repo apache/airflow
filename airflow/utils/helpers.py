@@ -371,25 +371,15 @@ def update_dictionary_recursively(dictionary, key, value, key_separator="."):
     if index != -1:
         current_key = key[0:index]
         key = key[index + 1:]
-        try:
-            if '[' in current_key:
-                key_index = current_key.split('[')
-                current_key = key_index[0]
-                list_index = int(key_index[1].strip(']'))
-                dictionary[current_key][list_index] = update_dictionary_recursively(
-                    dictionary[current_key][list_index], key, value, key_separator)
-            else:
-                dictionary[current_key] = update_dictionary_recursively(dictionary[current_key],
-                                                                        key, value, key_separator)
-        except (KeyError, IndexError):
-            return dictionary
-    else:
-        if '[' in key:
-            key_index = key.split('[')
+        if '[' in current_key:
+            key_index = current_key.split('[')
+            current_key = key_index[0]
             list_index = int(key_index[1].strip(']'))
-            if list_index > len(dictionary) - 1:
-                return dictionary
-            dictionary[list_index] = value
+            dictionary[current_key][list_index] = update_dictionary_recursively(
+                dictionary[current_key][list_index], key, value, key_separator)
         else:
-            dictionary[key] = value
+            dictionary[current_key] = update_dictionary_recursively(dictionary[current_key],
+                                                                    key, value, key_separator)
+    else:
+        dictionary[key] = value
     return dictionary

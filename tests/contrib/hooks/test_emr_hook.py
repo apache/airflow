@@ -62,7 +62,7 @@ class TestEmrHook(unittest.TestCase):
         # coverage of EMR isn't 100% it turns out.
         cluster = hook.create_job_flow({'Name': 'test_cluster',
                                         'ReleaseLabel': '',
-                                        'AmiVersion': '3.2'})
+                                        'AmiVersion': '3.2', 'Instances.TerminationProtected': True})
 
         cluster = client.describe_cluster(ClusterId=cluster['JobFlowId'])['Cluster']
 
