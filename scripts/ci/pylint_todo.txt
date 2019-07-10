@@ -214,7 +214,6 @@
 ./airflow/jobs/backfill_job.py
 ./airflow/jobs/base_job.py
 ./airflow/jobs/local_task_job.py
-./airflow/jobs/scheduler_job.py
 ./airflow/jobs/__init__.py
 ./airflow/kubernetes/kubernetes_request_factory/kubernetes_request_factory.py
 ./airflow/kubernetes/kubernetes_request_factory/pod_request_factory.py
