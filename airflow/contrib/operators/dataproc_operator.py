@@ -701,14 +701,14 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     :param dataproc_pig_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments (templated)
     :type dataproc_pig_properties: dict
     :param dataproc_pig_jars: HCFS URIs of jar files to add to the CLASSPATH of the Pig Client and Hadoop
         MapReduce (MR) tasks. Can contain Pig UDFs. (templated)
     :type dataproc_pig_jars: list
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_pig_jars', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region',
+                       'dataproc_pig_jars', 'dataproc_jars', 'dataproc_pig_properties']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
     job_type = 'pigJob'
@@ -755,14 +755,14 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
     :param variables: Map of named parameters for the query.
     :type variables: dict
     :param dataproc_hive_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments  (templated)
     :type dataproc_hive_properties: dict
     :param dataproc_hive_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :type dataproc_hive_jars: list
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_hive_jars', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region',
+                       'dataproc_hive_jars', 'dataproc_jars', 'dataproc_hive_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
@@ -809,13 +809,13 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments  (templated)
     :type dataproc_spark_properties: dict
     :param dataproc_spark_jars: HCFS URIs of jar files to be added to the Spark CLASSPATH. (templated)
     :type dataproc_spark_jars: list
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region',
-                       'dataproc_spark_jars', 'dataproc_jars']
+                       'dataproc_spark_jars', 'dataproc_jars', 'dataproc_spark_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'sparkSqlJob'
@@ -868,7 +868,7 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     :param files: List of files to be copied to the working directory
     :type files: list
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments  (templated)
     :type dataproc_spark_properties: dict
     :param dataproc_spark_jars: HCFS URIs of files to be copied to the working directory of Spark drivers
         and distributed tasks. Useful for naively parallel tasks. (templated)
@@ -876,7 +876,7 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region',
-                       'dataproc_spark_jars', 'dataproc_jars']
+                       'dataproc_spark_jars', 'dataproc_jars', 'dataproc_spark_properties']
     ui_color = '#0273d4'
     job_type = 'sparkJob'
 
@@ -931,7 +931,7 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     :param files: List of files to be copied to the working directory
     :type files: list
     :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments (tempplated)
     :type dataproc_hadoop_properties: dict
     :param dataproc_hadoop_jars: Jar file URIs to add to the CLASSPATHs of the Hadoop driver and
         tasks. (tempplated)
@@ -939,7 +939,7 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region',
-                       'dataproc_hadoop_jars', 'dataproc_jars']
+                       'dataproc_hadoop_jars', 'dataproc_jars', 'dataproc_hadoop_properties']
     ui_color = '#0273d4'
     job_type = 'hadoopJob'
 
@@ -994,7 +994,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
         Supported file types: .py, .egg, and .zip
     :type pyfiles: list
     :param dataproc_pyspark_properties: Map for the Pig properties. Ideal to put in
-        default arguments
+        default arguments (templated)
     :type dataproc_pyspark_properties: dict
     :param dataproc_pyspark_jars: HCFS URIs of jar files to add to the CLASSPATHs of the Python
         driver and tasks. (templated)
@@ -1002,7 +1002,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'region',
-                       'dataproc_pyspark_jars', 'dataproc_jars']
+                       'dataproc_pyspark_jars', 'dataproc_jars', 'dataproc_pyspark_properties']
     ui_color = '#0273d4'
     job_type = 'pysparkJob'
 
