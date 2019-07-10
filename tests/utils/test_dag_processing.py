@@ -24,17 +24,12 @@ import tempfile
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
-from datetime import timedelta
 
 from airflow import configuration as conf
 from airflow.jobs import DagFileProcessor
-from airflow.jobs import LocalTaskJob as LJ
-from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,
-                                          SimpleTaskInstance, correct_maybe_zipped)
-from airflow.utils.db import create_session
-from airflow.utils.state import State
+                                          correct_maybe_zipped)
 
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
@@ -175,45 +170,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager.set_file_paths(['abc.txt'])
         self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
 
-    def test_find_zombies(self):
-        manager = DagFileProcessorManager(
-            dag_directory='directory',
-            file_paths=['abc.txt'],
-            max_runs=1,
-            processor_factory=MagicMock().return_value,
-            signal_conn=MagicMock(),
-            stat_queue=MagicMock(),
-            result_queue=MagicMock,
-            async_mode=True)
-
-        dagbag = DagBag(TEST_DAG_FOLDER)
-        with create_session() as session:
-            session.query(LJ).delete()
-            dag = dagbag.get_dag('example_branch_operator')
-            task = dag.get_task(task_id='run_this_first')
-
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
-            lj = LJ(ti)
-            lj.state = State.SHUTDOWN
-            lj.id = 1
-            ti.job_id = lj.id
-
-            session.add(lj)
-            session.add(ti)
-            session.commit()
-
-            manager._last_zombie_query_time = timezone.utcnow() - timedelta(
-                seconds=manager._zombie_threshold_secs + 1)
-            zombies = manager._find_zombies()
-            self.assertEqual(1, len(zombies))
-            self.assertIsInstance(zombies[0], SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, zombies[0].dag_id)
-            self.assertEqual(ti.task_id, zombies[0].task_id)
-            self.assertEqual(ti.execution_date, zombies[0].execution_date)
-
-            session.query(TI).delete()
-            session.query(LJ).delete()
-
 
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
@@ -235,11 +191,10 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         with settings_context(SETTINGS_FILE_VALID):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
-            def processor_factory(file_path, zombies):
+            def processor_factory(file_path):
                 return DagFileProcessor(file_path,
                                         False,
-                                        [],
-                                        zombies)
+                                        [])
 
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
@@ -275,11 +230,10 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             self.assertFalse(os.path.isfile(log_file_loc))
 
     def test_parse_once(self):
-        def processor_factory(file_path, zombies):
+        def processor_factory(file_path):
             return DagFileProcessor(file_path,
                                     False,
-                                    [],
-                                    zombies)
+                                    [])
 
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
@@ -300,11 +254,10 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
 
     def test_launch_process(self):
-        def processor_factory(file_path, zombies):
+        def processor_factory(file_path):
             return DagFileProcessor(file_path,
                                     False,
-                                    [],
-                                    zombies)
+                                    [])
 
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')

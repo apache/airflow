@@ -17,37 +17,48 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
-import unittest
-from unittest import mock
-
 import doctest
+import json
 import multiprocessing
 import os
 import pickle  # type: ignore
 import re
 import signal
-import sqlalchemy
 import subprocess
 import tempfile
-from tempfile import NamedTemporaryFile
+import unittest
 import warnings
 from datetime import timedelta
-from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from numpy.testing import assert_array_almost_equal
+from tempfile import NamedTemporaryFile
 from time import sleep
+from unittest import mock
 
-from airflow import configuration, jobs, models, DAG, utils, macros, settings, exceptions
+import six
+import sqlalchemy
+from dateutil.relativedelta import relativedelta
+from numpy.testing import assert_array_almost_equal
+from pendulum import utcnow
+
+from airflow import configuration, models
+from airflow import jobs, DAG, utils, macros, settings, exceptions
 from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, run_command
 from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import Variable, TaskInstance, BaseOperator, Connection, TaskFail
+from airflow.models import BaseOperator, Connection, TaskFail
+from airflow.models import (
+    DagBag,
+    DagRun,
+    Pool,
+    DagModel,
+    TaskInstance,
+    Variable,
+)
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -55,12 +66,12 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
+from airflow.utils.dates import (
+    days_ago, infer_time_unit, round_time,
+    scale_time_units
+)
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from pendulum import utcnow
-
-import six
 
 NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
@@ -83,15 +94,24 @@ class OperatorSubclass(BaseOperator):
         super().__init__(*args, **kwargs)
         self.some_templated_field = some_templated_field
 
-    def execute(*args, **kwargs):
+    def execute(self, context):
         pass
 
 
 class CoreTest(unittest.TestCase):
+    TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_no_previous_runs'
+    TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID = \
+        TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous'
+    TEST_SCHEDULE_DAG_NO_END_DATE_UP_TO_TODAY_ONLY_DAG_ID = \
+        TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only'
+    TEST_SCHEDULE_ONCE_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_once'
+    TEST_SCHEDULE_RELATIVEDELTA_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_relativedelta'
+    TEST_SCHEDULE_START_END_DATES_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_start_end_dates'
+
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        self.dagbag = models.DagBag(
+        self.dagbag = DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
@@ -101,21 +121,37 @@ class CoreTest(unittest.TestCase):
         self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def tearDown(self):
-        if os.environ.get('KUBERNETES_VERSION') is None:
-            session = Session()
-            session.query(models.TaskInstance).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.query(TaskFail).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.commit()
-            session.close()
+        if os.environ.get('KUBERNETES_VERSION') is not None:
+            return
+
+        dag_ids_to_clean = [
+            TEST_DAG_ID,
+            self.TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID,
+            self.TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID,
+            self.TEST_SCHEDULE_DAG_NO_END_DATE_UP_TO_TODAY_ONLY_DAG_ID,
+            self.TEST_SCHEDULE_ONCE_DAG_ID,
+            self.TEST_SCHEDULE_RELATIVEDELTA_DAG_ID,
+            self.TEST_SCHEDULE_START_END_DATES_DAG_ID,
+        ]
+        session = Session()
+        session.query(DagRun).filter(
+            DagRun.dag_id.in_(dag_ids_to_clean)).delete(
+            synchronize_session=False)
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id.in_(dag_ids_to_clean)).delete(
+            synchronize_session=False)
+        session.query(TaskFail).filter(
+            TaskFail.dag_id.in_(dag_ids_to_clean)).delete(
+            synchronize_session=False)
+        session.commit()
+        session.close()
 
     def test_schedule_dag_no_previous_runs(self):
         """
         Tests scheduling a dag with no previous runs
         """
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_previous_runs')
-        dag.add_task(models.BaseOperator(
+        dag = DAG(self.TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID)
+        dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
@@ -140,9 +176,9 @@ class CoreTest(unittest.TestCase):
         Tests scheduling a dag with a relativedelta schedule_interval
         """
         delta = relativedelta(hours=+1)
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_relativedelta',
+        dag = DAG(self.TEST_SCHEDULE_RELATIVEDELTA_DAG_ID,
                   schedule_interval=delta)
-        dag.add_task(models.BaseOperator(
+        dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
@@ -181,16 +217,17 @@ class CoreTest(unittest.TestCase):
         which has the same run_id as the next run should have
         """
         delta = timedelta(hours=1)
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous',
+
+        dag = DAG(self.TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID,
                   schedule_interval=delta,
                   start_date=DEFAULT_DATE)
-        dag.add_task(models.BaseOperator(
+        dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
             start_date=DEFAULT_DATE))
 
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
-        dag.create_dagrun(run_id=models.DagRun.id_for_date(DEFAULT_DATE),
+        dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
@@ -213,9 +250,9 @@ class CoreTest(unittest.TestCase):
         Tests scheduling a dag scheduled for @once - should be scheduled the first time
         it is called, and not scheduled the second.
         """
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once')
+        dag = DAG(self.TEST_SCHEDULE_ONCE_DAG_ID)
         dag.schedule_interval = '@once'
-        dag.add_task(models.BaseOperator(
+        dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
@@ -232,7 +269,7 @@ class CoreTest(unittest.TestCase):
         """
         dag = DAG(TEST_DAG_ID + 'test_fractional_seconds')
         dag.schedule_interval = '@once'
-        dag.add_task(models.BaseOperator(
+        dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
@@ -263,12 +300,12 @@ class CoreTest(unittest.TestCase):
         runs = 3
         start_date = DEFAULT_DATE
         end_date = start_date + (runs - 1) * delta
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_start_end_dates',
+
+        dag = DAG(self.TEST_SCHEDULE_START_END_DATES_DAG_ID,
                   start_date=start_date,
                   end_date=end_date,
                   schedule_interval=delta)
-        dag.add_task(models.BaseOperator(task_id='faketastic',
-                                         owner='Also fake'))
+        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
         # Create and schedule the dag runs
         dag_runs = []
@@ -299,11 +336,10 @@ class CoreTest(unittest.TestCase):
 
         runs = (now - start_date).days
 
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only',
+        dag = DAG(self.TEST_SCHEDULE_DAG_NO_END_DATE_UP_TO_TODAY_ONLY_DAG_ID,
                   start_date=start_date,
                   schedule_interval=delta)
-        dag.add_task(models.BaseOperator(task_id='faketastic',
-                                         owner='Also fake'))
+        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
@@ -408,7 +444,7 @@ class CoreTest(unittest.TestCase):
         task.clear(
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
             upstream=True, downstream=True)
-        ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
 
     def test_illegal_args(self):
@@ -630,7 +666,7 @@ class CoreTest(unittest.TestCase):
         t.resolve_template_files()
 
     def test_task_get_template(self):
-        TI = models.TaskInstance
+        TI = TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
@@ -663,14 +699,14 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 
     def test_local_task_job(self):
-        TI = models.TaskInstance
+        TI = TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
     def test_raw_job(self):
-        TI = models.TaskInstance
+        TI = TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
@@ -883,7 +919,7 @@ class CoreTest(unittest.TestCase):
 
     def test_terminate_task(self):
         """If a task instance's db state get deleted, it should fail"""
-        TI = models.TaskInstance
+        TI = TaskInstance
         dag = self.dagbag.dags.get('test_utils')
         task = dag.task_dict.get('sleeps_forever')
 
@@ -976,8 +1012,7 @@ class CoreTest(unittest.TestCase):
                                      execution_date=utc_now,
                                      dag=self.dag)
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
-                                      run_id=run_id)
+        dag_runs = DagRun.find(dag_id='example_bash_operator', run_id=run_id)
         self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
         self.assertEqual(dag_run.execution_date, utc_now)
@@ -998,8 +1033,7 @@ class CoreTest(unittest.TestCase):
             execution_date=utc_now_str,
             dag=self.dag)
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
-                                      run_id=run_id)
+        dag_runs = DagRun.find(dag_id='example_bash_operator', run_id=run_id)
         self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
         self.assertEqual(dag_run.execution_date.isoformat(), utc_now_str)
@@ -1019,7 +1053,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(timezone.parse(task.execution_date), DEFAULT_DATE)
 
     def test_externally_triggered_dagrun(self):
-        TI = models.TaskInstance
+        TI = TaskInstance
 
         # Create the dagrun between two "scheduled" execution dates of the DAG
         EXECUTION_DATE = DEFAULT_DATE + timedelta(days=2)
@@ -1033,7 +1067,7 @@ class CoreTest(unittest.TestCase):
             start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
-        dag.create_dagrun(run_id=models.DagRun.id_for_date(EXECUTION_DATE),
+        dag.create_dagrun(run_id=DagRun.id_for_date(EXECUTION_DATE),
                           execution_date=EXECUTION_DATE,
                           state=State.RUNNING,
                           external_trigger=True)
@@ -1068,7 +1102,7 @@ class CliTests(unittest.TestCase):
         self.app.config['TESTING'] = True
 
         self.parser = cli.CLIFactory.get_parser()
-        self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
+        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         settings.configure_orm()
         self.session = Session
 
@@ -1089,8 +1123,8 @@ class CliTests(unittest.TestCase):
         if session is None:
             session = Session()
 
-        session.query(models.Pool).delete()
-        session.query(models.Variable).delete()
+        session.query(Pool).delete()
+        session.query(Variable).delete()
         session.commit()
         session.close()
 
@@ -1722,7 +1756,7 @@ class CliTests(unittest.TestCase):
         )
 
     def test_delete_dag(self):
-        DM = models.DagModel
+        DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
         session.add(DM(dag_id=key))
@@ -1741,7 +1775,7 @@ class CliTests(unittest.TestCase):
 
     def test_pool_create(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        self.assertEqual(self.session.query(Pool).count(), 1)
 
     def test_pool_get(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
@@ -1753,7 +1787,7 @@ class CliTests(unittest.TestCase):
     def test_pool_delete(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
         cli.pool(self.parser.parse_args(['pool', '-x', 'foo']))
-        self.assertEqual(self.session.query(models.Pool).count(), 0)
+        self.assertEqual(self.session.query(Pool).count(), 0)
 
     def test_pool_no_args(self):
         try:
@@ -1832,8 +1866,8 @@ class CliTests(unittest.TestCase):
         cli.variables(self.parser.parse_args([
             'variables', '-i', 'variables1.json']))
 
-        self.assertEqual('original', models.Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', models.Variable.get('foo'))
+        self.assertEqual('original', Variable.get('bar'))
+        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
         # Second export
         cli.variables(self.parser.parse_args([
             'variables', '-e', 'variables2.json']))
@@ -1846,8 +1880,8 @@ class CliTests(unittest.TestCase):
         cli.variables(self.parser.parse_args([
             'variables', '-i', 'variables2.json']))
 
-        self.assertEqual('original', models.Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', models.Variable.get('foo'))
+        self.assertEqual('original', Variable.get('bar'))
+        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
 
         # Set a dict
         cli.variables(self.parser.parse_args([

@@ -446,13 +446,17 @@ good-names=e,
            i,
            j,
            k,
+           v, # Commonly used when iterating dict.items()
            _,
            ti,  # Commonly used in Airflow as shorthand for taskinstance
            op,  # Commonly used in Airflow as shorthand for operator
            dr,  # Commonly used in Airflow as shorthand for dag run
            f,   # Commonly used as shorthand for file
            db,  # Commonly used as shorthand for database
-           cm   # Commonly used as shorthand for context manager
+           df,  # Commonly used as shorthand for DataFrame
+           cm,  # Commonly used as shorthand for context manager
+           ds,  # Used in Airflow templates
+           ts   # Used in Airflow templates
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no

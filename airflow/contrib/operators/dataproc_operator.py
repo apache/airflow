@@ -622,7 +622,7 @@ class DataProcJobBaseOperator(BaseOperator):
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
-        default arguments
+        default arguments (templated)
     :type dataproc_properties: dict
     :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
@@ -747,7 +747,7 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
     job_type = 'pigJob'
@@ -790,7 +790,7 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
@@ -831,7 +831,8 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'sparkSqlJob'
@@ -880,7 +881,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'sparkJob'
 
@@ -931,7 +933,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'hadoopJob'
 
@@ -982,7 +985,8 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pysparkJob'
 

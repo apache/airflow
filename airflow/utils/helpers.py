@@ -23,7 +23,12 @@ import psutil
 
 from datetime import datetime
 from functools import reduce
-from collections import Iterable
+try:
+    # Fix Python > 3.7 deprecation
+    from collections.abc import Iterable
+except ImportError:
+    # Preserve Python < 3.3 compatibility
+    from collections import Iterable
 import os
 import re
 import signal

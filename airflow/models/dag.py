@@ -166,6 +166,17 @@ class DAG(BaseDag, LoggingMixin):
     :type is_paused_upon_creation: bool or None
     """
 
+    _comps = {
+        'dag_id',
+        'task_ids',
+        'parent_dag',
+        'start_date',
+        'schedule_interval',
+        'full_filepath',
+        'template_searchpath',
+        'last_loaded',
+    }
+
     def __init__(
         self,
         dag_id: str,
@@ -195,7 +206,7 @@ class DAG(BaseDag, LoggingMixin):
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
-        self.default_args = default_args or {}
+        self.default_args = copy.deepcopy(default_args or {})
         self.params = params or {}
 
         # merging potentially conflicting default_args['params'] into params
@@ -279,17 +290,6 @@ class DAG(BaseDag, LoggingMixin):
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
-
-        self._comps = {
-            'dag_id',
-            'task_ids',
-            'parent_dag',
-            'start_date',
-            'schedule_interval',
-            'full_filepath',
-            'template_searchpath',
-            'last_loaded',
-        }
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
