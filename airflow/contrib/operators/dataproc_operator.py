@@ -831,7 +831,7 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
-    template_fields = ['query', 'variables', 'job_name','cluster_name',
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
