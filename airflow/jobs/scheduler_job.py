@@ -398,7 +398,7 @@ class SchedulerJob(BaseJob):
 
         # Find the last executed tasks
         TI = models.TaskInstance
-        sq = (
+        last_executed = (
             session
             .query(
                 TI.task_id,
@@ -412,8 +412,8 @@ class SchedulerJob(BaseJob):
         )
         max_tis = session.query(TI).filter(
             TI.dag_id == dag.dag_id,
-            TI.task_id == sq.c.task_id,
-            TI.execution_date == sq.c.max_ti,
+            TI.task_id == last_executed.c.task_id,
+            TI.execution_date == last_executed.c.max_ti,
         ).all()
 
         # Identify tasks that missed SLA and store them
