@@ -46,7 +46,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=None,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=1
+        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
