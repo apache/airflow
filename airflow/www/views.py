@@ -27,6 +27,7 @@ import json
 import logging
 import math
 import os
+import pickle
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -61,7 +62,7 @@ from wtforms import (
     StringField, IntegerField, validators)
 
 import airflow
-from airflow import configuration as conf
+from airflow import configuration as conf, LoggingMixin, configuration
 from airflow import models
 from airflow import settings
 from airflow import jobs
@@ -2689,6 +2690,21 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
     column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     filter_converter = wwwutils.UtcFilterConverter()
     form_overrides = dict(execution_date=DateTimeField)
+
+    def on_model_change(self, form, model, is_created):
+        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
+        if enable_pickling:
+            model.value = pickle.dumps(model.value)
+        else:
+            try:
+                model.value = json.dumps(model.value).encode('UTF-8')
+            except ValueError:
+                log = LoggingMixin().log
+                log.error("Could not serialize the XCOM value into JSON. "
+                          "If you are using pickles instead of JSON "
+                          "for XCOM, then you need to enable pickle "
+                          "support for XCOM in your airflow config.")
+                raise
 
 
 class JobModelView(ModelViewOnly):
