@@ -23,7 +23,6 @@ from future import standard_library
 standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
 
-from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
@@ -46,6 +45,13 @@ from airflow import configuration, models, settings
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
+
+try:
+    # cgi.escape has been deprecated since 3.3 and removed in 3.8
+    from html import escape
+except ImportError:
+    # Use cgi.escape for Python 2
+    from cgi import escape  # type: ignore
 
 AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
 
