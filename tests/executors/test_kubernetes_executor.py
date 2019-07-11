@@ -25,10 +25,9 @@ from urllib3 import HTTPResponse
 from datetime import datetime
 
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
 try:
     from kubernetes.client.rest import ApiException
-    from airflow import configuration
-    from airflow.configuration import conf
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.executors.kubernetes_executor import KubernetesExecutor
     from airflow.executors.kubernetes_executor import KubeConfig
@@ -190,37 +189,18 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     "subPath shouldn't be defined"
                 )
 
-    @mock.patch.object(conf, 'get')
-    @mock.patch.object(configuration, 'as_dict')
-    def test_worker_configuration_auth_both_ssh_and_user(self, mock_config_as_dict, mock_conf_get):
-        def get_conf(*args, **kwargs):
-            if args[0] == 'core':
-                return '1'
-            if args[0] == 'kubernetes':
-                if args[1] == 'git_ssh_known_hosts_configmap_name':
-                    return 'airflow-configmap'
-                if args[1] == 'git_ssh_key_secret_name':
-                    return 'airflow-secrets'
-                if args[1] == 'git_user':
-                    return 'some-user'
-                if args[1] == 'git_password':
-                    return 'some-password'
-                if args[1] == 'git_repo':
-                    return 'git@github.com:apache/airflow.git'
-                if args[1] == 'git_branch':
-                    return 'master'
-                if args[1] == 'git_dags_folder_mount_point':
-                    return '/usr/local/airflow/dags'
-                if args[1] == 'delete_worker_pods':
-                    return True
-                if args[1] == 'kube_client_request_args':
-                    return '{"_request_timeout" : [60,360] }'
-                return '1'
-            return None
-
-        mock_conf_get.side_effect = get_conf
-        mock_config_as_dict.return_value = {'core': ''}
-
+    @conf_vars({
+        ('kubernetes', 'git_ssh_known_hosts_configmap_name'): 'airflow-configmap',
+        ('kubernetes', 'git_ssh_key_secret_name'): 'airflow-secrets',
+        ('kubernetes', 'git_user'): 'some-user',
+        ('kubernetes', 'git_password'): 'some-password',
+        ('kubernetes', 'git_repo'): 'git@github.com:apache/airflow.git',
+        ('kubernetes', 'git_branch'): 'master',
+        ('kubernetes', 'git_dags_folder_mount_point'): '/usr/local/airflow/dags',
+        ('kubernetes', 'delete_worker_pods'): 'True',
+        ('kubernetes', 'kube_client_request_args'): '{"_request_timeout" : [60,360]}',
+    })
+    def test_worker_configuration_auth_both_ssh_and_user(self):
         with self.assertRaisesRegex(AirflowConfigException,
                                     'either `git_user` and `git_password`.*'
                                     'or `git_ssh_key_secret_name`.*'
