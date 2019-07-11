@@ -79,6 +79,31 @@ class TestDruidHook(unittest.TestCase):
         self.assertTrue(status_check.called_once)
 
     @requests_mock.mock()
+    def test_submit_correct_json_body(self, m):
+        task_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+        )
+        status_check = m.get(
+            'http://druid-overlord:8081/druid/indexer/v1/task/'
+            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "SUCCESS"}}'
+        )
+
+        json_ingestion_string = """
+        {
+            "task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
+        }
+        """
+        self.db_hook.submit_indexing_job(json_ingestion_string)
+
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+        if task_post.called_once:
+            req_body = task_post.request_history[0].json()
+            self.assertEqual(req_body['task'], "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de")
+
+    @requests_mock.mock()
     def test_submit_unknown_response(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
