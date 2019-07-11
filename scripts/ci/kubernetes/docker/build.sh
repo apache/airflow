@@ -43,7 +43,7 @@ echo "Airflow Docker directory $DIRNAME"
 
 cd $AIRFLOW_ROOT
 docker run -ti --rm -v ${AIRFLOW_ROOT}:/airflow \
-    -w /airflow ${PYTHON_DOCKER_IMAGE} ./scripts/ci/kubernetes/docker/compile.sh \
+    -w /airflow ${PYTHON_DOCKER_IMAGE} ./scripts/ci/kubernetes/docker/compile.sh
 
 sudo rm -rf ${AIRFLOW_ROOT}/airflow/www/node_modules
 
