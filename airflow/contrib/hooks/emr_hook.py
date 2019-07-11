@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+from deepmerge import always_merger
+
 from airflow.contrib.hooks.aws_hook import AwsHook
-from airflow.utils import helpers
+from airflow.exceptions import AirflowException
 
 
 class EmrHook(AwsHook):
@@ -51,9 +52,7 @@ class EmrHook(AwsHook):
         emr_conn = self.get_connection(self.emr_conn_id)
 
         config = emr_conn.extra_dejson.copy()
-        for key, value in job_flow_overrides.items():
-            config = helpers.update_dictionary_recursively(config, key, value, key_separator=".")
-
-        response = self.get_conn().run_job_flow(**config)
+        updated_config = always_merger.merge(config, job_flow_overrides)
+        response = self.get_conn().run_job_flow(**updated_config)
 
         return response

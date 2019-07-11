@@ -23,7 +23,6 @@ import os
 import signal
 import time
 import unittest
-from collections import OrderedDict
 from datetime import datetime
 
 import psutil
@@ -272,43 +271,6 @@ class HelpersTest(unittest.TestCase):
         [t1, t2, t3, t4, t5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
         with self.assertRaises(AirflowException):
             helpers.chain([t1, t2], [t3, t4, t5])
-
-    @staticmethod
-    def test_update_dictionary_recursively():
-        dict_value_list = OrderedDict(
-            [('key1', 'value1'), ('key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
-
-        expected_dict = OrderedDict([('key1', 'value1'), (
-            'key2', [OrderedDict([('key3', 'new_value3'), ('key4', 'value4')])])])
-
-        updated_dict = helpers.update_dictionary_recursively(dict_value_list, 'key2[0].key3', 'new_value3')
-        assert expected_dict == updated_dict
-
-        dict_ = OrderedDict(
-            [('key1', 'value1'), ('key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
-
-        expected_dict = OrderedDict([('key1', 'new_value1'), (
-            'key2', [OrderedDict([('key3', 'value3'), ('key4', 'value4')])])])
-
-        updated_dict = helpers.update_dictionary_recursively(dict_, 'key1', 'new_value1')
-        assert expected_dict == updated_dict
-
-        dict_value_dict = OrderedDict(
-            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
-        expected_dict = OrderedDict(
-            [('key', 'value1'), ('key2', OrderedDict([('key3', 'new_value3'), ('key4', 'value4')]))])
-        updated_dict = helpers.update_dictionary_recursively(dict_value_dict, 'key2.key3',
-                                                             'new_value3')
-        assert expected_dict == updated_dict
-
-        # Test :Add new key
-        dict_value_new_key = OrderedDict(
-            [('key', 'value1'), ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4')]))])
-        expected_dict = OrderedDict(
-            [('key', 'value1'),
-             ('key2', OrderedDict([('key3', 'value3'), ('key4', 'value4'), ('key5', 'new_value5')]))])
-        updated_dict = helpers.update_dictionary_recursively(dict_value_new_key, 'key2.key5', 'new_value5')
-        assert expected_dict == updated_dict
 
 
 if __name__ == '__main__':

@@ -55,7 +55,7 @@ SPARK_TEST_STEPS = [
 
 JOB_FLOW_OVERRIDES = {
     'Name': 'PiCalc',
-    "Instances.KeepJobFlowAliveWhenNoSteps": False
+    "Instances": {"KeepJobFlowAliveWhenNoSteps": False}
 
 }
 
