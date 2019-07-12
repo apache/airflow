@@ -510,6 +510,10 @@ class BaseOperator(LoggingMixin):
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
 
+        self.log.warning(
+            'default_args and params from the DAG will not be applied to the task '
+            'using the setter.')
+
         self._dag = dag
 
     def has_dag(self):
