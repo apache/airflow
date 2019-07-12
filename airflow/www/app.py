@@ -26,7 +26,7 @@ from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from typing import Any
 from urllib.parse import urlparse
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wsgi import DispatcherMiddleware
 
 from airflow import configuration as conf

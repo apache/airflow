@@ -341,7 +341,7 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
-            'flask>=1.0, <2.0',
+            'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
