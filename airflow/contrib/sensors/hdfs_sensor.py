@@ -24,7 +24,7 @@ class HdfsSensorRegex(HdfsSensor):
                  regex,
                  *args,
                  **kwargs):
-        super(HdfsSensorRegex, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.regex = regex
 
     def poke(self, context):
@@ -51,7 +51,7 @@ class HdfsSensorFolder(HdfsSensor):
                  be_empty=False,
                  *args,
                  **kwargs):
-        super(HdfsSensorFolder, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.be_empty = be_empty
 
     def poke(self, context):

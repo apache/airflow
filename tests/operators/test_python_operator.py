@@ -17,15 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import copy
 import logging
 import os
 import unittest
 from datetime import timedelta, date
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.operators.dummy_operator import DummyOperator
@@ -74,8 +71,7 @@ class PythonOperatorTest(unittest.TestCase):
             session.query(TI).delete()
 
     def setUp(self):
-        super(PythonOperatorTest, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         self.dag = DAG(
             'test_dag',
             default_args={
@@ -87,7 +83,7 @@ class PythonOperatorTest(unittest.TestCase):
         self.addCleanup(self.clear_run)
 
     def tearDown(self):
-        super(PythonOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -267,7 +263,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
 
     def tearDown(self):
-        super(BranchOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -431,7 +427,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             session.query(TI).delete()
 
     def tearDown(self):
-        super(ShortCircuitOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -510,7 +506,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         upstream.set_downstream(short_op)
         dag.clear()
 
-        logging.error("Tasks {}".format(dag.tasks))
+        logging.error("Tasks %s", dag.tasks)
         dr = dag.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),

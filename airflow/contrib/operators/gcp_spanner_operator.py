@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Spanner operators.
+"""
+
 import six
 
 from airflow import AirflowException
@@ -70,7 +74,7 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -125,7 +129,7 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -185,7 +189,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -215,7 +219,14 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
 
     @staticmethod
     def sanitize_queries(queries):
-        if len(queries) and queries[-1] == '':
+        """
+        Drops empty query in queries.
+
+        :param queries: queries
+        :type queries: List[str]
+        :rtype: None
+        """
+        if queries and queries[-1] == '':
             del queries[-1]
 
 
@@ -261,7 +272,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -337,7 +348,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -405,7 +416,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
         self._hook = CloudSpannerHook(gcp_conn_id=gcp_conn_id)
-        super(CloudSpannerInstanceDatabaseDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -418,10 +429,10 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        db = self._hook.get_database(project_id=self.project_id,
-                                     instance_id=self.instance_id,
-                                     database_id=self.database_id)
-        if not db:
+        database = self._hook.get_database(project_id=self.project_id,
+                                           instance_id=self.instance_id,
+                                           database_id=self.database_id)
+        if not database:
             self.log.info("The Cloud Spanner database was missing: "
                           "'%s' in project '%s' and instance '%s'. Assuming success.",
                           self.database_id, self.project_id, self.instance_id)

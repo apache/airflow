@@ -61,7 +61,7 @@ class GcpTextToSpeechTest(unittest.TestCase):
             input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
         )
         mock_gcp_hook.return_value.upload.assert_called_once_with(
-            bucket=TARGET_BUCKET_NAME, object=TARGET_FILENAME, filename=ANY
+            bucket_name=TARGET_BUCKET_NAME, object_name=TARGET_FILENAME, filename=ANY
         )
 
     @parameterized.expand(

@@ -17,10 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
-import mock
+from unittest import mock
 import unittest
 
 from airflow import configuration, DAG
@@ -38,8 +36,7 @@ send_email_test = mock.Mock()
 class TestEmailOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestEmailOperator, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         self.dag = DAG(
             'test_dag',
             default_args={

@@ -18,16 +18,16 @@
 # under the License.
 
 import json
-from builtins import bytes
 from urllib.parse import urlparse, unquote, parse_qsl
 
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow import LoggingMixin, AirflowException
-from airflow.models import get_fernet
+from airflow import LoggingMixin
+from airflow.exceptions import AirflowException
 from airflow.models.base import Base, ID_LEN
+from airflow.models.crypto import get_fernet
 
 
 # Python automatically converts all letters to lowercase in hostname
@@ -72,6 +72,7 @@ class Connection(Base, LoggingMixin):
         ('google_cloud_platform', 'Google Cloud Platform'),
         ('hdfs', 'HDFS',),
         ('http', 'HTTP',),
+        ('pig_cli', 'Pig Client Wrapper',),
         ('hive_cli', 'Hive Client Wrapper',),
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
@@ -208,6 +209,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'postgres':
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
+        elif self.conn_type == 'pig_cli':
+            from airflow.hooks.pig_hook import PigCliHook
+            return PigCliHook(pig_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.hooks.hive_hooks import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)

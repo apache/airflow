@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Language operators.
+"""
 from google.protobuf.json_format import MessageToDict
 
 from airflow.contrib.hooks.gcp_natural_language_hook import CloudNaturalLanguageHook
@@ -46,10 +49,9 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
-    # [START natural_langauge_analyze_entities_template_fields]
+    # [START natural_language_analyze_entities_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entities_template_fields]
+    # [END natural_language_analyze_entities_template_fields]
 
     def __init__(
         self,
@@ -62,7 +64,7 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitiesOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -107,10 +109,9 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
-    # [START natural_langauge_analyze_entity_sentiment_template_fields]
+    # [START natural_language_analyze_entity_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_entity_sentiment_template_fields]
+    # [END natural_language_analyze_entity_sentiment_template_fields]
 
     def __init__(
         self,
@@ -123,7 +124,7 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitySentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -171,10 +172,9 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
-    # [START natural_langauge_analyze_sentiment_template_fields]
+    # [START natural_language_analyze_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_analyze_sentiment_template_fields]
+    # [END natural_language_analyze_sentiment_template_fields]
 
     def __init__(
         self,
@@ -187,7 +187,7 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeSentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -228,10 +228,9 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
-    # [START natural_langauge_classify_text_template_fields]
+    # [START natural_language_classify_text_template_fields]
     template_fields = ("document", "gcp_conn_id")
-    # [END natural_langauge_classify_text_template_fields]
+    # [END natural_language_classify_text_template_fields]
 
     def __init__(
         self,
@@ -243,7 +242,7 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageClassifyTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.retry = retry
         self.timeout = timeout

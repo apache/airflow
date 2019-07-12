@@ -21,7 +21,7 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.file_to_gcs import FileToGoogleCloudStorageOperator
 from tests.compat import mock
 
@@ -37,7 +37,6 @@ class TestFileToGcsOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)
@@ -67,11 +66,11 @@ class TestFileToGcsOperator(unittest.TestCase):
         )
         operator.execute(None)
         mock_instance.upload.assert_called_once_with(
-            bucket=self._config['bucket'],
+            bucket_name=self._config['bucket'],
             filename=self._config['src'],
             gzip=self._config['gzip'],
             mime_type=self._config['mime_type'],
-            object=self._config['dst']
+            object_name=self._config['dst']
         )
 
 

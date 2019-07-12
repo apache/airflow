@@ -58,7 +58,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
@@ -108,7 +108,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_deploy_template_fields]
@@ -168,7 +168,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_update_template_fields]
@@ -215,7 +215,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_query_template_fields]
@@ -263,7 +263,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]

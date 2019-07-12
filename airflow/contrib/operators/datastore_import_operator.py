@@ -64,7 +64,7 @@ class DatastoreImportOperator(BaseOperator):
                  polling_interval_in_seconds=10,
                  *args,
                  **kwargs):
-        super(DatastoreImportOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.delegate_to = delegate_to
         self.bucket = bucket

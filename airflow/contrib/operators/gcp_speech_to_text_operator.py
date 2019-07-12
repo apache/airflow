@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Speech to Text operator.
+"""
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_speech_to_text_hook import GCPSpeechToTextHook
@@ -51,7 +54,6 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
     """
-
     # [START gcp_speech_to_text_synthesize_template_fields]
     template_fields = ("audio", "config", "project_id", "gcp_conn_id", "timeout")
     # [END gcp_speech_to_text_synthesize_template_fields]
@@ -75,7 +77,7 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super(GcpSpeechToTextRecognizeSpeechOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.audio == "":

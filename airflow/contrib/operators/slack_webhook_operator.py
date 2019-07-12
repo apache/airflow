@@ -26,7 +26,8 @@ class SlackWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
-    If both supplied, Slack webhook token will be used.
+    If both supplied, http_conn_id will be used as base_url,
+    and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -53,6 +54,9 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
+    template_fields = ['webhook_token', 'message', 'attachments', 'channel',
+                       'username', 'proxy', ]
+
     @apply_defaults
     def __init__(self,
                  http_conn_id=None,
@@ -66,9 +70,9 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  proxy=None,
                  *args,
                  **kwargs):
-        super(SlackWebhookOperator, self).__init__(endpoint=webhook_token,
-                                                   *args,
-                                                   **kwargs)
+        super().__init__(endpoint=webhook_token,
+                         *args,
+                         **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message

@@ -27,7 +27,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_GCS_TRANSFER_KEY), SKIP_TEST_WARNING)
 class GcpTransferExampleDagsSystemTest(DagGcpSystemTestCase):
     def setUp(self):
-        super(GcpTransferExampleDagsSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         self.helper.create_gcs_buckets()
         self.gcp_authenticator.gcp_revoke_authentication()
@@ -36,10 +36,10 @@ class GcpTransferExampleDagsSystemTest(DagGcpSystemTestCase):
         self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_gcs_buckets()
         self.gcp_authenticator.gcp_revoke_authentication()
-        super(GcpTransferExampleDagsSystemTest, self).tearDown()
+        super().tearDown()
 
     def __init__(self, method_name='runTest'):
-        super(GcpTransferExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name, dag_id='example_gcp_transfer', gcp_key=GCP_GCS_TRANSFER_KEY
         )
         self.helper = GCPTransferTestHelper()

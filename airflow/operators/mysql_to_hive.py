@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
 from tempfile import NamedTemporaryFile
@@ -83,7 +82,7 @@ class MySqlToHiveTransfer(BaseOperator):
             hive_cli_conn_id='hive_cli_default',
             tblproperties=None,
             *args, **kwargs):
-        super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

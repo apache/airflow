@@ -20,10 +20,10 @@
 import six
 import unittest
 
-from airflow import configuration, AirflowException
-from airflow.models.connection import Connection
+from airflow import AirflowException
+from airflow.models import Connection
 from airflow.utils import db
-from mock import patch, call
+from unittest.mock import patch, call
 
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 
@@ -71,8 +71,6 @@ class TestSparkSubmitHook(unittest.TestCase):
         return return_dict
 
     def setUp(self):
-
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='spark_yarn_cluster', conn_type='spark',
@@ -614,7 +612,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(kill_cmd[3], '--kill')
         self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
 
-    @patch('airflow.contrib.kubernetes.kube_client.get_kube_client')
+    @patch('airflow.kubernetes.kube_client.get_kube_client')
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given

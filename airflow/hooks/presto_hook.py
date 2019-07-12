@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 from pyhive import presto
 from pyhive.exc import DatabaseError
 from requests.auth import HTTPBasicAuth
@@ -82,7 +80,7 @@ class PrestoHook(DbApiHook):
         Get a set of records from Presto
         """
         try:
-            return super(PrestoHook, self).get_records(
+            return super().get_records(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(self._get_pretty_exception_message(e))
@@ -93,7 +91,7 @@ class PrestoHook(DbApiHook):
         returns.
         """
         try:
-            return super(PrestoHook, self).get_first(
+            return super().get_first(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(self._get_pretty_exception_message(e))
@@ -121,7 +119,7 @@ class PrestoHook(DbApiHook):
         """
         Execute the statement against Presto. Can be used to create views.
         """
-        return super(PrestoHook, self).run(self._strip_sql(hql), parameters)
+        return super().run(self._strip_sql(hql), parameters)
 
     # TODO Enable commit_every once PyHive supports transaction.
     # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
@@ -137,4 +135,4 @@ class PrestoHook(DbApiHook):
         :param target_fields: The names of the columns to fill in the table
         :type target_fields: iterable of strings
         """
-        super(PrestoHook, self).insert_rows(table, rows, target_fields, 0)
+        super().insert_rows(table, rows, target_fields, 0)

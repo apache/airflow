@@ -75,7 +75,7 @@ class VerticaToMySqlTransfer(BaseOperator):
             mysql_postoperator=None,
             bulk_load=False,
             *args, **kwargs):
-        super(VerticaToMySqlTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id

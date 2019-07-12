@@ -19,9 +19,8 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock
 
@@ -34,7 +33,6 @@ except ImportError:
 @mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
 class DockerHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='docker_default',

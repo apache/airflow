@@ -72,7 +72,7 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
             *args, **kwargs):
-        super(OracleToAzureDataLakeTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if sql_params is None:
             sql_params = {}
         self.filename = filename

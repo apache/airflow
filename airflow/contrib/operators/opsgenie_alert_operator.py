@@ -86,7 +86,7 @@ class OpsgenieAlertOperator(BaseOperator):
                  *args,
                  **kwargs
                  ):
-        super(OpsgenieAlertOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.message = message
         self.opsgenie_conn_id = opsgenie_conn_id

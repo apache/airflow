@@ -66,7 +66,7 @@ class SSHHook(BaseHook):
                  timeout=10,
                  keepalive_interval=30
                  ):
-        super(SSHHook, self).__init__(ssh_conn_id)
+        super().__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
@@ -98,7 +98,8 @@ class SSHHook(BaseHook):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                self.key_file = extra_options.get("key_file")
+                if "key_file" in extra_options and self.key_file is None:
+                    self.key_file = extra_options.get("key_file")
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)

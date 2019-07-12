@@ -17,9 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains Databricks operators.
+"""
 
-import six
 import time
+import six
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
@@ -40,16 +43,16 @@ def _deep_string_coerce(content, json_path='json'):
     dict with only string values. This is because ``render_template`` will fail
     for numerical values.
     """
-    c = _deep_string_coerce
+    coerce = _deep_string_coerce
     if isinstance(content, six.string_types):
         return content
     elif isinstance(content, six.integer_types + (float,)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
-        return [c(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        return [coerce(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: c(v, '{0}[{1}]'.format(json_path, k))
+        return {k: coerce(v, '{0}[{1}]'.format(json_path, k))
                 for k, v in list(content.items())}
     else:
         param_type = type(content)
@@ -61,6 +64,7 @@ def _deep_string_coerce(content, json_path='json'):
 def _handle_databricks_operator_execution(operator, hook, log, context):
     """
     Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+
     :param operator: Databricks operator being handled
     :param context: Airflow context
     """
@@ -221,6 +225,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
@@ -241,7 +246,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
         """
-        super(DatabricksSubmitRunOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
@@ -269,19 +274,19 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def get_hook(self):
+    def _get_hook(self):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay)
 
     def execute(self, context):
-        hook = self.get_hook()
+        hook = self._get_hook()
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self.get_hook()
+        hook = self._get_hook()
         hook.cancel_run(self.run_id)
         self.log.info(
             'Task: %s with run_id: %s was requested to be cancelled.',
@@ -426,6 +431,7 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
@@ -444,7 +450,7 @@ class DatabricksRunNowOperator(BaseOperator):
         """
         Creates a new ``DatabricksRunNowOperator``.
         """
-        super(DatabricksRunNowOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
@@ -465,19 +471,19 @@ class DatabricksRunNowOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def get_hook(self):
+    def _get_hook(self):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay)
 
     def execute(self, context):
-        hook = self.get_hook()
+        hook = self._get_hook()
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self.get_hook()
+        hook = self._get_hook()
         hook.cancel_run(self.run_id)
         self.log.info(
             'Task: %s with run_id: %s was requested to be cancelled.',

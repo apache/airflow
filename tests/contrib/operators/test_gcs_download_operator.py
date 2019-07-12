@@ -35,10 +35,10 @@ class GoogleCloudStorageDownloadOperatorTest(unittest.TestCase):
     def test_execute(self, mock_hook):
         operator = GoogleCloudStorageDownloadOperator(task_id=TASK_ID,
                                                       bucket=TEST_BUCKET,
-                                                      object=TEST_OBJECT,
+                                                      object_name=TEST_OBJECT,
                                                       filename=LOCAL_FILE_PATH)
 
         operator.execute(None)
         mock_hook.return_value.download.assert_called_once_with(
-            bucket=TEST_BUCKET, object=TEST_OBJECT, filename=LOCAL_FILE_PATH
+            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
         )

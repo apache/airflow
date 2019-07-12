@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
-
 import inspect
 import json
 import time
@@ -29,16 +26,13 @@ import zipfile
 import os
 import io
 
-from builtins import str
-from past.builtins import basestring
-
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from airflow import configuration
 from airflow.models import BaseOperator
@@ -317,7 +311,7 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
 
 def render(obj, lexer):
     out = ""
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         out += pygment_html_render(obj, lexer)
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):
@@ -380,11 +374,11 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin(object):
+class UtcAwareFilterMixin:
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super(UtcAwareFilterMixin, self).apply(query, value)
+        return super().apply(query, value)
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
@@ -422,7 +416,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
     def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+        super().__init__(obj)
 
         def clean_column_names():
             if self.list_properties:

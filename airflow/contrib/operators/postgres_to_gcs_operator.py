@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import json
 import time
 import datetime
@@ -28,8 +27,6 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-
-PY3 = sys.version_info[0] == 3
 
 
 class PostgresToGoogleCloudStorageOperator(BaseOperator):
@@ -70,9 +67,9 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
         :type schema_filename: str
         :param approx_max_file_size_bytes: This operator supports the ability
             to split large table dumps into multiple files (see notes in the
-            filenamed param docs above). Google Cloud Storage allows for files
-            to be a maximum of 4GB. This param allows developers to specify the
-            file size of the splits.
+            filename param docs above). This param allows developers to specify the
+            file size of the splits. Check https://cloud.google.com/storage/quotas
+            to see the maximum allowed file size for a single object.
         :type approx_max_file_size_bytes: long
         :param postgres_conn_id: Reference to a specific Postgres hook.
         :type postgres_conn_id: str
@@ -85,7 +82,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
         :param parameters: a parameters dict that is substituted at query runtime.
         :type parameters: dict
         """
-        super(PostgresToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.bucket = bucket
         self.filename = filename
@@ -151,9 +148,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                 row = map(self.convert_types, row)
                 row_dict = dict(zip(schema, row))
 
-                s = json.dumps(row_dict, sort_keys=True)
-                if PY3:
-                    s = s.encode('utf-8')
+                s = json.dumps(row_dict, sort_keys=True).encode('utf-8')
                 tmp_file_handle.write(s)
 
                 # Append newline to make dumps BigQuery compatible.
@@ -192,9 +187,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
 
         self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        s = json.dumps(schema, sort_keys=True)
-        if PY3:
-            s = s.encode('utf-8')
+        s = json.dumps(schema, sort_keys=True).encode('utf-8')
         tmp_schema_file_handle.write(s)
         return {self.schema_filename: tmp_schema_file_handle}
 

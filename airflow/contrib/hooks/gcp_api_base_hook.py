@@ -17,17 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains a Google Cloud API base hook.
+"""
+
 import json
 import functools
-
-import httplib2
-import google.auth
-import google_auth_httplib2
-import google.oauth2.service_account
 import os
 import tempfile
+import httplib2
 
+import google.auth
+import google.oauth2.service_account
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
+
+import google_auth_httplib2
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -64,17 +68,16 @@ class GoogleCloudBaseHook(BaseHook):
     Legacy P12 key files are not supported.
 
     JSON data provided in the UI: Specify 'Keyfile JSON'.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     """
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        """
-        :param gcp_conn_id: The connection ID to use when fetching connection info.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have
-            domain-wide delegation enabled.
-        :type delegate_to: str
-        """
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson
@@ -160,6 +163,12 @@ class GoogleCloudBaseHook(BaseHook):
 
     @property
     def project_id(self):
+        """
+        Returns project id.
+
+        :return: id of the project
+        :rtype: str
+        """
         return self._get_field('project')
 
     @staticmethod
@@ -204,14 +213,15 @@ class GoogleCloudBaseHook(BaseHook):
         """
         @functools.wraps(func)
         def inner_wrapper(self, *args, **kwargs):
-            if len(args) > 0:
+            if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than"
                     " positional")
             if 'project_id' in kwargs:
-                kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
+                kwargs['project_id'] = \
+                    self._get_project_id(kwargs['project_id'])  # pylint: disable=protected-access
             else:
-                kwargs['project_id'] = self._get_project_id(None)
+                kwargs['project_id'] = self._get_project_id(None)  # pylint: disable=protected-access
             if not kwargs['project_id']:
                 raise AirflowException("The project id must be passed either as "
                                        "keyword project_id parameter or as project_id extra "
@@ -230,7 +240,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
         return project_id if project_id else self.project_id
 
-    class _Decorators(object):
+    class _Decorators:
         """A private inner class for keeping all decorator methods."""
 
         @staticmethod
@@ -243,8 +253,8 @@ class GoogleCloudBaseHook(BaseHook):
             @functools.wraps(func)
             def wrapper(self, *args, **kwargs):
                 with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                    key_path = self._get_field('key_path', False)
-                    keyfile_dict = self._get_field('keyfile_dict', False)
+                    key_path = self._get_field('key_path', False)  # pylint: disable=protected-access
+                    keyfile_dict = self._get_field('keyfile_dict', False)  # pylint: disable=protected-access
                     if key_path:
                         if key_path.endswith('.p12'):
                             raise AirflowException(

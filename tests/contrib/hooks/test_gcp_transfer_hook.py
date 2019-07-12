@@ -114,7 +114,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_next = get_conn.return_value.transferJobs.return_value.list_next
         list_next.return_value = None
 
-        res = self.gct_hook.list_transfer_job(filter=TEST_TRANSFER_JOB_FILTER)
+        res = self.gct_hook.list_transfer_job(request_filter=TEST_TRANSFER_JOB_FILTER)
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_JOB])
         list_method.assert_called_once_with(filter=mock.ANY)
@@ -184,7 +184,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_next = get_conn.return_value.transferOperations.return_value.list_next
         list_next.return_value = None
 
-        res = self.gct_hook.list_transfer_operations(filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION])
         list_method.assert_called_once_with(filter=mock.ANY, name='transferOperations')
@@ -378,7 +378,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         list_next.return_value = None
 
         res = self.gct_hook.list_transfer_job(
-            filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID)
+            request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID)
         )
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_JOB])
@@ -452,7 +452,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         list_next.return_value = None
 
         res = self.gct_hook.list_transfer_operations(
-            filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
+            request_filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
         )
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION])
@@ -524,7 +524,8 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         list_next.return_value = None
 
         with self.assertRaises(AirflowException) as e:
-            self.gct_hook.list_transfer_job(filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID))
+            self.gct_hook.list_transfer_job(
+                request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID))
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as '
@@ -543,7 +544,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         get_conn.return_value.transferOperations.return_value = transfer_operation_mock
 
-        res = self.gct_hook.list_transfer_operations(filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION] * 4)
 
     @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.get_conn')
@@ -584,7 +585,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as e:
             self.gct_hook.list_transfer_operations(
-                filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
+                request_filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
             )
 
         self.assertEqual(

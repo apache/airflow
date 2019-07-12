@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-### Example HTTP operator and sensor
-"""
+
+"""Example HTTP operator and sensor"""
+
 import json
 from datetime import timedelta
 
@@ -48,7 +48,7 @@ t1 = SimpleHttpOperator(
     endpoint='api/v1.0/nodes',
     data=json.dumps({"priority": 5}),
     headers={"Content-Type": "application/json"},
-    response_check=lambda response: True if len(response.json()) == 0 else False,
+    response_check=lambda response: len(response.json()) == 0,
     dag=dag,
 )
 
@@ -92,7 +92,7 @@ sensor = HttpSensor(
     http_conn_id='http_default',
     endpoint='',
     request_params={},
-    response_check=lambda response: True if "Google" in response.text else False,
+    response_check=lambda response: "Google" in response.text,
     poke_interval=5,
     dag=dag,
 )

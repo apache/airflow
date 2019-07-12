@@ -49,7 +49,7 @@ class WasbDeleteBlobOperator(BaseOperator):
                  is_prefix=False, ignore_if_missing=False,
                  *args,
                  **kwargs):
-        super(WasbDeleteBlobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id

@@ -8,7 +8,7 @@ New Feature
 - [AIRFLOW-3971] Add Google Cloud Natural Language operators (#4980)
 - [AIRFLOW-4069] Add Opsgenie Alert Hook and Operator (#4903)
 - [AIRFLOW-3552] Fix encoding issue in ImapAttachmentToS3Operator (#5040)
-- [AIRFLOW-3552] Add ImapToS3TransferOperator (#4476)
+- [AIRFLOW-3552] Add ImapAttachmentToS3Operator (#4476)
 - [AIRFLOW-1526] Add dingding hook and operator (#4895)
 - [AIRFLOW-3490] Add BigQueryHook's Ability to Patch Table/View (#4299)
 - [AIRFLOW-3918] Add ssh private-key support to git-sync for KubernetesExecutor (#4777)
@@ -31,7 +31,6 @@ New Feature
 - [AIRFLOW-3799] Add compose method to GoogleCloudStorageHook (#4641)
 - [AIRFLOW-3218] add support for poking a whole DAG (#4058)
 - [AIRFLOW-3315] Add ImapAttachmentSensor (#4161)
-- [AIRFLOW-2780] Add IMAP Hook to retrieve email attachments (#4119)
 - [AIRFLOW-3556] Add cross join set dependency function (#4356)
 
 Improvement
@@ -97,9 +96,9 @@ Improvement
 - [AIRFLOW-3561] Improve queries (#4368)
 - [AIRFLOW-3600] Remove dagbag from trigger (#4407)
 - [AIRFLOW-3713] Updated documentation for GCP optional project_id (#4541)
-- [AIRFLOW-2767] - Upgrade gunicorn to 19.5.0 to avoid moderate-severity CVE (#4795)
+- [AIRFLOW-2767] Upgrade gunicorn to 19.5.0 to avoid moderate-severity CVE (#4795)
 - [AIRFLOW-3795] provide_context param is now used (#4735)
-- [AIRFLOW-4012]  - Upgrade tabulate to 0.8.3 (#4838)
+- [AIRFLOW-4012] Upgrade tabulate to 0.8.3 (#4838)
 - [AIRFLOW-3623] Support download logs by attempts from UI (#4425)
 - [AIRFLOW-2715] Use region setting when launching Dataflow templates (#4139)
 - [AIRFLOW-3932] Update unit tests and documentation for safe mode flag. (#4760)
@@ -121,10 +120,10 @@ Improvement
 - [AIRFLOW-3547] Fixed Jinja templating in SparkSubmitOperator (#4347)
 - [AIRFLOW-3647] Add archives config option to SparkSubmitOperator (#4467)
 - [AIRFLOW-3802] Updated documentation for HiveServer2Hook (#4647)
-- [AIRFLOW-3817] - Corrected task ids returned by BranchPythonOperator to match the dummy operator ids (#4659)
+- [AIRFLOW-3817] Corrected task ids returned by BranchPythonOperator to match the dummy operator ids (#4659)
 - [AIRFLOW-3782] Clarify docs around celery worker_autoscale in default_airflow.cfg (#4609)
 - [AIRFLOW-1945] Add Autoscale config for Celery workers (#3989)
-- [AIRFLOW-3590]: Change log message of executor exit status (#4616)
+- [AIRFLOW-3590] Change log message of executor exit status (#4616)
 - [AIRFLOW-3591] Fix start date, end date, duration for rescheduled tasks (#4502)
 - [AIRFLOW-3709] Validate `allowed_states` for ExternalTaskSensor (#4536)
 - [AIRFLOW-3522] Add support for sending Slack attachments (#4332)
@@ -259,11 +258,11 @@ Bug fixes
 - [AIRFLOW-XXX] Pin Sendgrid dep. (#5031)
 - [AIRFLOW-XXX] Fix flaky test - test_execution_unlimited_parallelism (#4988)
 
-Misc/Interal
-""""""""""""
+Misc/Internal
+"""""""""""""
 
 - [AIRFLOW-4144] add description of is_delete_operator_pod (#4943)
-- [AIRFLOW-3476,3477] Move Kube classes out of models.py (#4443)
+- [AIRFLOW-3476][AIRFLOW-3477] Move Kube classes out of models.py (#4443)
 - [AIRFLOW-3464] Move SkipMixin out of models.py (#4386)
 - [AIRFLOW-3463] Move Log out of models.py (#4639)
 - [AIRFLOW-3458] Move connection tests (#4680)
@@ -522,7 +521,7 @@ Bug fixes
 - [AIRFLOW-3264] URL decoding when parsing URI for connection (#4109)
 - [AIRFLOW-3365][AIRFLOW-3366] Allow celery_broker_transport_options to be set with environment variables (#4211)
 - [AIRFLOW-2642] fix wrong value git-sync initcontainer env GIT_SYNC_ROOT (#3519)
-- [AIRFLOW-3353] Pin redis verison (#4195)
+- [AIRFLOW-3353] Pin redis version (#4195)
 - [AIRFLOW-3251] KubernetesPodOperator now uses 'image_pull_secrets' argument when creating Pods (#4188)
 - [AIRFLOW-2705] Move class-level moto decorator to method-level
 - [AIRFLOW-3233] Fix deletion of DAGs in the UI (#4069)
@@ -621,7 +620,7 @@ Improvements
 - [AIRFLOW-2622] Add "confirm=False" option to SFTPOperator
 - [AIRFLOW-2662] support affinity & nodeSelector policies for kubernetes executor/operator
 - [AIRFLOW-2709] Improve error handling in Databricks hook
-- [AIRFLOW-2723] Update lxml dependancy to >= 4.0.
+- [AIRFLOW-2723] Update lxml dependency to >= 4.0.
 - [AIRFLOW-2763] No precheck mechanism in place during worker initialisation for the connection to metadata database
 - [AIRFLOW-2789] Add ability to create single node cluster to DataprocClusterCreateOperator
 - [AIRFLOW-2797] Add ability to create Google Dataproc cluster with custom image
@@ -772,7 +771,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2534] Fix bug in HiveServer2Hook
 - [AIRFLOW-2586] Stop getting AIRFLOW_HOME value from config file in bash operator
 - [AIRFLOW-2605] Fix autocommit for MySqlHook
-- [AIRFLOW-2539][AIRFLOW-2359] Move remaing log config to configuration file
+- [AIRFLOW-2539][AIRFLOW-2359] Move remaining log config to configuration file
 - [AIRFLOW-1656] Tree view dags query changed
 - [AIRFLOW-2617] add imagePullPolicy config for kubernetes executor
 - [AIRFLOW-2429] Fix security/task/sensors/ti_deps folders flake8 error
@@ -868,7 +867,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2429] Make Airflow flake8 compliant
 - [AIRFLOW-2491] Resolve flask version conflict
 - [AIRFLOW-2484] Remove duplicate key in MySQL to GCS Op
-- [ARIFLOW-2458] Add cassandra-to-gcs operator
+- [AIRFLOW-2458] Add cassandra-to-gcs operator
 - [AIRFLOW-2477] Improve time units for task duration and landing times charts for RBAC UI
 - [AIRFLOW-2474] Only import snakebite if using py2
 - [AIRFLOW-48] Parse connection uri querystring
@@ -2103,7 +2102,7 @@ Airflow 1.8.0, 2017-03-12
 - [AIRFLOW-784] Pin funcsigs to 1.0.0
 - [AIRFLOW-624] Fix setup.py to not import airflow.version as version
 - [AIRFLOW-779] Task should fail with specific message when deleted
-- [AIRFLOW-778] Fix completey broken MetastorePartitionSensor
+- [AIRFLOW-778] Fix completely broken MetastorePartitionSensor
 - [AIRFLOW-739] Set pickle_info log to debug
 - [AIRFLOW-771] Make S3 logs append instead of clobber
 - [AIRFLOW-773] Fix flaky datetime addition in api test

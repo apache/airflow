@@ -40,7 +40,7 @@ class DaskExecutor(BaseExecutor):
         self.tls_ca = configuration.get('dask', 'tls_ca')
         self.tls_key = configuration.get('dask', 'tls_key')
         self.tls_cert = configuration.get('dask', 'tls_cert')
-        super(DaskExecutor, self).__init__(parallelism=0)
+        super().__init__(parallelism=0)
 
     def start(self):
         if self.tls_ca or self.tls_key or self.tls_cert:
@@ -65,7 +65,7 @@ class DaskExecutor(BaseExecutor):
             )
 
         def airflow_run():
-            return subprocess.check_call(command, shell=True, close_fds=True)
+            return subprocess.check_call(command, close_fds=True)
 
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key

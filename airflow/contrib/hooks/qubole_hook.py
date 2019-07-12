@@ -19,15 +19,18 @@
 #
 
 import os
+import pathlib
 import time
 import datetime
 import six
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+from airflow.models import TaskInstance
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
@@ -175,7 +178,7 @@ class QuboleHook(BaseHook):
                 configuration.conf.get('core', 'BASE_LOG_FOLDER')
             )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
-            configuration.mkdir_p(resultpath)
+            pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')
 
         if self.cmd is None:
@@ -206,6 +209,25 @@ class QuboleHook(BaseHook):
         if self.cmd is None:
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(self.cls, cmd_id)
+
+    def get_extra_links(self, operator, dttm):
+        """
+        Get link to qubole command result page.
+
+        :param operator: operator
+        :param dttm: datetime
+        :return: url link
+        """
+        conn = BaseHook.get_connection(operator.kwargs['qubole_conn_id'])
+        if conn and conn.host:
+            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+        else:
+            host = 'https://api.qubole.com/v2/analyze?command_id='
+
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
+        url = host + str(qds_command_id) if qds_command_id else ''
+        return url
 
     def create_cmd_args(self, context):
         args = []

@@ -62,7 +62,7 @@ class PrestoCheckOperator(CheckOperator):
             self, sql,
             presto_conn_id='presto_default',
             *args, **kwargs):
-        super(PrestoCheckOperator, self).__init__(sql=sql, *args, **kwargs)
+        super().__init__(sql=sql, *args, **kwargs)
 
         self.presto_conn_id = presto_conn_id
         self.sql = sql
@@ -86,7 +86,7 @@ class PrestoValueCheckOperator(ValueCheckOperator):
             self, sql, pass_value, tolerance=None,
             presto_conn_id='presto_default',
             *args, **kwargs):
-        super(PrestoValueCheckOperator, self).__init__(
+        super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
         self.presto_conn_id = presto_conn_id
@@ -117,7 +117,7 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
             date_filter_column='ds', days_back=-7,
             presto_conn_id='presto_default',
             *args, **kwargs):
-        super(PrestoIntervalCheckOperator, self).__init__(
+        super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)

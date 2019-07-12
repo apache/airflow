@@ -37,7 +37,7 @@ class TriggerRuleDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         TI = airflow.models.TaskInstance
-        TR = airflow.models.TriggerRule
+        TR = airflow.utils.trigger_rule.TriggerRule
 
         # Checking that all upstream dependencies have succeeded
         if not ti.task.upstream_list:
@@ -123,7 +123,7 @@ class TriggerRuleDep(BaseTIDep):
         :type session: sqlalchemy.orm.session.Session
         """
 
-        TR = airflow.models.TriggerRule
+        TR = airflow.utils.trigger_rule.TriggerRule
 
         task = ti.task
         upstream = len(task.upstream_task_ids)
