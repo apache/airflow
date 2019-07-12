@@ -29,7 +29,7 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_BUCKET_NAME = os.environ.get('GCP_VISION_BUCKET_NAME', 'vision-bucket-system-test')
 GCP_REFERENCE_IMAGE_URL = os.environ.get('GCP_VISION_REFERENCE_IMAGE_URL', 'gs://bucket-name/image.png')
 GCP_ANNOTATE_IMAGE_URL = os.environ.get('GCP_VISION_ANNOTATE_IMAGE_URL', 'gs://bucket-name/image.png')
-GCP_VIDEO_SOURCE_URL = os.environ.get('GCP_VISION_SOURCE_IMAGE_URL', "http://google.com/image.jpg")
+GCP_IMAGE_SOURCE_URL = os.environ.get('GCP_VISION_SOURCE_IMAGE_URL', "http://google.com/image.jpg")
 
 
 class GCPVisionTestHelper(LoggingCommandExecutor):
@@ -48,8 +48,8 @@ class GCPVisionTestHelper(LoggingCommandExecutor):
             ]
         )
 
-        with NamedTemporaryFile(suffix=".png") as file:
-            self.execute_cmd(["curl", "-s", GCP_VIDEO_SOURCE_URL, "-o", file.name])
+        with NamedTemporaryFile(suffix=".jpg") as file:
+            self.execute_cmd(["curl", "-s", GCP_IMAGE_SOURCE_URL, "-o", file.name])
             self.execute_cmd(['gsutil', 'cp', file.name, GCP_REFERENCE_IMAGE_URL])
             self.execute_cmd(['gsutil', 'cp', file.name, GCP_ANNOTATE_IMAGE_URL])
 
