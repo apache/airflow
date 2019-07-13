@@ -807,7 +807,7 @@ class SchedulerJobTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
