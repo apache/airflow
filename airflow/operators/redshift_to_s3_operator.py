@@ -110,8 +110,8 @@ class RedshiftToS3Transfer(BaseOperator):
             cursor.execute(columns_query)
             rows = cursor.fetchall()
             columns = [row[0] for row in rows]
-            column_names = ', '.join("{0}".format(c) for c in columns)
-            column_headers = ', '.join("\\'{0}\\'".format(c) for c in columns)
+            column_names = ', '.join("{}".format(c) for c in columns)
+            column_headers = ', '.join("\\'{}\\'".format(c) for c in columns)
             column_castings = ', '.join("CAST({0} AS text) AS {0}".format(c)
                                         for c in columns)
 

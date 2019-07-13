@@ -60,6 +60,6 @@ class ValidStateDep(BaseTIDep):
             return
 
         yield self._failing_status(
-            reason="Task is in the '{0}' state which is not a valid state for "
+            reason="Task is in the '{}' state which is not a valid state for "
                    "execution. The task must be cleared in order to be run.".format(
                        ti.state))

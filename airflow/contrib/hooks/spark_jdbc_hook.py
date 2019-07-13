@@ -201,7 +201,7 @@ class SparkJDBCHook(SparkSubmitHook):
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection['url']:
-            arguments += ['-url', "{0}{1}/{2}".format(
+            arguments += ['-url', "{}{}/{}".format(
                 jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']
             )]
         if self._jdbc_connection['user']:

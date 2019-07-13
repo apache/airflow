@@ -59,9 +59,9 @@ def smart_truncate(string, max_length=0, word_boundary=False, separator=' ', sav
         if word:
             next_len = len(truncated) + len(word)
             if next_len < max_length:
-                truncated += '{0}{1}'.format(word, separator)
+                truncated += '{}{}'.format(word, separator)
             elif next_len == max_length:
-                truncated += '{0}'.format(word)
+                truncated += '{}'.format(word)
                 break
             else:
                 if save_order:

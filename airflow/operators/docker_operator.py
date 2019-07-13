@@ -210,7 +210,7 @@ class DockerOperator(BaseOperator):
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
-            self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
+            self.volumes.append('{}:{}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
                 command=self.get_command(),

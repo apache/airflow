@@ -34,5 +34,5 @@ class NotRunningDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if ti.state == State.RUNNING:
             yield self._failing_status(
-                reason="Task is already running, it started on {0}.".format(
+                reason="Task is already running, it started on {}.".format(
                     ti.start_date))

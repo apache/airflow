@@ -1416,7 +1416,7 @@ class DAG(BaseDag, LoggingMixin):
         task = self.task_dict[task_id]
         for descendant_id in task.get_direct_relative_ids():
             if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
+                msg = "Cycle detected in DAG. Faulty task: {} to {}".format(
                     task_id, descendant_id)
                 raise AirflowDagCycleException(msg)
             else:

@@ -901,7 +901,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.utcnow()
-        run_id = "manual__{0}".format(execution_date.isoformat())
+        run_id = "manual__{}".format(execution_date.isoformat())
 
         dr = DagRun.find(dag_id=dag_id, run_id=run_id)
         if dr:
@@ -934,7 +934,7 @@ class Airflow(AirflowBaseView):
                 only_failed=only_failed,
             )
 
-            flash("{0} task instances have been cleared".format(count))
+            flash("{} task instances have been cleared".format(count))
             return redirect(origin)
 
         tis = dag.clear(
@@ -980,7 +980,7 @@ class Airflow(AirflowBaseView):
         only_failed = request.form.get('only_failed') == "true"
 
         dag = dag.sub_dag(
-            task_regex=r"^{0}$".format(task_id),
+            task_regex=r"^{}$".format(task_id),
             include_downstream=downstream,
             include_upstream=upstream)
 
@@ -1212,14 +1212,14 @@ class Airflow(AirflowBaseView):
         blur = conf.getboolean('webserver', 'demo_mode')
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag_model:
-            flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
+            flash('DAG "{}" seems to be missing in database.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
         dag = dag_model.get_dag()
 
         if dag is None:
             dag = dagbag.get_dag(dag_id)
             if dag is None:
-                flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
+                flash('DAG "{}" seems to be missing from DagBag.'.format(dag_id), "error")
                 return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1346,7 +1346,7 @@ class Airflow(AirflowBaseView):
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash('DAG "{}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1365,8 +1365,8 @@ class Airflow(AirflowBaseView):
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
-                    'labelStyle': "fill:{0};".format(task.ui_fgcolor),
-                    'style': "fill:{0};".format(task.ui_color),
+                    'labelStyle': "fill:{};".format(task.ui_fgcolor),
+                    'style': "fill:{};".format(task.ui_color),
                     'rx': 5,
                     'ry': 5,
                 }
@@ -1450,7 +1450,7 @@ class Airflow(AirflowBaseView):
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         if dag is None:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash('DAG "{}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
         if base_date:
@@ -2505,7 +2505,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
-            flash("{0} task instances have been cleared".format(len(tis)))
+            flash("{} task instances have been cleared".format(len(tis)))
             self.update_redirect()
             return redirect(self.get_redirect())
 

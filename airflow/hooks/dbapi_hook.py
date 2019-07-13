@@ -236,7 +236,7 @@ class DbApiHook(BaseHook):
                         sql = "INSERT INTO "
                     else:
                         sql = "REPLACE INTO "
-                    sql += "{0} {1} VALUES ({2})".format(
+                    sql += "{} {} VALUES ({})".format(
                         table,
                         target_fields,
                         ",".join(placeholders))

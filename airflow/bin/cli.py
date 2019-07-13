@@ -183,10 +183,9 @@ def backfill(args, dag=None):
         run_conf = json.loads(args.conf)
 
     if args.dry_run:
-        print("Dry run of DAG {0} on {1}".format(args.dag_id,
-                                                 args.start_date))
+        print("Dry run of DAG {} on {}".format(args.dag_id, args.start_date))
         for task in dag.tasks:
-            print("Task {0}".format(task.task_id))
+            print("Task {}".format(task.task_id))
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
@@ -787,7 +786,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
         while not fn():
             if 0 < timeout <= time.time() - t:
                 raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds"
+                    "No response from gunicorn master within {} seconds"
                     .format(timeout))
             time.sleep(0.1)
 
@@ -814,7 +813,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
             num_ready_workers_running = \
                 get_num_ready_workers_running(gunicorn_master_proc)
 
-            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+            state = '[{} / {}]'.format(num_ready_workers_running, num_workers_running)
 
             # Whenever some workers are not ready, wait until all workers are ready
             if num_ready_workers_running < num_workers_running:
@@ -885,7 +884,7 @@ def webserver(args):
 
     if args.debug:
         print(
-            "Starting the web server on port {0} and host {1}.".format(
+            "Starting the web server on port {} and host {}.".format(
                 args.port, args.hostname))
         app, _ = create_app(None, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,

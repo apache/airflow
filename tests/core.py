@@ -164,7 +164,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(
             datetime(2015, 1, 2, 0, 0),
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -191,7 +191,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(
             datetime(2015, 1, 2, 0, 0),
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -204,7 +204,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(
             datetime(2015, 1, 2, 0, 0) + delta,
             dag_run2.execution_date,
-            msg='dag_run2.execution_date did not match expectation: {0}'
+            msg='dag_run2.execution_date did not match expectation: {}'
             .format(dag_run2.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run2.state)
@@ -239,7 +239,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(
             DEFAULT_DATE + delta,
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -991,9 +991,9 @@ class CoreTest(unittest.TestCase):
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
 
-        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
+        cmd = 'import sys; {}; sys.stdout.flush()'.format(write)
 
-        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
+        self.assertEqual(run_command("python -c '{}'".format(cmd)), '\u1000foo')
 
         self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')

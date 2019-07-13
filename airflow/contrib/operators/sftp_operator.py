@@ -98,7 +98,7 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or
                 self.operation.lower() == SFTPOperation.PUT):
-            raise TypeError("unsupported operation value {0}, expected {1} or {2}"
+            raise TypeError("unsupported operation value {}, expected {} or {}"
                             .format(self.operation, SFTPOperation.GET, SFTPOperation.PUT))
 
     def execute(self, context):
@@ -132,8 +132,7 @@ class SFTPOperator(BaseOperator):
                         except OSError:
                             if not os.path.isdir(local_folder):
                                 raise
-                    file_msg = "from {0} to {1}".format(self.remote_filepath,
-                                                        self.local_filepath)
+                    file_msg = "from {} to {}".format(self.remote_filepath, self.local_filepath)
                     self.log.info("Starting to transfer %s", file_msg)
                     sftp_client.get(self.remote_filepath, self.local_filepath)
                 else:
@@ -143,15 +142,14 @@ class SFTPOperator(BaseOperator):
                             sftp_client=sftp_client,
                             remote_directory=remote_folder,
                         )
-                    file_msg = "from {0} to {1}".format(self.local_filepath,
-                                                        self.remote_filepath)
+                    file_msg = "from {} to {}".format(self.local_filepath, self.remote_filepath)
                     self.log.info("Starting to transfer file %s", file_msg)
                     sftp_client.put(self.local_filepath,
                                     self.remote_filepath,
                                     confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {0}, error: {1}"
+            raise AirflowException("Error while transferring {}, error: {}"
                                    .format(file_msg, str(e)))
 
         return self.local_filepath

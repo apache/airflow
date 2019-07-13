@@ -51,7 +51,7 @@ class BaseHook(LoggingMixin):
         session.expunge_all()
         if not db:
             raise AirflowException(
-                "The conn_id `{0}` isn't defined".format(conn_id))
+                "The conn_id `{}` isn't defined".format(conn_id))
         return db
 
     @classmethod

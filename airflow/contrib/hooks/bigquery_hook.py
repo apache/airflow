@@ -426,15 +426,15 @@ class BigQueryBaseCursor(LoggingMixin):
             "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid source format. "
+                             "Please use one of the following types: {}"
                              .format(source_format, allowed_formats))
 
         compression = compression.upper()
         allowed_compressions = ['NONE', 'GZIP']
         if compression not in allowed_compressions:
-            raise ValueError("{0} is not a valid compression format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid compression format. "
+                             "Please use one of the following types: {}"
                              .format(compression, allowed_compressions))
 
         table_resource = {
@@ -757,9 +757,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if not set(allowed_schema_update_options
                    ).issuperset(set(schema_update_options)):
-            raise ValueError("{0} contains invalid schema update options. "
+            raise ValueError("{} contains invalid schema update options. "
                              "Please only use one or more of the following "
-                             "options: {1}"
+                             "options: {}"
                              .format(schema_update_options,
                                      allowed_schema_update_options))
 
@@ -1106,8 +1106,8 @@ class BigQueryBaseCursor(LoggingMixin):
             "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid source format. "
+                             "Please use one of the following types: {}"
                              .format(source_format, allowed_formats))
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -1120,8 +1120,8 @@ class BigQueryBaseCursor(LoggingMixin):
         if not set(allowed_schema_update_options).issuperset(
                 set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options."
-                "Please only use one or more of the following options: {1}"
+                "{} contains invalid schema update options."
+                "Please only use one or more of the following options: {}"
                 .format(schema_update_options, allowed_schema_update_options))
 
         destination_project, destination_dataset, destination_table = \

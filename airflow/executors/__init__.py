@@ -86,10 +86,10 @@ def _get_executor(executor_name):
         executor_path = executor_name.split('.')
         if len(executor_path) != 2:
             raise AirflowException(
-                "Executor {0} not supported: "
+                "Executor {} not supported: "
                 "please specify in format plugin_module.executor".format(executor_name))
 
         if executor_path[0] in globals():
             return globals()[executor_path[0]].__dict__[executor_path[1]]()
         else:
-            raise AirflowException("Executor {0} not supported.".format(executor_name))
+            raise AirflowException("Executor {} not supported.".format(executor_name))

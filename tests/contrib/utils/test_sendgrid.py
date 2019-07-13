@@ -76,7 +76,7 @@ class SendEmailSendGridTest(unittest.TestCase):
                 self.expected_mail_data,
                 attachments=[{
                     'content': 'dGhpcyBpcyBzb21lIHRlc3QgZGF0YQ==',
-                    'content_id': '<{0}>'.format(filename),
+                    'content_id': '<{}>'.format(filename),
                     'disposition': 'attachment',
                     'filename': filename,
                     'type': 'text/plain',

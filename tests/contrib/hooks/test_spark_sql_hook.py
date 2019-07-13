@@ -74,7 +74,7 @@ class TestSparkSqlHook(unittest.TestCase):
         # Check if all config settings are there
         for kv in self._config['conf'].split(","):
             k, v = kv.split('=')
-            assert "--conf {0}={1}".format(k, v) in cmd
+            assert "--conf {}={}".format(k, v) in cmd
 
         if self._config['verbose']:
             assert "--verbose" in cmd

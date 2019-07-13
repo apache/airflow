@@ -141,7 +141,7 @@ class DatabricksHook(BaseHook):
                 if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise AirflowException('Response: {0}, Status Code: {1}'.format(
+                    raise AirflowException('Response: {}, Status Code: {}'.format(
                         e.response.content, e.response.status_code))
 
                 self._log_request_error(attempt_num, e)

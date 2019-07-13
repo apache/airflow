@@ -1740,7 +1740,7 @@ class TestExtraLinks(TestBase):
             name = 'foo-bar'
 
             def get_link(self, operator, dttm):
-                return 'http://www.example.com/{0}/{1}/{2}'.format(
+                return 'http://www.example.com/{}/{}/{}'.format(
                     operator.task_id, 'foo-bar', dttm)
 
         class AirflowLink(BaseOperatorLink):
@@ -1769,7 +1769,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=foo-bar"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=foo-bar"
             .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
             follow_redirects=True)
 
@@ -1788,7 +1788,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=github"
             .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
             follow_redirects=True)
 
@@ -1806,7 +1806,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=airflow".format(
                 self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
             follow_redirects=True)
 
@@ -1824,7 +1824,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=raise_error"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=raise_error"
             .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
             follow_redirects=True)
 
@@ -1841,7 +1841,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=no_response"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=no_response"
             .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
             follow_redirects=True)
 

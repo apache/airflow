@@ -84,7 +84,7 @@ def get_ldap_connection(dn=None, password=None):
 
 
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
-    search_filter = '(&({0}))'.format(group_filter)
+    search_filter = '(&({}))'.format(group_filter)
 
     if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
         log.warning("Unable to find group for %s %s", search_base, search_filter)
@@ -98,7 +98,7 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
 
 
 def groups_user(conn, search_base, user_filter, user_name_att, username):
-    search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
+    search_filter = "(&({})({}={}))".format(user_filter, user_name_att, username)
     try:
         memberof_attr = configuration.conf.get("ldap", "group_member_attr")
     except Exception:
@@ -192,7 +192,7 @@ class LdapUser(models.User):
         conn = get_ldap_connection(configuration.conf.get("ldap", "bind_user"),
                                    configuration.conf.get("ldap", "bind_password"))
 
-        search_filter = "(&({0})({1}={2}))".format(
+        search_filter = "(&({})({}={}))".format(
             configuration.conf.get("ldap", "user_filter"),
             configuration.conf.get("ldap", "user_name_attr"),
             username

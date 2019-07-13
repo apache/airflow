@@ -111,11 +111,11 @@ class HiveCliHook(BaseHook):
 
         proxy_user_value = conn.extra_dejson.get('proxy_user', "")
         if proxy_user_value == "login" and conn.login:
-            return "hive.server2.proxy.user={0}".format(conn.login)
+            return "hive.server2.proxy.user={}".format(conn.login)
         if proxy_user_value == "owner" and self.run_as:
-            return "hive.server2.proxy.user={0}".format(self.run_as)
+            return "hive.server2.proxy.user={}".format(self.run_as)
         if proxy_user_value != "":  # There is a custom proxy user
-            return "hive.server2.proxy.user={0}".format(proxy_user_value)
+            return "hive.server2.proxy.user={}".format(proxy_user_value)
         return proxy_user_value  # The default proxy user (undefined)
 
     def _prepare_cli_cmd(self):
@@ -446,7 +446,7 @@ class HiveCliHook(BaseHook):
             hql += "STORED AS textfile\n"
             if tblproperties is not None:
                 tprops = ", ".join(
-                    ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
+                    ["'{}'='{}'".format(k, v) for k, v in tblproperties.items()])
                 hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
         hql += ";"
         self.log.info(hql)
@@ -457,7 +457,7 @@ class HiveCliHook(BaseHook):
         hql += "INTO TABLE {table} ".format(table=table)
         if partition:
             pvals = ", ".join(
-                ["{0}='{1}'".format(k, v) for k, v in partition.items()])
+                ["{}='{}'".format(k, v) for k, v in partition.items()])
             hql += "PARTITION ({pvals})".format(pvals=pvals)
 
         # As a workaround for HIVE-10541, add a newline character

@@ -91,7 +91,7 @@ class DagRunTest(unittest.TestCase):
             timezone.datetime(2015, 1, 2, 3, 4, 5, 6))
         self.assertEqual(
             'scheduled__2015-01-02T03:04:05', run_id,
-            'Generated run_id did not match expectations: {0}'.format(run_id))
+            'Generated run_id did not match expectations: {}'.format(run_id))
 
     def test_dagrun_find(self):
         session = settings.Session()

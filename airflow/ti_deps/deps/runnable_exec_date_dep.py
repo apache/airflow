@@ -32,14 +32,14 @@ class RunnableExecDateDep(BaseTIDep):
 
         if ti.execution_date > cur_date:
             yield self._failing_status(
-                reason="Execution date {0} is in the future (the current "
-                       "date is {1}).".format(ti.execution_date.isoformat(),
-                                              cur_date.isoformat()))
+                reason="Execution date {} is in the future (the current "
+                       "date is {}).".format(ti.execution_date.isoformat(),
+                                             cur_date.isoformat()))
 
         if ti.task.end_date and ti.execution_date > ti.task.end_date:
             yield self._failing_status(
-                reason="The execution date is {0} but this is after the task's end date "
-                "{1}.".format(
+                reason="The execution date is {} but this is after the task's end date "
+                "{}.".format(
                     ti.execution_date.isoformat(),
                     ti.task.end_date.isoformat()))
 
@@ -47,7 +47,7 @@ class RunnableExecDateDep(BaseTIDep):
                 ti.task.dag.end_date and
                 ti.execution_date > ti.task.dag.end_date):
             yield self._failing_status(
-                reason="The execution date is {0} but this is after the task's DAG's "
-                "end date {1}.".format(
+                reason="The execution date is {} but this is after the task's DAG's "
+                "end date {}.".format(
                     ti.execution_date.isoformat(),
                     ti.task.dag.end_date.isoformat()))

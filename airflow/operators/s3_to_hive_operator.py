@@ -153,13 +153,13 @@ class S3ToHiveTransfer(BaseOperator):
 
         if self.wildcard_match:
             if not self.s3.check_for_wildcard_key(self.s3_key):
-                raise AirflowException("No key matches {0}"
+                raise AirflowException("No key matches {}"
                                        .format(self.s3_key))
             s3_key_object = self.s3.get_wildcard_key(self.s3_key)
         else:
             if not self.s3.check_for_key(self.s3_key):
                 raise AirflowException(
-                    "The key {0} does not exists".format(self.s3_key))
+                    "The key {} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
 
         root, file_ext = os.path.splitext(s3_key_object.key)

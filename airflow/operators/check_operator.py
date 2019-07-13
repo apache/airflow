@@ -324,7 +324,7 @@ class IntervalCheckOperator(BaseOperator):
                 self.log.warning(
                     "'%s' check failed. %s is above %s", k, ratios[k], self.metrics_thresholds[k]
                 )
-            raise AirflowException("The following tests have failed:\n {0}".format(", ".join(
+            raise AirflowException("The following tests have failed:\n {}".format(", ".join(
                 sorted(failed_tests))))
 
         self.log.info("All tests have passed")

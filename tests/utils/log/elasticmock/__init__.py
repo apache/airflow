@@ -35,7 +35,7 @@ ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 
 def _get_elasticmock(hosts=None, *args, **kwargs):
     host = _normalize_hosts(hosts)[0]
-    elastic_key = '{0}:{1}'.format(
+    elastic_key = '{}:{}'.format(
         host.get('host', 'localhost'), host.get('port', 9200)
     )
 

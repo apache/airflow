@@ -85,7 +85,7 @@ def apply_defaults(func):
                 kwargs[arg] = default_args[arg]
         missing_args = list(non_optional_args - set(kwargs))
         if missing_args:
-            msg = "Argument {0} is required".format(missing_args)
+            msg = "Argument {} is required".format(missing_args)
             raise AirflowException(msg)
 
         kwargs['params'] = dag_params

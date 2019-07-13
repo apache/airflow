@@ -64,16 +64,12 @@ class SFTPOperatorTest(unittest.TestCase):
         self.test_remote_dir = "/tmp/tmp1"
         self.test_local_filename = 'test_local_file'
         self.test_remote_filename = 'test_remote_file'
-        self.test_local_filepath = '{0}/{1}'.format(self.test_dir,
-                                                    self.test_local_filename)
+        self.test_local_filepath = '{}/{}'.format(self.test_dir, self.test_local_filename)
         # Local Filepath with Intermediate Directory
-        self.test_local_filepath_int_dir = '{0}/{1}'.format(self.test_local_dir,
-                                                            self.test_local_filename)
-        self.test_remote_filepath = '{0}/{1}'.format(self.test_dir,
-                                                     self.test_remote_filename)
+        self.test_local_filepath_int_dir = '{}/{}'.format(self.test_local_dir, self.test_local_filename)
+        self.test_remote_filepath = '{}/{}'.format(self.test_dir, self.test_remote_filename)
         # Remote Filepath with Intermediate Directory
-        self.test_remote_filepath_int_dir = '{0}/{1}'.format(self.test_remote_dir,
-                                                             self.test_remote_filename)
+        self.test_remote_filepath_int_dir = '{}/{}'.format(self.test_remote_dir, self.test_remote_filename)
 
     def test_pickle_file_transfer_put(self):
         configuration.conf.set("core", "enable_xcom_pickling", "True")
@@ -102,7 +98,7 @@ class SFTPOperatorTest(unittest.TestCase):
         check_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="cat {0}".format(self.test_remote_filepath),
+            command="cat {}".format(self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -167,7 +163,7 @@ class SFTPOperatorTest(unittest.TestCase):
         check_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="cat {0}".format(self.test_remote_filepath_int_dir),
+            command="cat {}".format(self.test_remote_filepath_int_dir),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -204,7 +200,7 @@ class SFTPOperatorTest(unittest.TestCase):
         check_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="cat {0}".format(self.test_remote_filepath),
+            command="cat {}".format(self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -225,8 +221,7 @@ class SFTPOperatorTest(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content,
-                                              self.test_remote_filepath),
+            command="echo '{}' > {}".format(test_remote_file_content, self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -263,8 +258,7 @@ class SFTPOperatorTest(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content,
-                                              self.test_remote_filepath),
+            command="echo '{}' > {}".format(test_remote_file_content, self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -302,8 +296,7 @@ class SFTPOperatorTest(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content,
-                                              self.test_remote_filepath),
+            command="echo '{}' > {}".format(test_remote_file_content, self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -338,8 +331,7 @@ class SFTPOperatorTest(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content,
-                                              self.test_remote_filepath),
+            command="echo '{}' > {}".format(test_remote_file_content, self.test_remote_filepath),
             do_xcom_push=True,
             dag=self.dag
         )
@@ -444,7 +436,7 @@ class SFTPOperatorTest(unittest.TestCase):
             remove_file_task = SSHOperator(
                 task_id="test_check_file",
                 ssh_hook=self.hook,
-                command="rm {0}".format(self.test_remote_filepath),
+                command="rm {}".format(self.test_remote_filepath),
                 do_xcom_push=True,
                 dag=self.dag
             )

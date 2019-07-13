@@ -60,7 +60,7 @@ def _trigger_dag(
         execution_date = execution_date.replace(microsecond=0)
 
     if not run_id:
-        run_id = "manual__{0}".format(execution_date.isoformat())
+        run_id = "manual__{}".format(execution_date.isoformat())
 
     dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
     if dag_run_id:
