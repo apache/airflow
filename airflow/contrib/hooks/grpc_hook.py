@@ -100,8 +100,7 @@ class GrpcHook(BaseHook):
                 if not streaming:
                     yield response
                 else:
-                    for single_response in response:
-                        yield single_response
+                    yield from response
             except grpc.RpcError as ex:
                 self.log.exception(
                     "Error occurred when calling the grpc service: {0}, method: {1} \
