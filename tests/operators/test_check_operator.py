@@ -170,8 +170,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            for r in rows:
-                yield r
+            yield from rows
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook
@@ -201,8 +200,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            for r in rows:
-                yield r
+            yield from rows
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook

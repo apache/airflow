@@ -863,8 +863,7 @@ class HiveServer2Hook(BaseHook):
                         # DB API 2 raises when no results are returned
                         # we're silencing here as some statements in the list
                         # may be `SET` or DDL
-                        for row in cur:
-                            yield row
+                        yield from cur
                     except ProgrammingError:
                         self.log.debug("get_results returned no records")
 
