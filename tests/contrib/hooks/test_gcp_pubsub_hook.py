@@ -46,7 +46,7 @@ EXPANDED_SUBSCRIPTION = 'projects/{}/subscriptions/{}'.format(
     TEST_PROJECT, TEST_SUBSCRIPTION)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
@@ -169,7 +169,7 @@ class PubSubHookTest(unittest.TestCase):
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     @mock.patch(PUBSUB_STRING.format('uuid4'),
                 new_callable=mock.Mock(return_value=lambda: TEST_UUID))
-    def test_create_subscription_without_name(self, mock_uuid, mock_service):
+    def test_create_subscription_without_name(self, mock_uuid, mock_service):  # noqa  # pylint: disable=unused-argument,line-too-long
         response = self.pubsub_hook.create_subscription(TEST_PROJECT,
                                                         TEST_TOPIC)
         create_method = (
@@ -244,8 +244,8 @@ class PubSubHookTest(unittest.TestCase):
         pull_method = (mock_service.return_value.projects.return_value
                        .subscriptions.return_value.pull)
         pulled_messages = []
-        for i in range(len(TEST_MESSAGES)):
-            pulled_messages.append({'ackId': i, 'message': TEST_MESSAGES[i]})
+        for i, msg in enumerate(TEST_MESSAGES):
+            pulled_messages.append({'ackId': i, 'message': msg})
         pull_method.return_value.execute.return_value = {
             'receivedMessages': pulled_messages}
 

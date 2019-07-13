@@ -35,7 +35,7 @@ TEST_KEY_ID = 'projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}'.format(
     TEST_PROJECT, TEST_LOCATION, TEST_KEY_RING, TEST_KEY)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 

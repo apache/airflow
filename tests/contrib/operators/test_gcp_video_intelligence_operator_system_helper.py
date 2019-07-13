@@ -83,7 +83,7 @@ if __name__ == "__main__":
         elif action == "delete-bucket":
             helper.delete_bucket()
         else:
-            raise Exception("Unknown action: %s", action)
+            raise Exception("Unknown action: {}".format(action))
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

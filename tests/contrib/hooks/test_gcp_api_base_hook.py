@@ -23,16 +23,15 @@ import unittest
 from io import StringIO
 
 from parameterized import parameterized
+
 import google.auth
 from google.auth.exceptions import GoogleAuthError
 from google.api_core.exceptions import RetryError, AlreadyExists
 from google.cloud.exceptions import MovedPermanently
-
-from airflow import AirflowException, LoggingMixin
 from googleapiclient.errors import HttpError
 
+from airflow import AirflowException, LoggingMixin
 from airflow.contrib.hooks import gcp_api_base_hook as hook
-
 from airflow.hooks.base_hook import BaseHook
 from tests.compat import mock
 
@@ -46,23 +45,32 @@ except GoogleAuthError:
 
 
 class TestCatchHttpException(unittest.TestCase):
+    # pylint:disable=no-method-argument,unused-argument
     @parameterized.expand(
         [
             ("no_exception", None, LoggingMixin, None, None),
             ("raise_airflowexception", MovedPermanently("MESSAGE"), LoggingMixin, None, AirflowException),
-            ("raise_airflowexception", RetryError("MESSAGE", cause=Exception("MESSAGE")), LoggingMixin, None, AirflowException),  # noqa: E501
+            (
+                "raise_airflowexception",
+                RetryError("MESSAGE", cause=Exception("MESSAGE")),
+                LoggingMixin, None, AirflowException
+            ),
             ("raise_airflowexception", ValueError("MESSAGE"), LoggingMixin, None, AirflowException),
             ("raise_alreadyexists", AlreadyExists("MESSAGE"), LoggingMixin, None, AlreadyExists),
-            ("raise_http_error", HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT"), BaseHook, {"source": None}, AirflowException),  # noqa: E501
+            (
+                "raise_http_error",
+                HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT"),
+                BaseHook, {"source": None}, AirflowException
+            ),
         ]
     )
     def test_catch_exception(self, name, exception, base_class, base_class_args, assert_raised):
-        self.called = False
+        self.called = False  # pylint:disable=attribute-defined-outside-init
 
         class FixtureClass(base_class):
             @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixture(*args, **kwargs):
-                self.called = True
+            def test_fixture(*args, **kwargs):  # pylint:disable=unused-argument,no-method-argument
+                self.called = True  # pylint:disable=attribute-defined-outside-init
                 if exception is not None:
                     raise exception
 
@@ -71,7 +79,6 @@ class TestCatchHttpException(unittest.TestCase):
         else:
             with self.assertRaises(assert_raised):
                 FixtureClass(base_class_args).test_fixture()
-
         self.assertTrue(self.called)
 
 
@@ -128,7 +135,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              key_path)
 
@@ -147,7 +154,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              file_name)
             self.assertEqual(file_content, string_file.getvalue())
