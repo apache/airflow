@@ -1256,7 +1256,7 @@ class TestDagACLView(TestBase):
         self.login(username='test',
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        perms = set([str(perm) for perm in test_role.permissions])
+        perms = {str(perm) for perm in test_role.permissions}
         self.assertIn('can dag edit on example_bash_operator', perms)
         self.assertNotIn('can dag read on example_bash_operator', perms)
 

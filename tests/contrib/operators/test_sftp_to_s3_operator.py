@@ -108,7 +108,7 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.s3_bucket)
-        self.assertTrue((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertTrue(self.s3_hook.check_for_bucket(self.s3_bucket))
 
         # get remote file to local
         run_task = SFTPToS3Operator(
@@ -136,7 +136,7 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        self.assertFalse((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
 
 
 if __name__ == '__main__':
