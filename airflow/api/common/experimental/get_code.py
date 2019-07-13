@@ -34,6 +34,6 @@ def get_code(dag_id: str) -> str:
         with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as file:
             code = file.read()
             return code
-    except IOError as exception:
+    except OSError as exception:
         error_message = "Error {} while reading Dag id {} Code".format(str(exception), dag_id)
         raise AirflowException(error_message)
