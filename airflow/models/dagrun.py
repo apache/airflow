@@ -171,7 +171,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance.execution_date == self.execution_date,
         )
         if state:
-            if isinstance(state, six.string_types):
+            if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values

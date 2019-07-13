@@ -1019,7 +1019,7 @@ class CoreTest(unittest.TestCase):
 
     def test_trigger_dagrun_with_str_execution_date(self):
         utc_now_str = timezone.utcnow().isoformat()
-        self.assertIsInstance(utc_now_str, six.string_types)
+        self.assertIsInstance(utc_now_str, (str,))
         run_id = 'trig__' + utc_now_str
 
         def payload_generator(context, object):
@@ -1045,7 +1045,7 @@ class CoreTest(unittest.TestCase):
             execution_date='{{ execution_date }}',
             dag=self.dag)
 
-        self.assertTrue(isinstance(task.execution_date, six.string_types))
+        self.assertTrue(isinstance(task.execution_date, str))
         self.assertEqual(task.execution_date, '{{ execution_date }}')
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)

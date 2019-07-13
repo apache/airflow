@@ -27,7 +27,6 @@ implementation for BigQuery.
 import time
 from copy import deepcopy
 
-import six
 from six import iteritems
 
 from googleapiclient.discovery import build
@@ -784,8 +783,8 @@ class BigQueryBaseCursor(LoggingMixin):
             cluster_fields = {'fields': cluster_fields}
 
         query_param_list = [
-            (sql, 'query', None, six.string_types),
-            (priority, 'priority', 'INTERACTIVE', six.string_types),
+            (sql, 'query', None, (str,)),
+            (priority, 'priority', 'INTERACTIVE', (str,)),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
             (query_params, 'queryParameters', None, list),
             (udf_config, 'userDefinedFunctionResources', None, list),

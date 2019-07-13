@@ -27,7 +27,6 @@ from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
-import six
 from six.moves.urllib.error import HTTPError, URLError
 
 
@@ -134,7 +133,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
-        if self.parameters and isinstance(self.parameters, six.string_types):
+        if self.parameters and isinstance(self.parameters, str):
             import ast
             self.parameters = ast.literal_eval(self.parameters)
 
