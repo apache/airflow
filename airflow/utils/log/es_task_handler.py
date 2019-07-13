@@ -209,7 +209,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             else:
                 self.handler.setFormatter(self.formatter)
         else:
-            super(ElasticsearchTaskHandler, self).set_context(ti)
+            super().set_context(ti)
 
     def emit(self, record):
         if self.write_stdout:
@@ -217,7 +217,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             if self.handler is not None:
                 self.handler.emit(record)
         else:
-            super(ElasticsearchTaskHandler, self).emit(record)
+            super().emit(record)
 
     def flush(self):
         if self.handler is not None:

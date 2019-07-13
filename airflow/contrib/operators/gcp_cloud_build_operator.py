@@ -179,7 +179,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self, body, project_id=None, gcp_conn_id="google_cloud_default", api_version="v1", *args, **kwargs
     ):
-        super(CloudBuildCreateBuildOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.body = body
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id

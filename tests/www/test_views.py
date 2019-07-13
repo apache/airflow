@@ -316,7 +316,7 @@ class TestAirflowBaseViews(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestAirflowBaseViews, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -1005,7 +1005,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGraphView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1019,7 +1019,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGraphView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1044,7 +1044,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGanttView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1058,7 +1058,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGanttView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1085,7 +1085,7 @@ class TestDagACLView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestDagACLView, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -1857,7 +1857,7 @@ class TestExtraLinks(TestBase):
 class TestDagRunModelView(TestBase):
     @classmethod
     def setUpClass(cls):
-        super(TestDagRunModelView, cls).setUpClass()
+        super().setUpClass()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 

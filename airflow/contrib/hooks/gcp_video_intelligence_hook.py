@@ -40,7 +40,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
     """
 
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
-        super(CloudVideoIntelligenceHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
         self._conn = None
 
     def get_conn(self):

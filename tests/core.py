@@ -1092,7 +1092,7 @@ class CliTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(CliTests, cls).setUpClass()
+        super().setUpClass()
         cls._cleanup()
 
     def setUp(self):
