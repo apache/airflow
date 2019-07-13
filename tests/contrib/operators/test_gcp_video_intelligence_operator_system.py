@@ -28,7 +28,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
 class CloudVideoIntelligenceExampleDagsTest(DagGcpSystemTestCase):
     def __init__(self, method_name="runTest"):
-        super(CloudVideoIntelligenceExampleDagsTest, self).__init__(
+        super().__init__(
             method_name, dag_id="example_gcp_video_intelligence", gcp_key=GCP_AI_KEY
         )
         self.helper = GCPVideoIntelligenceHelper()
@@ -40,7 +40,7 @@ class CloudVideoIntelligenceExampleDagsTest(DagGcpSystemTestCase):
             self.gcp_authenticator.gcp_revoke_authentication()
         finally:
             pass
-        super(CloudVideoIntelligenceExampleDagsTest, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         self.gcp_authenticator.gcp_authenticate()
@@ -48,7 +48,7 @@ class CloudVideoIntelligenceExampleDagsTest(DagGcpSystemTestCase):
             self.helper.delete_bucket()
         finally:
             self.gcp_authenticator.gcp_revoke_authentication()
-        super(CloudVideoIntelligenceExampleDagsTest, self).tearDown()
+        super().tearDown()
 
     def test_run_example_dag_spanner(self):
         self._run_dag()

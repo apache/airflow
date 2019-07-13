@@ -64,7 +64,7 @@ def build_recording_function(calls_collection):
 class PythonOperatorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(PythonOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -246,7 +246,7 @@ class PythonOperatorTest(unittest.TestCase):
 class BranchOperatorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(BranchOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -420,7 +420,7 @@ class BranchOperatorTest(unittest.TestCase):
 class ShortCircuitOperatorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(ShortCircuitOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()

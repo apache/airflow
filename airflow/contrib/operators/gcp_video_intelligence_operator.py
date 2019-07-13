@@ -75,7 +75,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVideoIntelligenceDetectVideoLabelsOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.input_content = input_content
         self.output_uri = output_uri
@@ -148,7 +148,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVideoIntelligenceDetectVideoExplicitContentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content
@@ -221,7 +221,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudVideoIntelligenceDetectVideoShotsOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content

@@ -26,7 +26,7 @@ from airflow.utils.helpers import parse_template_string
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
     def __init__(self, stream):
-        super(TaskHandlerWithCustomFormatter, self).__init__()
+        super().__init__()
 
     def set_context(self, ti):
         if ti.raw:
