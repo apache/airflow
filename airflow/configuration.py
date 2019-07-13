@@ -23,7 +23,6 @@ import copy
 import os
 import pathlib
 import shlex
-from six import iteritems
 import subprocess
 import sys
 import warnings
@@ -332,7 +331,7 @@ class AirflowConfigParser(ConfigParser):
                 key = env_var.replace(section_prefix, '').lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in iteritems(_section):
+        for key, val in _section.items():
             try:
                 val = int(val)
             except ValueError:

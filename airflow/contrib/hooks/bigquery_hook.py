@@ -27,8 +27,6 @@ implementation for BigQuery.
 import time
 from copy import deepcopy
 
-from six import iteritems
-
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas_gbq.gbq import \
@@ -2034,7 +2032,7 @@ def _bind_parameters(operation, parameters):
     """ Helper method that binds parameters to a SQL query. """
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}
-    for (name, value) in iteritems(parameters):
+    for (name, value) in parameters.items():
         if value is None:
             string_parameters[name] = 'NULL'
         elif isinstance(value, str):

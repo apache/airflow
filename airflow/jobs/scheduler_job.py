@@ -29,7 +29,6 @@ from collections import defaultdict
 from datetime import timedelta
 from time import sleep
 
-import six
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
@@ -539,7 +538,7 @@ class SchedulerJob(BaseJob):
             ).delete()
 
         # Add the errors of the processed files
-        for filename, stacktrace in six.iteritems(dagbag.import_errors):
+        for filename, stacktrace in dagbag.import_errors.items():
             session.add(errors.ImportError(
                 filename=filename,
                 stacktrace=stacktrace))
