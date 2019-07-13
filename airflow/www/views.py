@@ -259,7 +259,7 @@ class Airflow(AirflowBaseView):
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
-                "error")
+                "dag_import_error")
 
         from airflow.plugins_manager import import_errors as plugin_import_errors
         for filename, stacktrace in plugin_import_errors.items():
