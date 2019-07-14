@@ -21,7 +21,6 @@ import json
 import unittest
 from copy import deepcopy
 
-import six
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -267,8 +266,8 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         }
 
         get_conn.return_value.transferOperations.return_value.list_next.return_value = None
-        with six.assertRaisesRegex(
-            self, AirflowException, "An unexpected operation status was encountered. Expected: SUCCESS"
+        with self.assertRaisesRegex(
+            AirflowException, "An unexpected operation status was encountered. Expected: SUCCESS"
         ):
             self.gct_hook.wait_for_transfer_job(
                 job={PROJECT_ID: 'test-project', NAME: 'transferJobs/test-job'},
@@ -300,8 +299,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
         operations = [{NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}} for status in statuses]
 
-        with six.assertRaisesRegex(
-            self,
+        with self.assertRaisesRegex(
             AirflowException,
             "An unexpected operation status was encountered. Expected: {}".format(
                 ", ".join(expected_statuses)

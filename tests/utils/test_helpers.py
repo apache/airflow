@@ -26,7 +26,6 @@ import unittest
 from datetime import datetime
 
 import psutil
-import six
 
 from airflow import DAG
 from airflow.utils import helpers
@@ -247,7 +246,7 @@ class HelpersTest(unittest.TestCase):
         helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
 
         for start_task in start_tasks:
-            six.assertCountEqual(self, start_task.get_direct_relatives(upstream=False), end_tasks)
+            self.assertCountEqual(start_task.get_direct_relatives(upstream=False), end_tasks)
 
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
