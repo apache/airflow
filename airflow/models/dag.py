@@ -31,7 +31,6 @@ from typing import Union, Optional, Iterable, Dict, Type, Callable, List
 
 import jinja2
 import pendulum
-import six
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
@@ -160,7 +159,22 @@ class DAG(BaseDag, LoggingMixin):
     :param access_control: Specify optional DAG-level permissions, e.g.,
         "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
     :type access_control: dict
+    :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
+        If the dag exists already, this flag will be ignored. If this optional parameter
+        is not specified, the global config setting will be used.
+    :type is_paused_upon_creation: bool or None
     """
+
+    _comps = {
+        'dag_id',
+        'task_ids',
+        'parent_dag',
+        'start_date',
+        'schedule_interval',
+        'full_filepath',
+        'template_searchpath',
+        'last_loaded',
+    }
 
     def __init__(
         self,
@@ -186,11 +200,12 @@ class DAG(BaseDag, LoggingMixin):
         on_failure_callback: Optional[Callable] = None,
         doc_md: Optional[str] = None,
         params: Optional[Dict] = None,
-        access_control: Optional[Dict] = None
+        access_control: Optional[Dict] = None,
+        is_paused_upon_creation: Optional[bool] = None,
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
-        self.default_args = default_args or {}
+        self.default_args = copy.deepcopy(default_args or {})
         self.params = params or {}
 
         # merging potentially conflicting default_args['params'] into params
@@ -215,7 +230,7 @@ class DAG(BaseDag, LoggingMixin):
         if start_date and start_date.tzinfo:
             self.timezone = start_date.tzinfo
         elif 'start_date' in self.default_args and self.default_args['start_date']:
-            if isinstance(self.default_args['start_date'], six.string_types):
+            if isinstance(self.default_args['start_date'], str):
                 self.default_args['start_date'] = (
                     timezone.parse(self.default_args['start_date'])
                 )
@@ -226,7 +241,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if 'end_date' in self.default_args and self.default_args['end_date']:
-            if isinstance(self.default_args['end_date'], six.string_types):
+            if isinstance(self.default_args['end_date'], str):
                 self.default_args['end_date'] = (
                     timezone.parse(self.default_args['end_date'], timezone=self.timezone)
                 )
@@ -245,13 +260,13 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if isinstance(schedule_interval, six.string_types) and schedule_interval in cron_presets:
+        if isinstance(schedule_interval, str) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)  # type: Optional[ScheduleInterval]
         elif schedule_interval == '@once':
             self._schedule_interval = None
         else:
             self._schedule_interval = schedule_interval
-        if isinstance(template_searchpath, six.string_types):
+        if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
@@ -273,17 +288,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
-
-        self._comps = {
-            'dag_id',
-            'task_ids',
-            'parent_dag',
-            'start_date',
-            'schedule_interval',
-            'full_filepath',
-            'template_searchpath',
-            'last_loaded',
-        }
+        self.is_paused_upon_creation = is_paused_upon_creation
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -368,7 +373,7 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, six.string_types):
+        if isinstance(self._schedule_interval, str):
             # we don't want to rely on the transitions created by
             # croniter as they are not always correct
             dttm = pendulum.instance(dttm)
@@ -396,7 +401,7 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, six.string_types):
+        if isinstance(self._schedule_interval, str):
             # we don't want to rely on the transitions created by
             # croniter as they are not always correct
             dttm = pendulum.instance(dttm)
@@ -1286,6 +1291,8 @@ class DAG(BaseDag, LoggingMixin):
             DagModel).filter(DagModel.dag_id == self.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=self.dag_id)
+            if self.is_paused_upon_creation is not None:
+                orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
         orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
         orm_dag.is_subdag = self.is_subdag

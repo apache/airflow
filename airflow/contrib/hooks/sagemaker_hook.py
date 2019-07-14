@@ -283,8 +283,7 @@ class SageMakerHook(AwsHook):
             else:
                 skip = skip - event_count
                 events = []
-            for ev in events:
-                yield ev
+            yield from events
 
     def multi_stream_iter(self, log_group, streams, positions=None):
         """

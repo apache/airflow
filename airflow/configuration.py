@@ -494,7 +494,13 @@ def parameterized_config(template):
     return template.format(**all_vars)
 
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+def get_airflow_test_config(airflow_home):
+    if 'AIRFLOW_TEST_CONFIG' not in os.environ:
+        return os.path.join(airflow_home, 'unittests.cfg')
+    return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
+
+
+TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):

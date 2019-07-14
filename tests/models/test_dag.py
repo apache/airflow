@@ -600,7 +600,7 @@ class DagTest(unittest.TestCase):
     def test_resolve_template_files_value(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
@@ -623,7 +623,7 @@ class DagTest(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.template') as f:
             f = NamedTemporaryFile(suffix='.template')
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
@@ -972,3 +972,42 @@ class DagTest(unittest.TestCase):
         ).count()
 
         self.assertEqual(2, paused_dags)
+
+    def test_existing_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'dag'
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        self.assertFalse(orm_dag.is_paused)
+        dag = DAG(
+            'dag',
+            is_paused_upon_creation=True
+        )
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        # Since the dag existed before, it should not follow the pause flag upon creation
+        self.assertFalse(orm_dag.is_paused)
+
+    def test_new_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'new_nonexisting_dag',
+            is_paused_upon_creation=True
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
+        # Since the dag didn't exist before, it should follow the pause flag upon creation
+        self.assertTrue(orm_dag.is_paused)
+
+    def test_dag_naive_default_args_start_date_with_timezone(self):
+        local_tz = pendulum.timezone('Europe/Zurich')
+        default_args = {'start_date': datetime.datetime(2018, 1, 1, tzinfo=local_tz)}
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)

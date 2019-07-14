@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google Dataproc PigOperator
 """
@@ -50,7 +49,7 @@ with models.DAG(
         num_workers=2
     )
 
-    pig_taks = DataProcPigOperator(
+    pig_task = DataProcPigOperator(
         task_id="pig_task",
         query="define sin HiveUDF('sin');",
         region=REGION,
@@ -64,4 +63,4 @@ with models.DAG(
         region=REGION
     )
 
-    create_task >> pig_taks >> delete_task
+    create_task >> pig_task >> delete_task

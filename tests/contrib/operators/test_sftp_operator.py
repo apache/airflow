@@ -47,7 +47,6 @@ reset()
 
 class SFTPOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True

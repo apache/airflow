@@ -49,7 +49,7 @@ def get_fqdn(hostname_or_ip=None):
                 fqdn = get_hostname()
         else:
             fqdn = get_hostname()
-    except IOError:
+    except OSError:
         fqdn = hostname_or_ip
 
     return fqdn

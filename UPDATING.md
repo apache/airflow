@@ -24,6 +24,17 @@ assists users migrating to a new version.
 ## Airflow Master
 
 
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+
 ### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
 
 `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
@@ -59,7 +70,7 @@ preserve the previous behavior, set `ensure_utc` to `False.`
 
 ### Removal of Mesos Executor
 
-The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
 
 ### Increase standard Dataproc disk sizes
 

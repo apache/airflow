@@ -108,9 +108,6 @@ class GcpFieldSanitizerException(AirflowException):
     (other than dict or array).
     """
 
-    def __init__(self, message):
-        super().__init__(message)
-
 
 class GcpBodyFieldSanitizer(LoggingMixin):
     """Sanitizes the body according to specification.
@@ -125,7 +122,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
 
     def _sanitize(self, dictionary, remaining_field_spec, current_path):
         field_split = remaining_field_spec.split(".", 1)
-        if len(field_split) == 1:
+        if len(field_split) == 1:  # pylint: disable=too-many-nested-blocks
             field_name = field_split[0]
             if field_name in dictionary:
                 self.log.info("Deleted %s [%s]", field_name, current_path)
@@ -161,5 +158,8 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                 )
 
     def sanitize(self, body):
+        """
+        Sanitizes the body according to specification.
+        """
         for elem in self._sanitize_specs:
             self._sanitize(body, elem, "")

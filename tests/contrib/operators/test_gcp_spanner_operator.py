@@ -56,7 +56,7 @@ class CloudSpannerTest(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -78,7 +78,7 @@ class CloudSpannerTest(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=None,
@@ -101,7 +101,7 @@ class CloudSpannerTest(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -123,7 +123,7 @@ class CloudSpannerTest(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=None,
@@ -146,7 +146,7 @@ class CloudSpannerTest(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
@@ -242,7 +242,7 @@ class CloudSpannerTest(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID,
@@ -260,7 +260,7 @@ class CloudSpannerTest(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID,

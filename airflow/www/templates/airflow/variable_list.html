@@ -22,7 +22,7 @@
     {% if csrf_token %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     {% endif %}
-    <input class="form-control" type="file" name="file">
+    <input class="form-control-file" type="file" name="file">
     <input class="btn btn-default" type="submit" value="Import Variables"/>
   </form>
   <hr/>

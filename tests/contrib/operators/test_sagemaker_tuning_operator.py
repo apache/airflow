@@ -19,7 +19,6 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_tuning_operator \
     import SageMakerTuningOperator
@@ -108,7 +107,6 @@ create_tuning_params = {'HyperParameterTuningJobName': job_name,
 class TestSageMakerTuningOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.sagemaker = SageMakerTuningOperator(
             task_id='test_sagemaker_operator',
             aws_conn_id='sagemaker_test_conn',

@@ -66,7 +66,6 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
-import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
@@ -90,7 +89,7 @@ def sigquit_handler(sig, frame):
     e.g. kill -s QUIT <PID> or CTRL+\
     """
     print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
-    id_to_name = dict([(th.ident, th.name) for th in threading.enumerate()])
+    id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for thread_id, stack in sys._current_frames().items():
         code.append("\n# Thread: {}({})"
@@ -230,7 +229,7 @@ def trigger_dag(args):
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
-    except IOError as err:
+    except OSError as err:
         log.error(err)
         raise AirflowException(err)
     log.info(message)
@@ -249,7 +248,7 @@ def delete_dag(args):
             "Proceed? (y/n)").upper() == "Y":
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
-        except IOError as err:
+        except OSError as err:
             log.error(err)
             raise AirflowException(err)
         log.info(message)
@@ -285,7 +284,7 @@ def pool(args):
             pools = pool_export_helper(args.export)
         else:
             pools = api_client.get_pools()
-    except (AirflowException, IOError) as err:
+    except (AirflowException, OSError) as err:
         log.error(err)
     else:
         log.info(_tabulate(pools=pools))
@@ -371,7 +370,7 @@ def import_helper(filepath):
         suc_count = fail_count = 0
         for k, v in d.items():
             try:
-                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+                Variable.set(k, v, serialize_json=not isinstance(v, str))
             except Exception as e:
                 print('Variable import failed: {}'.format(repr(e)))
                 fail_count += 1
@@ -981,7 +980,7 @@ def webserver(args):
                         with open(pid) as file:
                             gunicorn_master_proc_pid = int(file.read())
                             break
-                    except IOError:
+                    except OSError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
                         time.sleep(0.1)
 

@@ -82,5 +82,8 @@
   var csrfToken = '{{ csrf_token() }}';
   $("time[title]").tooltip()
 </script>
+<!--[if IE ]>
+<script src="{{ url_for_asset('ie.js') }}" type="text/javascript"></script>
+<![endif]-->
 <script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
 {% endblock %}

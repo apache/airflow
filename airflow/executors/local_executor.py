@@ -87,8 +87,6 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         except subprocess.CalledProcessError as e:
             state = State.FAILED
             self.log.error("Failed to execute task %s.", str(e))
-            # TODO: Why is this commented out?
-            # raise e
         self.result_queue.put((key, state))
 
     def run(self):

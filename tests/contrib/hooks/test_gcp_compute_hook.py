@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint: disable=too-many-lines
+
 import unittest
 
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \

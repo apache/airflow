@@ -34,7 +34,7 @@ BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAPROC_STRING = 'airflow.contrib.hooks.gcp_dataproc_hook.{}'
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
@@ -147,40 +147,44 @@ class DataProcJobTest(unittest.TestCase):
                                      region=GCP_REGION,
                                      body=self.JOB_TO_SUBMIT)
 
+    # pylint: disable=redefined-outer-name,unused-argument
     @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
     def test_raise_error_default_job_error_states(self, mock_init):
-        job = _DataProcJob()
+        job = _DataProcJob()   # pylint: disable=no-value-for-parameter
         job.job = {'status': {'state': 'ERROR'}}
         job.job_error_states = None
         with self.assertRaises(Exception) as cm:
             job.raise_error()
         self.assertIn('ERROR', str(cm.exception))
 
+    # pylint: disable=redefined-outer-name,unused-argument
     @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
     def test_raise_error_custom_job_error_states(self, mock_init):
-        job = _DataProcJob()
+        job = _DataProcJob()  # pylint: disable=no-value-for-parameter
         job.job = {'status': {'state': 'CANCELLED'}}
         job.job_error_states = ['ERROR', 'CANCELLED']
         with self.assertRaises(Exception) as cm:
             job.raise_error()
         self.assertIn('CANCELLED', str(cm.exception))
 
+    # pylint: disable=redefined-outer-name,unused-argument
     @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
     def test_raise_error_fallback_job_error_states(self, mock_init):
-        job = _DataProcJob()
+        job = _DataProcJob()  # pylint: disable=no-value-for-parameter
         job.job = {'status': {'state': 'ERROR'}}
         job.job_error_states = ['CANCELLED']
         with self.assertRaises(Exception) as cm:
             job.raise_error()
         self.assertIn('ERROR', str(cm.exception))
 
+    # pylint: disable=redefined-outer-name,unused-argument
     @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
     def test_raise_error_with_state_done(self, mock_init):
-        job = _DataProcJob()
+        job = _DataProcJob()  # pylint: disable=no-value-for-parameter
         job.job = {'status': {'state': 'DONE'}}
         job.job_error_states = None
         try:
             job.raise_error()
             # Pass test
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.fail("raise_error() should not raise Exception when job=%s" % job.job)

@@ -34,7 +34,6 @@ from airflow.utils.state import State
 from airflow.executors import celery_executor
 
 from airflow import configuration
-configuration.load_test_config()
 
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports

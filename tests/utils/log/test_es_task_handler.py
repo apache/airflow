@@ -25,7 +25,6 @@ import elasticsearch
 from unittest import mock
 import pendulum
 
-from airflow import configuration
 from airflow.models import TaskInstance, DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -71,7 +70,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es.index(index=self.index_name, doc_type=self.doc_type,
                       body=self.body, id=1)
 
-        configuration.load_test_config()
         self.dag = DAG(self.DAG_ID, start_date=self.EXECUTION_DATE)
         task = DummyOperator(task_id=self.TASK_ID, dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=self.EXECUTION_DATE)
