@@ -22,7 +22,7 @@ import unittest
 
 from airflow.contrib.operators.dataflow_operator import \
     DataFlowPythonOperator, DataFlowJavaOperator, \
-    DataflowTemplateOperator, GoogleCloudBucketHelper
+    DataflowTemplateOperator, GoogleCloudBucketHelper, CheckJobRunning
 
 from airflow.version import version
 from tests.compat import mock
@@ -132,7 +132,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.assertEqual(self.dataflow.jar, JAR_FILE)
         self.assertEqual(self.dataflow.options,
                          EXPECTED_ADDITIONAL_OPTIONS)
-        self.assertEqual(self.dataflow.check_if_running, None)
+        self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.IgnoreJob)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -147,7 +147,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
         start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, None)
+                                                mock.ANY, JOB_CLASS, True, None)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -183,7 +183,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
         start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, None)
+                                                mock.ANY, JOB_CLASS, True, None)
         dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
@@ -203,7 +203,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
         start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, True)
+                                                mock.ANY, JOB_CLASS, True, True)
         dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
 
 
