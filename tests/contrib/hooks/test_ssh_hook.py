@@ -161,7 +161,7 @@ class SSHHookTest(unittest.TestCase):
             response = s.recv(5)
             self.assertEqual(response, b"hello")
             s.close()
-            output, _ = server_handle.communicate()
+            server_handle.communicate()
             self.assertEqual(server_handle.returncode, 0)
 
 
