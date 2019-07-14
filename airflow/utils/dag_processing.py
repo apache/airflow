@@ -276,8 +276,7 @@ def correct_maybe_zipped(fileloc):
     the folder is treated as a zip archive and path to zip is returned.
     """
 
-    _, archive, filename = re.search(
-        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
+    _, archive, _ = re.search(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:
@@ -337,8 +336,7 @@ def list_py_file_paths(directory, safe_mode=True,
                     file_path = os.path.join(root, f)
                     if not os.path.isfile(file_path):
                         continue
-                    mod_name, file_ext = os.path.splitext(
-                        os.path.split(file_path)[-1])
+                    _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
                     if file_ext != '.py' and not zipfile.is_zipfile(file_path):
                         continue
                     if any([re.findall(p, file_path) for p in patterns]):
@@ -1124,7 +1122,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Sleeps until all the processors are done.
         """
-        for file_path, processor in self._processors.items():
+        for processor in self._processors.values():
             while not processor.done:
                 time.sleep(0.1)
 

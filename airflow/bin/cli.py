@@ -1042,7 +1042,7 @@ def serve_logs(args):
     flask_app = flask.Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):
+    def serve_logs(filename):  # pylint: disable=unused-variable
         log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log,
@@ -1302,11 +1302,7 @@ def flower(args):
         flower_conf = '--conf=' + args.flower_conf
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("flower",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
+        pid, stdout, stderr, _ = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1336,11 +1332,9 @@ def kerberos(args):
     import airflow.security.kerberos
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("kerberos",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
+        pid, stdout, stderr, _ = setup_locations(
+            "kerberos", args.pid, args.stdout, args.stderr, args.log_file
+        )
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 

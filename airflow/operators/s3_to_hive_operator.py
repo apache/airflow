@@ -162,7 +162,7 @@ class S3ToHiveTransfer(BaseOperator):
                     "The key {0} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
 
-        root, file_ext = os.path.splitext(s3_key_object.key)
+        _, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
                 file_ext.lower() != '.gz'):
             raise AirflowException("GZIP is the only compression " +
@@ -284,10 +284,8 @@ class S3ToHiveTransfer(BaseOperator):
         elif output_file_ext.lower() == '.bz2':
             open_fn = bz2.BZ2File
 
-        os_fh_output, fn_output = \
-            tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
-        with open(input_file_name, 'rb') as f_in, \
-                open_fn(fn_output, 'wb') as f_out:
+        _, fn_output = tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
+        with open(input_file_name, 'rb') as f_in, open_fn(fn_output, 'wb') as f_out:
             f_in.seek(0)
             next(f_in)
             for line in f_in:

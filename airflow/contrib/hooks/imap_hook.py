@@ -169,12 +169,12 @@ class ImapHook(BaseHook):
         return all_matching_attachments
 
     def _list_mail_ids_desc(self):
-        result, data = self.mail_client.search(None, 'All')
+        _, data = self.mail_client.search(None, 'All')
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id):
-        result, data = self.mail_client.fetch(mail_id, '(RFC822)')
+        _, data = self.mail_client.fetch(mail_id, '(RFC822)')
         mail_body = data[0][1]  # The mail body is always in this specific location
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
