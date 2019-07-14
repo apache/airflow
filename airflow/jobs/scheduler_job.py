@@ -56,7 +56,7 @@ from airflow.utils.state import State
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     """Helps call SchedulerJob.process_file() in a separate process."""
 
-    # Counter that increments everytime an instance of this class is created
+    # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
     def __init__(self, file_path, pickle_dags, dag_id_white_list):
