@@ -395,7 +395,7 @@ class SchedulerJob(BaseJob):
         Finding all tasks that have SLAs defined, and sending alert emails
         where needed. New SLA misses are also recorded in the database.
 
-        Where assuming that the scheduler runs often, so we only check for
+        We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
         if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
