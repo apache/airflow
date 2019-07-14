@@ -734,7 +734,7 @@ class HiveMetastoreHook(BaseHook):
         """
         with self.metastore as client:
             table = client.get_table(dbname=schema, tbl_name=table_name)
-            key_name_set = set(key.name for key in table.partitionKeys)
+            key_name_set = {key.name for key in table.partitionKeys}
             if len(table.partitionKeys) == 1:
                 field = table.partitionKeys[0].name
             elif not field:

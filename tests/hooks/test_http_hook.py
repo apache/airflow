@@ -249,9 +249,9 @@ class TestHttpHook(unittest.TestCase):
     def test_run_with_advanced_retry(self, m):
 
         m.get(
-            u'http://test:8080/v1/test',
+            'http://test:8080/v1/test',
             status_code=200,
-            reason=u'OK'
+            reason='OK'
         )
 
         retry_args = dict(

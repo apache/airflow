@@ -600,7 +600,7 @@ class DagTest(unittest.TestCase):
     def test_resolve_template_files_value(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
@@ -623,7 +623,7 @@ class DagTest(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.template') as f:
             f = NamedTemporaryFile(suffix='.template')
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)

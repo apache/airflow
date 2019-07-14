@@ -34,7 +34,7 @@ from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
 from tests.compat import mock
 
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 
 GCP_PROJECT_ID = 'project-id'
 GCE_ZONE = 'zone'

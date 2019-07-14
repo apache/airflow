@@ -38,7 +38,7 @@ else:
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'
 
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 PROJECT_ID_TEST = 'project-id'
 
 

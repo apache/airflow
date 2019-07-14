@@ -28,7 +28,7 @@ from tests.compat import mock
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 PUBSUB_STRING = 'airflow.contrib.hooks.gcp_pubsub_hook.{}'
 
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'
 TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'

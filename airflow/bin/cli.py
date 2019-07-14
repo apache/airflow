@@ -89,7 +89,7 @@ def sigquit_handler(sig, frame):
     e.g. kill -s QUIT <PID> or CTRL+\
     """
     print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
-    id_to_name = dict([(th.ident, th.name) for th in threading.enumerate()])
+    id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for thread_id, stack in sys._current_frames().items():
         code.append("\n# Thread: {}({})"

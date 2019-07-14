@@ -194,7 +194,7 @@ class TestHiveCliHook(unittest.TestCase):
         d['c'] = ['c']
         d['M'] = [datetime.datetime(2018, 1, 1)]
         d['O'] = [object()]
-        d['S'] = ['STRING'.encode('utf-8')]
+        d['S'] = [b'STRING']
         d['U'] = ['STRING']
         d['V'] = [None]
         df = pd.DataFrame(d)

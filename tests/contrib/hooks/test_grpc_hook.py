@@ -215,7 +215,7 @@ class TestGrpcHook(unittest.TestCase):
         channel = hook.get_conn()
         expected_url = "test:8080"
 
-        mock_google_default_auth.assert_called_once_with(scopes=[u"grpc", u"gcs"])
+        mock_google_default_auth.assert_called_once_with(scopes=["grpc", "gcs"])
         mock_secure_channel.assert_called_once_with(
             mock_credential_object,
             "request",

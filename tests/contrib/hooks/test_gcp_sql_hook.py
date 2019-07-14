@@ -44,7 +44,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
     def test_instance_import_exception(self):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
-                                  content='Error content'.encode('utf-8'))
+                                  content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
             self.cloudsql_hook.import_instance(
@@ -56,7 +56,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
     def test_instance_export_exception(self):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
-                                  content='Error content'.encode('utf-8'))
+                                  content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
             self.cloudsql_hook.export_instance(
