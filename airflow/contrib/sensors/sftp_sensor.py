@@ -44,7 +44,7 @@ class SFTPSensor(BaseSensorOperator):
         self.log.info('Poking for %s', self.path)
         try:
             self.hook.get_mod_time(self.path)
-        except IOError as e:
+        except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
             return False

@@ -444,7 +444,7 @@ class Airflow(AirflowBaseView):
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
-        except IOError as e:
+        except OSError as e:
             html_code = str(e)
 
         return self.render_template(

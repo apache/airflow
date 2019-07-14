@@ -230,7 +230,7 @@ def trigger_dag(args):
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
-    except IOError as err:
+    except OSError as err:
         log.error(err)
         raise AirflowException(err)
     log.info(message)
@@ -249,7 +249,7 @@ def delete_dag(args):
             "Proceed? (y/n)").upper() == "Y":
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
-        except IOError as err:
+        except OSError as err:
             log.error(err)
             raise AirflowException(err)
         log.info(message)
@@ -285,7 +285,7 @@ def pool(args):
             pools = pool_export_helper(args.export)
         else:
             pools = api_client.get_pools()
-    except (AirflowException, IOError) as err:
+    except (AirflowException, OSError) as err:
         log.error(err)
     else:
         log.info(_tabulate(pools=pools))
@@ -981,7 +981,7 @@ def webserver(args):
                         with open(pid) as file:
                             gunicorn_master_proc_pid = int(file.read())
                             break
-                    except IOError:
+                    except OSError:
                         log.debug("Waiting for gunicorn's pid file to be created.")
                         time.sleep(0.1)
 
