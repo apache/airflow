@@ -21,8 +21,6 @@ from copy import deepcopy
 import re
 from urllib.parse import urlparse, unquote
 
-import six
-
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_cloud_build_hook import CloudBuildHook
 from airflow.models import BaseOperator
@@ -69,7 +67,7 @@ class BuildProcessor:
 
         source = self.body["source"]["repoSource"]
 
-        if not isinstance(source, six.string_types):
+        if not isinstance(source, str):
             return
 
         self.body["source"]["repoSource"] = self._convert_repo_url_to_dict(source)
@@ -80,7 +78,7 @@ class BuildProcessor:
 
         source = self.body["source"]["storageSource"]
 
-        if not isinstance(source, six.string_types):
+        if not isinstance(source, str):
             return
 
         self.body["source"]["storageSource"] = self._convert_storage_url_to_dict(source)

@@ -66,7 +66,6 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
-import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
@@ -371,7 +370,7 @@ def import_helper(filepath):
         suc_count = fail_count = 0
         for k, v in d.items():
             try:
-                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+                Variable.set(k, v, serialize_json=not isinstance(v, str))
             except Exception as e:
                 print('Variable import failed: {}'.format(repr(e)))
                 fail_count += 1

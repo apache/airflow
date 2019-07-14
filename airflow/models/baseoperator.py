@@ -28,7 +28,6 @@ from datetime import timedelta, datetime
 from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
-import six
 
 from airflow import configuration, settings
 from airflow.exceptions import AirflowException
@@ -643,7 +642,7 @@ class BaseOperator(LoggingMixin):
         all elements in it. If the field has another type, it will return it as it is.
         """
         rt = self.render_template
-        if isinstance(content, six.string_types):
+        if isinstance(content, str):
             result = jinja_env.from_string(content).render(**context)
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
@@ -664,7 +663,7 @@ class BaseOperator(LoggingMixin):
 
         exts = self.__class__.template_ext
         if (
-                isinstance(content, six.string_types) and
+                isinstance(content, str) and
                 any([content.endswith(ext) for ext in exts])):
             return jinja_env.get_template(content).render(**context)
         else:
@@ -689,7 +688,7 @@ class BaseOperator(LoggingMixin):
             content = getattr(self, attr)
             if content is None:
                 continue
-            elif isinstance(content, six.string_types) and \
+            elif isinstance(content, str) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.get_template_env()
                 try:
@@ -699,7 +698,7 @@ class BaseOperator(LoggingMixin):
             elif isinstance(content, list):
                 env = self.dag.get_template_env()
                 for i in range(len(content)):
-                    if isinstance(content[i], six.string_types) and \
+                    if isinstance(content[i], str) and \
                             any([content[i].endswith(ext) for ext in self.template_ext]):
                         try:
                             content[i] = env.loader.get_source(env, content[i])[0]
@@ -828,7 +827,7 @@ class BaseOperator(LoggingMixin):
         self.log.info('Dry run')
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content and isinstance(content, six.string_types):
+            if content and isinstance(content, str):
                 self.log.info('Rendering template for %s', attr)
                 self.log.info(content)
 
