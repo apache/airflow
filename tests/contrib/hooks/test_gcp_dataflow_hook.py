@@ -126,21 +126,20 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             jar=JAR_FILE)
-        EXPECTED_CMD = ['java', '-jar', JAR_FILE,
+        expected_cmd = ['java', '-jar', JAR_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
                         '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
-                             sorted(EXPECTED_CMD))
+                             sorted(expected_cmd))
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_java_dataflow_with_job_class(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
+    def test_start_java_dataflow_with_job_class(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
         mock_uuid.return_value = MOCK_UUID
         mock_conn.return_value = None
         dataflow_instance = mock_dataflow.return_value
@@ -150,14 +149,14 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             jar=JAR_FILE, job_class=JOB_CLASS)
-        EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
+        expected_cmd = ['java', '-cp', JAR_FILE, JOB_CLASS,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
                         '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
-                             sorted(EXPECTED_CMD))
+                             sorted(expected_cmd))
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')
