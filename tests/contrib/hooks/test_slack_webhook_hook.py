@@ -104,52 +104,52 @@ class TestSlackWebhookHook(unittest.TestCase):
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id(self, request_mock, session_mock):
+    def test_url_generated_by_http_conn_id(self, mock_request, mock_session):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-url')
         try:
             hook.execute()
         except MissingSchema:
             pass
-        request_mock.assert_called_once_with(
+        mock_request.assert_called_once_with(
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
             data=mock.ANY
         )
-        request_mock.reset_mock()
+        mock_request.reset_mock()
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_endpoint(self, request_mock, session_mock):
+    def test_url_generated_by_endpoint(self, mock_request, mock_session):
         hook = SlackWebhookHook(webhook_token=self.expected_url)
         try:
             hook.execute()
         except MissingSchema:
             pass
-        request_mock.assert_called_once_with(
+        mock_request.assert_called_once_with(
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
             data=mock.ANY
         )
-        request_mock.reset_mock()
+        mock_request.reset_mock()
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock, session_mock):
+    def test_url_generated_by_http_conn_id_and_endpoint(self, mock_request, mock_session):
         hook = SlackWebhookHook(http_conn_id='slack-webhook-host',
                                 webhook_token='B000/XXX')
         try:
             hook.execute()
         except MissingSchema:
             pass
-        request_mock.assert_called_once_with(
+        mock_request.assert_called_once_with(
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
             data=mock.ANY
         )
-        request_mock.reset_mock()
+        mock_request.reset_mock()
 
 
 if __name__ == '__main__':

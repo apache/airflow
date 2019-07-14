@@ -1002,7 +1002,7 @@ class TaskInstanceTest(unittest.TestCase):
                 self.task_state_in_callback = ""
                 self.callback_ran = False
 
-            def success_handler(self, context):
+            def success_handler(self, context):  # pylint: disable=unused-argument
                 self.callback_ran = True
                 session = settings.Session()
                 temp_instance = session.query(TI).filter(

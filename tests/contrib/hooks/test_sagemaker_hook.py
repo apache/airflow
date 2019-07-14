@@ -303,7 +303,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_check_url.assert_called_once_with(data_url)
 
     @mock.patch.object(SageMakerHook, 'get_client_type')
-    def test_conn(self, mock_get_client):
+    def test_conn(self, mock_get_client_type):
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
         self.assertEqual(hook.aws_conn_id, 'sagemaker_test_conn_id')
 
@@ -367,7 +367,7 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'check_tuning_config')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_tuning_job(self, mock_client, mock_check_tuning):
+    def test_create_tuning_job(self, mock_client, mock_check_tuning_config):
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
                  test_arn_return}

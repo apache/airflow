@@ -231,7 +231,7 @@ def mock_poll_job_complete(job_id):
     return job_id in mock_canceled_jobs
 
 
-def mock_job_cancel(projectId, jobId):
+def mock_job_cancel(projectId, jobId):  # pylint: disable=unused-argument
     mock_canceled_jobs.append(jobId)
     return mock.Mock()
 
@@ -303,7 +303,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, run_with_config):
+    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, mock_run_with_configuration):
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
         params = [{
             'name': "param_name",

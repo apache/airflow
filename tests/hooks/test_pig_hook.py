@@ -34,7 +34,7 @@ class TestPigCliHook(unittest.TestCase):
         conn = self.conn
 
         class SubPigCliHook(PigCliHook):
-            def get_connection(self, id):
+            def get_connection(self, unused_id):
                 return conn
 
         self.pig_hook = SubPigCliHook

@@ -521,7 +521,7 @@ class CoreTest(unittest.TestCase):
         self.assertTrue(data['called'])
 
     def test_trigger_dagrun(self):
-        def trigga(context, obj):
+        def trigga(_, obj):
             if True:
                 return obj
 
@@ -1002,7 +1002,7 @@ class CoreTest(unittest.TestCase):
         utc_now = timezone.utcnow()
         run_id = 'trig__' + utc_now.isoformat()
 
-        def payload_generator(context, object):
+        def payload_generator(context, object):  # pylint: disable=unused-argument
             object.run_id = run_id
             return object
 
@@ -1022,7 +1022,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsInstance(utc_now_str, six.string_types)
         run_id = 'trig__' + utc_now_str
 
-        def payload_generator(context, object):
+        def payload_generator(context, object):  # pylint: disable=unused-argument
             object.run_id = run_id
             return object
 

@@ -29,7 +29,7 @@ from airflow.models import Connection
 from tests.compat import mock
 
 
-def get_airflow_connection(conn_id=None):
+def get_airflow_connection(unused_conn_id=None):
     return Connection(
         conn_id='http_default',
         conn_type='http',
@@ -38,7 +38,7 @@ def get_airflow_connection(conn_id=None):
     )
 
 
-def get_airflow_connection_with_port(conn_id=None):
+def get_airflow_connection_with_port(unused_conn_id=None):
     return Connection(
         conn_id='http_default',
         conn_type='http',
@@ -77,7 +77,7 @@ class TestHttpHook(unittest.TestCase):
     @requests_mock.mock()
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_get_request_with_port(self, m, request_mock, session_mock):
+    def test_get_request_with_port(self, mock_requests, request_mock, mock_session):
         from requests.exceptions import MissingSchema
 
         with mock.patch(
@@ -119,7 +119,7 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
-    def test_hook_contains_header_from_extra_field(self, m):
+    def test_hook_contains_header_from_extra_field(self, mock_requests):
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
@@ -131,7 +131,7 @@ class TestHttpHook(unittest.TestCase):
 
     @requests_mock.mock()
     @mock.patch('requests.Request')
-    def test_hook_with_method_in_lowercase(self, m, request_mock):
+    def test_hook_with_method_in_lowercase(self, mock_requests, request_mock):
         from requests.exceptions import MissingSchema, InvalidURL
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
@@ -150,17 +150,17 @@ class TestHttpHook(unittest.TestCase):
             )
 
     @requests_mock.mock()
-    def test_hook_uses_provided_header(self, m):
+    def test_hook_uses_provided_header(self, mock_requests):
         conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
         self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
-    def test_hook_has_no_header_from_extra(self, m):
+    def test_hook_has_no_header_from_extra(self, mock_requests):
         conn = self.get_hook.get_conn()
         self.assertIsNone(conn.headers.get('bareer'))
 
     @requests_mock.mock()
-    def test_hooks_header_from_extra_is_overridden(self, m):
+    def test_hooks_header_from_extra_is_overridden(self, mock_requests):
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
@@ -169,9 +169,8 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(conn.headers.get('bareer'), 'newT0k3n')
 
     @requests_mock.mock()
-    def test_post_request(self, m):
-
-        m.post(
+    def test_post_request(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=200,
             text='{"status":{"status": 200}}',
@@ -186,9 +185,8 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
 
     @requests_mock.mock()
-    def test_post_request_with_error_code(self, m):
-
-        m.post(
+    def test_post_request_with_error_code(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=418,
             text='{"status":{"status": 418}}',
@@ -203,9 +201,8 @@ class TestHttpHook(unittest.TestCase):
                 self.post_hook.run('v1/test')
 
     @requests_mock.mock()
-    def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, m):
-
-        m.post(
+    def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=418,
             text='{"status":{"status": 418}}',
@@ -230,7 +227,7 @@ class TestHttpHook(unittest.TestCase):
             )
         )
 
-        def send_and_raise(request, **kwargs):
+        def send_and_raise(unused_request, **kwargs):
             raise requests.exceptions.ConnectionError
 
         mocked_session().send.side_effect = send_and_raise
@@ -272,7 +269,7 @@ class TestHttpHook(unittest.TestCase):
 
     def test_header_from_extra_and_run_method_are_merged(self):
 
-        def run_and_return(session, prepped_request, extra_options, **kwargs):
+        def run_and_return(unused_session, prepped_request, unused_extra_options, **kwargs):
             return prepped_request
 
         # The job failed for some reason
