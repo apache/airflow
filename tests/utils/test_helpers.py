@@ -270,6 +270,11 @@ class HelpersTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             helpers.chain([t1, t2], [t3, t4, t5])
 
+    def test_convert_camel_to_snake(self):
+        self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
+        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'),
+                         'something_very_random')
+
 
 if __name__ == '__main__':
     unittest.main()
