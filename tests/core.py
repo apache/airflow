@@ -310,7 +310,7 @@ class CoreTest(unittest.TestCase):
         # Create and schedule the dag runs
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
-        for i in range(runs):
+        for _ in range(runs):
             dag_runs.append(scheduler.create_dag_run(dag))
 
         additional_dag_run = scheduler.create_dag_run(dag)
@@ -343,7 +343,7 @@ class CoreTest(unittest.TestCase):
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
-        for i in range(runs):
+        for _ in range(runs):
             dag_run = scheduler.create_dag_run(dag)
             dag_runs.append(dag_run)
 
@@ -715,7 +715,7 @@ class CoreTest(unittest.TestCase):
     def test_doctests(self):
         modules = [utils, macros]
         for mod in modules:
-            failed, tests = doctest.testmod(mod)
+            failed, _ = doctest.testmod(mod)
             if failed:
                 raise Exception("Failed a doctest")
 
