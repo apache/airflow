@@ -62,12 +62,19 @@ class TestEmrHook(unittest.TestCase):
         # coverage of EMR isn't 100% it turns out.
         cluster = hook.create_job_flow({'Name': 'test_cluster',
                                         'ReleaseLabel': '',
-                                        'AmiVersion': '3.2', 'Instances': {'TerminationProtected': True}})
+                                        'AmiVersion': '3.2',
+                                        'Instances': {'TerminationProtected': True},
+                                        'Tags': [{'Key': 'job_name', 'Value': 'Test Job'}]})
 
         cluster = client.describe_cluster(ClusterId=cluster['JobFlowId'])['Cluster']
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
         self.assertEqual(cluster['RequestedAmiVersion'], '3.2')
+        # By default TerminationProtected is False.
+        self.assertEqual(cluster['Cluster']['TerminationProtected'], True)
+
+        # By default EMR cluster is created with two tags.
+        self.assertEqual(len(cluster['Cluster']['Tags']), 3)
 
 
 if __name__ == '__main__':
