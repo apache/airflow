@@ -53,46 +53,55 @@ def apply_defaults(func):
         param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)}
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 1:
+    def wrapper(self, *args, **kwargs):
+        if len(args) > 0:
             raise AirflowException(
                 "Use keyword arguments when initializing operators")
-        dag_args = {}
-        dag_params = {}
 
-        dag = kwargs.get('dag', None) or settings.CONTEXT_MANAGER_DAG
-        if dag:
-            dag_args = copy(dag.default_args) or {}
-            dag_params = copy(dag.params) or {}
+        # The fn that does the application
+        def reapply_defaults(dag):
+            dag_args = {}
+            dag_params = {}
 
-        params = {}
-        if 'params' in kwargs:
-            params = kwargs['params']
-        dag_params.update(params)
+            if dag:
+                dag_args = copy(dag.default_args) or {}
+                dag_params = copy(dag.params) or {}
 
-        default_args = {}
-        if 'default_args' in kwargs:
-            default_args = kwargs['default_args']
-            if 'params' in default_args:
-                dag_params.update(default_args['params'])
-                del default_args['params']
+            params = {}
+            if 'params' in kwargs:
+                params = kwargs['params']
+            dag_params.update(params)
 
-        dag_args.update(default_args)
-        default_args = dag_args
+            default_args = {}
+            if 'default_args' in kwargs:
+                default_args = kwargs['default_args']
+                if 'params' in default_args:
+                    dag_params.update(default_args['params'])
+                    del default_args['params']
 
-        for arg in sig_cache.parameters:
-            if arg not in kwargs and arg in default_args:
-                kwargs[arg] = default_args[arg]
-        missing_args = list(non_optional_args - set(kwargs))
-        if missing_args:
-            msg = "Argument {0} is required".format(missing_args)
-            raise AirflowException(msg)
+            dag_args.update(default_args)
+            default_args = dag_args
 
-        kwargs['params'] = dag_params
+            for arg in sig_cache.parameters:
+                if arg not in kwargs and arg in default_args:
+                    kwargs[arg] = default_args[arg]
+            missing_args = list(non_optional_args - set(kwargs))
+            if missing_args:
+                msg = "Argument {0} is required".format(missing_args)
+                raise AirflowException(msg)
 
-        result = func(*args, **kwargs)
-        return result
+            kwargs['params'] = dag_params
+            kwargs['dag'] = dag
+
+            # To support apply_defaults when set via `op.dag = dag` set a function on what ever we are wrapping.
+            self._reapply_defaults = lambda dag: reapply_defaults(dag)
+
+            return func(self, *args, **kwargs)
+
+        return reapply_defaults(kwargs.get('dag', None) or settings.CONTEXT_MANAGER_DAG)
+
     return wrapper
+
 
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # flake8: noqa: F811

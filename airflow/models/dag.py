@@ -1093,6 +1093,21 @@ class DAG(BaseDag, LoggingMixin):
         :param task: the task you want to add
         :type task: task
         """
+        if task.task_id in self.task_dict:
+            # TODO: raise an error in Airflow 2.0
+            warnings.warn(
+                'The requested task could not be added to the DAG because a '
+                'task with task_id {} is already in the DAG. Starting in '
+                'Airflow 2.0, trying to overwrite a task will raise an '
+                'exception.'.format(task.task_id),
+                category=PendingDeprecationWarning)
+        else:
+            self.task_dict[task.task_id] = task
+            task.dag = self
+
+            if hasattr(task, "_reapply_defaults"):
+                task._reapply_defaults(self)
+
         if not self.start_date and not task.start_date:
             raise AirflowException("Task is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
@@ -1110,18 +1125,6 @@ class DAG(BaseDag, LoggingMixin):
         # the DAG's end date
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
-
-        if task.task_id in self.task_dict:
-            # TODO: raise an error in Airflow 2.0
-            warnings.warn(
-                'The requested task could not be added to the DAG because a '
-                'task with task_id {} is already in the DAG. Starting in '
-                'Airflow 2.0, trying to overwrite a task will raise an '
-                'exception.'.format(task.task_id),
-                category=PendingDeprecationWarning)
-        else:
-            self.task_dict[task.task_id] = task
-            task.dag = self
 
         self.task_count = len(self.task_dict)
 
