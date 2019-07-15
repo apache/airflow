@@ -1,8 +1,9 @@
-Airflow 1.10.4, - 2019-07-04
+Airflow 1.10.4, - 2019-07-18
 ----------------------------
 
 New Features
 """"""""""""
+- [AIRFLOW-4884] Roll up import_errors in RBAC UI (#5516)
 - [AIRFLOW-4871] Allow creating DagRuns via RBAC UI (#5507)
 - [AIRFLOW-4591] Make default_pool a real pool (#5349)
 - [AIRFLOW-4844] Add optional is_paused_upon_creation argument to DAG (#5473)
@@ -46,6 +47,15 @@ New Features
 
 Improvement
 """""""""""
+- [AIRFLOW-4797] Improve performance and behaviour of zombie detection (#5511)
+- [AIRFLOW-4911] Silence the FORBIDDEN errors from the KubernetesExecutor (#5547)
+- [AIRFLOW-3495] Validate one of query and query_uri passed to DataProcSparkSqlOperator (#5510)
+- [AIRFLOW-4925] Improve css style for Variables Import file field (#5552)
+- [AIRFLOW-4906] Improve debugging for the SparkSubmitHook (#5542)
+- [AIRFLOW-4904] unittest.cfg name and path can be overriden by setting $AIRFLOW_TEST_CONFIG (#5540)
+- [AIRFLOW-4920] Use html.escape instead of cgi.escape to fix DeprecationWarning (#5551)
+- [AIRFLOW-4919] DataProcJobBaseOperator dataproc_*_properties templated (#5555)
+- [AIRFLOW-4478] Lazily instantiate default resources objects. (#5259)
 - [AIRFLOW-4564] AzureContainerInstance bugfixes and improvements (#5319)
 - [AIRFLOW-4237] Including Try Number of Task in Gantt Chart (#5037)
 - [AIRFLOW-4862] Allow directly using IP address as hostname for webserver logs (#5501)
@@ -136,11 +146,22 @@ Improvement
 
 Bug fixes
 """""""""
+- [AIRFLOW-4934] Fix ProxyFix due to Werkzeug upgrade (#5563) (#5571)
+- [AIRFLOW-4136] fix key_file of hook is overwritten by SSHHook connection (#5558)
+- [AIRFLOW-4587] Replace self.conn with self.get_conn() in AWSAthenaHook (#5545)
+- [AIRFLOW-1740] Fix xcom creation and update via UI (#5530) (#5531)
+- [AIRFLOW-4900] Resolve incompatible version of Werkzeug (#5535)
+- [AIRFLOW-4510] Don't mutate default_args during DAG initialization (#5277)
+- [AIRFLOW-3360] Make the DAGs search respect other querystring parameters with url-search-params-polyfill for IE support (#5503)
+- [AIRFLOW-4896] Make KubernetesExecutorConfig's default args immutable (#5534)
+- [AIRFLOW-4494] Remove ``shell=True`` in DaskExecutor (#5273)
+- [AIRFLOW-4890] Fix Log link in TaskInstance's View for Non-RBAC (#5525)
+- [AIRFLOW-4892] Fix connection creation via UIs (#5527)
 - [AIRFLOW-4406] Fix a method name typo: NullFernet.decrpyt to decrypt (#5509)
 - [AIRFLOW-4849] Add gcp_conn_id to cloudsqldatabehook class to use correctly CloudSqlProxyRunner class (#5478)
 - [AIRFLOW-4769] Pass gcp_conn_id to BigtableHook (#5445)
 - [AIRFLOW-4524] Fix incorrect field names in view for Mark Success/Failure (#5486)
-- [AIRFLOW-3671] Remove arg `replace` of MongoToS3Operator from `kwargs` (#4480)
+- [AIRFLOW-3671] Remove arg ``replace`` of MongoToS3Operator from ``kwargs`` (#4480)
 - [AIRFLOW-4845] Fix bug where runAsUser 0 doesn't get set in k8s security context (#5474)
 - [AIRFLOW-4354] Fix exception in "between" date filter in classic UI (#5480)
 - [AIRFLOW-4587] Replace self.conn with self.get_conn() in AWSAthenaHook (#5462)
@@ -208,6 +229,8 @@ Bug fixes
 
 Misc/Internal
 """""""""""""
+- [AIRFLOW-4937] Fix lodash security issue with version below 4.17.13 (#5572) (used only in build-pipeline, not runtime)
+- [AIRFLOW-4868] Fix typo in kubernetes/docker/build.sh (#5505)
 - [AIRFLOW-4211] Add tests for WebHDFSHook (#5015)
 - [AIRFLOW-4320] Add tests for SegmentTrackEventOperator (#5104)
 - [AIRFLOW-4319] Add tests for Bigquery related Operators (#5101)
@@ -235,6 +258,8 @@ Misc/Internal
 
 Doc-only changes
 """"""""""""""""
+- [AIRFLOW-XXX] Correct BaseSensorOperator docs (#5562)
+- [AIRFLOW-4926] Fix example dags where its start_date is datetime.utcnow() (#5553)
 - [AIRFLOW-4860] Remove Redundant Information in Example Dags (#5497)
 - [AIRFLOW-4767] Fix errors in the documentation of Dataproc Operator (#5487)
 - [AIRFLOW-1684] Branching based on XCom variable (Docs) (#4365)
