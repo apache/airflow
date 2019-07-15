@@ -236,7 +236,7 @@ intersphinx_mapping = {
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
-    # Re-enable when python-requests.org is working again!
+    # TODO: Re-enable when python-requests.org is working again!
     #'requests': ('http://docs.python-requests.org/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
     'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
