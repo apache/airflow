@@ -55,37 +55,41 @@ def upgrade():
 def downgrade():
     conn = op.get_bind()
 
-    op.create_table(
-        'users',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('username', sa.String(length=250), nullable=True),
-        sa.Column('email', sa.String(length=500), nullable=True),
-        sa.Column('password', sa.String(255)),
-        sa.Column('superuser', sa.Boolean(), default=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('username')
-    )
+    inspector = Inspector.from_engine(conn)
 
-    op.create_table(
-        'chart',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('label', sa.String(length=200), nullable=True),
-        sa.Column('conn_id', sa.String(length=250), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=True),
-        sa.Column('chart_type', sa.String(length=100), nullable=True),
-        sa.Column('sql_layout', sa.String(length=50), nullable=True),
-        sa.Column('sql', sa.Text(), nullable=True),
-        sa.Column('y_log_scale', sa.Boolean(), nullable=True),
-        sa.Column('show_datatable', sa.Boolean(), nullable=True),
-        sa.Column('show_sql', sa.Boolean(), nullable=True),
-        sa.Column('height', sa.Integer(), nullable=True),
-        sa.Column('default_params', sa.String(length=5000), nullable=True),
-        sa.Column('x_is_date', sa.Boolean(), nullable=True),
-        sa.Column('iteration_no', sa.Integer(), nullable=True),
-        sa.Column('last_modified', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'users' not in inspector.get_table_names():
+        op.create_table(
+            'users',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('username', sa.String(length=250), nullable=True),
+            sa.Column('email', sa.String(length=500), nullable=True),
+            sa.Column('password', sa.String(255)),
+            sa.Column('superuser', sa.Boolean(), default=False),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('username')
+        )
+
+    if 'chart' not in inspector.get_table_names():
+        op.create_table(
+            'chart',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('label', sa.String(length=200), nullable=True),
+            sa.Column('conn_id', sa.String(length=250), nullable=False),
+            sa.Column('user_id', sa.Integer(), nullable=True),
+            sa.Column('chart_type', sa.String(length=100), nullable=True),
+            sa.Column('sql_layout', sa.String(length=50), nullable=True),
+            sa.Column('sql', sa.Text(), nullable=True),
+            sa.Column('y_log_scale', sa.Boolean(), nullable=True),
+            sa.Column('show_datatable', sa.Boolean(), nullable=True),
+            sa.Column('show_sql', sa.Boolean(), nullable=True),
+            sa.Column('height', sa.Integer(), nullable=True),
+            sa.Column('default_params', sa.String(length=5000), nullable=True),
+            sa.Column('x_is_date', sa.Boolean(), nullable=True),
+            sa.Column('iteration_no', sa.Integer(), nullable=True),
+            sa.Column('last_modified', sa.DateTime(), nullable=True),
+            sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
 
     if conn.dialect.name == 'mysql':
         conn.execute("SET time_zone = '+00:00'")
