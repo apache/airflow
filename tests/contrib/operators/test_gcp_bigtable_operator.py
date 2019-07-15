@@ -39,6 +39,7 @@ PROJECT_ID = 'test_project_id'
 INSTANCE_ID = 'test-instance-id'
 CLUSTER_ID = 'test-cluster-id'
 CLUSTER_ZONE = 'us-central1-f'
+GCP_CONN_ID = 'test-gcp-conn-id'
 NODES = 5
 TABLE_ID = 'test-table-id'
 INITIAL_SPLIT_KEYS = []  # type: List
@@ -61,7 +62,8 @@ class BigtableInstanceCreateTest(unittest.TestCase):
                 instance_id=instance_id,
                 main_cluster_id=main_cluster_id,
                 main_cluster_zone=main_cluster_zone,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
         self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
@@ -76,11 +78,12 @@ class BigtableInstanceCreateTest(unittest.TestCase):
             instance_id=INSTANCE_ID,
             main_cluster_id=CLUSTER_ID,
             main_cluster_zone=CLUSTER_ZONE,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_instance.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
@@ -91,11 +94,12 @@ class BigtableInstanceCreateTest(unittest.TestCase):
             instance_id=INSTANCE_ID,
             main_cluster_id=CLUSTER_ID,
             main_cluster_zone=CLUSTER_ZONE,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_instance.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
@@ -106,7 +110,8 @@ class BigtableInstanceCreateTest(unittest.TestCase):
             instance_id=INSTANCE_ID,
             main_cluster_id=CLUSTER_ID,
             main_cluster_zone=CLUSTER_ZONE,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.create_instance.side_effect = mock.Mock(
@@ -115,7 +120,7 @@ class BigtableInstanceCreateTest(unittest.TestCase):
         with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
             cluster_storage_type=None,
@@ -147,7 +152,8 @@ class BigtableClusterUpdateTest(unittest.TestCase):
                 instance_id=instance_id,
                 cluster_id=cluster_id,
                 nodes=nodes,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
         self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
@@ -163,14 +169,15 @@ class BigtableClusterUpdateTest(unittest.TestCase):
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
                 nodes=NODES,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
             op.execute(None)
 
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(
             INSTANCE_ID))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.update_cluster.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
@@ -183,14 +190,15 @@ class BigtableClusterUpdateTest(unittest.TestCase):
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
                 nodes=NODES,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
             op.execute(None)
 
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(
             INSTANCE_ID))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.update_cluster.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
@@ -205,7 +213,8 @@ class BigtableClusterUpdateTest(unittest.TestCase):
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
                 nodes=NODES,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
             op.execute(None)
 
@@ -215,7 +224,7 @@ class BigtableClusterUpdateTest(unittest.TestCase):
             "Dependency: cluster '{}' does not exist for instance '{}'.".format(
                 CLUSTER_ID, INSTANCE_ID)
         )
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES)
 
@@ -230,7 +239,8 @@ class BigtableClusterUpdateTest(unittest.TestCase):
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
                 nodes=NODES,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
             op.execute(None)
 
@@ -240,7 +250,7 @@ class BigtableClusterUpdateTest(unittest.TestCase):
             "Dependency: cluster '{}' does not exist for instance '{}'.".format(
                 CLUSTER_ID, INSTANCE_ID)
         )
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES)
 
@@ -251,7 +261,8 @@ class BigtableClusterUpdateTest(unittest.TestCase):
             instance_id=INSTANCE_ID,
             cluster_id=CLUSTER_ID,
             nodes=NODES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.update_cluster.side_effect = mock.Mock(
@@ -260,7 +271,7 @@ class BigtableClusterUpdateTest(unittest.TestCase):
         with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES)
 
@@ -271,10 +282,11 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
         op = BigtableInstanceDeleteOperator(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID)
@@ -283,10 +295,11 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
     def test_delete_execute_empty_project_id(self, mock_hook):
         op = BigtableInstanceDeleteOperator(
             instance_id=INSTANCE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None,
             instance_id=INSTANCE_ID)
@@ -311,12 +324,13 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
         op = BigtableInstanceDeleteOperator(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         mock_hook.return_value.delete_instance.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Instance not found."))
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID)
@@ -325,12 +339,13 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
     def test_deleting_instance_that_doesnt_exists_empty_project_id(self, mock_hook):
         op = BigtableInstanceDeleteOperator(
             instance_id=INSTANCE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         mock_hook.return_value.delete_instance.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Instance not found."))
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None,
             instance_id=INSTANCE_ID)
@@ -340,7 +355,8 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
         op = BigtableInstanceDeleteOperator(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         mock_hook.return_value.delete_instance.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.GoogleAPICallError('error'))
@@ -348,7 +364,7 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
         with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID)
@@ -361,10 +377,11 @@ class BigtableTableDeleteTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -382,7 +399,8 @@ class BigtableTableDeleteTest(unittest.TestCase):
                 project_id=project_id,
                 instance_id=instance_id,
                 table_id=table_id,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
         self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
@@ -394,13 +412,14 @@ class BigtableTableDeleteTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.delete_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Table not found."))
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -411,13 +430,14 @@ class BigtableTableDeleteTest(unittest.TestCase):
         op = BigtableTableDeleteOperator(
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.delete_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Table not found."))
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=None,
             instance_id=INSTANCE_ID,
@@ -429,7 +449,8 @@ class BigtableTableDeleteTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.get_instance.return_value = None
@@ -438,7 +459,7 @@ class BigtableTableDeleteTest(unittest.TestCase):
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(
             INSTANCE_ID))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_table.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
@@ -447,7 +468,8 @@ class BigtableTableDeleteTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         mock_hook.return_value.delete_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.GoogleAPICallError('error'))
@@ -455,7 +477,7 @@ class BigtableTableDeleteTest(unittest.TestCase):
         with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -471,11 +493,12 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families=EMPTY_COLUMN_FAMILIES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         op.execute(None)
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
             table_id=TABLE_ID,
@@ -494,7 +517,8 @@ class BigtableTableCreateTest(unittest.TestCase):
                 project_id=project_id,
                 instance_id=instance_id,
                 table_id=table_id,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
         self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
@@ -508,7 +532,8 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families=EMPTY_COLUMN_FAMILIES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         mock_hook.return_value.get_instance.return_value = None
         with self.assertRaises(AirflowException) as e:
@@ -519,7 +544,7 @@ class BigtableTableCreateTest(unittest.TestCase):
             "Dependency: instance '{}' does not exist in project '{}'.".format(
                 INSTANCE_ID, PROJECT_ID)
         )
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
     def test_creating_table_that_exists(self, mock_hook):
@@ -529,7 +554,8 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families=EMPTY_COLUMN_FAMILIES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.get_column_families_for_table.return_value = \
@@ -539,7 +565,7 @@ class BigtableTableCreateTest(unittest.TestCase):
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists."))
         op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
             table_id=TABLE_ID,
@@ -553,7 +579,8 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families=EMPTY_COLUMN_FAMILIES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.get_column_families_for_table.return_value = \
@@ -563,7 +590,7 @@ class BigtableTableCreateTest(unittest.TestCase):
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists."))
         op.execute(None)
 
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
             table_id=TABLE_ID,
@@ -579,7 +606,8 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families=EMPTY_COLUMN_FAMILIES,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         mock_hook.return_value.get_column_families_for_table.return_value = {
@@ -594,7 +622,7 @@ class BigtableTableCreateTest(unittest.TestCase):
             str(err),
             "Table '{}' already exists with different Column Families.".format(TABLE_ID)
         )
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
     def test_creating_table_that_exists_with_different_column_families_gc_rule_in__table(
@@ -605,7 +633,8 @@ class BigtableTableCreateTest(unittest.TestCase):
             table_id=TABLE_ID,
             initial_split_keys=INITIAL_SPLIT_KEYS,
             column_families={"cf-id": MaxVersionsGCRule(1)},
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
 
         cf_mock = mock.Mock()
@@ -624,7 +653,7 @@ class BigtableTableCreateTest(unittest.TestCase):
             str(err),
             "Table '{}' already exists with different Column Families.".format(TABLE_ID)
         )
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
 
 class BigtableWaitForTableReplicationTest(unittest.TestCase):
@@ -640,7 +669,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
                 project_id=project_id,
                 instance_id=instance_id,
                 table_id=table_id,
-                task_id="id"
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
         self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
@@ -654,10 +684,11 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         self.assertFalse(op.poke(None))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
     def test_wait_no_table(self, mock_hook):
@@ -669,10 +700,11 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         self.assertFalse(op.poke(None))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
     def test_wait_not_ready(self, mock_hook):
@@ -684,10 +716,11 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         self.assertFalse(op.poke(None))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.gcp_bigtable_operator.BigtableHook')
     def test_wait_ready(self, mock_hook):
@@ -699,7 +732,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
-            task_id="id"
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
         )
         self.assertTrue(op.poke(None))
-        mock_hook.assert_called_once_with()
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)

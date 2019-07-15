@@ -712,6 +712,9 @@ class CloudSqlDatabaseHook(BaseHook):
 
     :param gcp_cloudsql_conn_id: URL of the connection
     :type gcp_cloudsql_conn_id: str
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform for
+        cloud-sql-proxy authentication.
+    :type gcp_conn_id: str
     :param default_gcp_project_id: Default project id used if project_id not specified
            in the connection URL
     :type default_gcp_project_id: str
@@ -719,8 +722,9 @@ class CloudSqlDatabaseHook(BaseHook):
     _conn = None
 
     def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
-                 default_gcp_project_id=None):
+                 gcp_conn_id='google_cloud_default', default_gcp_project_id=None):
         super().__init__(source=None)
+        self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson
@@ -972,7 +976,7 @@ class CloudSqlDatabaseHook(BaseHook):
             project_id=self.project_id,
             sql_proxy_version=self.sql_proxy_version,
             sql_proxy_binary_path=self.sql_proxy_binary_path,
-            gcp_conn_id=self.gcp_cloudsql_conn_id
+            gcp_conn_id=self.gcp_conn_id
         )
 
     def get_database_hook(self):

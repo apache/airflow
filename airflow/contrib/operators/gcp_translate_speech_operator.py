@@ -113,7 +113,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(GcpTranslateSpeechOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.audio = audio
         self.config = config
         self.target_language = target_language

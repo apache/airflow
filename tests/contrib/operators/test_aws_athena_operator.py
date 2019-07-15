@@ -25,7 +25,6 @@ from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from airflow import configuration
 from tests.compat import mock
 
 TEST_DAG_ID = 'unit_tests'
@@ -51,8 +50,6 @@ result_configuration = {
 class TestAWSAthenaOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
-
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,

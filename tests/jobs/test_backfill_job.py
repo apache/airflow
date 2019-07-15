@@ -43,8 +43,6 @@ from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_pools, \
     clear_db_runs, set_default_pool_slots
 
-configuration.load_test_config()
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

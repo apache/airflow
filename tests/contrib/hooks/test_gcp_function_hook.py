@@ -20,11 +20,12 @@
 import unittest
 
 from airflow import AirflowException
+from airflow.contrib.hooks.gcp_function_hook import GcfHook
+
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock
 from tests.compat import mock
 
-from airflow.contrib.hooks.gcp_function_hook import GcfHook
 
 GCF_LOCATION = 'location'
 GCF_FUNCTION = 'function'
@@ -78,8 +79,8 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('airflow.contrib.hooks.gcp_function_hook.GcfHook.get_conn')
     def test_upload_function_zip_missing_project_id(self, get_conn, requests_put):
-        m = mock.mock_open()
-        with mock.patch('builtins.open', m):
+        mck = mock.mock_open()
+        with mock.patch('builtins.open', mck):
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
             execute_method = generate_upload_url_method.return_value.execute
@@ -92,15 +93,15 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                 )
                 generate_upload_url_method.assert_not_called()
                 execute_method.assert_not_called()
-                m.assert_not_called()
+                mck.assert_not_called()
                 err = cm.exception
                 self.assertIn("The project id must be passed", str(err))
 
     @mock.patch('requests.put')
     @mock.patch('airflow.contrib.hooks.gcp_function_hook.GcfHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
-        m, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), m):
+        mck, open_module = get_open_mock()
+        with mock.patch('{}.open'.format(open_module), mck):
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
             execute_method = generate_upload_url_method.return_value.execute
@@ -188,7 +189,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         wait_for_operation_to_complete.return_value = None
         execute_method.return_value = {"name": "operation_id"}
-        res = self.gcf_function_hook.delete_function(
+        res = self.gcf_function_hook.delete_function(  # pylint: disable=assignment-from-no-return
             name=GCF_FUNCTION
         )
         self.assertIsNone(res)
@@ -203,7 +204,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.gcf_function_hook.update_function(
+        res = self.gcf_function_hook.update_function(  # pylint: disable=assignment-from-no-return
             update_mask=['a', 'b', 'c'],
             name=GCF_FUNCTION,
             body={}
@@ -220,8 +221,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('airflow.contrib.hooks.gcp_function_hook.GcfHook.get_conn')
     def test_upload_function_zip(self, get_conn, requests_put):
-        m, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), m):
+        mck, open_module = get_open_mock()
+        with mock.patch('{}.open'.format(open_module), mck):
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
             execute_method = generate_upload_url_method.return_value.execute
@@ -245,8 +246,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('airflow.contrib.hooks.gcp_function_hook.GcfHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
-        m, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), m):
+        mck, open_module = get_open_mock()
+        with mock.patch('{}.open'.format(open_module), mck):
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
             execute_method = generate_upload_url_method.return_value.execute

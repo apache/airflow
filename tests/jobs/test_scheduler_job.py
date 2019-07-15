@@ -25,7 +25,6 @@ import unittest
 from tempfile import mkdtemp
 
 import psutil
-import six
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -49,7 +48,6 @@ from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
     clear_db_runs, clear_db_sla_miss, set_default_pool_slots
 
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
@@ -808,7 +806,7 @@ class SchedulerJobTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
@@ -2088,7 +2086,7 @@ class SchedulerJobTest(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti_tuple = six.next(six.itervalues(executor.queued_tasks))
+        ti_tuple = next(iter(executor.queued_tasks.values()))
         (command, priority, queue, simple_ti) = ti_tuple
         ti = simple_ti.construct_task_instance()
         ti.task = dag_task1

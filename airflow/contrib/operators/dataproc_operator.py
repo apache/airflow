@@ -622,7 +622,7 @@ class DataProcJobBaseOperator(BaseOperator):
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
-        default arguments
+        default arguments (templated)
     :type dataproc_properties: dict
     :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
@@ -741,13 +741,13 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     :param query: The query or reference to the query
         file (pg or pig extension). (templated)
     :type query: str
-    :param query_uri: The uri of a pig script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Pig queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
     job_type = 'pigJob'
@@ -784,13 +784,13 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension).
     :type query: str
-    :param query_uri: The uri of a hive script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query.
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
@@ -808,6 +808,8 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()
@@ -826,12 +828,13 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension). (templated)
     :type query: str
-    :param query_uri: The uri of a spark sql script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'sparkSqlJob'
@@ -849,6 +852,8 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()
@@ -865,8 +870,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file that contains the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -880,7 +885,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'sparkJob'
 
@@ -916,8 +922,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file containing the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -931,7 +937,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'hadoopJob'
 
@@ -982,7 +989,8 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pysparkJob'
 

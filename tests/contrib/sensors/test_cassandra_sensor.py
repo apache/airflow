@@ -23,7 +23,6 @@ import unittest
 from unittest.mock import patch
 
 from airflow import DAG
-from airflow import configuration
 from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
 from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
 from airflow.utils import timezone
@@ -35,7 +34,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestCassandraRecordSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -58,7 +56,6 @@ class TestCassandraRecordSensor(unittest.TestCase):
 class TestCassandraTableSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

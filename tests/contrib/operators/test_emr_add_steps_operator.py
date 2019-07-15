@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from datetime import timedelta
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
 from airflow.models import TaskInstance
 from airflow.utils import timezone
@@ -52,7 +52,6 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     }]
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

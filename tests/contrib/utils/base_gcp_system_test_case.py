@@ -133,6 +133,7 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
         self.example_dags_folder = example_dags_folder
         self.require_local_executor = require_local_executor
         self.temp_dir = None
+        self.args = {}
 
     @staticmethod
     def _get_dag_folder():

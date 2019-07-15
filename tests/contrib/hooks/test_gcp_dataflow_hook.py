@@ -76,7 +76,7 @@ TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
@@ -102,14 +102,14 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
-        EXPECTED_CMD = ['python2', '-m', PY_FILE,
+        expected_cmd = ['python2', '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
                         '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
-                             sorted(EXPECTED_CMD))
+                             sorted(expected_cmd))
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
@@ -126,14 +126,14 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE)
-        EXPECTED_CMD = ['java', '-jar', JAR_FILE,
-                        '--region=us-central1',
-                        '--runner=DataflowRunner', '--project=test',
-                        '--stagingLocation=gs://test/staging',
-                        '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        expecited_cmd = ['java', '-jar', JAR_FILE,
+                         '--region=us-central1',
+                         '--runner=DataflowRunner', '--project=test',
+                         '--stagingLocation=gs://test/staging',
+                         '--labels={"foo":"bar"}',
+                         '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
-                             sorted(EXPECTED_CMD))
+                             sorted(expecited_cmd))
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
@@ -150,14 +150,14 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_java_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE, job_class=JOB_CLASS)
-        EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
-                        '--region=us-central1',
-                        '--runner=DataflowRunner', '--project=test',
-                        '--stagingLocation=gs://test/staging',
-                        '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        expecited_cmd = ['java', '-cp', JAR_FILE, JOB_CLASS,
+                         '--region=us-central1',
+                         '--runner=DataflowRunner', '--project=test',
+                         '--stagingLocation=gs://test/staging',
+                         '--labels={"foo":"bar"}',
+                         '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
-                             sorted(EXPECTED_CMD))
+                             sorted(expecited_cmd))
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')

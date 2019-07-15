@@ -21,9 +21,7 @@ import unittest
 from unittest.mock import MagicMock
 from datetime import datetime
 
-import six
-
-from airflow import configuration, models
+from airflow import models
 from airflow.contrib.operators.bigquery_get_data import BigQueryGetDataOperator
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
@@ -156,7 +154,6 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
 
 class BigQueryOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder='/dev/null', include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -252,10 +249,10 @@ class BigQueryOperatorTest(unittest.TestCase):
                 cluster_fields=None,
             )
 
-        self.assertTrue(isinstance(operator.sql, six.string_types))
+        self.assertTrue(isinstance(operator.sql, str))
         ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
-        self.assertTrue(isinstance(ti.task.sql, six.string_types))
+        self.assertTrue(isinstance(ti.task.sql, str))
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_bigquery_operator_extra_link(self, mock_hook):
