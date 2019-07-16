@@ -639,7 +639,7 @@ class CoreTest(unittest.TestCase):
 
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
-                             '{"foo": "bar"}')
+                             '{\n  "foo": "bar"\n}')
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -1858,7 +1858,7 @@ class CliTests(unittest.TestCase):
             'variables', '-i', 'variables1.json']))
 
         self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
         # Second export
         cli.variables(self.parser.parse_args([
             'variables', '-e', 'variables2.json']))
@@ -1872,7 +1872,7 @@ class CliTests(unittest.TestCase):
             'variables', '-i', 'variables2.json']))
 
         self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
 
         # Set a dict
         cli.variables(self.parser.parse_args([

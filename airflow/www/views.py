@@ -2191,6 +2191,7 @@ class VariableModelView(AirflowModelView):
     route_base = '/variable'
 
     list_template = 'airflow/variable_list.html'
+    edit_template = 'airflow/variable_edit.html'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)
 
