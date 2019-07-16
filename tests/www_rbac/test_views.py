@@ -50,6 +50,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
+from tests.test_utils.config import conf_vars
 
 
 class TestBase(unittest.TestCase):
@@ -665,8 +666,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "False")
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'False'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
                                       'most likely for security reasons.'], resp)
@@ -674,9 +675,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "True")
-
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'True'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
 
