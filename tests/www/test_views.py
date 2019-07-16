@@ -553,10 +553,10 @@ class TestVarImportView(unittest.TestCase):
         self.assertIn('dict_key', db_dict)
         self.assertEqual('str_value', db_dict['str_key'])
         self.assertEqual('60', db_dict['int_key'])
-        self.assertEqual('[1, 2]', db_dict['list_key'])
+        self.assertEqual(u'[\n  1,\n  2\n]', db_dict['list_key'])
 
-        case_a_dict = '{"k_a": 2, "k_b": 3}'
-        case_b_dict = '{"k_b": 3, "k_a": 2}'
+        case_a_dict = u'{\n  "k_a": 2,\n  "k_b": 3\n}'
+        case_b_dict = u'{\n  "k_b": 3,\n  "k_a": 2\n}'
         try:
             self.assertEqual(case_a_dict, db_dict['dict_key'])
         except AssertionError:
