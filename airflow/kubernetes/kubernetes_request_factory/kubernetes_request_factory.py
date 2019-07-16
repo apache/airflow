@@ -122,6 +122,7 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
     @staticmethod
     def extract_name(pod, req):
         req['metadata']['name'] = pod.name
+        req['spec']['hostname'] = pod.name
 
     @staticmethod
     def extract_volume_secrets(pod, req):
@@ -179,15 +180,21 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             if pod.resources.request_cpu:
                 req['spec']['containers'][0]['resources']['requests'][
                     'cpu'] = pod.resources.request_cpu
+            if pod.resources.request_ephemeral_storage:
+                req['spec']['containers'][0]['resources']['requests'][
+                    'ephemeral-storage'] = pod.resources.request_ephemeral_storage
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
-            if pod.resources.request_memory:
+            if pod.resources.limit_memory:
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
+            if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
+            if pod.resources.limit_ephemeral_storage:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'ephemeral-storage'] = pod.resources.limit_ephemeral_storage
 
     @staticmethod
     def extract_init_containers(pod, req):

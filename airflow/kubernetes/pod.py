@@ -21,21 +21,29 @@ class Resources:
             self,
             request_memory=None,
             request_cpu=None,
+            request_ephemeral_storage=None,
             limit_memory=None,
-            limit_cpu=None):
+            limit_cpu=None,
+            limit_ephemeral_storage=None):
         self.request_memory = request_memory
         self.request_cpu = request_cpu
+        self.request_ephemeral_storage = request_ephemeral_storage
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
+        self.limit_ephemeral_storage = limit_ephemeral_storage
 
     def is_empty_resource_request(self):
         return not self.has_limits() and not self.has_requests()
 
     def has_limits(self):
-        return self.limit_cpu is not None or self.limit_memory is not None
+        return self.limit_cpu is not None or \
+               self.limit_memory is not None or \
+               self.limit_ephemeral_storage is not None
 
     def has_requests(self):
-        return self.request_cpu is not None or self.request_memory is not None
+        return self.request_cpu is not None or \
+               self.request_memory is not None or \
+               self.request_ephemeral_storage is not None
 
 
 class Port:
