@@ -20,10 +20,10 @@
 import unittest
 
 from cryptography.fernet import Fernet
-from unittest.mock import patch
 
 from airflow import settings
 from airflow.models import crypto, Variable
+from tests.test_utils.config import conf_vars
 
 
 class VariableTest(unittest.TestCase):
@@ -33,53 +33,50 @@ class VariableTest(unittest.TestCase):
     def tearDown(self):
         crypto._fernet = None
 
-    @patch('airflow.configuration.conf.get')
-    def test_variable_no_encryption(self, mock_get):
+    @conf_vars({('core', 'FERNET_KEY'): ''})
+    def test_variable_no_encryption(self):
         """
         Test variables without encryption
         """
-        mock_get.return_value = ''
         Variable.set('key', 'value')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         self.assertFalse(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @patch('airflow.configuration.conf.get')
-    def test_variable_with_encryption(self, mock_get):
+    @conf_vars({('core', 'FERNET_KEY'): Fernet.generate_key().decode()})
+    def test_variable_with_encryption(self):
         """
         Test variables with encryption
         """
-        mock_get.return_value = Fernet.generate_key().decode()
         Variable.set('key', 'value')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         self.assertTrue(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @patch('airflow.configuration.conf.get')
-    def test_var_with_encryption_rotate_fernet_key(self, mock_get):
+    def test_var_with_encryption_rotate_fernet_key(self):
         """
         Tests rotating encrypted variables.
         """
         key1 = Fernet.generate_key()
         key2 = Fernet.generate_key()
 
-        mock_get.return_value = key1.decode()
-        Variable.set('key', 'value')
-        session = settings.Session()
-        test_var = session.query(Variable).filter(Variable.key == 'key').one()
-        self.assertTrue(test_var.is_encrypted)
-        self.assertEqual(test_var.val, 'value')
-        self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
+        with conf_vars({('core', 'FERNET_KEY'): key1.decode()}):
+            Variable.set('key', 'value')
+            session = settings.Session()
+            test_var = session.query(Variable).filter(Variable.key == 'key').one()
+            self.assertTrue(test_var.is_encrypted)
+            self.assertEqual(test_var.val, 'value')
+            self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
 
         # Test decrypt of old value with new key
-        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
-        crypto._fernet = None
-        self.assertEqual(test_var.val, 'value')
+        with conf_vars({('core', 'FERNET_KEY'): ','.join([key2.decode(), key1.decode()])}):
+            crypto._fernet = None
+            self.assertEqual(test_var.val, 'value')
 
-        # Test decrypt of new value with new key
-        test_var.rotate_fernet_key()
-        self.assertTrue(test_var.is_encrypted)
-        self.assertEqual(test_var.val, 'value')
-        self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
+            # Test decrypt of new value with new key
+            test_var.rotate_fernet_key()
+            self.assertTrue(test_var.is_encrypted)
+            self.assertEqual(test_var.val, 'value')
+            self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')

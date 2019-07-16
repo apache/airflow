@@ -25,7 +25,6 @@ import unittest
 from tempfile import mkdtemp
 
 import psutil
-import six
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -828,7 +827,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
 
         tis = []
-        for i in range(0, 4):
+        for _ in range(0, 4):
             dr = scheduler.create_dag_run(dag)
             ti1 = TI(task1, dr.execution_date)
             ti2 = TI(task2, dr.execution_date)
@@ -2087,8 +2086,8 @@ class SchedulerJobTest(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti_tuple = six.next(six.itervalues(executor.queued_tasks))
-        (command, priority, queue, simple_ti) = ti_tuple
+        ti_tuple = next(iter(executor.queued_tasks.values()))
+        (_, _, _, simple_ti) = ti_tuple
         ti = simple_ti.construct_task_instance()
         ti.task = dag_task1
 
@@ -2461,7 +2460,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(detected_files, expected_files)
 
         example_dag_folder = airflow.example_dags.__path__[0]
-        for root, dirs, files in os.walk(example_dag_folder):
+        for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ['__init__.py']:
