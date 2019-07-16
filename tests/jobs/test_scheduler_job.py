@@ -25,7 +25,6 @@ import unittest
 from tempfile import mkdtemp
 
 import psutil
-import six
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -47,10 +46,8 @@ from tests.compat import mock
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss
-from tests.test_utils.decorators import mock_conf_get
+    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
 
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
@@ -95,6 +92,20 @@ class SchedulerJobTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.patcher.stop()
+
+    def test_is_alive(self):
+        job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+        self.assertFalse(job.is_alive())
+
+        job.state = State.SUCCESS
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
 
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):
         """
@@ -340,9 +351,10 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[1].key, res_keys)
         self.assertIn(tis[3].key, res_keys)
 
-    @mock_conf_get('core', 'non_pooled_task_slot_count', 1)
-    def test_find_executable_task_instances_in_non_pool(self):
-        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_non_pool'
+    def test_find_executable_task_instances_in_default_pool(self):
+        set_default_pool_slots(1)
+
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_default_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         t1 = DummyOperator(dag=dag, task_id='dummy1')
         t2 = DummyOperator(dag=dag, task_id='dummy2')
@@ -352,18 +364,18 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(executor=executor)
         dr1 = scheduler.create_dag_run(dag)
         dr2 = scheduler.create_dag_run(dag)
-        session = settings.Session()
 
         ti1 = TI(task=t1, execution_date=dr1.execution_date)
         ti2 = TI(task=t2, execution_date=dr2.execution_date)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
+        session = settings.Session()
         session.merge(ti1)
         session.merge(ti2)
         session.commit()
 
-        # Two tasks w/o pool up for execution and our non_pool size is 1
+        # Two tasks w/o pool up for execution and our default pool size is 1
         res = scheduler._find_executable_task_instances(
             dagbag,
             states=(State.SCHEDULED,),
@@ -371,7 +383,6 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(1, len(res))
 
         ti2.state = State.RUNNING
-        ti2.pool = Pool.default_pool_name
         session.merge(ti2)
         session.commit()
 
@@ -795,7 +806,7 @@ class SchedulerJobTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
@@ -816,7 +827,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
 
         tis = []
-        for i in range(0, 4):
+        for _ in range(0, 4):
             dr = scheduler.create_dag_run(dag)
             ti1 = TI(task1, dr.execution_date)
             ti2 = TI(task2, dr.execution_date)
@@ -1724,7 +1735,7 @@ class SchedulerJobTest(unittest.TestCase):
             session.merge(ti)
         session.commit()
 
-        self.assertEquals(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
+        self.assertEqual(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
         scheduler._execute_task_instances(dagbag,
                                           (State.SCHEDULED, State.UP_FOR_RETRY),
                                           session=session)
@@ -2075,8 +2086,8 @@ class SchedulerJobTest(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti_tuple = six.next(six.itervalues(executor.queued_tasks))
-        (command, priority, queue, simple_ti) = ti_tuple
+        ti_tuple = next(iter(executor.queued_tasks.values()))
+        (_, _, _, simple_ti) = ti_tuple
         ti = simple_ti.construct_task_instance()
         ti.task = dag_task1
 
@@ -2449,7 +2460,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(detected_files, expected_files)
 
         example_dag_folder = airflow.example_dags.__path__[0]
-        for root, dirs, files in os.walk(example_dag_folder):
+        for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ['__init__.py']:

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Language operators.
+"""
 from google.protobuf.json_format import MessageToDict
 
 from airflow.contrib.hooks.gcp_natural_language_hook import CloudNaturalLanguageHook
@@ -46,7 +49,6 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START natural_language_analyze_entities_template_fields]
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_entities_template_fields]
@@ -107,7 +109,6 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START natural_language_analyze_entity_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_entity_sentiment_template_fields]
@@ -171,7 +172,6 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START natural_language_analyze_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_sentiment_template_fields]
@@ -228,7 +228,6 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START natural_language_classify_text_template_fields]
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_classify_text_template_fields]

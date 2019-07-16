@@ -36,8 +36,6 @@ from tests.compat import patch
 from tests.core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
 
-configuration.load_test_config()
-
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -148,7 +146,7 @@ class LocalTaskJobTest(unittest.TestCase):
         process = multiprocessing.Process(target=job1.run)
         process.start()
         ti.refresh_from_db()
-        for i in range(0, 50):
+        for _ in range(0, 50):
             if ti.state == State.RUNNING:
                 break
             time.sleep(0.1)

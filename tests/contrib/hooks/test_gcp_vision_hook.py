@@ -29,11 +29,10 @@ from google.cloud.vision_v1.proto.image_annotator_pb2 import (
 from google.protobuf.json_format import MessageToDict
 from parameterized import parameterized
 
-from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook
+from airflow import AirflowException
+from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook, ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests.compat import mock
-
-from airflow import AirflowException
 
 PROJECT_ID_TEST = 'project-id'
 PROJECT_ID_TEST_2 = 'project-id-2'
@@ -56,6 +55,16 @@ ANNOTATE_IMAGE_REQUEST = {
     'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
     'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
 }
+BATCH_ANNOTATE_IMAGE_REQUEST = [
+    {
+        'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
+        'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    },
+    {
+        'image': {'source': {'image_uri': "gs://bucket-name/object-name"}},
+        'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    }
+]
 REFERENCE_IMAGE_NAME_TEST = "projects/{}/locations/{}/products/{}/referenceImages/{}".format(
     PROJECT_ID_TEST, LOC_ID_TEST, PRODUCTSET_ID_TEST, REFERENCE_IMAGE_ID_TEST
 )
@@ -233,9 +242,8 @@ class TestGcpVisionHook(unittest.TestCase):
         err = cm.exception
         self.assertTrue(err)
         self.assertIn(
-            "Unable to determine the ProductSet name. Please either set the name directly in the "
-            "ProductSet object or provide the `location` and `productset_id` parameters.",
-            str(err),
+            ERR_UNABLE_TO_CREATE.format(label='ProductSet', id_label='productset_id'),
+            str(err)
         )
         update_product_set_method.assert_not_called()
 
@@ -303,11 +311,11 @@ class TestGcpVisionHook(unittest.TestCase):
         # self.assertIn("The required parameter 'project_id' is missing", str(err))
         self.assertTrue(err)
         self.assertIn(
-            "The ProductSet name provided in the object ({}) is different than the name "
-            "created from the input parameters ({}). Please either: 1) Remove the ProductSet "
-            "name, 2) Remove the location and productset_id parameters, 3) Unify the "
-            "ProductSet name and input parameters.".format(explicit_ps_name, template_ps_name),
-            str(err),
+            ERR_DIFF_NAMES.format(explicit_name=explicit_ps_name,
+                                  constructed_name=template_ps_name,
+                                  label="ProductSet", id_label="productset_id"
+                                  ),
+            str(err)
         )
         update_product_set_method.assert_not_called()
 
@@ -429,6 +437,19 @@ class TestGcpVisionHook(unittest.TestCase):
         # Product ID was provided explicitly in the method call above, should be returned from the method
         annotate_image_method.assert_called_once_with(
             request=ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
+        )
+
+    @mock.patch('airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.annotator_client')
+    def test_batch_annotate_images(self, annotator_client_mock):
+        # Given
+        batch_annotate_images_method = annotator_client_mock.batch_annotate_images
+
+        # When
+        self.hook.batch_annotate_images(requests=BATCH_ANNOTATE_IMAGE_REQUEST)
+        # Then
+        # Product ID was provided explicitly in the method call above, should be returned from the method
+        batch_annotate_images_method.assert_called_once_with(
+            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
         )
 
     @mock.patch('airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook.get_conn')
@@ -568,8 +589,7 @@ class TestGcpVisionHook(unittest.TestCase):
         err = cm.exception
         self.assertTrue(err)
         self.assertIn(
-            "Unable to determine the Product name. Please either set the name directly in the "
-            "Product object or provide the `location` and `product_id` parameters.",
+            ERR_UNABLE_TO_CREATE.format(label='Product', id_label='product_id'),
             str(err),
         )
         update_product_method.assert_not_called()
@@ -631,11 +651,10 @@ class TestGcpVisionHook(unittest.TestCase):
         err = cm.exception
         self.assertTrue(err)
         self.assertIn(
-            "The Product name provided in the object ({}) is different than the name created from the input "
-            "parameters ({}). Please either: 1) Remove the Product name, 2) Remove the location and product_"
-            "id parameters, 3) Unify the Product name and input parameters.".format(
-                explicit_p_name, template_p_name
-            ),
+            ERR_DIFF_NAMES.format(explicit_name=explicit_p_name,
+                                  constructed_name=template_p_name,
+                                  label="Product", id_label="product_id"
+                                  ),
             str(err),
         )
         update_product_method.assert_not_called()

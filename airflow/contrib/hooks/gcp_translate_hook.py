@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Translate Hook.
+"""
 
 from google.cloud.translate_v2 import Client
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -24,6 +27,9 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 class CloudTranslateHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud translate APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
 
     _client = None
@@ -51,24 +57,19 @@ class CloudTranslateHook(GoogleCloudBaseHook):
 
         :type values: str or list
         :param values: String or list of strings to translate.
-
         :type target_language: str
         :param target_language: The language to translate results into. This
                                 is required by the API and defaults to
                                 the target language of the current instance.
-
         :type format_: str
         :param format_: (Optional) One of ``text`` or ``html``, to specify
                         if the input text is plain text or HTML.
-
         :type source_language: str or None
         :param source_language: (Optional) The language of the text to
                                 be translated.
-
         :type model: str or None
         :param model: (Optional) The model used to translate the text, such
                       as ``'base'`` or ``'nmt'``.
-
         :rtype: str or list
         :returns: A list of dictionaries for each queried value. Each
                   dictionary typically contains three keys (though not
@@ -76,9 +77,12 @@ class CloudTranslateHook(GoogleCloudBaseHook):
 
                   * ``detectedSourceLanguage``: The detected language (as an
                     ISO 639-1 language code) of the text.
+
                   * ``translatedText``: The translation of the text into the
                     target language.
+
                   * ``input``: The corresponding input value.
+
                   * ``model``: The model used to translate the text.
 
                   If only a single value is passed, then only a single

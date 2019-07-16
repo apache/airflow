@@ -18,10 +18,8 @@
 # under the License.
 
 from base64 import b64encode
-from builtins import str
 from collections import OrderedDict
 import copy
-from future import standard_library
 import os
 import pathlib
 import shlex
@@ -30,13 +28,11 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError
+from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-standard_library.install_aliases()
 
 log = LoggingMixin().log
 
@@ -96,8 +92,8 @@ def run_command(command):
 def _read_default_config_file(file_name):
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    with open(file_path, encoding='utf-8') as f:
-        return f.read()
+    with open(file_path, encoding='utf-8') as file:
+        return file.read()
 
 
 DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
@@ -134,6 +130,13 @@ class AirflowConfigParser(ConfigParser):
             'ssl_active': 'celery_ssl_active',
             'ssl_cert': 'celery_ssl_cert',
             'ssl_key': 'celery_ssl_key',
+            'elasticsearch_host': 'host',
+            'elasticsearch_log_id_template': 'log_id_template',
+            'elasticsearch_end_of_log_mark': 'end_of_log_mark',
+            'elasticsearch_frontend': 'frontend',
+            'elasticsearch_write_stdout': 'write_stdout',
+            'elasticsearch_json_format': 'json_format',
+            'elasticsearch_json_fields': 'json_fields'
         }
     }
 
@@ -291,7 +294,7 @@ class AirflowConfigParser(ConfigParser):
             # UNSET to avoid logging a warning about missing values
             self.get(section, option, fallback=_UNSET)
             return True
-        except NoOptionError:
+        except (NoOptionError, NoSectionError):
             return False
 
     def remove_option(self, section, option, remove_default=True):
@@ -491,7 +494,13 @@ def parameterized_config(template):
     return template.format(**all_vars)
 
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+def get_airflow_test_config(airflow_home):
+    if 'AIRFLOW_TEST_CONFIG' not in os.environ:
+        return os.path.join(airflow_home, 'unittests.cfg')
+    return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
+
+
+TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
@@ -507,18 +516,18 @@ if not os.path.isfile(TEST_CONFIG_FILE):
     log.info(
         'Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE
     )
-    with open(TEST_CONFIG_FILE, 'w') as f:
+    with open(TEST_CONFIG_FILE, 'w') as file:
         cfg = parameterized_config(TEST_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
+        file.write(cfg.split(TEMPLATE_START)[-1].strip())
 if not os.path.isfile(AIRFLOW_CONFIG):
     log.info(
         'Creating new Airflow config file in: %s',
         AIRFLOW_CONFIG
     )
-    with open(AIRFLOW_CONFIG, 'w') as f:
+    with open(AIRFLOW_CONFIG, 'w') as file:
         cfg = parameterized_config(DEFAULT_CONFIG)
         cfg = cfg.split(TEMPLATE_START)[-1].strip()
-        f.write(cfg)
+        file.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -551,8 +560,8 @@ WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
     DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
-    with open(WEBSERVER_CONFIG, 'w') as f:
-        f.write(DEFAULT_WEBSERVER_CONFIG)
+    with open(WEBSERVER_CONFIG, 'w') as file:
+        file.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()

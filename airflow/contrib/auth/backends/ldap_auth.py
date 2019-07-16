@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from future.utils import native
 
 import flask_login
 from flask_login import login_required, current_user, logout_user  # noqa: F401
@@ -75,7 +74,7 @@ def get_ldap_connection(dn=None, password=None):
                     use_ssl=True,
                     tls=tls_configuration)
 
-    conn = Connection(server, native(dn), native(password))
+    conn = Connection(server, dn, password)
 
     if not conn.bind():
         log.error("Cannot bind to ldap server: %s ", conn.last_error)
@@ -87,8 +86,7 @@ def get_ldap_connection(dn=None, password=None):
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
     search_filter = '(&({0}))'.format(group_filter)
 
-    if not conn.search(native(search_base), native(search_filter),
-                       attributes=[native(user_name_attr)]):
+    if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for entry in conn.entries:
@@ -105,8 +103,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
         memberof_attr = configuration.conf.get("ldap", "group_member_attr")
     except Exception:
         memberof_attr = "memberOf"
-    res = conn.search(native(search_base), native(search_filter),
-                      attributes=[native(memberof_attr)])
+    res = conn.search(search_base, search_filter, attributes=[memberof_attr])
     if not res:
         log.info("Cannot find user %s", username)
         raise AuthenticationError("Invalid username or password")
@@ -210,9 +207,7 @@ class LdapUser(models.User):
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(native(configuration.conf.get("ldap", "basedn")),
-                          native(search_filter),
-                          search_scope=native(search_scope))
+        res = conn.search(configuration.conf.get("ldap", "basedn"), search_filter, search_scope=search_scope)
 
         # todo: use list or result?
         if not res:

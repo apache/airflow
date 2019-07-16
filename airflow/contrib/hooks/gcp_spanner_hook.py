@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Spanner Hook.
+"""
+
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists
 from google.cloud.spanner_v1.client import Client
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
@@ -31,12 +35,12 @@ class CloudSpannerHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    _client = None
 
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def _get_client(self, project_id):
         """
@@ -205,8 +209,8 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         database = instance.database(database_id=database_id)
         if not database.exists():
             return None
-        else:
-            return database
+
+        return database
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_database(self, instance_id, database_id, ddl_statements, project_id=None):
@@ -241,7 +245,6 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         if operation:
             result = operation.result()
             self.log.info(result)
-        return
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def update_database(self, instance_id, database_id, ddl_statements,
@@ -314,7 +317,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
                           "Exiting.".format(database_id, instance_id))
             return
         try:
-            operation = database.drop()  # type: Operation
+            operation = database.drop()  # type: Operation # pylint: disable=E1111
         except GoogleAPICallError as e:
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e

@@ -25,10 +25,9 @@ from urllib3 import HTTPResponse
 from datetime import datetime
 
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
 try:
     from kubernetes.client.rest import ApiException
-    from airflow import configuration
-    from airflow.configuration import conf
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.executors.kubernetes_executor import KubernetesExecutor
     from airflow.executors.kubernetes_executor import KubeConfig
@@ -36,6 +35,7 @@ try:
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.exceptions import AirflowConfigException
     from airflow.kubernetes.secret import Secret
+    from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
@@ -189,41 +189,22 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     "subPath shouldn't be defined"
                 )
 
-    @mock.patch.object(conf, 'get')
-    @mock.patch.object(configuration, 'as_dict')
-    def test_worker_configuration_auth_both_ssh_and_user(self, mock_config_as_dict, mock_conf_get):
-        def get_conf(*args, **kwargs):
-            if(args[0] == 'core'):
-                return '1'
-            if(args[0] == 'kubernetes'):
-                if(args[1] == 'git_ssh_known_hosts_configmap_name'):
-                    return 'airflow-configmap'
-                if(args[1] == 'git_ssh_key_secret_name'):
-                    return 'airflow-secrets'
-                if(args[1] == 'git_user'):
-                    return 'some-user'
-                if(args[1] == 'git_password'):
-                    return 'some-password'
-                if(args[1] == 'git_repo'):
-                    return 'git@github.com:apache/airflow.git'
-                if(args[1] == 'git_branch'):
-                    return 'master'
-                if(args[1] == 'git_dags_folder_mount_point'):
-                    return '/usr/local/airflow/dags'
-                if(args[1] == 'delete_worker_pods'):
-                    return True
-                if(args[1] == 'kube_client_request_args'):
-                    return '{"_request_timeout" : [60,360] }'
-                return '1'
-            return None
-
-        mock_conf_get.side_effect = get_conf
-        mock_config_as_dict.return_value = {'core': ''}
-
-        with self.assertRaisesRegexp(AirflowConfigException,
-                                     'either `git_user` and `git_password`.*'
-                                     'or `git_ssh_key_secret_name`.*'
-                                     'but not both$'):
+    @conf_vars({
+        ('kubernetes', 'git_ssh_known_hosts_configmap_name'): 'airflow-configmap',
+        ('kubernetes', 'git_ssh_key_secret_name'): 'airflow-secrets',
+        ('kubernetes', 'git_user'): 'some-user',
+        ('kubernetes', 'git_password'): 'some-password',
+        ('kubernetes', 'git_repo'): 'git@github.com:apache/airflow.git',
+        ('kubernetes', 'git_branch'): 'master',
+        ('kubernetes', 'git_dags_folder_mount_point'): '/usr/local/airflow/dags',
+        ('kubernetes', 'delete_worker_pods'): 'True',
+        ('kubernetes', 'kube_client_request_args'): '{"_request_timeout" : [60,360]}',
+    })
+    def test_worker_configuration_auth_both_ssh_and_user(self):
+        with self.assertRaisesRegex(AirflowConfigException,
+                                    'either `git_user` and `git_password`.*'
+                                    'or `git_ssh_key_secret_name`.*'
+                                    'but not both$'):
             KubeConfig()
 
     def test_worker_with_subpaths(self):
@@ -394,6 +375,25 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertTrue({'name': 'GIT_SSH_KNOWN_HOSTS_FILE',
                         'value': '/etc/git-secret/known_hosts'} in env)
         self.assertFalse({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
+
+    def test_make_pod_run_as_user_0(self):
+        # Tests the pod created with run-as-user 0 actually gets that in it's config
+        self.kube_config.worker_run_as_user = 0
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        self.assertEqual(0, pod.security_context['runAsUser'])
 
     def test_make_pod_git_sync_ssh_without_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct without known hosts
@@ -632,10 +632,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)
-        labels = worker_config._get_labels({
+        labels = worker_config._get_labels({'my_kube_executor_label': 'kubernetes'}, {
             'dag_id': 'override_dag_id',
         })
-        self.assertEqual({'my_label': 'label_id', 'dag_id': 'override_dag_id'}, labels)
+        self.assertEqual({
+            'my_label': 'label_id',
+            'dag_id': 'override_dag_id',
+            'my_kube_executor_label': 'kubernetes'
+        }, labels)
 
 
 class TestKubernetesExecutor(unittest.TestCase):
@@ -650,20 +654,11 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_run_next_exception(self, mock_get_kube_client, mock_kubernetes_job_watcher):
 
         # When a quota is exceeded this is the ApiException we get
-        r = HTTPResponse()
-        r.body = {
-            "kind": "Status",
-            "apiVersion": "v1",
-            "metadata": {},
-            "status": "Failure",
-            "message": "pods \"podname\" is forbidden: " +
-            "exceeded quota: compute-resources, " +
-            "requested: limits.memory=4Gi, " +
-            "used: limits.memory=6508Mi, " +
-            "limited: limits.memory=10Gi",
-            "reason": "Forbidden",
-            "details": {"name": "podname", "kind": "pods"},
-            "code": 403},
+        r = HTTPResponse(
+            body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
+                 '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
+                 'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
+                 '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}')
         r.status = 403
         r.reason = "Forbidden"
 
@@ -693,6 +688,54 @@ class TestKubernetesExecutor(unittest.TestCase):
         kubernetesExecutor.sync()
         assert mock_kube_client.create_namespaced_pod.called
         self.assertTrue(kubernetesExecutor.task_queue.empty())
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.sync')
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
+    @mock.patch('airflow.stats.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync, mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.start()
+        key = ('dag_id', 'task_id', 'ex_time', 'try_number1')
+        executor._change_state(key, State.RUNNING, 'pod_id')
+        self.assertTrue(executor.event_buffer[key] == State.RUNNING)
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod')
+    def test_change_state_success(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher,
+                                  mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.start()
+        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
+        executor._change_state(key, State.SUCCESS, 'pod_id')
+        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        mock_delete_pod.assert_called_with('pod_id')
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod')
+    def test_change_state_failed(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher,
+                                 mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.start()
+        key = ('dag_id', 'task_id', 'ex_time', 'try_number3')
+        executor._change_state(key, State.FAILED, 'pod_id')
+        self.assertTrue(executor.event_buffer[key] == State.FAILED)
+        mock_delete_pod.assert_called_with('pod_id')
 
 
 if __name__ == '__main__':

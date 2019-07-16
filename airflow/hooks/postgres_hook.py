@@ -90,11 +90,11 @@ class PostgresHook(DbApiHook):
             with open(filename, 'w'):
                 pass
 
-        with open(filename, 'r+') as f:
+        with open(filename, 'r+') as file:
             with closing(self.get_conn()) as conn:
                 with closing(conn.cursor()) as cur:
-                    cur.copy_expert(sql, f)
-                    f.truncate(f.tell())
+                    cur.copy_expert(sql, file)
+                    file.truncate(file.tell())
                     conn.commit()
 
     def bulk_load(self, table, tmp_file):

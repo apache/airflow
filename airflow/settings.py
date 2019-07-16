@@ -28,6 +28,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
+from airflow.kubernetes.pod import Pod
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
 
@@ -95,7 +96,20 @@ def policy(task_instance):
         pool.
     * ...
     """
-    pass
+
+
+def pod_mutation_hook(pod: Pod):
+    """
+    This setting allows altering ``Pod`` objects before they are passed to
+    the Kubernetes client by the ``PodLauncher`` for scheduling.
+
+    To define a pod mutation hook, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``pod_mutation_hook`` function.
+    It receives a ``Pod`` object and can alter it where needed.
+
+    This could be used, for instance, to add sidecar or init containers
+    to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
+    """
 
 
 def configure_vars():
@@ -205,6 +219,11 @@ def configure_adapters():
         MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
     except ImportError:
         pass
+    try:
+        import pymysql.converters
+        pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
+    except ImportError:
+        pass
 
 
 def validate_session():
@@ -230,10 +249,9 @@ def configure_action_logging():
     module
     :rtype: None
     """
-    pass
 
 
-def prepare_classpath():
+def prepare_syspath():
     """
     Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
     """
@@ -251,16 +269,27 @@ def prepare_classpath():
         sys.path.append(PLUGINS_FOLDER)
 
 
-try:
-    from airflow_local_settings import *  # noqa F403 F401
-    log.info("Loaded airflow_local_settings.")
-except Exception:
-    pass
+def import_local_settings():
+    try:
+        import airflow_local_settings
+
+        if hasattr(airflow_local_settings, "__all__"):
+            for i in airflow_local_settings.__all__:
+                globals()[i] = getattr(airflow_local_settings, i)
+        else:
+            for k, v in airflow_local_settings.__dict__.items():
+                if not k.startswith("__"):
+                    globals()[k] = v
+
+        log.info("Loaded airflow_local_settings from " + airflow_local_settings.__file__ + ".")
+    except ImportError:
+        log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
 
 def initialize():
     configure_vars()
-    prepare_classpath()
+    prepare_syspath()
+    import_local_settings()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
     configure_adapters()

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
@@ -59,7 +57,6 @@ class HipChatAPIOperator(BaseOperator):
         Override in child class. Each HipChatAPI child operator is responsible for having
         a prepare_request method call which sets self.method, self.url, and self.body.
         """
-        pass
 
     def execute(self, context):
         self.prepare_request()
@@ -130,5 +127,5 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
 
         self.method = 'POST'
         self.url = '%s/room/%s/notification' % (self.base_url, self.room_id)
-        self.body = json.dumps(dict(
-            (str(k), str(v)) for k, v in params.items() if v))
+        self.body = json.dumps({
+            str(k): str(v) for k, v in params.items() if v})

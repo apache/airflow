@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.kubernetes.pod import Pod
+from airflow.kubernetes.pod import Pod, Port
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
 import uuid
 
 
@@ -24,6 +26,7 @@ class PodGenerator:
 
     def __init__(self, kube_config=None):
         self.kube_config = kube_config
+        self.ports = []
         self.volumes = []
         self.volume_mounts = []
         self.init_containers = []
@@ -62,10 +65,21 @@ class PodGenerator:
     def _get_init_containers(self):
         return self.init_containers
 
-    def add_volume(self, volume):
+    def add_port(self, port: Port):
         """
-        Args:
-            volume (Volume):
+        Adds a Port to the generator
+
+        :param port: ports for generated pod
+        :type port: airflow.kubernetes.pod.Port
+        """
+        self.ports.append({'name': port.name, 'containerPort': port.container_port})
+
+    def add_volume(self, volume: Volume):
+        """
+        Adds a Volume to the generator
+
+        :param volume: volume for generated pod
+        :type volume: airflow.kubernetes.volume.Volume
         """
 
         self._add_volume(name=volume.name, configs=volume.configs)
@@ -120,10 +134,12 @@ class PodGenerator:
         })
 
     def add_mount(self,
-                  volume_mount):
+                  volume_mount: VolumeMount):
         """
-        Args:
-            volume_mount (VolumeMount):
+        Adds a VolumeMount to the generator
+
+        :param volume_mount: volume for generated pod
+        :type volume_mount: airflow.kubernetes.volume_mount.VolumeMount
         """
         self._add_mount(
             name=volume_mount.name,
@@ -157,6 +173,7 @@ class PodGenerator:
             # service_account_name=self.kube_config.worker_service_account_name,
             # image_pull_secrets=self.kube_config.image_pull_secrets,
             init_containers=worker_init_container_spec,
+            ports=self.ports,
             volumes=volumes,
             volume_mounts=volume_mounts,
             resources=None

@@ -31,6 +31,7 @@ This DAG relies on the following OS environment variables
 * GCP_VISION_ANNOTATE_IMAGE_URL - A link to the bucket that contains the file to be annotated.
 
 """
+
 import os
 
 # [START howto_operator_vision_retry_import]

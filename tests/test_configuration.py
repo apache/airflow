@@ -22,8 +22,6 @@ import os
 import warnings
 from collections import OrderedDict
 
-import six
-
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
@@ -53,7 +51,6 @@ class ConfTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
         os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
-        configuration.load_test_config()
         conf.set('core', 'percent', 'with%%inside')
 
     @classmethod
@@ -254,6 +251,16 @@ key2 = 1.23
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
+    def test_has_option(self):
+        TEST_CONFIG = '''[test]
+key1 = value1
+'''
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(TEST_CONFIG)
+        self.assertTrue(test_conf.has_option('test', 'key1'))
+        self.assertFalse(test_conf.has_option('test', 'key_not_exists'))
+        self.assertFalse(test_conf.has_option('section_not_exists', 'key1'))
+
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
 key1 = hello
@@ -309,7 +316,7 @@ key3 = value3
         self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
         self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
-        self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
+        self.assertTrue(isinstance(section_dict['_test_only_string'], str))
 
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation

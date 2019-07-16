@@ -23,7 +23,6 @@
 # SOFTWARE.
 
 import json
-import six
 
 from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import query_params
@@ -280,7 +279,7 @@ class FakeElasticsearch(Elasticsearch):
         # Ensure to have a list of index
         if index is None:
             searchable_indexes = self.__documents_dict.keys()
-        elif isinstance(index, six.string_types):
+        elif isinstance(index, str):
             searchable_indexes = [index]
         elif isinstance(index, list):
             searchable_indexes = index
@@ -302,7 +301,7 @@ class FakeElasticsearch(Elasticsearch):
         # Ensure to have a list of index
         if doc_type is None:
             searchable_doc_types = []
-        elif isinstance(doc_type, six.string_types):
+        elif isinstance(doc_type, str):
             searchable_doc_types = [doc_type]
         elif isinstance(doc_type, list):
             searchable_doc_types = doc_type

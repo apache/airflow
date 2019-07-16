@@ -290,7 +290,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
         error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " \
                     "Found {}".format(total_wildcards, SOURCE_OBJECT_MULTIPLE_WILDCARDS)
 
-        with self.assertRaisesRegexp(AirflowException, error_msg):
+        with self.assertRaisesRegex(AirflowException, error_msg):
             operator.execute(None)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
@@ -308,4 +308,4 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',
                 TEST_BUCKET
             )
-            self.assertEquals(operator.destination_bucket, operator.source_bucket)
+            self.assertEqual(operator.destination_bucket, operator.source_bucket)

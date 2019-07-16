@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
-
 import inspect
 import json
 import time
@@ -28,8 +25,6 @@ import re
 import zipfile
 import os
 import io
-
-from builtins import str
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -425,11 +420,11 @@ class CustomSQLAInterface(SQLAInterface):
 
         def clean_column_names():
             if self.list_properties:
-                self.list_properties = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
+                self.list_properties = {
+                    k.lstrip('_'): v for k, v in self.list_properties.items()}
             if self.list_columns:
-                self.list_columns = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
+                self.list_columns = {
+                    k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
 

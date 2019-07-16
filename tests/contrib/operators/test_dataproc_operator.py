@@ -21,9 +21,13 @@
 import datetime
 import re
 import unittest
+from unittest.mock import MagicMock, Mock, patch
+
 from typing import Dict
 
 import time
+
+from copy import deepcopy
 
 from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
@@ -31,6 +35,7 @@ from airflow.contrib.operators.dataproc_operator import \
     DataprocClusterDeleteOperator, \
     DataProcHadoopOperator, \
     DataProcHiveOperator, \
+    DataProcPigOperator, \
     DataProcPySparkOperator, \
     DataProcSparkOperator, \
     DataprocWorkflowTemplateInstantiateInlineOperator, \
@@ -41,16 +46,13 @@ from airflow.utils.timezone import make_aware
 from airflow.version import version
 from tests.compat import mock
 
-from copy import deepcopy
-
-from unittest.mock import MagicMock, Mock
-from unittest.mock import patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'
 GCP_PROJECT_ID = 'test-project-id'
 NUM_WORKERS = 123
 GCE_ZONE = 'us-central1-a'
+SCALING_POLICY = 'test-scaling-policy'
 NETWORK_URI = '/projects/project_id/regions/global/net'
 SUBNETWORK_URI = '/projects/project_id/regions/global/subnet'
 INTERNAL_IP_ONLY = True
@@ -119,6 +121,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     project_id=GCP_PROJECT_ID,
                     num_workers=NUM_WORKERS,
                     zone=GCE_ZONE,
+                    autoscaling_policy=SCALING_POLICY,
                     network_uri=NETWORK_URI,
                     subnetwork_uri=SUBNETWORK_URI,
                     internal_ip_only=INTERNAL_IP_ONLY,
@@ -174,9 +177,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.idle_delete_ttl, IDLE_DELETE_TTL)
             self.assertEqual(dataproc_operator.auto_delete_time, AUTO_DELETE_TIME)
             self.assertEqual(dataproc_operator.auto_delete_ttl, AUTO_DELETE_TTL)
+            self.assertEqual(dataproc_operator.autoscaling_policy, SCALING_POLICY)
 
     def test_get_init_action_timeout(self):
-        for suffix, dataproc_operator in enumerate(self.dataproc_operators):
+        for dataproc_operator in self.dataproc_operators:
             timeout = dataproc_operator._get_init_action_timeout()
             self.assertEqual(timeout, "600s")
 
@@ -208,6 +212,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                              "321s")
             self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                              "2017-06-07T00:00:00.000000Z")
+            self.assertEqual(cluster_data['config']['autoscalingConfig']['policyUri'],
+                             SCALING_POLICY)
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
@@ -217,7 +223,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                                      cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
 
-    def test_build_cluster_data_with_autoDeleteTime(self):
+    def test_build_cluster_data_with_auto_delete_time(self):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
@@ -231,7 +237,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                          "2017-06-07T00:00:00.000000Z")
 
-    def test_build_cluster_data_with_autoDeleteTtl(self):
+    def test_build_cluster_data_with_auto_delete_ttl(self):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
@@ -245,7 +251,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTtl'],
                          "654s")
 
-    def test_build_cluster_data_with_autoDeleteTime_and_autoDeleteTtl(self):
+    def test_build_cluster_data_with_auto_delete_time_and_auto_delete_ttl(self):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
@@ -341,6 +347,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
     def test_create_cluster(self):
         # Setup service.projects().regions().clusters().create()
         #              .execute()
+
+        # pylint:disable=attribute-defined-outside-init
         self.operation = {'name': 'operation', 'done': True}
         self.mock_execute = Mock()
         self.mock_execute.execute.return_value = self.operation
@@ -352,9 +360,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.mock_projects.regions.return_value = self.mock_regions
         self.mock_conn = Mock()
         self.mock_conn.projects.return_value = self.mock_projects
+        # pylint:enable=attribute-defined-outside-init
 
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
 
@@ -394,7 +403,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                         'secondaryWorkerConfig': {},
                         'softwareConfig': {},
                         'lifecycleConfig': {},
-                        'encryptionConfig': {}},
+                        'encryptionConfig': {},
+                        'autoscalingConfig': {},
+                    },
                     'labels': {'airflow-version': mock.ANY}})
             hook.wait.assert_called_once_with(self.operation)
 
@@ -449,8 +460,8 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_update_cluster(self):
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
 
@@ -512,8 +523,8 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_delete_cluster(self):
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
 
@@ -549,8 +560,8 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
         def submit_side_effect(_1, _2, _3, _4):
             time.sleep(10)
         job_id = 1
-        with patch(HOOK) as MockHook:
-            mock_hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            mock_hook = mock_hook()
             mock_hook.submit.side_effect = submit_side_effect
             mock_hook.create_job_template().build.return_value = {'job': {'reference': {'jobId': job_id}}}
 
@@ -610,6 +621,33 @@ class DataProcHiveOperatorTest(unittest.TestCase):
         with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHiveOperator(
                 task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
+
+class DataProcPigOperatorTest(unittest.TestCase):
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPigOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                region=GCP_REGION
+            )
+
+            dataproc_task.execute(None)
+
+        mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                              GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPigOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                region=GCP_REGION
             )
 
             _assert_dataproc_job_id(mock_hook, dataproc_task)
@@ -689,8 +727,8 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_workflow(self):
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
 
@@ -737,8 +775,8 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_iniline_workflow(self):
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
 

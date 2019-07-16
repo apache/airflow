@@ -125,6 +125,16 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(args, ())
         self.assertEqual(kwargs['ssl'], SSL_DICT)
 
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    def test_get_conn_rds_iam(self, mock_client, mock_connect):
+        self.connection.extra = '{"iam":true}'
+        mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', passwd='aws_token', host='host',
+                                             db='schema', port=3306,
+                                             read_default_group='enable-cleartext-plugin')
+
 
 class TestMySqlHook(unittest.TestCase):
 

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Speech Hook.
+"""
 
 from google.cloud.speech_v1 import SpeechClient
 
@@ -34,10 +37,9 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _client = None
-
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._client = None
 
     def get_conn(self):
         """

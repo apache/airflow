@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from os.path import dirname
 import random
 import string
 import unittest
-from os.path import dirname
 
 import time
 
@@ -48,10 +48,7 @@ SKIP_CLOUDSQL_QUERY_WARNING = """
 
 GCP_ENABLE_CLOUDSQL_QUERY_TEST = os.environ.get('GCP_ENABLE_CLOUDSQL_QUERY_TEST')
 
-if GCP_ENABLE_CLOUDSQL_QUERY_TEST == 'True':
-    enable_cloudsql_query_test = True
-else:
-    enable_cloudsql_query_test = False
+enable_cloudsql_query_test = bool(GCP_ENABLE_CLOUDSQL_QUERY_TEST == 'True')
 
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()

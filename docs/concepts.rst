@@ -145,7 +145,7 @@ Airflow provides operators for many common tasks, including:
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
-:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
 :class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
 :class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
@@ -184,6 +184,9 @@ Bitshift Composition
 --------------------
 
 *Added in Airflow 1.8*
+
+We recommend you setting operator relationships with bitshift operators rather than ``set_upstream()``
+and ``set_downstream()``.
 
 Traditionally, operator relationships are set with the ``set_upstream()`` and
 ``set_downstream()`` methods. In Airflow 1.8, this can be done with the Python
@@ -248,20 +251,91 @@ Bitshift can also be used with lists. For example:
 
 .. code:: python
 
-    op1 >> [op2, op3]
+    op1 >> [op2, op3] >> op4
 
 is equivalent to:
 
 .. code:: python
 
-    op1 >> op2
-    op1 >> op3
+    op1 >> op2 >> op4
+    op1 >> op3 >> op4
     
 and equivalent to:
 
 .. code:: python
 
     op1.set_downstream([op2, op3])
+
+
+Relationship Helper
+--------------------
+
+``chain`` and ``cross_downstream`` function provide easier ways to set relationships
+between operators in specific situation.
+
+When setting relationships between two list of operators and wish all up list
+operators as upstream to all down list operators, we have to split one list
+manually using bitshift composition.
+
+.. code:: python
+
+    [op1, op2, op3] >> op4
+    [op1, op2, op3] >> op5
+    [op1, op2, op3] >> op6
+
+``cross_downstream`` could handle list relationships easier.
+
+.. code:: python
+
+    cross_downstream([op1, op2, op3], [op4, op5, op6])
+
+When setting single direction relationships to many operators, we could
+concat them with bitshift composition.
+
+.. code:: python
+
+    op1 >> op2 >> op3 >> op4 >> op5
+
+use ``chain`` could do that
+
+.. code:: python
+
+    chain(op1, op2, op3, op4, op5)
+
+even without operator's name
+
+.. code:: python
+
+    chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
+
+``chain`` could handle list of operators
+
+.. code:: python
+
+    chain(op1, [op2, op3], op4)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3] >> op4
+
+Have to same size when ``chain`` set relationships between two list
+of operators.
+
+.. code:: python
+
+    chain(op1, [op2, op3], [op4, op5], op6)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+    op2 >> op4
+    op3 >> op5
+    [op4, op5] >> op6
+
 
 Tasks
 =====
@@ -581,6 +655,26 @@ For example:
 
   start_op >> branch_op >> [continue_op, stop_op]
 
+If you wish to implement your own operators with branching functionality, you
+can inherit from :class:`~airflow.operators.branch_operator.BaseBranchOperator`,
+which behaves similarly to ``BranchPythonOperator`` but expects you to provide
+an implementation of the method ``choose_branch``. As with the callable for
+``BranchPythonOperator``, this method should return the ID of a downstream task,
+or a list of task IDs, which will be run, and all others will be skipped.
+
+.. code:: python
+
+  class MyBranchOperator(BaseBranchOperator):
+      def choose_branch(self, context):
+          """
+          Run an extra branch on the first day of the month
+          """
+          if context['execution_date'].day == 1:
+              return ['daily_task_id', 'monthly_task_id']
+          else:
+              return 'daily_task_id'
+
+
 SubDAGs
 =======
 
@@ -693,6 +787,11 @@ one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
+
+SLAs can be configured for scheduled tasks by using the `sla` parameter.
+In addition to sending alerts to the addresses specified in a task's `email` parameter,
+the `sla_miss_callback` specifies an additional `Callable`
+object to be invoked when the SLA is not met.
 
 Email Configuration
 -------------------
@@ -1014,7 +1113,7 @@ It will not go into subdirectories as these are considered to be potential
 packages.
 
 In case you would like to add module dependencies to your DAG you basically would
-do the same, but then it is more to use a virtualenv and pip.
+do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. code-block:: bash
 
@@ -1048,7 +1147,8 @@ that Airflow should intentionally ignore. Each line in ``.airflowignore``
 specifies a regular expression pattern, and directories or files whose names
 (not DAG id) match any of the patterns would be ignored (under the hood,
 ``re.findall()`` is used to match the pattern). Overall it works like a
-``.gitignore`` file.
+``.gitignore`` file. Use the ``#`` character to indicate a comment; all
+characters on a line following a ``#`` will be ignored.
 
 ``.airflowignore`` file should be put in your ``DAG_FOLDER``.
 For example, you can prepare a ``.airflowignore`` file with contents

@@ -28,12 +28,12 @@ from datetime import timedelta, datetime
 from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
-import six
 
 from airflow import configuration, settings
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -235,43 +235,65 @@ class BaseOperator(LoggingMixin):
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
 
+    _comps = {
+        'task_id',
+        'dag_id',
+        'owner',
+        'email',
+        'email_on_retry',
+        'retry_delay',
+        'retry_exponential_backoff',
+        'max_retry_delay',
+        'start_date',
+        'schedule_interval',
+        'depends_on_past',
+        'wait_for_downstream',
+        'priority_weight',
+        'sla',
+        'execution_timeout',
+        'on_failure_callback',
+        'on_success_callback',
+        'on_retry_callback',
+        'do_xcom_push',
+    }
+
     @apply_defaults
     def __init__(
         self,
-        task_id,  # type: str
-        owner=configuration.conf.get('operators', 'DEFAULT_OWNER'),  # type: str
-        email=None,  # type: Optional[str]
-        email_on_retry=True,  # type: bool
-        email_on_failure=True,  # type: bool
-        retries=0,  # type: int
-        retry_delay=timedelta(seconds=300),  # type: timedelta
-        retry_exponential_backoff=False,  # type: bool
-        max_retry_delay=None,  # type: Optional[datetime]
-        start_date=None,  # type: Optional[datetime]
-        end_date=None,  # type: Optional[datetime]
+        task_id: str,
+        owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
+        email: Optional[str] = None,
+        email_on_retry: bool = True,
+        email_on_failure: bool = True,
+        retries: int = 0,
+        retry_delay: timedelta = timedelta(seconds=300),
+        retry_exponential_backoff: bool = False,
+        max_retry_delay: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         schedule_interval=None,  # not hooked as of now
-        depends_on_past=False,  # type: bool
-        wait_for_downstream=False,  # type: bool
-        dag=None,  # type: Optional[DAG]
-        params=None,  # type: Optional[Dict]
-        default_args=None,  # type: Optional[Dict]
-        priority_weight=1,  # type: int
-        weight_rule=WeightRule.DOWNSTREAM,  # type: str
-        queue=configuration.conf.get('celery', 'default_queue'),  # type: str
-        pool=None,  # type: Optional[str]
-        sla=None,  # type: Optional[timedelta]
-        execution_timeout=None,  # type: Optional[timedelta]
-        on_failure_callback=None,  # type: Optional[Callable]
-        on_success_callback=None,  # type: Optional[Callable]
-        on_retry_callback=None,  # type: Optional[Callable]
-        trigger_rule=TriggerRule.ALL_SUCCESS,  # type: str
-        resources=None,  # type: Optional[Dict]
-        run_as_user=None,  # type: Optional[str]
-        task_concurrency=None,  # type: Optional[int]
-        executor_config=None,  # type: Optional[Dict]
-        do_xcom_push=True,  # type: bool
-        inlets=None,  # type: Optional[Dict]
-        outlets=None,  # type: Optional[Dict]
+        depends_on_past: bool = False,
+        wait_for_downstream: bool = False,
+        dag: Optional[DAG] = None,
+        params: Optional[Dict] = None,
+        default_args: Optional[Dict] = None,
+        priority_weight: int = 1,
+        weight_rule: str = WeightRule.DOWNSTREAM,
+        queue: str = configuration.conf.get('celery', 'default_queue'),
+        pool: str = Pool.DEFAULT_POOL_NAME,
+        sla: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = None,
+        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[Callable] = None,
+        on_retry_callback: Optional[Callable] = None,
+        trigger_rule: str = TriggerRule.ALL_SUCCESS,
+        resources: Optional[Dict] = None,
+        run_as_user: Optional[str] = None,
+        task_concurrency: Optional[int] = None,
+        executor_config: Optional[Dict] = None,
+        do_xcom_push: bool = True,
+        inlets: Optional[Dict] = None,
+        outlets: Optional[Dict] = None,
         *args,
         **kwargs
     ):
@@ -350,7 +372,7 @@ class BaseOperator(LoggingMixin):
                         d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
         self.weight_rule = weight_rule
 
-        self.resources = Resources(**(resources or {}))
+        self.resources = Resources(*resources) if resources is not None else None
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
@@ -387,28 +409,6 @@ class BaseOperator(LoggingMixin):
 
         if outlets:
             self._outlets.update(outlets)
-
-        self._comps = {
-            'task_id',
-            'dag_id',
-            'owner',
-            'email',
-            'email_on_retry',
-            'retry_delay',
-            'retry_exponential_backoff',
-            'max_retry_delay',
-            'start_date',
-            'schedule_interval',
-            'depends_on_past',
-            'wait_for_downstream',
-            'priority_weight',
-            'sla',
-            'execution_timeout',
-            'on_failure_callback',
-            'on_success_callback',
-            'on_retry_callback',
-            'do_xcom_push',
-        }
 
     def __eq__(self, other):
         if (type(self) == type(other) and
@@ -579,7 +579,6 @@ class BaseOperator(LoggingMixin):
         """
         This hook is triggered right before self.execute() is called.
         """
-        pass
 
     def execute(self, context):
         """
@@ -597,7 +596,6 @@ class BaseOperator(LoggingMixin):
         It is passed the execution context and any results returned by the
         operator.
         """
-        pass
 
     def on_kill(self):
         """
@@ -606,7 +604,6 @@ class BaseOperator(LoggingMixin):
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
         """
-        pass
 
     def __deepcopy__(self, memo):
         """
@@ -645,7 +642,7 @@ class BaseOperator(LoggingMixin):
         all elements in it. If the field has another type, it will return it as it is.
         """
         rt = self.render_template
-        if isinstance(content, six.string_types):
+        if isinstance(content, str):
             result = jinja_env.from_string(content).render(**context)
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
@@ -666,7 +663,7 @@ class BaseOperator(LoggingMixin):
 
         exts = self.__class__.template_ext
         if (
-                isinstance(content, six.string_types) and
+                isinstance(content, str) and
                 any([content.endswith(ext) for ext in exts])):
             return jinja_env.get_template(content).render(**context)
         else:
@@ -684,7 +681,6 @@ class BaseOperator(LoggingMixin):
         content of the file before the template is rendered,
         it should override this method to do so.
         """
-        pass
 
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
@@ -692,7 +688,7 @@ class BaseOperator(LoggingMixin):
             content = getattr(self, attr)
             if content is None:
                 continue
-            elif isinstance(content, six.string_types) and \
+            elif isinstance(content, str) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.get_template_env()
                 try:
@@ -702,7 +698,7 @@ class BaseOperator(LoggingMixin):
             elif isinstance(content, list):
                 env = self.dag.get_template_env()
                 for i in range(len(content)):
-                    if isinstance(content[i], six.string_types) and \
+                    if isinstance(content[i], str) and \
                             any([content[i].endswith(ext) for ext in self.template_ext]):
                         try:
                             content[i] = env.loader.get_source(env, content[i])[0]
@@ -831,7 +827,7 @@ class BaseOperator(LoggingMixin):
         self.log.info('Dry run')
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content and isinstance(content, six.string_types):
+            if content and isinstance(content, str):
                 self.log.info('Rendering template for %s', attr)
                 self.log.info(content)
 
@@ -957,8 +953,7 @@ class BaseOperator(LoggingMixin):
             include_prior_dates=include_prior_dates)
 
     @cached_property
-    def extra_links(self):
-        # type: () -> Iterable[str]
+    def extra_links(self) -> Iterable[str]:
         return list(set(self.operator_extra_link_dict.keys())
                     .union(self.global_operator_extra_link_dict.keys()))
 
@@ -986,18 +981,15 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """
         Name of the link. This will be the button name on the task UI.
 
         :return: link name
         """
-        pass
 
     @abstractmethod
-    def get_link(self, operator, dttm):
-        # type: (BaseOperator, datetime) -> str
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
         """
         Link to external system.
 
@@ -1005,4 +997,3 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :param dttm: datetime
         :return: link to external system
         """
-        pass

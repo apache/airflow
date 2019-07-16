@@ -19,6 +19,8 @@ import json
 import time
 import tenacity
 from typing import Tuple, Optional
+
+from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from datetime import datetime as dt
@@ -51,6 +53,8 @@ class PodLauncher(LoggingMixin):
         ) if extract_xcom else pod_factory.SimplePodRequestFactory()
 
     def run_pod_async(self, pod, **kwargs):
+        pod_mutation_hook(pod)
+
         req = self.kube_req_factory.create(pod)
         self.log.debug('Pod Creation Request: \n%s', json.dumps(req, indent=2))
         try:
@@ -95,9 +99,7 @@ class PodLauncher(LoggingMixin):
 
         return self._monitor_pod(pod, get_logs)
 
-    def _monitor_pod(self, pod, get_logs):
-        # type: (Pod, bool) -> Tuple[State, Optional[str]]
-
+    def _monitor_pod(self, pod: Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:

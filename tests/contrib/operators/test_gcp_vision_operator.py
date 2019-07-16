@@ -50,6 +50,10 @@ PRODUCT_ID_TEST = 'my-product'
 REFERENCE_IMAGE_TEST = ReferenceImage(uri='gs://bucket_name/file.txt')
 REFERENCE_IMAGE_ID_TEST = 'my-reference-image'
 ANNOTATE_REQUEST_TEST = {'image': {'source': {'image_uri': 'https://foo.com/image.jpg'}}}
+ANNOTATE_REQUEST_BATCH_TEST = [
+    {'image': {'source': {'image_uri': 'https://foo.com/image1.jpg'}}},
+    {'image': {'source': {'image_uri': 'https://foo.com/image2.jpg'}}}
+]
 LOCATION_TEST = 'europe-west1'
 GCP_CONN_ID = 'google_cloud_default'
 DETECT_TEST_IMAGE = {"source": {"image_uri": "test_uri"}}
@@ -336,12 +340,21 @@ class CloudVisionRemoveProductFromProductSetOperatorTest(unittest.TestCase):
 
 class CloudVisionAnnotateImageOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_vision_operator.CloudVisionHook')
-    def test_minimal_green_path(self, mock_hook):
+    def test_minimal_green_path_for_one_image(self, mock_hook):
         op = CloudVisionAnnotateImageOperator(request=ANNOTATE_REQUEST_TEST, task_id='id')
         op.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.annotate_image.assert_called_once_with(
             request=ANNOTATE_REQUEST_TEST, retry=None, timeout=None
+        )
+
+    @mock.patch('airflow.contrib.operators.gcp_vision_operator.CloudVisionHook')
+    def test_minimal_green_path_for_batch(self, mock_hook):
+        op = CloudVisionAnnotateImageOperator(request=ANNOTATE_REQUEST_BATCH_TEST, task_id='id')
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.batch_annotate_images.assert_called_once_with(
+            requests=ANNOTATE_REQUEST_BATCH_TEST, retry=None, timeout=None
         )
 
 

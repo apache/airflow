@@ -141,6 +141,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         for batch prediction.
     :type runtime_version: str
 
+    :param signature_name: The name of the signature defined in the SavedModel
+        to use for this job.
+    :type signature_name: str
+
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -178,6 +182,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  uri=None,
                  max_worker_count=None,
                  runtime_version=None,
+                 signature_name=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
@@ -195,6 +200,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         self._uri = uri
         self._max_worker_count = max_worker_count
         self._runtime_version = runtime_version
+        self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
 
@@ -251,6 +257,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         if self._runtime_version:
             prediction_request['predictionInput'][
                 'runtimeVersion'] = self._runtime_version
+
+        if self._signature_name:
+            prediction_request['predictionInput'][
+                'signatureName'] = self._signature_name
 
         hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
 

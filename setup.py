@@ -17,27 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
+"""Setup for the Airflow library."""
 
-import imp
+import importlib
 import io
 import logging
 import os
-import sys
 import subprocess
+import sys
+
+from setuptools import setup, find_packages, Command
+from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-version = imp.load_source(
-    'airflow.version', os.path.join('airflow', 'version.py')).version
+spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+version = mod.version
 
 PY3 = sys.version_info[0] == 3
-
-if not PY3:
-    # noinspection PyShadowingBuiltins
-    FileNotFoundError = IOError
 
 # noinspection PyUnboundLocalVariable
 try:
@@ -48,6 +48,11 @@ except FileNotFoundError:
 
 
 class Tox(TestCommand):
+    """
+    Command class to run Tox via setup.py.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py test``.
+    """
+
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
 
     def __init__(self, dist, **kw):
@@ -70,36 +75,46 @@ class Tox(TestCommand):
 
 
 class CleanCommand(Command):
-    """Command to tidy up the project root."""
+    """
+    Command to tidy up the project root.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py extra_clean``.
+    """
+
+    description = "Tidy up the project root"
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
     def run(self):
+        """Run command to remove temporary files and directories."""
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
 class CompileAssets(Command):
     """
     Compile and build the frontend assets using npm and webpack.
+    Registered as cmdclass in setup() so it can be called with ``python setup.py compile_assets``.
     """
+
+    description = "Compile and build the frontend assets"
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
     def run(self):
+        """Run a command to compile and build assets."""
         subprocess.call('./airflow/www/compile_assets.sh')
 
 
-def git_version(version):
+def git_version(version_: str) -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
@@ -107,32 +122,39 @@ def git_version(version):
     and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
+
+    :param str version_: Semver version
+    :return: Found Airflow version in Git repo
+    :rtype: str
     """
-    repo = None
     try:
         import git
         repo = git.Repo('.git')
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
-    except Exception as e:
-        logger.warning('Cannot compute the git version. {}'.format(e))
+    except git.exc.NoSuchPathError:
+        logger.warning('.git directory not found: Cannot compute the git version')
         return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        return '.release:{version}+{sha}'.format(version=version, sha=sha)
+        return '.release:{version}+{sha}'.format(version=version_, sha=sha)
     else:
         return 'no_git_version'
 
 
-def write_version(filename=os.path.join(*['airflow',
-                                          'git_version'])):
+def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
+    """
+    Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
+
+    :param str filename: Destination file to write
+    """
     text = "{}".format(git_version(version))
-    with open(filename, 'w') as a:
-        a.write(text)
+    with open(filename, 'w') as file:
+        file.write(text)
 
 
 async_packages = [
@@ -146,11 +168,11 @@ aws = [
 ]
 azure = [
     'azure-storage>=0.34.0',
-    'azure-mgmt-resource==1.2.2',
-    'azure-mgmt-datalake-store==0.4.0',
-    'azure-datalake-store==0.0.19',
+    'azure-mgmt-resource>=2.2.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-datalake-store>=0.0.45',
     'azure-cosmos>=3.0.1',
-    'azure-mgmt-containerinstance',
+    'azure-mgmt-containerinstance>=1.5.0',
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
@@ -170,8 +192,7 @@ databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi>=0.7.1',
-    'Sphinx-PyPI-upload>=0.2.1',
+    'sphinx-autoapi==1.0.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinx>=1.2.3',
     'sphinxcontrib-httpdomain>=1.7.0',
@@ -190,7 +211,7 @@ gcp = [
     'google-cloud-container>=0.1.1',
     'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
-    'google-cloud-storage~=1.14',
+    'google-cloud-storage~=1.16',
     'google-cloud-translate>=1.3.3',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
@@ -247,6 +268,7 @@ snowflake = ['snowflake-connector-python>=1.5.2',
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
+virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
@@ -258,6 +280,7 @@ devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'flake8>=3.6.0',
+    'flake8-colors',
     'freezegun',
     'jira',
     'mongomock',
@@ -267,6 +290,7 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pylint~=2.3.1',  # Ensure the same version as in .travis.yml
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -285,7 +309,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce + cgroups + papermill)
+             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -296,6 +320,7 @@ else:
 
 
 def do_setup():
+    """Perform the Airflow package setup."""
     write_version()
     setup(
         name='apache-airflow',
@@ -310,25 +335,25 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
-            'alembic>=0.9, <1.0',
+            'alembic>=1.0, <2.0',
             'cached_property~=1.5',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
-            'flask>=1.0, <2.0',
+            'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
-            'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
+            'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
@@ -346,7 +371,6 @@ def do_setup():
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',
-            'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         setup_requires=[
@@ -406,8 +430,9 @@ def do_setup():
             'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
+            'virtualenv': virtualenv,
             'webhdfs': webhdfs,
-            'winrm': winrm
+            'winrm': winrm,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
@@ -416,8 +441,9 @@ def do_setup():
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
@@ -430,7 +456,7 @@ def do_setup():
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
-        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
+        python_requires='~=3.5',
     )
 
 

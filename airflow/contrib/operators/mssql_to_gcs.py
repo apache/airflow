@@ -95,7 +95,7 @@ class MsSqlToGoogleCloudStorageOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(MsSqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.bucket = bucket
         self.filename = filename

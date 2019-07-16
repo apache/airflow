@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage download operator.
+"""
 
 import sys
 
@@ -23,6 +26,7 @@ from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
+from airflow import AirflowException
 
 
 class GoogleCloudStorageDownloadOperator(BaseOperator):
@@ -57,16 +61,25 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  bucket,
-                 object,
+                 object_name=None,
                  filename=None,
                  store_to_xcom_key=None,
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
+        # To preserve backward compatibility
+        # TODO: Remove one day
+        if object_name is None:
+            if 'object' in kwargs:
+                object_name = kwargs['object']
+                DeprecationWarning("Use 'object_name' instead of 'object'.")
+            else:
+                TypeError("__init__() missing 1 required positional argument: 'object_name'")
+
         super().__init__(*args, **kwargs)
         self.bucket = bucket
-        self.object = object
+        self.object = object_name
         self.filename = filename
         self.store_to_xcom_key = store_to_xcom_key
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
@@ -86,6 +99,6 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
-                raise RuntimeError(
+                raise AirflowException(
                     'The size of the downloaded file is too large to push to XCom!'
                 )

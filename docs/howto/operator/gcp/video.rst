@@ -37,14 +37,14 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_os_args]
       :end-before: [END howto_operator_video_intelligence_os_args]
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
@@ -52,7 +52,7 @@ Input uri is an uri to a file in Google Cloud Storage
 Using the operator
 """"""""""""""""""
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_labels]
@@ -60,7 +60,7 @@ Using the operator
 
 You can use the annotation output via Xcom:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_labels_result]
@@ -96,14 +96,14 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_os_args]
       :end-before: [END howto_operator_video_intelligence_os_args]
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
@@ -111,7 +111,7 @@ Input uri is an uri to a file in Google Cloud Storage
 Using the operator
 """"""""""""""""""
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_explicit_content]
@@ -119,7 +119,7 @@ Using the operator
 
 You can use the annotation output via Xcom:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_explicit_content_result]
@@ -155,14 +155,14 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_os_args]
       :end-before: [END howto_operator_video_intelligence_os_args]
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
@@ -170,7 +170,7 @@ Input uri is an uri to a file in Google Cloud Storage
 Using the operator
 """"""""""""""""""
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_video_shots]
@@ -178,7 +178,7 @@ Using the operator
 
 You can use the annotation output via Xcom:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_video_shots_result]

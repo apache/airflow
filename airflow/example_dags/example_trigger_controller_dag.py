@@ -34,8 +34,8 @@ This example illustrates the following features :
 """
 
 import pprint
-from datetime import datetime
 
+import airflow
 from airflow import DAG
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
@@ -50,6 +50,7 @@ def conditionally_trigger(context, dag_run_obj):
         dag_run_obj.payload = {'message': context['params']['message']}
         pp.pprint(dag_run_obj.payload)
         return dag_run_obj
+    return None
 
 
 # Define the DAG
@@ -57,7 +58,7 @@ dag = DAG(
     dag_id='example_trigger_controller_dag',
     default_args={
         "owner": "airflow",
-        "start_date": datetime.utcnow(),
+        "start_date": airflow.utils.dates.days_ago(2),
     },
     schedule_interval='@once',
 )

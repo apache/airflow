@@ -27,7 +27,6 @@ from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
-import six
 from six.moves.urllib.error import HTTPError, URLError
 
 
@@ -134,7 +133,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
-        if self.parameters and isinstance(self.parameters, six.string_types):
+        if self.parameters and isinstance(self.parameters, str):
             import ast
             self.parameters = ast.literal_eval(self.parameters)
 
@@ -142,8 +141,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
             # We need a None to call the non parametrized jenkins api end point
             self.parameters = None
 
-        request = Request(jenkins_server.build_job_url(self.job_name,
-                                                       self.parameters, None))
+        request = Request(
+            method='POST',
+            url=jenkins_server.build_job_url(self.job_name, self.parameters, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location, jenkins_server):
@@ -167,8 +167,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info('Polling jenkins queue at the url %s', location)
         while try_count < self.max_try_before_job_appears:
-            location_answer = jenkins_request_with_headers(jenkins_server,
-                                                           Request(location))
+            location_answer = jenkins_request_with_headers(
+                jenkins_server, Request(method='POST', url=location))
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
                 if 'executable' in json_response:

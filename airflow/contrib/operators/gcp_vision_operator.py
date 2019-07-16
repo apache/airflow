@@ -16,6 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Vision operator.
+"""
+
+# pylint: disable=too-many-lines
+
 from copy import deepcopy
 
 from google.api_core.exceptions import AlreadyExists
@@ -59,7 +65,6 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_productset_create_template_fields]
     template_fields = ("location", "project_id", "product_set_id", "gcp_conn_id")
     # [END vision_productset_create_template_fields]
@@ -136,7 +141,6 @@ class CloudVisionProductSetGetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_productset_get_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_get_template_fields]
@@ -223,7 +227,6 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_productset_update_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_update_template_fields]
@@ -299,7 +302,6 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_productset_delete_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
     # [END vision_productset_delete_template_fields]
@@ -379,7 +381,6 @@ class CloudVisionProductCreateOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_product_create_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_create_template_fields]
@@ -460,7 +461,6 @@ class CloudVisionProductGetOperator(BaseOperator):
     :type gcp_conn_id: str
 
     """
-
     # [START vision_product_get_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_get_template_fields]
@@ -557,7 +557,6 @@ class CloudVisionProductUpdateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_product_update_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_update_template_fields]
@@ -637,7 +636,6 @@ class CloudVisionProductDeleteOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_product_delete_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
     # [END vision_product_delete_template_fields]
@@ -678,16 +676,17 @@ class CloudVisionProductDeleteOperator(BaseOperator):
 
 class CloudVisionAnnotateImageOperator(BaseOperator):
     """
-    Run image detection and annotation for an image.
+    Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudVisionAnnotateImageOperator`
 
-    :param request: (Required) Individual file annotation requests.
+    :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
         message class:`google.cloud.vision_v1.types.AnnotateImageRequest`
-    :type request: dict or google.cloud.vision_v1.types.AnnotateImageRequest
+    :type request: list[dict or google.cloud.vision_v1.types.AnnotateImageRequest] for batch or
+        dict or google.cloud.vision_v1.types.AnnotateImageRequest for single image.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -698,7 +697,6 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_annotate_image_template_fields]
     template_fields = ('request', 'gcp_conn_id')
     # [END vision_annotate_image_template_fields]
@@ -715,7 +713,17 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+
+        if not isinstance(self.request, list):
+            response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+        else:
+            response = hook.batch_annotate_images(
+                requests=self.request,
+                retry=self.retry,
+                timeout=self.timeout
+            )
+
+        return response
 
 
 class CloudVisionReferenceImageCreateOperator(BaseOperator):
@@ -756,7 +764,6 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_reference_image_create_template_fields]
     template_fields = (
         "location",
@@ -851,7 +858,6 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_add_product_to_product_set_template_fields]
     template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
     # [END vision_add_product_to_product_set_template_fields]
@@ -923,7 +929,6 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
-
     # [START vision_remove_product_from_product_set_template_fields]
     template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
     # [END vision_remove_product_from_product_set_template_fields]
@@ -993,7 +998,6 @@ class CloudVisionDetectTextOperator(BaseOperator):
         :class:`google.cloud.vision_v1.types.AnnotateImageRequest`
     :type additional_properties: dict
     """
-
     # [START vision_detect_text_set_template_fields]
     template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
     # [END vision_detect_text_set_template_fields]
@@ -1063,7 +1067,6 @@ class CloudVisionDetectDocumentTextOperator(BaseOperator):
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
     """
-
     # [START vision_document_detect_text_set_template_fields]
     template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
     # [END vision_document_detect_text_set_template_fields]
@@ -1126,7 +1129,6 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
     """
-
     # [START vision_detect_labels_template_fields]
     template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
     # [END vision_detect_labels_template_fields]
@@ -1183,7 +1185,6 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
     """
-
     # [START vision_detect_safe_search_template_fields]
     template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
     # [END vision_detect_safe_search_template_fields]

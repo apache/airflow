@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 from collections import OrderedDict
 
-from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator

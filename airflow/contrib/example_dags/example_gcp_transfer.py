@@ -38,6 +38,7 @@ This DAG relies on the following OS environment variables
   Look at documentation of :class:`~airflow.operators.sensors.BaseSensorOperator` for more information
 
 """
+
 import os
 from datetime import datetime, timedelta
 from typing import Any, Dict
@@ -180,7 +181,7 @@ with models.DAG(
     # [START howto_operator_gcp_transfer_list_operations]
     list_operations = GcpTransferServiceOperationsListOperator(
         task_id="list_operations",
-        filter={
+        request_filter={
             FILTER_PROJECT_ID: GCP_PROJECT_ID,
             FILTER_JOB_NAMES: ["{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}"],
         },

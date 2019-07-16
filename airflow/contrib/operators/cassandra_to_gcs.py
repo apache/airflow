@@ -18,12 +18,10 @@
 # under the License.
 
 import json
-from builtins import str
 from base64 import b64encode
 from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 from datetime import datetime
 from decimal import Decimal
-from six import text_type, binary_type
 from tempfile import NamedTemporaryFile
 from uuid import UUID
 
@@ -216,9 +214,9 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     def convert_value(cls, name, value):
         if not value:
             return value
-        elif isinstance(value, (text_type, int, float, bool, dict)):
+        elif isinstance(value, (str, int, float, bool, dict)):
             return value
-        elif isinstance(value, binary_type):
+        elif isinstance(value, bytes):
             return b64encode(value).decode('ascii')
         elif isinstance(value, UUID):
             return b64encode(value.bytes).decode('ascii')

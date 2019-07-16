@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google BigQuery to GCS operator.
+"""
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -60,7 +63,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     """
     template_fields = ('source_project_dataset_table',
                        'destination_cloud_storage_uris', 'labels')
-    template_ext = ('.sql',)
+    template_ext = ()
     ui_color = '#e4e6f0'
 
     @apply_defaults

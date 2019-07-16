@@ -19,7 +19,6 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
 from airflow.contrib.sensors.aws_glue_catalog_partition_sensor import AwsGlueCatalogPartitionSensor
 from tests.compat import mock
@@ -35,9 +34,6 @@ except ImportError:
 class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
 
     task_id = 'test_glue_catalog_partition_sensor'
-
-    def setUp(self):
-        configuration.load_test_config()
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import ImportError as BuiltinImportError
-
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -41,7 +39,7 @@ class NullFernet:
     """
     is_encrypted = False
 
-    def decrpyt(self, b):
+    def decrypt(self, b):
         return b
 
     def encrypt(self, b):
@@ -71,7 +69,7 @@ def get_fernet():
         global InvalidFernetToken
         InvalidFernetToken = InvalidToken
 
-    except BuiltinImportError:
+    except ImportError:
         log.warning(
             "cryptography not found - values will not be stored encrypted."
         )

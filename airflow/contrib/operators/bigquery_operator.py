@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google BigQuery operators.
+"""
 
 import json
 
@@ -27,7 +30,9 @@ from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
-
+    """
+    Helper class for constructing BigQuery link.
+    """
     name = 'BigQuery Console'
 
     def get_link(self, operator, dttm):
@@ -37,6 +42,7 @@ class BigQueryConsoleLink(BaseOperatorLink):
             job_id=job_id) if job_id else ''
 
 
+# pylint: disable=too-many-instance-attributes
 class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
@@ -127,6 +133,7 @@ class BigQueryOperator(BaseOperator):
         BigQueryConsoleLink(),
     )
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  sql,
@@ -305,6 +312,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                        'gcs_schema_object', 'labels')
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  dataset_id,
@@ -362,6 +370,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         )
 
 
+# pylint: disable=too-many-instance-attributes
 class BigQueryCreateExternalTableOperator(BaseOperator):
     """
     Creates a new external table in the dataset with the data in Google Cloud
@@ -438,6 +447,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                        'schema_object', 'destination_project_dataset_table', 'labels')
     ui_color = '#f0eee4'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  bucket,
