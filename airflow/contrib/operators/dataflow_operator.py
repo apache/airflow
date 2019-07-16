@@ -175,7 +175,7 @@ class DataFlowJavaOperator(BaseOperator):
             delegate_to=None,
             poll_sleep=10,
             job_class=None,
-            check_if_running=CheckJobRunning.IgnoreJob,
+            check_if_running=CheckJobRunning.WaitForRun,
             multiple_jobs=None,
             *args,
             **kwargs):

@@ -132,7 +132,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.assertEqual(self.dataflow.jar, JAR_FILE)
         self.assertEqual(self.dataflow.options,
                          EXPECTED_ADDITIONAL_OPTIONS)
-        self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.IgnoreJob)
+        self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.WaitForRun)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
