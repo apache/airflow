@@ -79,25 +79,33 @@ class _DataflowJob(LoggingMixin):
                 return True
         return False
 
-    def _get_job_id_from_name(self):
+    def _get_dataflow_jobs(self):
         """
-        Helper method to get list of jobs that start with job name
+        Helper method to get list of jobs that start with job name or id
 
         :return: list of jobs including id's
         :rtype: list
         """
-        jobs = self._dataflow.projects().locations().jobs().list(
-            projectId=self._project_number,
-            location=self._job_location
-        ).execute(num_retries=self._num_retries)
-        dataflow_jobs = []
-        if jobs:
-            for job in jobs['jobs']:
-                if job['name'].startswith(self._job_name.lower()):
-                    dataflow_jobs.append(job)
-        if len(dataflow_jobs) == 1:
-            self._job_id = dataflow_jobs[0]['id']
-        return dataflow_jobs
+        if not self._multiple_jobs and self._job_id:
+            return self._dataflow.projects().locations().jobs().get(
+                projectId=self._project_number,
+                location=self._job_location,
+                jobId=self._job_id).execute(num_retries=self._num_retries)
+        elif self._job_name:
+            jobs = self._dataflow.projects().locations().jobs().list(
+                projectId=self._project_number,
+                location=self._job_location
+            ).execute(num_retries=self._num_retries)
+            dataflow_jobs = []
+            if jobs:
+                for job in jobs['jobs']:
+                    if job['name'].startswith(self._job_name.lower()):
+                        dataflow_jobs.append(job)
+            if len(dataflow_jobs) == 1:
+                self._job_id = dataflow_jobs[0]['id']
+            return dataflow_jobs
+        else:
+            raise Exception('Missing both dataflow job ID and name.')
 
     def _get_jobs(self):
         """
@@ -106,16 +114,7 @@ class _DataflowJob(LoggingMixin):
         :return: jobs
         :rtype: list
         """
-        if not self._multiple_jobs and self._job_id:
-            self._jobs = []
-            self._jobs.append(self._dataflow.projects().locations().jobs().get(
-                projectId=self._project_number,
-                location=self._job_location,
-                jobId=self._job_id).execute(num_retries=self._num_retries))
-        elif self._job_name:
-            self._jobs = self._get_job_id_from_name()
-        else:
-            raise Exception('Missing both dataflow job ID and name.')
+        self._jobs = self._get_dataflow_jobs()
 
         for job in self._jobs:
             if job and 'currentState' in job:
