@@ -143,6 +143,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         """
         start_java_hook = dataflow_mock.return_value.start_java_dataflow
         gcs_download_hook = gcs_hook.return_value.google_cloud_to_local
+        self.dataflow.check_if_running=CheckJobRunning.IgnoreJob
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
