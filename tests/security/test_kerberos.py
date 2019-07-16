@@ -20,9 +20,11 @@
 import os
 import unittest
 from argparse import Namespace
+
 from airflow import configuration
 from airflow.security.kerberos import renew_from_kt
 from airflow import LoggingMixin
+from tests.test_utils.config import conf_vars
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
@@ -48,17 +50,17 @@ class KerberosTest(unittest.TestCase):
         """
         We expect no result, but a run with sys.exit(1) because keytab not exist.
         """
-        configuration.conf.set("kerberos", "keytab", "")
         self.args.keytab = "test_keytab"
 
-        with self.assertRaises(SystemExit) as se:
-            renew_from_kt(principal=self.args.principal,
-                          keytab=self.args.keytab)
+        with conf_vars({('kerberos', 'keytab'): ''}):
+            with self.assertRaises(SystemExit) as se:
+                renew_from_kt(principal=self.args.principal,
+                              keytab=self.args.keytab)
 
-            with self.assertLogs(LoggingMixin().log) as log:
-                self.assertIn(
-                    'kinit: krb5_init_creds_set_keytab: Failed to find '
-                    'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
-                    '(unknown enctype)'.format(self.args.keytab), log.output)
+                with self.assertLogs(LoggingMixin().log) as log:
+                    self.assertIn(
+                        'kinit: krb5_init_creds_set_keytab: Failed to find '
+                        'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
+                        '(unknown enctype)'.format(self.args.keytab), log.output)
 
-        self.assertEqual(se.exception.code, 1)
+                self.assertEqual(se.exception.code, 1)

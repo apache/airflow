@@ -20,13 +20,13 @@
 import unittest
 from base64 import b64encode
 
-from airflow import configuration
 from airflow import models
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2017, 1, 1)
@@ -75,8 +75,8 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(TIMEOUT, task.ssh_hook.timeout)
         self.assertEqual(SSH_ID, task.ssh_hook.ssh_conn_id)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "False")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -94,8 +94,8 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
                          b64encode(b'airflow').decode('utf-8'))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_command_execution(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -113,7 +113,6 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_command_execution_with_env(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -125,14 +124,14 @@ class SSHOperatorTest(unittest.TestCase):
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
-        ti.run()
-        self.assertIsNotNone(ti.duration)
-        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
+        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
+            ti = TaskInstance(
+                task=task, execution_date=timezone.utcnow())
+            ti.run()
+            self.assertIsNotNone(ti.duration)
+            self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_no_output_command(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -143,11 +142,12 @@ class SSHOperatorTest(unittest.TestCase):
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
-        ti.run()
-        self.assertIsNotNone(ti.duration)
-        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
+        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
+            ti = TaskInstance(
+                task=task, execution_date=timezone.utcnow())
+            ti.run()
+            self.assertIsNotNone(ti.duration)
+            self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
 
     def test_arg_checking(self):
         import os

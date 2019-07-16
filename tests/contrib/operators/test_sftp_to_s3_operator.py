@@ -22,7 +22,6 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow import configuration
 from airflow import models
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
@@ -32,6 +31,7 @@ from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.hooks.S3_hook import S3Hook
+from tests.test_utils.config import conf_vars
 
 
 BUCKET = 'test-bucket'
@@ -85,9 +85,9 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         self.s3_key = S3_KEY
 
     @mock_s3
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_sftp_to_s3_operation(self):
         # Setting
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
