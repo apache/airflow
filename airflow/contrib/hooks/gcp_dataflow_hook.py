@@ -79,6 +79,7 @@ class _DataflowJob(LoggingMixin):
                 return True
         return False
 
+    # pylint: disable=too-many-nested-blocks
     def _get_dataflow_jobs(self):
         """
         Helper method to get list of jobs that start with job name or id
