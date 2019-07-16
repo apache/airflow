@@ -242,6 +242,10 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 and `dataproc_jars`respectively. 
 Arguments for dataproc_properties dataproc_jars 
 
+### wait_for_downstream is no longer blocked on past skipped tasks
+
+The condition for a wait_for_downstream task is changed from all past downstream tasks to be successful to all past downstream tasks to be successful or skipped.
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series
