@@ -153,15 +153,15 @@ class _DataflowJob(LoggingMixin):
                         count_not_done += 1
             if count_not_done == 0:
                 return True
-        elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
-                DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
-            return True
         elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} has failed.".format(
                 job['name']))
         elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                 job['name']))
+        elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
+                 DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+            return True
         elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
                                      DataflowJobStatus.JOB_STATE_PENDING}:
             time.sleep(self._poll_sleep)
