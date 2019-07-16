@@ -160,7 +160,7 @@ class _DataflowJob(LoggingMixin):
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                 job['name']))
         elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
-                 DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+                DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
             return True
         elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
                                      DataflowJobStatus.JOB_STATE_PENDING}:
@@ -306,7 +306,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         cmd = command_prefix + self._build_cmd(variables, label_formatter)
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'], self.poll_sleep, job_id, self.num_retries, multiple_jobs)\
+                     variables['region'], self.poll_sleep, job_id, self.num_retries, multiple_jobs) \
             .wait_for_done()
 
     @staticmethod
