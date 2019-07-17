@@ -1,4 +1,5 @@
 [flake8]
 max-line-length = 110
 ignore = E731,W504
-exclude = .svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg,*/_vendor/*
+exclude = .svn,CVS,.bzr,.hg,.git,__pycache__,.eggs,*.egg,*/_vendor/*,node_modules
+format = ${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(col)d${reset}: ${red_bold}%(code)s${reset} %(text)s

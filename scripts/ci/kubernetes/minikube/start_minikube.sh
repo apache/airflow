@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,15 +17,12 @@
 # under the License.
 
 # This script was based on one made by @kimoonkim for kubernetes-hdfs
-
-#!/usr/bin/env bash
-
 set -ex
 
 _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 # Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
-_KUBERNETES_VERSION="${KUBERNETES_VERSION}"
+_KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 _MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.34.1}"
 
 echo "setting up kubernetes ${_KUBERNETES_VERSION}, using minikube ${_MINIKUBE_VERSION}"
@@ -41,11 +39,10 @@ case "${_UNAME_OUT}" in
 esac
 echo "Local OS is ${_MY_OS}"
 
-export MINIKUBE_WANTUPDATENOTIFICATION=false
 export MINIKUBE_WANTREPORTERRORPROMPT=false
 export CHANGE_MINIKUBE_NONE_USER=true
 
-cd $_MY_DIR
+cd "${_MY_DIR}"
 
 source _k8s.sh
 
@@ -66,7 +63,7 @@ fi
 if [[ ! -x /usr/local/bin/minikube ]]; then
   echo Downloading minikube.
   curl -Lo bin/minikube  \
-    https://storage.googleapis.com/minikube/releases/${_MINIKUBE_VERSION}/minikube-${_MY_OS}-amd64
+    "https://storage.googleapis.com/minikube/releases/${_MINIKUBE_VERSION}/minikube-${_MY_OS}-amd64"
   chmod +x bin/minikube
   sudo mv bin/minikube /usr/local/bin/minikube
 fi
@@ -91,7 +88,7 @@ cat <<-EOF | docker run -i --rm -v "$(pwd):/build" ubuntu:14.04 >& nsenter.build
         make nsenter
         cp -pfv nsenter /build
 EOF
-    if [ ! -f ./nsenter ]; then
+    if [[ ! -f ./nsenter ]]; then
         echo "ERROR: nsenter build failed, log:"
         cat nsenter.build.log
         exit 1
@@ -105,18 +102,19 @@ echo "your path is ${PATH}"
 
 _MINIKUBE="sudo -E PATH=$PATH minikube"
 
-$_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
-$_MINIKUBE update-context
-
+${_MINIKUBE} config set WantUpdateNotification false
+${_MINIKUBE} start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
+${_MINIKUBE} update-context
+# TODO: Check This - it should be travis-independent
 if [[ "${TRAVIS}" == true ]]; then
-  sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
+  sudo chown -R travis.travis "${HOME}/.kube" "${HOME}/.minikube"
 fi
 
 # Wait for Kubernetes to be up and ready.
 k8s_single_node_ready
 
 echo Minikube addons:
-$_MINIKUBE addons list
+${_MINIKUBE} addons list
 kubectl get storageclass
 echo Showing kube-system pods
 kubectl get -n kube-system pods
@@ -125,9 +123,9 @@ kubectl get -n kube-system pods
   (_ADDON=$(kubectl get pod -n kube-system -l component=kube-addon-manager \
       --no-headers -o name| cut -d/ -f2);
    echo Addon-manager describe:;
-   kubectl describe pod -n kube-system $_ADDON;
+   kubectl describe pod -n kube-system "${_ADDON}";
    echo Addon-manager log:;
-   kubectl logs -n kube-system $_ADDON;
+   kubectl logs -n kube-system "${_ADDON}";
    exit 1)
 k8s_single_pod_ready -n kube-system -l k8s-app=kube-dns
 k8s_single_pod_ready -n kube-system storage-provisioner

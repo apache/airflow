@@ -30,16 +30,20 @@
 !airflow
 !dags
 !dev
-#!/docs - we do not need docs in the Docker!
+!docs
 !licenses
 !scripts
 !tests
 
 !.coveragerc
 !.rat-excludes
+!.flake8
 !LICENSE
 !MANIFEST.in
 !NOTICE
+!CHANGELOG.txt
+!.github
+!run-tests
 
 # Avoid triggering context change on README change (new companies using Airflow)
 # So please do not uncomment this line ;)
@@ -63,8 +67,14 @@ airflow/www/static/coverage
 airflow/www/static/dist
 airflow/www/node_modules
 
+# Exclude static www files generated bu NPM
+airflow/www_rbac/static/coverage
+airflow/www_rbac/static/dist
+airflow/www_rbac/node_modules
+
 # Exclude link to docs
 airflow/www/static/docs
+airflow/www_rbac/static/docs
 
 # Exclude python generated files
 **/__pycache__/
@@ -98,3 +108,7 @@ airflow/www/static/docs
 # Exclude auto-generated Finder files on Mac OS
 **/.DS_Store
 **/Thumbs.db
+
+# Exclude docs generated files
+docs/_build/
+docs/_api/

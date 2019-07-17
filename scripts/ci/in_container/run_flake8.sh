@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,18 +16,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Script to run Pylint on all code. Can be started from any working directory
+# ./scripts/ci/run_pylint.sh
 
-# shellcheck source=./_utils.sh
-. "${MY_DIR}/_utils.sh"
+set -uo pipefail
 
-basic_sanity_checks
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-script_start
+# shellcheck source=./_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-docker run -v "$(pwd)/Dockerfile:/root/Dockerfile" -v "$(pwd)/.hadolint.yaml:/root/.hadolint.yaml" \
-    -w /root hadolint/hadolint /bin/hadolint Dockerfile
+in_container_basic_sanity_check
 
-script_end
+in_container_script_start
+
+if [[ ${#@} == "0" ]]; then
+    echo
+    echo "Running flake8 with no parameters"
+    echo
+else
+    echo
+    echo "Running flake8 with parameters: $*"
+    echo
+fi
+
+flake8 "$@"
+
+RES="$?"
+
+in_container_script_end
+
+if [[ "${RES}" != 0 ]]; then
+    echo >&2
+    echo >&2 "There were some flake8 errors. Exiting"
+    echo >&2
+    exit 1
+else
+    echo
+    echo "Flake8 check succeeded"
+    echo
+fi

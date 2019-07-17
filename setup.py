@@ -16,9 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Setup for the Airflow library."""
+
 
 from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
 
 import imp
 import io
@@ -26,10 +27,11 @@ import logging
 import os
 import sys
 import subprocess
+import unittest
 
 logger = logging.getLogger(__name__)
 
-# Kept manually in sync with airflow.__version__
+# noinspection PyUnresolvedReferences
 version = imp.load_source(
     'airflow.version', os.path.join('airflow', 'version.py')).version
 
@@ -47,26 +49,11 @@ except FileNotFoundError:
     long_description = ''
 
 
-class Tox(TestCommand):
-    user_options = [('tox-args=', None, "Arguments to pass to tox")]
-
-    def __init__(self, dist, **kw):
-        super().__init__(dist, **kw)
-        self.test_suite = True
-        self.test_args = []
-        self.tox_args = ''
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import tox
-        errno = tox.cmdline(args=self.tox_args.split())
-        sys.exit(errno)
+def airflow_test_suite():
+    """Test suite for Airflow tests"""
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    return test_suite
 
 
 class CleanCommand(Command):
@@ -79,12 +66,14 @@ class CleanCommand(Command):
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
+        """Run command to remove temporary files and directories."""
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -98,16 +87,17 @@ class CompileAssets(Command):
     user_options = []
 
     def initialize_options(self):
-        pass
+        """Set default values for options."""
 
     def finalize_options(self):
-        pass
+        """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
         subprocess.call('./airflow/www_rbac/compile_assets.sh')
 
 
-def git_version(version):
+def git_version(version_):
     """
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
@@ -115,32 +105,40 @@ def git_version(version):
     and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
+
+    :param str version_: Semver version
+    :return: Found Airflow version in Git repo
+    :rtype: str
     """
-    repo = None
     try:
         import git
-        repo = git.Repo('.git')
+        try:
+            repo = git.Repo('.git')
+        except git.NoSuchPathError:
+            logger.warning('.git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
-        return ''
-    except Exception as e:
-        logger.warning('Cannot compute the git version. {}'.format(e))
         return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        return '.release:{version}+{sha}'.format(version=version, sha=sha)
+        return '.release:{version}+{sha}'.format(version=version_, sha=sha)
     else:
         return 'no_git_version'
 
 
-def write_version(filename=os.path.join(*['airflow',
-                                          'git_version'])):
+def write_version(filename=os.path.join(*["airflow", "git_version"])):
+    """
+    Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
+
+    :param str filename: Destination file to write
+    """
     text = "{}".format(git_version(version))
-    with open(filename, 'w') as a:
-        a.write(text)
+    with open(filename, 'w') as file:
+        file.write(text)
 
 
 async_packages = [
@@ -252,6 +250,7 @@ snowflake = ['snowflake-connector-python>=1.5.2',
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
+virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
@@ -262,9 +261,12 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'codecov',
     'contextdecorator;python_version<"3.4"',
     'flake8>=3.6.0',
+    'flake8-colors',
     'freezegun',
+    'ipdb',
     'jira',
     'mock;python_version<"3.3"',
     'mongomock',
@@ -278,8 +280,14 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
-    'requests_mock'
+    'requests_mock',
 ]
+
+if PY3:
+    devel += ['mypy']
+else:
+    devel += ['unittest2']
+
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_azure = devel_minreq + azure_data_lake + azure_cosmos
@@ -287,7 +295,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
-             atlas + azure_container_instances + cgroups)
+             atlas + azure_container_instances + cgroups + virtualenv)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -300,6 +308,7 @@ else:
 
 
 def do_setup():
+    """Perform the Airflow package setup."""
     write_version()
     setup(
         name='apache-airflow',
@@ -416,8 +425,9 @@ def do_setup():
             'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
+            'virtualenv': virtualenv,
             'webhdfs': webhdfs,
-            'winrm': winrm
+            'winrm': winrm,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
@@ -428,6 +438,8 @@ def do_setup():
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
@@ -436,10 +448,10 @@ def do_setup():
         download_url=(
             'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
-            'test': Tox,
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
+        test_suite='setup.airflow_test_suite',
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
     )
 
