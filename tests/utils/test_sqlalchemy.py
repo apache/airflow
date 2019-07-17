@@ -18,9 +18,9 @@
 # under the License.
 #
 import datetime
-import pendulum
 import unittest
 
+import pendulum
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
@@ -129,7 +129,6 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         self.assertIsInstance(run.execution_date, pendulum.now().__class__)
 
         dag.clear()
-
 
     def tearDown(self):
         self.session.close()
