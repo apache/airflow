@@ -902,7 +902,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 start_time = time.time()
 
-                self.render_templates()
+                self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -1244,19 +1244,20 @@ class TaskInstance(Base, LoggingMixin):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
 
-    def render_templates(self):
+    def render_templates(self, context=None):
         task = self.task
-        jinja_context = self.get_template_context()
+        if not context:
+            context = self.get_template_context()
+
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
             if self.task.dag.user_defined_macros:
-                jinja_context.update(
-                    self.task.dag.user_defined_macros)
+                context.update(self.task.dag.user_defined_macros)
 
         rt = self.task.render_template  # shortcut to method
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                rendered_content = rt(attr, content, jinja_context)
+                rendered_content = rt(attr, content, context)
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
