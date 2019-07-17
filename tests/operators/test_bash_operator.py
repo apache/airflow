@@ -20,8 +20,9 @@
 import os
 import unittest
 from datetime import datetime, timedelta
+from tests.compat import mock
 
-from airflow import DAG
+from airflow import DAG, configuration
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -88,3 +89,23 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
+
+    def test_task_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_task_retries',
+            retries=2,
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 2)
+
+    @mock.patch.object(configuration.conf, 'getint', return_value=3)
+    def test_default_retries(self, mock_config):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_default_retries',
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 3)
