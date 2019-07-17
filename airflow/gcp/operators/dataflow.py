@@ -347,11 +347,16 @@ class DataFlowPythonOperator(BaseOperator):
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
-    :type pyt_options: list[str]
+    :type py_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
     :type options: dict
+    :param py_interpreter: Python version of the beam pipeline.
+        If None, this defaults to the python2.
+        To track python versions supported by beam and related
+        issues check: https://issues.apache.org/jira/browse/BEAM-1251
+    :type py_interpreter: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
@@ -374,6 +379,7 @@ class DataFlowPythonOperator(BaseOperator):
             py_options: Optional[List[str]] = None,
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
+            py_interpreter: str = "python2",
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -389,6 +395,7 @@ class DataFlowPythonOperator(BaseOperator):
         self.options = options or {}
         self.options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+        self.py_interpreter = py_interpreter
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -410,7 +417,7 @@ class DataFlowPythonOperator(BaseOperator):
                              for key in dataflow_options}
         hook.start_python_dataflow(
             self.job_name, formatted_options,
-            self.py_file, self.py_options)
+            self.py_file, self.py_options, py_interpreter=self.py_interpreter)
 
 
 class GoogleCloudBucketHelper:
