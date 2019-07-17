@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,18 +16,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Script to run Pylint on all code. Can be started from any working directory
+# ./scripts/ci/run_pylint.sh
 
-# shellcheck source=./_utils.sh
-. "${MY_DIR}/_utils.sh"
+set -uo pipefail
 
-basic_sanity_checks
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-script_start
+# shellcheck source=./_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-docker run -v "$(pwd)/Dockerfile:/root/Dockerfile" -v "$(pwd)/.hadolint.yaml:/root/.hadolint.yaml" \
-    -w /root hadolint/hadolint /bin/hadolint Dockerfile
+in_container_basic_sanity_check
 
-script_end
+in_container_script_start
+
+echo
+echo "Running mypy with parameters: $*"
+echo
+
+mypy "$@"
+
+RES="$?"
+
+in_container_script_end
+
+if [[ "${RES}" != 0 ]]; then
+    echo >&2
+    echo >&2 "There were some mypy errors. Exiting"
+    echo >&2
+    exit 1
+else
+    echo
+    echo "Mypy check succeeded"
+    echo
+fi

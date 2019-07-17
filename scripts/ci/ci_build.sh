@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,21 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+set -euo pipefail
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-FQDN=`hostname`
-ADMIN="admin"
-PASS="airflow"
-KRB5_KTNAME=/etc/airflow.keytab
+# shellcheck source=./_utils.sh
+. "${MY_DIR}/_utils.sh"
 
-cat /etc/hosts
-echo "hostname: ${FQDN}"
+basic_sanity_checks
 
-sudo cp $DIRNAME/krb5/krb5.conf /etc/krb5.conf
+script_start
 
-echo -e "${PASS}\n${PASS}" | sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "addprinc -randkey airflow/${FQDN}"
-sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "ktadd -k ${KRB5_KTNAME} airflow"
-sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
-sudo chmod 0644 ${KRB5_KTNAME}
+rebuild_image_if_needed_for_static_checks
+
+script_end

@@ -25,14 +25,29 @@ import pysftp
 
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
+from airflow.utils.db import provide_session
 
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
 TMP_FILE_FOR_TESTS = 'test_file.txt'
 
+SFTP_CONNECTION_USER = "root"
+
 
 class SFTPHookTest(unittest.TestCase):
+
+    @provide_session
+    def update_connection(self, login, session=None):
+        connection = (session.query(Connection).
+                      filter(Connection.conn_id == "sftp_default")
+                      .first())
+        old_login = connection.login
+        connection.login = login
+        session.commit()
+        return old_login
+
     def setUp(self):
+        self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:
@@ -163,6 +178,7 @@ class SFTPHookTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         os.remove(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS))
+        self.update_connection(self.old_login)
 
 
 if __name__ == '__main__':

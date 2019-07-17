@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-set -euo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -25,7 +27,15 @@ basic_sanity_checks
 
 script_start
 
-docker run -v "$(pwd)/Dockerfile:/root/Dockerfile" -v "$(pwd)/.hadolint.yaml:/root/.hadolint.yaml" \
-    -w /root hadolint/hadolint /bin/hadolint Dockerfile
+rebuild_image_if_needed_for_tests
+
+docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+       --entrypoint /opt/airflow/scripts/ci/in_container/run_check_licence.sh \
+       --env PYTHONDONTWRITEBYTECODE="true" \
+       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
+       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
+       --env HOST_USER_ID="$(id -ur)" \
+       --env HOST_GROUP_ID="$(id -gr)" \
+       "${AIRFLOW_CI_IMAGE}" \
 
 script_end

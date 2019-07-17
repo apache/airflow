@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,24 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+set -euo pipefail
 
-if [[ ${INSIDE_DOCKER_CONTAINER:-} != true ]]; then
-    echo "You are not inside a docker container!"
-    echo "You should only run this script in the docker container as it may override your files."
-    echo "Learn more about how we develop and test airflow in:"
-    echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md#development-and-testing"
-    exit 1
-fi
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Start MiniCluster
-java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &
+# shellcheck source=./_utils.sh
+. "${MY_DIR}/_utils.sh"
 
-# Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-chmod 600 ~/.ssh/*
+basic_sanity_checks
 
-# SSH Service
-sudo service ssh restart
+script_start
+
+rebuild_image_if_needed_for_static_checks
+
+docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+       --entrypoint /opt/airflow/docs/build.sh \
+       --env PYTHONDONTWRITEBYTECODE="true" \
+       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
+       --env HOST_USER_ID="$(id -ur)" \
+       --env HOST_GROUP_ID="$(id -gr)" \
+       "${AIRFLOW_SLIM_CI_IMAGE}" \
+
+script_end

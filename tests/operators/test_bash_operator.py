@@ -81,7 +81,7 @@ class BashOperatorTest(unittest.TestCase):
             with open(tmp_file.name, 'r') as file:
                 output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
-                # exported in run_unit_tests.sh as part of PYTHONPATH
+                # exported in run-tests as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)

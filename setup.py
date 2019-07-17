@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Setup for the Airflow library."""
 
 import importlib
@@ -25,14 +24,16 @@ import logging
 import os
 import subprocess
 import sys
+import unittest
 
 from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
+# noinspection PyUnresolvedReferences
 spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+# noinspection PyUnresolvedReferences
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 version = mod.version
@@ -47,31 +48,11 @@ except FileNotFoundError:
     long_description = ''
 
 
-class Tox(TestCommand):
-    """
-    Command class to run Tox via setup.py.
-    Registered as cmdclass in setup() so it can be called with ``python setup.py test``.
-    """
-
-    user_options = [('tox-args=', None, "Arguments to pass to tox")]
-
-    def __init__(self, dist, **kw):
-        super().__init__(dist, **kw)
-        self.test_suite = True
-        self.test_args = []
-        self.tox_args = ''
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import tox
-        errno = tox.cmdline(args=self.tox_args.split())
-        sys.exit(errno)
+def airflow_test_suite():
+    """Test suite for Airflow tests"""
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    return test_suite
 
 
 class CleanCommand(Command):
@@ -89,6 +70,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
@@ -109,6 +91,7 @@ class CompileAssets(Command):
     def finalize_options(self):
         """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
         """Run a command to compile and build assets."""
         subprocess.call('./airflow/www/compile_assets.sh')
@@ -129,12 +112,13 @@ def git_version(version_: str) -> str:
     """
     try:
         import git
-        repo = git.Repo('.git')
+        try:
+            repo = git.Repo('.git')
+        except git.NoSuchPathError:
+            logger.warning('.git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
-        return ''
-    except git.exc.NoSuchPathError:
-        logger.warning('.git directory not found: Cannot compute the git version')
         return ''
     if repo:
         sha = repo.head.commit.hexsha
@@ -273,15 +257,16 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
-    + cassandra + mongo
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'codecov',
     'flake8>=3.6.0',
     'flake8-colors',
     'freezegun',
+    'ipdb',
     'jira',
     'mongomock',
     'moto==1.3.5',
@@ -290,12 +275,12 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
-    'pylint~=2.3.1',  # Ensure the same version as in .travis.yml
+    'pylint~=2.3.1',
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
-    'requests_mock'
+    'requests_mock',
 ]
 
 if PY3:
@@ -430,7 +415,6 @@ def do_setup():
             'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
-            'virtualenv': virtualenv,
             'webhdfs': webhdfs,
             'winrm': winrm,
         },
@@ -452,10 +436,10 @@ def do_setup():
         download_url=(
             'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
-            'test': Tox,
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
+        test_suite='setup.airflow_test_suite',
         python_requires='~=3.5',
     )
 
