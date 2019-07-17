@@ -265,7 +265,7 @@ class BaseOperator(LoggingMixin):
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: int = 0,
+        retries: int = None,
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
@@ -347,7 +347,8 @@ class BaseOperator(LoggingMixin):
                 self
             )
         self._schedule_interval = schedule_interval
-        self.retries = retries
+        self.retries = retries if retries is not None else \
+            configuration.conf.getint('core', 'default_task_retries', fallback=0)
         self.queue = queue
         self.pool = pool
         self.sla = sla
@@ -355,6 +356,7 @@ class BaseOperator(LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
