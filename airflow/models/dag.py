@@ -389,7 +389,7 @@ class DAG(BaseDag, LoggingMixin):
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
                 tz = pendulum.timezone(self.timezone.name)
-                following = timezone.make_aware(naive, tz)
+                following = pendulum.instance(timezone.make_aware(naive, tz))
             return timezone.convert_to_utc(following)
         elif self._schedule_interval is not None:
             return dttm + self._schedule_interval

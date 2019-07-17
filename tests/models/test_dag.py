@@ -858,6 +858,21 @@ class DagTest(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_following_schedule_is_pendulum(self):
+        """
+        Make fixed schedule cron still outputs pendulum instead of datetime object
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+
+        _next = dag.following_schedule(utc)
+        self.assertIsInstance(_next, pendulum.now().__class__)
+
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
         dag = DAG(
