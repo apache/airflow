@@ -18,12 +18,13 @@
 # under the License.
 #
 import datetime
+import pendulum
 import unittest
 
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models import DAG
+from airflow.models import DAG, DagRun
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
@@ -95,6 +96,40 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 session=self.session
             )
         dag.clear()
+
+    def test_pendulum_instance(self):
+        """
+        Check that pendulum DateTimes are returned from database
+        """
+        dag_id = 'test_utc_transformations'
+        start_date = utcnow()
+        iso_date = start_date.isoformat()
+        execution_date = start_date + datetime.timedelta(hours=1, days=1)
+
+        dag = DAG(
+            dag_id=dag_id,
+            start_date=start_date,
+        )
+        dag.clear()
+
+        run = dag.create_dagrun(
+            run_id=iso_date,
+            state=State.NONE,
+            execution_date=execution_date,
+            start_date=start_date,
+            session=self.session,
+        )
+
+        run = DagRun.get_run(
+            self.session,
+            dag_id,
+            execution_date=execution_date,
+        )
+
+        self.assertIsInstance(run.execution_date, pendulum.now().__class__)
+
+        dag.clear()
+
 
     def tearDown(self):
         self.session.close()

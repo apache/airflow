@@ -143,7 +143,7 @@ class UtcDateTime(TypeDecorator):
     - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.DateTime`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns DateTime in UTC
+    - Always returns pendulum DateTime in UTC
 
     """
 
@@ -162,16 +162,17 @@ class UtcDateTime(TypeDecorator):
     def process_result_value(self, value, dialect):
         """
         Processes DateTimes from the DB making sure it is always
-        returning UTC. Not using timezone.convert_to_utc as that
-        converts to configured TIMEZONE while the DB might be
-        running with some other setting. We assume UTC datetimes
-        in the database.
+        returning pendulum DateTime in UTC. Not using
+        timezone.convert_to_utc as that converts to configured
+        TIMEZONE while the DB might be running with some other
+        setting. We assume UTC datetimes in the database.
         """
         if value is not None:
             if value.tzinfo is None:
                 value = value.replace(tzinfo=utc)
             else:
                 value = value.astimezone(utc)
+            value = pendulum.instance(value)
 
         return value
 
