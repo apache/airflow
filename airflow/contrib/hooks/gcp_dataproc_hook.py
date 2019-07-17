@@ -215,6 +215,16 @@ class _DataProcJobBuilder:
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
+    def add_labels(self, labels):
+        """
+        Set labels for Dataproc job.
+
+        :param labels: Labels for the job query.
+        :type labels: dict
+        """
+        if labels:
+            self.job["job"]["labels"] = labels
+
     def add_variables(self, variables):
         """
         Set variables for Dataproc job.
