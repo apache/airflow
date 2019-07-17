@@ -791,7 +791,7 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
-    template_ext = ('.q',)
+    template_ext = ('.q', '.hql',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
 
