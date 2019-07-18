@@ -143,7 +143,7 @@ class UtcDateTime(TypeDecorator):
     - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.DateTime`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns pendulum DateTime in UTC
+    - Always returns ``pendulum.DateTime`` in UTC
 
     """
 
