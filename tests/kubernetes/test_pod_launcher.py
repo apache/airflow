@@ -89,6 +89,20 @@ class TestPodLauncher(unittest.TestCase):
             mock.call(mock.sentinel.name, mock.sentinel.namespace),
             mock.call(mock.sentinel.name, mock.sentinel.namespace)
         ])
+    
+    def test_create_pod_retries_successfully(self):
+      #throw an error
+      #create a pod
+      #make sure it retries
+      #celebrate
+      self.mock_kube_client.create_namespaced_pod.side_effect = [
+          BaseHTTPError('Boom')
+      ]
+      #TODO: More helpful variable name
+      pod_something = self.pod_launcher.run_pod_async(mock.sentinel)
+      #run_pod is used in KubernetesPodOperator, pod constructed there
+      #Look at Pod Generation? 
+      #Generate the pod, use that instead of sentinel
 
     def test_read_pod_retries_fails(self):
         self.mock_kube_client.read_namespaced_pod.side_effect = [
