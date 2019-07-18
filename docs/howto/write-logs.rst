@@ -29,10 +29,10 @@ The following convention is followed while naming logs: ``{dag_id}/{task_id}/{ex
 
 In addition, users can supply a remote location to store current logs and backups.
 
-In the Airflow Web UI, local logs take precedence over remote logs. If local logs
-can not be found or accessed, the remote logs will be displayed. Note that logs
+In the Airflow Web UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
+can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
-running tasks are unavailable.
+running tasks are unavailable (but local logs are available).
 
 Before you begin
 ''''''''''''''''
