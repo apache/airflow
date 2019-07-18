@@ -95,13 +95,12 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 start_date=start_date,
                 session=self.session
             )
-        dag.clear()
 
     def test_pendulum_instance(self):
         """
         Check that pendulum DateTimes are returned from database
         """
-        dag_id = 'test_utc_transformations'
+        dag_id = 'test_pendulum_instance'
         start_date = utcnow()
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
