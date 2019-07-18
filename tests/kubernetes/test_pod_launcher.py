@@ -19,7 +19,7 @@ from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
 from airflow.kubernetes.pod_launcher import PodLauncher
-
+from airflow.kubernetes import pod_generator
 import unittest
 import mock
 
@@ -91,18 +91,25 @@ class TestPodLauncher(unittest.TestCase):
         ])
     
     def test_create_pod_retries_successfully(self):
-      #throw an error
-      #create a pod
-      #make sure it retries
-      #celebrate
-      self.mock_kube_client.create_namespaced_pod.side_effect = [
-          BaseHTTPError('Boom')
-      ]
-      #TODO: More helpful variable name
-      pod_something = self.pod_launcher.run_pod_async(mock.sentinel)
-      #run_pod is used in KubernetesPodOperator, pod constructed there
-      #Look at Pod Generation? 
-      #Generate the pod, use that instead of sentinel
+        #create a pod
+        test_gen = pod_generator.PodGenerator()
+        pod = test_gen.make_pod(
+            namespace="test-namespace",
+            image="test-image",
+            pod_id="test-name",
+            cmds=[],
+            arguments=[],
+            labels={},
+        )
+        #throw an error
+
+        self.mock_kube_client.create_namespaced_pod.side_effect = [
+
+            BaseHTTPError('Boom')
+        ]
+        #TODO: More helpful variable name
+        #TODO: make sure it retries when given an error
+        pod_something = self.pod_launcher.run_pod_async(pod)
 
     def test_read_pod_retries_fails(self):
         self.mock_kube_client.read_namespaced_pod.side_effect = [
