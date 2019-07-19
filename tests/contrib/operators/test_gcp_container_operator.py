@@ -249,17 +249,21 @@ class GKEPodOperatorTest(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch('tempfile.NamedTemporaryFile')
     def test_set_env_from_extras_dict(self, file_mock):
-        file_mock.return_value.name = FILE_NAME
-
         keyfile_dict_str = '{ \"test\": \"cluster\" }'
         extras = {
             'extra__google_cloud_platform__keyfile_dict': keyfile_dict_str,
         }
 
-        self.gke_op._set_env_from_extras(extras)
-        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_NAME)
+        def mock_temp_write(content):
+            if not isinstance(content, bytes):
+                raise TypeError("a bytes-like object is required, not {}".format(type(content).__name__))
 
-        file_mock.return_value.write.assert_called_once_with(keyfile_dict_str)
+        file_mock.return_value.write = mock_temp_write
+        file_mock.return_value.name = FILE_NAME
+
+        key_file = self.gke_op._set_env_from_extras(extras)
+        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_NAME)
+        self.assertIsInstance(key_file, mock.MagicMock)
 
     @mock.patch.dict(os.environ, {})
     def test_set_env_from_extras_path(self):

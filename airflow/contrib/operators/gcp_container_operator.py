@@ -307,7 +307,7 @@ class GKEPodOperator(KubernetesPodOperator):
         else:
             # Write service account JSON to secure file for gcloud to reference
             service_key = tempfile.NamedTemporaryFile(delete=False)
-            service_key.write(keyfile_json_str)
+            service_key.write(keyfile_json_str.encode('utf-8'))
             os.environ[G_APP_CRED] = service_key.name
             # Return file object to have a pointer to close after use,
             # thus deleting from file system.
