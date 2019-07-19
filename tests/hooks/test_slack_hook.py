@@ -44,7 +44,7 @@ class SlackHookTestCase(unittest.TestCase):
         hook = DummySlackHook()
 
         # Assert
-        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        output = hook._SlackHook__get_token(test_token, test_conn_id)  # pylint: disable=E1101
         expected = test_token
         self.assertEqual(output, expected)
 
@@ -69,7 +69,7 @@ class SlackHookTestCase(unittest.TestCase):
         hook = DummySlackHook()
 
         # Assert
-        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        output = hook._SlackHook__get_token(test_token, test_conn_id)  # pylint: disable=E1101
         expected = test_password
         self.assertEqual(output, expected)
 
@@ -111,7 +111,7 @@ class SlackHookTestCase(unittest.TestCase):
         hook = DummySlackHook()
 
         # Assert
-        output = hook._SlackHook__get_token(test_token, test_conn_id)
+        output = hook._SlackHook__get_token(test_token, test_conn_id)  # pylint: disable=E1101
         expected = test_token
         self.assertEqual(output, expected)
 
