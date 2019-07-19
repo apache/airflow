@@ -26,7 +26,7 @@ from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_proj
 from tests.compat import mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_compute_hook import GceHook
+from airflow.contrib.hooks.gcp_compute_hook import GceHook, GceOperationStatus
 
 GCE_ZONE = 'zone'
 GCE_INSTANCE = 'instance'
@@ -569,3 +569,65 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id',
                                                                project_id='new-project',
                                                                zone='zone')
+
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_global_operation_status')
+    def test_wait_for_operation_to_complete_no_zone(self, mock_operation_status, mock_get_conn):
+        service = "test-service"
+        project_id = "test-project"
+        operation_name = "test-operation"
+        num_retries = self.gce_hook.num_retries
+
+        # Test success
+        mock_get_conn.return_value = service
+        mock_operation_status.return_value = {'status': GceOperationStatus.DONE, 'error': None}
+        self.gce_hook._wait_for_operation_to_complete(project_id=project_id,
+                                                      operation_name=operation_name,
+                                                      zone=None
+                                                      )
+
+        mock_operation_status.assert_called_once_with(service=service,
+                                                      operation_name=operation_name,
+                                                      project_id=project_id,
+                                                      num_retries=num_retries
+                                                      )
+
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_global_operation_status')
+    def test_wait_for_operation_to_complete_no_zone_error(self, mock_operation_status, mock_get_conn):
+        service = "test-service"
+        project_id = "test-project"
+        operation_name = "test-operation"
+
+        # Test error
+        mock_get_conn.return_value = service
+        mock_operation_status.return_value = {'status': GceOperationStatus.DONE,
+                                              'error': {'errors': "some nasty errors"},
+                                              'httpErrorStatusCode': 400,
+                                              'httpErrorMessage': 'sample msg'
+                                              }
+
+        with self.assertRaises(AirflowException):
+            self.gce_hook._wait_for_operation_to_complete(project_id=project_id,
+                                                          operation_name=operation_name,
+                                                          zone=None
+                                                          )
+
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
+    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_zone_operation_status')
+    def test_wait_for_operation_to_complete_with_zone(self, mock_operation_status, mock_get_conn):
+        service = "test-service"
+        project_id = "test-project"
+        operation_name = "test-operation"
+        zone = 'west-europe3'
+        num_retries = self.gce_hook.num_retries
+
+        # Test success
+        mock_get_conn.return_value = service
+        mock_operation_status.return_value = {'status': GceOperationStatus.DONE, 'error': None}
+        self.gce_hook._wait_for_operation_to_complete(project_id=project_id,
+                                                      operation_name=operation_name,
+                                                      zone=zone
+                                                      )
+
+        mock_operation_status.assert_called_once_with(service, operation_name, project_id, zone, num_retries)

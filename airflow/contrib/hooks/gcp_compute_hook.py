@@ -306,8 +306,12 @@ class GceHook(GoogleCloudBaseHook):
         while True:
             if zone is None:
                 # noinspection PyTypeChecker
-                operation_response = self._check_global_operation_status(  # pylint: disable=E1120
-                    service, operation_name, project_id)
+                operation_response = self._check_global_operation_status(
+                    service=service,
+                    operation_name=operation_name,
+                    project_id=project_id,
+                    num_retries=self.num_retries
+                )
             else:
                 # noinspection PyTypeChecker
                 operation_response = self._check_zone_operation_status(
@@ -320,8 +324,7 @@ class GceHook(GoogleCloudBaseHook):
                     # Extracting the errors list as string and trimming square braces
                     error_msg = str(error.get("errors"))[1:-1]
                     raise AirflowException("{} {}: ".format(code, msg) + error_msg)
-                # No meaningful info to return from the response in case of success
-                return
+                break
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
     @staticmethod
