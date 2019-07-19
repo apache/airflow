@@ -68,7 +68,7 @@ if [[ "${ENV}" == "docker" ]]; then
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-else
+elif [[ "${ENV}" == "kubernetes" ]]; then
   "${MY_DIR}/kubernetes/minikube/stop_minikube.sh" && "${MY_DIR}/kubernetes/setup_kubernetes.sh" && \
     "${MY_DIR}/kubernetes/kube/deploy.sh" -d persistent_mode
   MINIKUBE_IP=$(minikube ip)
@@ -93,6 +93,17 @@ else
       "${DOCKER_COMPOSE_LOCAL[@]}" \
          run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
   "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
+elif [[ "${ENV}" == "bare" ]]; then
+  docker-compose --log-level INFO \
+      -f "${MY_DIR}/docker-compose.yml" \
+      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+        run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+else
+    echo >&2
+    echo >&2 "ERROR! The ENV variable should be one of [docker, kubernetes, bare] and is '${ENV}'"
+    echo >&2
+
 fi
 set -u
 
