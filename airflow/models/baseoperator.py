@@ -384,7 +384,6 @@ class BaseOperator(LoggingMixin):
         # Private attributes
         self._upstream_task_ids = set()  # type: Set[str]
         self._downstream_task_ids = set()  # type: Set[str]
-        self._rendered_template_object_ids = set()  # type: Set[str]
 
         if not dag and settings.CONTEXT_MANAGER_DAG:
             dag = settings.CONTEXT_MANAGER_DAG
@@ -640,7 +639,8 @@ class BaseOperator(LoggingMixin):
         self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
+    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None,
+                               seen_oids: Optional[Set] = None) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
@@ -660,7 +660,8 @@ class BaseOperator(LoggingMixin):
                 setattr(self, attr_name, rendered_content)
 
     def render_template(      # pylint: disable=too-many-return-statements
-        self, content: Any, context: Dict, jinja_env: Optional[jinja2.Environment] = None
+        self, content: Any, context: Dict, jinja_env: Optional[jinja2.Environment] = None,
+        seen_oids: Optional[Set] = None
     ) -> Any:
         """
         Render a templated string. The content can be a collection holding multiple templated strings and will
@@ -705,11 +706,13 @@ class BaseOperator(LoggingMixin):
             return {self.render_template(element, context, jinja_env) for element in content}
 
         else:
-            return self._render_nested_template_fields(content, context)
+            if seen_oids is None:
+                seen_oids = set()
+            return self._render_nested_template_fields(content, context, seen_oids)
 
-    def _render_nested_template_fields(self, content, context):
-        if id(content) not in self._rendered_template_object_ids:
-            self._rendered_template_object_ids.add(id(content))
+    def _render_nested_template_fields(self, content, context, seen_oids):
+        if id(content) not in seen_oids:
+            seen_oids.add(id(content))
             try:
                 nested_template_fields = content.template_fields
             except AttributeError:
@@ -717,7 +720,7 @@ class BaseOperator(LoggingMixin):
                 return content
 
             for field in nested_template_fields:
-                rendered = self.render_template(field, getattr(content, field), context)
+                rendered = self.render_template(field, getattr(content, field), context, seen_oids=seen_oids)
                 setattr(content, field, rendered)
         return content
 
