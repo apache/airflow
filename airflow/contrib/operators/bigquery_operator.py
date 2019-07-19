@@ -21,7 +21,7 @@ This module contains Google BigQuery operators.
 """
 
 import json
-from typing import Iterable, List, Optional, Union
+from typing import Iterable
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
