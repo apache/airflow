@@ -390,13 +390,13 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # print the list of active DAGs
-    airflow list_dags
+    airflow dags list
 
     # prints the list of tasks in the "tutorial" DAG
-    airflow list_tasks tutorial
+    airflow tasks list tutorial
 
     # prints the hierarchy of tasks in the "tutorial" DAG
-    airflow list_tasks tutorial --tree
+    airflow tasks list tutorial --tree
 
 
 Testing
@@ -410,10 +410,10 @@ scheduler running your task or dag at a specific date + time:
     # command layout: command subcommand dag_id task_id date
 
     # testing print_date
-    airflow test tutorial print_date 2015-06-01
+    airflow tasks test tutorial print_date 2015-06-01
 
     # testing sleep
-    airflow test tutorial sleep 2015-06-01
+    airflow tasks test tutorial sleep 2015-06-01
 
 Now remember what we did with templating earlier? See how this template
 gets rendered and executed by running this command:
@@ -421,12 +421,12 @@ gets rendered and executed by running this command:
 .. code-block:: bash
 
     # testing templated
-    airflow test tutorial templated 2015-06-01
+    airflow tasks test tutorial templated 2015-06-01
 
 This should result in displaying a verbose log of events and ultimately
 running your bash command and printing the result.
 
-Note that the ``airflow test`` command runs task instances locally, outputs
+Note that the ``airflow tasks test`` command runs task instances locally, outputs
 their log to stdout (on screen), doesn't bother with dependencies, and
 doesn't communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
@@ -452,7 +452,7 @@ which are used to populate the run schedule with task instances from this dag.
     # airflow webserver --debug &
 
     # start your backfill on a date range
-    airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
+    airflow dags backfill tutorial -s 2015-06-01 -e 2015-06-07
 
 What's Next?
 -------------

@@ -27,6 +27,7 @@ import textwrap
 import random
 import string
 from importlib import import_module
+import functools
 
 import getpass
 import reprlib
@@ -256,38 +257,54 @@ def delete_dag(args):
         print("Bail.")
 
 
-@cli_utils.action_logging
-def pool(args):
+def _tabulate_pools(pools):
+    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
+                             tablefmt="fancy_grid")
+
+
+def pool_list(args):
     log = LoggingMixin().log
+    pools = api_client.get_pools()
+    log.info(_tabulate_pools(pools=pools))
 
-    def _tabulate(pools):
-        return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
-                                 tablefmt="fancy_grid")
 
-    try:
-        imp = getattr(args, 'import')
-        if args.get is not None:
-            pools = [api_client.get_pool(name=args.get)]
-        elif args.set:
-            pools = [api_client.create_pool(name=args.set[0],
-                                            slots=args.set[1],
-                                            description=args.set[2])]
-        elif args.delete:
-            pools = [api_client.delete_pool(name=args.delete)]
-        elif imp:
-            if os.path.exists(imp):
-                pools = pool_import_helper(imp)
-            else:
-                print("Missing pools file.")
-                pools = api_client.get_pools()
-        elif args.export:
-            pools = pool_export_helper(args.export)
-        else:
-            pools = api_client.get_pools()
-    except (AirflowException, OSError) as err:
-        log.error(err)
+def pool_get(args):
+    log = LoggingMixin().log
+    pools = [api_client.get_pool(name=args.pool)]
+    log.info(_tabulate_pools(pools=pools))
+
+
+@cli_utils.action_logging
+def pool_set(args):
+    log = LoggingMixin().log
+    pools = [api_client.create_pool(name=args.pool,
+                                    slots=args.slots,
+                                    description=args.description)]
+    log.info(_tabulate_pools(pools=pools))
+
+
+@cli_utils.action_logging
+def pool_delete(args):
+    log = LoggingMixin().log
+    pools = [api_client.delete_pool(name=args.pool)]
+    log.info(_tabulate_pools(pools=pools))
+
+
+@cli_utils.action_logging
+def pool_import(args):
+    log = LoggingMixin().log
+    if os.path.exists(args.file):
+        pools = pool_import_helper(args.file)
     else:
-        log.info(_tabulate(pools=pools))
+        print("Missing pools file.")
+        pools = api_client.get_pools()
+    log.info(_tabulate_pools(pools=pools))
+
+
+def pool_export(args):
+    log = LoggingMixin().log
+    pools = pool_export_helper(args.file)
+    log.info(_tabulate_pools(pools=pools))
 
 
 def pool_import_helper(filepath):
@@ -327,35 +344,42 @@ def pool_export_helper(filepath):
     return pools
 
 
+def variables_list(args):
+    with db.create_session() as session:
+        vars = session.query(Variable)
+    print("\n".join(var.key for var in vars))
+
+
+def variables_get(args):
+    try:
+        var = Variable.get(args.key,
+                           deserialize_json=args.json,
+                           default_var=args.default)
+        print(var)
+    except ValueError as e:
+        print(e)
+
+
 @cli_utils.action_logging
-def variables(args):
-    if args.get:
-        try:
-            var = Variable.get(args.get,
-                               deserialize_json=args.json,
-                               default_var=args.default)
-            print(var)
-        except ValueError as e:
-            print(e)
-    if args.delete:
-        Variable.delete(args.delete)
-    if args.set:
-        Variable.set(args.set[0], args.set[1])
-    # Work around 'import' as a reserved keyword
-    imp = getattr(args, 'import')
-    if imp:
-        if os.path.exists(imp):
-            import_helper(imp)
-        else:
-            print("Missing variables file.")
-    if args.export:
-        export_helper(args.export)
-    if not (args.set or args.get or imp or args.export or args.delete):
-        # list all variables
-        with db.create_session() as session:
-            vars = session.query(Variable)
-            msg = "\n".join(var.key for var in vars)
-            print(msg)
+def variables_set(args):
+    Variable.set(args.key, args.value, serialize_json=args.json)
+
+
+@cli_utils.action_logging
+def variables_delete(args):
+    Variable.delete(args.key)
+
+
+@cli_utils.action_logging
+def variables_import(args):
+    if os.path.exists(args.file):
+        import_helper(args.file)
+    else:
+        print("Missing variables file.")
+
+
+def variables_export(args):
+    variable_export_helper(args.file)
 
 
 def import_helper(filepath):
@@ -381,7 +405,7 @@ def import_helper(filepath):
             print("{} variable(s) failed to be updated.".format(fail_count))
 
 
-def export_helper(filepath):
+def variable_export_helper(filepath):
     var_dict = {}
     with db.create_session() as session:
         qry = session.query(Variable).all()
@@ -525,7 +549,7 @@ def task_failed_deps(args):
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-    >>> airflow task_failed_deps tutorial sleep 2015-01-01
+    >>> airflow tasks failed_deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
@@ -550,7 +574,7 @@ def task_failed_deps(args):
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
-    >>> airflow task_state tutorial sleep 2015-01-01
+    >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
     dag = get_dag(args)
@@ -563,7 +587,7 @@ def task_state(args):
 def dag_state(args):
     """
     Returns the state of a DagRun at the command line.
-    >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
+    >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
     """
     dag = get_dag(args)
@@ -575,7 +599,7 @@ def dag_state(args):
 def next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
-    >>> airflow next_execution tutorial
+    >>> airflow dags next_execution tutorial
     2018-08-31 10:38:00
     """
     dag = get_dag(args)
@@ -1149,135 +1173,100 @@ alternative_conn_specs = ['conn_type', 'conn_host',
                           'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
 
+def connections_list(args):
+    with db.create_session() as session:
+        conns = session.query(Connection.conn_id, Connection.conn_type,
+                              Connection.host, Connection.port,
+                              Connection.is_encrypted,
+                              Connection.is_extra_encrypted,
+                              Connection.extra).all()
+        conns = [map(reprlib.repr, conn) for conn in conns]
+        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
+                       tablefmt="fancy_grid")
+        print(msg)
+
+
 @cli_utils.action_logging
-def connections(args):
-    if args.list:
-        # Check that no other flags were passed to the command
-        invalid_args = list()
-        for arg in ['conn_id', 'conn_uri', 'conn_extra'] + alternative_conn_specs:
+def connections_add(args):
+    # Check that the conn_id and conn_uri args were passed to the command:
+    missing_args = list()
+    invalid_args = list()
+    if args.conn_uri:
+        for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--list flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-            return
+    elif not args.conn_type:
+        missing_args.append('conn_uri or conn_type')
+    if missing_args:
+        msg = ('The following args are required to add a connection:' +
+               ' {missing!r}'.format(missing=missing_args))
+        raise SystemExit(msg)
+    if invalid_args:
+        msg = ('The following args are not compatible with the ' +
+               '--add flag and --conn_uri flag: {invalid!r}')
+        msg = msg.format(invalid=invalid_args)
+        raise SystemExit(msg)
 
-        with db.create_session() as session:
-            conns = session.query(Connection.conn_id, Connection.conn_type,
-                                  Connection.host, Connection.port,
-                                  Connection.is_encrypted,
-                                  Connection.is_extra_encrypted,
-                                  Connection.extra).all()
-            conns = [map(reprlib.repr, conn) for conn in conns]
-            msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                                   'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                           tablefmt="fancy_grid")
-            print(msg)
-            return
+    if args.conn_uri:
+        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+    else:
+        new_conn = Connection(conn_id=args.conn_id,
+                              conn_type=args.conn_type,
+                              host=args.conn_host,
+                              login=args.conn_login,
+                              password=args.conn_password,
+                              schema=args.conn_schema,
+                              port=args.conn_port)
+    if args.conn_extra is not None:
+        new_conn.set_extra(args.conn_extra)
 
-    if args.delete:
-        # Check that only the `conn_id` arg was passed to the command
-        invalid_args = list()
-        for arg in ['conn_uri', 'conn_extra'] + alternative_conn_specs:
-            if getattr(args, arg) is not None:
-                invalid_args.append(arg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--delete flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-            return
-
-        if args.conn_id is None:
-            print('\n\tTo delete a connection, you Must provide a value for ' +
-                  'the --conn_id flag.\n')
-            return
-
-        with db.create_session() as session:
-            try:
-                to_delete = (session
-                             .query(Connection)
-                             .filter(Connection.conn_id == args.conn_id)
-                             .one())
-            except exc.NoResultFound:
-                msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-                msg = msg.format(conn_id=args.conn_id)
-                print(msg)
-                return
-            except exc.MultipleResultsFound:
-                msg = ('\n\tFound more than one connection with ' +
-                       '`conn_id`={conn_id}\n')
-                msg = msg.format(conn_id=args.conn_id)
-                print(msg)
-                return
-            else:
-                deleted_conn_id = to_delete.conn_id
-                session.delete(to_delete)
-                msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-                msg = msg.format(conn_id=deleted_conn_id)
-                print(msg)
-            return
-
-    if args.add:
-        # Check that the conn_id and conn_uri args were passed to the command:
-        missing_args = list()
-        invalid_args = list()
-        if not args.conn_id:
-            missing_args.append('conn_id')
-        if args.conn_uri:
-            for arg in alternative_conn_specs:
-                if getattr(args, arg) is not None:
-                    invalid_args.append(arg)
-        elif not args.conn_type:
-            missing_args.append('conn_uri or conn_type')
-        if missing_args:
-            msg = ('\n\tThe following args are required to add a connection:' +
-                   ' {missing!r}\n'.format(missing=missing_args))
-            print(msg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--add flag and --conn_uri flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-        if missing_args or invalid_args:
-            return
-
-        if args.conn_uri:
-            new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
-        else:
-            new_conn = Connection(conn_id=args.conn_id,
-                                  conn_type=args.conn_type,
-                                  host=args.conn_host,
-                                  login=args.conn_login,
-                                  password=args.conn_password,
-                                  schema=args.conn_schema,
-                                  port=args.conn_port)
-        if args.conn_extra is not None:
-            new_conn.set_extra(args.conn_extra)
-
-        with db.create_session() as session:
-            if not (session.query(Connection)
-                           .filter(Connection.conn_id == new_conn.conn_id).first()):
-                session.add(new_conn)
-                msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-                msg = msg.format(conn_id=new_conn.conn_id,
-                                 uri=args.conn_uri or
-                                 urlunparse((args.conn_type,
-                                            '{login}:{password}@{host}:{port}'
+    with db.create_session() as session:
+        if not (session.query(Connection)
+                .filter(Connection.conn_id == new_conn.conn_id).first()):
+            session.add(new_conn)
+            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+            msg = msg.format(conn_id=new_conn.conn_id,
+                             uri=args.conn_uri or
+                             urlunparse((args.conn_type,
+                                         '{login}:{password}@{host}:{port}'
                                              .format(login=args.conn_login or '',
                                                      password=args.conn_password or '',
                                                      host=args.conn_host or '',
                                                      port=args.conn_port or ''),
-                                             args.conn_schema or '', '', '', '')))
-                print(msg)
-            else:
-                msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-                msg = msg.format(conn_id=new_conn.conn_id)
-                print(msg)
+                                         args.conn_schema or '', '', '', '')))
+            print(msg)
+        else:
+            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
+            msg = msg.format(conn_id=new_conn.conn_id)
+            print(msg)
 
-        return
+
+@cli_utils.action_logging
+def connections_delete(args):
+    with db.create_session() as session:
+        try:
+            to_delete = (session
+                         .query(Connection)
+                         .filter(Connection.conn_id == args.conn_id)
+                         .one())
+        except exc.NoResultFound:
+            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
+            msg = msg.format(conn_id=args.conn_id)
+            print(msg)
+            return
+        except exc.MultipleResultsFound:
+            msg = ('\n\tFound more than one connection with ' +
+                   '`conn_id`={conn_id}\n')
+            msg = msg.format(conn_id=args.conn_id)
+            print(msg)
+            return
+        else:
+            deleted_conn_id = to_delete.conn_id
+            session.delete(to_delete)
+            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
+            msg = msg.format(conn_id=deleted_conn_id)
+            print(msg)
 
 
 @cli_utils.action_logging
@@ -1359,165 +1348,149 @@ def kerberos(args):
         airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
+def users_list(args):
+    appbuilder = cached_appbuilder()
+    users = appbuilder.sm.get_all_users()
+    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+    users = [[user.__getattribute__(field) for field in fields] for user in users]
+    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                   tablefmt="fancy_grid")
+    print(msg)
+
+
 @cli_utils.action_logging
-def users(args):
-    if args.list:
+def users_create(args):
+    appbuilder = cached_appbuilder()
+    role = appbuilder.sm.find_role(args.role)
+    if not role:
+        raise SystemExit('{} is not a valid role.'.format(args.role))
 
-        appbuilder = cached_appbuilder()
-        users = appbuilder.sm.get_all_users()
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-        users = [[user.__getattribute__(field) for field in fields] for user in users]
-        msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
-                       tablefmt="fancy_grid")
-        print(msg)
+    if args.use_random_password:
+        password = ''.join(random.choice(string.printable) for _ in range(16))
+    elif args.password:
+        password = args.password
+    else:
+        password = getpass.getpass('Password:')
+        password_confirmation = getpass.getpass('Repeat for confirmation:')
+        if password != password_confirmation:
+            raise SystemExit('Passwords did not match!')
 
+    if appbuilder.sm.find_user(args.username):
+        print('{} already exist in the db'.format(args.username))
         return
+    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                  args.email, role, password)
+    if user:
+        print('{} user {} created.'.format(args.role, args.username))
+    else:
+        raise SystemExit('Failed to create user.')
 
-    elif args.create:
-        fields = {
-            'role': args.role,
-            'username': args.username,
-            'email': args.email,
-            'firstname': args.firstname,
-            'lastname': args.lastname,
-        }
-        empty_fields = [k for k, v in fields.items() if not v]
-        if empty_fields:
-            raise SystemExit('Required arguments are missing: {}.'.format(
-                ', '.join(empty_fields)))
 
-        appbuilder = cached_appbuilder()
-        role = appbuilder.sm.find_role(args.role)
-        if not role:
-            raise SystemExit('{} is not a valid role.'.format(args.role))
+@cli_utils.action_logging
+def users_delete(args):
+    appbuilder = cached_appbuilder()
 
-        if args.use_random_password:
-            password = ''.join(random.choice(string.printable) for _ in range(16))
-        elif args.password:
-            password = args.password
+    try:
+        u = next(u for u in appbuilder.sm.get_all_users()
+                 if u.username == args.username)
+    except StopIteration:
+        raise SystemExit('{} is not a valid user.'.format(args.username))
+
+    if appbuilder.sm.del_register_user(u):
+        print('User {} deleted.'.format(args.username))
+    else:
+        raise SystemExit('Failed to delete user.')
+
+
+@cli_utils.action_logging
+def users_manage_role(args, remove=False):
+    if not args.username and not args.email:
+        raise SystemExit('Missing args: must supply one of --username or --email')
+
+    if args.username and args.email:
+        raise SystemExit('Conflicting args: must supply either --username'
+                         ' or --email, but not both')
+
+    appbuilder = cached_appbuilder()
+    user = (appbuilder.sm.find_user(username=args.username) or
+            appbuilder.sm.find_user(email=args.email))
+    if not user:
+        raise SystemExit('User "{}" does not exist'.format(
+            args.username or args.email))
+
+    role = appbuilder.sm.find_role(args.role)
+    if not role:
+        raise SystemExit('"{}" is not a valid role.'.format(args.role))
+
+    if remove:
+        if role in user.roles:
+            user.roles = [r for r in user.roles if r != role]
+            appbuilder.sm.update_user(user)
+            print('User "{}" removed from role "{}".'.format(
+                user,
+                args.role))
         else:
-            password = getpass.getpass('Password:')
-            password_confirmation = getpass.getpass('Repeat for confirmation:')
-            if password != password_confirmation:
-                raise SystemExit('Passwords did not match!')
-
-        if appbuilder.sm.find_user(args.username):
-            print('{} already exist in the db'.format(args.username))
-            return
-        user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
-                                      args.email, role, password)
-        if user:
-            print('{} user {} created.'.format(args.role, args.username))
+            raise SystemExit('User "{}" is not a member of role "{}".'.format(
+                user,
+                args.role))
+    else:
+        if role in user.roles:
+            raise SystemExit('User "{}" is already a member of role "{}".'.format(
+                user,
+                args.role))
         else:
-            raise SystemExit('Failed to create user.')
+            user.roles.append(role)
+            appbuilder.sm.update_user(user)
+            print('User "{}" added to role "{}".'.format(
+                user,
+                args.role))
 
-    elif args.delete:
-        if not args.username:
-            raise SystemExit('Required arguments are missing: username')
 
-        appbuilder = cached_appbuilder()
+def users_export(args):
+    appbuilder = cached_appbuilder()
+    users = appbuilder.sm.get_all_users()
+    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
-        try:
-            u = next(u for u in appbuilder.sm.get_all_users()
-                     if u.username == args.username)
-        except StopIteration:
-            raise SystemExit('{} is not a valid user.'.format(args.username))
+    # In the User model the first and last name fields have underscores,
+    # but the corresponding parameters in the CLI don't
+    def remove_underscores(s):
+        return re.sub("_", "", s)
 
-        if appbuilder.sm.del_register_user(u):
-            print('User {} deleted.'.format(args.username))
-        else:
-            raise SystemExit('Failed to delete user.')
+    users = [
+        {remove_underscores(field): user.__getattribute__(field)
+            if field != 'roles' else [r.name for r in user.roles]
+            for field in fields}
+        for user in users
+    ]
 
-    elif args.add_role or args.remove_role:
-        if args.add_role and args.remove_role:
-            raise SystemExit('Conflicting args: --add-role and --remove-role'
-                             ' are mutually exclusive')
+    with open(args.export, 'w') as file:
+        file.write(json.dumps(users, sort_keys=True, indent=4))
+        print("{} users successfully exported to {}".format(len(users), file.name))
 
-        if not args.username and not args.email:
-            raise SystemExit('Missing args: must supply one of --username or --email')
 
-        if args.username and args.email:
-            raise SystemExit('Conflicting args: must supply either --username'
-                             ' or --email, but not both')
-        if not args.role:
-            raise SystemExit('Required args are missing: role')
+@cli_utils.action_logging
+def users_import(args):
+    json_file = getattr(args, 'import')
+    if not os.path.exists(json_file):
+        print("File '{}' does not exist")
+        exit(1)
 
-        appbuilder = cached_appbuilder()
-        user = (appbuilder.sm.find_user(username=args.username) or
-                appbuilder.sm.find_user(email=args.email))
-        if not user:
-            raise SystemExit('User "{}" does not exist'.format(
-                args.username or args.email))
+    users_list = None
+    try:
+        with open(json_file, 'r') as file:
+            users_list = json.loads(file.read())
+    except ValueError as e:
+        print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
+        exit(1)
 
-        role = appbuilder.sm.find_role(args.role)
-        if not role:
-            raise SystemExit('"{}" is not a valid role.'.format(args.role))
+    users_created, users_updated = _import_users(users_list)
+    if users_created:
+        print("Created the following users:\n\t{}".format(
+            "\n\t".join(users_created)))
 
-        if args.remove_role:
-            if role in user.roles:
-                user.roles = [r for r in user.roles if r != role]
-                appbuilder.sm.update_user(user)
-                print('User "{}" removed from role "{}".'.format(
-                    user,
-                    args.role))
-            else:
-                raise SystemExit('User "{}" is not a member of role "{}".'.format(
-                    user,
-                    args.role))
-        elif args.add_role:
-            if role in user.roles:
-                raise SystemExit('User "{}" is already a member of role "{}".'.format(
-                    user,
-                    args.role))
-            else:
-                user.roles.append(role)
-                appbuilder.sm.update_user(user)
-                print('User "{}" added to role "{}".'.format(
-                    user,
-                    args.role))
-    elif args.export:
-        appbuilder = cached_appbuilder()
-        users = appbuilder.sm.get_all_users()
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-
-        # In the User model the first and last name fields have underscores,
-        # but the corresponding parameters in the CLI don't
-        def remove_underscores(s):
-            return re.sub("_", "", s)
-
-        users = [
-            {remove_underscores(field): user.__getattribute__(field)
-             if field != 'roles' else [r.name for r in user.roles]
-             for field in fields}
-            for user in users
-        ]
-
-        with open(args.export, 'w') as file:
-            file.write(json.dumps(users, sort_keys=True, indent=4))
-            print("{} users successfully exported to {}".format(len(users), file.name))
-
-    elif getattr(args, 'import'):  # "import" is a reserved word
-        json_file = getattr(args, 'import')
-        if not os.path.exists(json_file):
-            print("File '{}' does not exist")
-            exit(1)
-
-        users_list = None
-        try:
-            with open(json_file, 'r') as file:
-                users_list = json.loads(file.read())
-        except ValueError as e:
-            print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
-            exit(1)
-
-        users_created, users_updated = _import_users(users_list)
-        if users_created:
-            print("Created the following users:\n\t{}".format(
-                "\n\t".join(users_created)))
-
-        if users_updated:
-            print("Updated the following users:\n\t{}".format(
-                "\n\t".join(users_updated)))
+    if users_updated:
+        print("Updated the following users:\n\t{}".format(
+            "\n\t".join(users_updated)))
 
 
 def _import_users(users_list):
@@ -1578,24 +1551,22 @@ def _import_users(users_list):
     return users_created, users_updated
 
 
-@cli_utils.action_logging
-def roles(args):
-    if args.create and args.list:
-        raise AirflowException("Please specify either --create or --list, "
-                               "but not both")
-
+def roles_list(args):
     appbuilder = cached_appbuilder()
-    if args.create:
-        for role_name in args.role:
-            appbuilder.sm.add_role(role_name)
-    elif args.list:
-        roles = appbuilder.sm.get_all_roles()
-        print("Existing roles:\n")
-        role_names = sorted([[r.name] for r in roles])
-        msg = tabulate(role_names,
-                       headers=['Role'],
-                       tablefmt="fancy_grid")
-        print(msg)
+    roles = appbuilder.sm.get_all_roles()
+    print("Existing roles:\n")
+    role_names = sorted([[r.name] for r in roles])
+    msg = tabulate(role_names,
+                   headers=['Role'],
+                   tablefmt="fancy_grid")
+    print(msg)
+
+
+@cli_utils.action_logging
+def roles_create(args):
+    appbuilder = cached_appbuilder()
+    for role_name in args.role:
+        appbuilder.sm.add_role(role_name)
 
 
 @cli_utils.action_logging
@@ -1665,7 +1636,7 @@ def sync_perm(args):
 
 class Arg:
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
-                 type=None, choices=None, metavar=None):
+                 type=None, choices=None, required=None, metavar=None):
         self.flags = flags
         self.help = help
         self.action = action
@@ -1673,6 +1644,7 @@ class Arg:
         self.nargs = nargs
         self.type = type
         self.choices = choices
+        self.required = required
         self.metavar = metavar
 
 
@@ -1832,37 +1804,33 @@ class CLIFactory:
             ("-e", "--exec_date"), help="The execution date of the DAG",
             type=parsedate),
         # pool
-        'pool_set': Arg(
-            ("-s", "--set"),
-            nargs=3,
-            metavar=('NAME', 'SLOT_COUNT', 'POOL_DESCRIPTION'),
-            help="Set pool slot count and description, respectively"),
-        'pool_get': Arg(
-            ("-g", "--get"),
+        'pool_name': Arg(
+            ("pool",),
             metavar='NAME',
-            help="Get pool info"),
-        'pool_delete': Arg(
-            ("-x", "--delete"),
-            metavar="NAME",
-            help="Delete a pool"),
+            help="Pool name"),
+        'pool_slots': Arg(
+            ("slots",),
+            type=int,
+            help="Pool slots"),
+        'pool_description': Arg(
+            ("description",),
+            help="Pool description"),
         'pool_import': Arg(
-            ("-i", "--import"),
+            ("file",),
             metavar="FILEPATH",
             help="Import pool from JSON file"),
         'pool_export': Arg(
-            ("-e", "--export"),
+            ("file",),
             metavar="FILEPATH",
             help="Export pool to JSON file"),
         # variables
-        'set': Arg(
-            ("-s", "--set"),
-            nargs=2,
-            metavar=('KEY', 'VAL'),
-            help="Set a variable"),
-        'get': Arg(
-            ("-g", "--get"),
-            metavar='KEY',
-            help="Get value of a variable"),
+        'var': Arg(
+            ("key",),
+            help="Variable key"),
+        'var_value': Arg(
+            ("value",),
+            metavar=('VALUE'),
+            help="Variable value"),
         'default': Arg(
             ("-d", "--default"),
             metavar="VAL",
@@ -1873,17 +1841,11 @@ class CLIFactory:
             help="Deserialize JSON variable",
             action="store_true"),
         'var_import': Arg(
-            ("-i", "--import"),
-            metavar="FILEPATH",
+            ("file",),
             help="Import variables from JSON file"),
         'var_export': Arg(
-            ("-e", "--export"),
-            metavar="FILEPATH",
+            ("file",),
             help="Export variables to JSON file"),
-        'var_delete': Arg(
-            ("-x", "--delete"),
-            metavar="KEY",
-            help="Delete a variable"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal", nargs='?'),
@@ -2045,20 +2007,8 @@ class CLIFactory:
             help="Open debugger on uncaught exception",
         ),
         # connections
-        'list_connections': Arg(
-            ('-l', '--list'),
-            help='List all connections',
-            action='store_true'),
-        'add_connection': Arg(
-            ('-a', '--add'),
-            help='Add a connection',
-            action='store_true'),
-        'delete_connection': Arg(
-            ('-d', '--delete'),
-            help='Delete a connection',
-            action='store_true'),
         'conn_id': Arg(
-            ('--conn_id',),
+            ('conn_id',),
             help='Connection id, required to add/delete a connection',
             type=str),
         'conn_uri': Arg(
@@ -2096,24 +2046,38 @@ class CLIFactory:
         # users
         'username': Arg(
             ('--username',),
-            help='Username of the user, required to create/delete a user',
+            help='Username of the user',
+            required=True,
+            type=str),
+        'username_optional': Arg(
+            ('--username',),
+            help='Username of the user',
             type=str),
         'firstname': Arg(
             ('--firstname',),
-            help='First name of the user, required to create a user',
+            help='First name of the user',
+            required=True,
             type=str),
         'lastname': Arg(
             ('--lastname',),
-            help='Last name of the user, required to create a user',
+            help='Last name of the user',
+            required=True,
             type=str),
         'role': Arg(
             ('--role',),
             help='Role of the user. Existing roles include Admin, '
-                 'User, Op, Viewer, and Public. Required to create a user',
-            type=str),
+                 'User, Op, Viewer, and Public.',
+            required=True,
+            type=str,
+        ),
         'email': Arg(
             ('--email',),
-            help='Email of the user, required to create a user',
+            help='Email of the user',
+            required=True,
+            type=str),
+        'email_optional': Arg(
+            ('--email',),
+            help='Email of the user',
             type=str),
         'password': Arg(
             ('--password',),
@@ -2126,28 +2090,8 @@ class CLIFactory:
                  ' Required to create a user without --password ',
             default=False,
             action='store_true'),
-        'list_users': Arg(
-            ('-l', '--list'),
-            help='List all users',
-            action='store_true'),
-        'create_user': Arg(
-            ('-c', '--create'),
-            help='Create a user',
-            action='store_true'),
-        'delete_user': Arg(
-            ('-d', '--delete'),
-            help='Delete a user',
-            action='store_true'),
-        'add_role': Arg(
-            ('--add-role',),
-            help='Add user to a role',
-            action='store_true'),
-        'remove_role': Arg(
-            ('--remove-role',),
-            help='Remove user from a role',
-            action='store_true'),
         'user_import': Arg(
-            ("-i", "--import"),
+            ("import",),
             metavar="FILEPATH",
             help="Import users from JSON file. Example format:" +
                     textwrap.dedent('''
@@ -2162,7 +2106,7 @@ class CLIFactory:
                     ]'''),
         ),
         'user_export': Arg(
-            ("-e", "--export"),
+            ("export",),
             metavar="FILEPATH",
             help="Export users to JSON file"),
         # roles
@@ -2181,142 +2125,273 @@ class CLIFactory:
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
-
     }
     subparsers = (
         {
-            'func': backfill,
-            'help': "Run subsections of a DAG for a specified date range. "
-                    "If reset_dag_run option is used,"
-                    " backfill will first prompt users whether airflow "
-                    "should clear all the previous dag_run and task_instances "
-                    "within the backfill date range. "
-                    "If rerun_failed_tasks is used, backfill "
-                    "will auto re-run the previous failed task instances"
-                    " within the backfill date range.",
-            'args': (
-                'dag_id', 'task_regex', 'start_date', 'end_date',
-                'mark_success', 'local', 'donot_pickle',
-                'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
-            )
+            'help': 'List and manage DAGs',
+            'name': 'dags',
+            'subcommands': (
+                {
+                    'func': list_dags,
+                    'name': 'list',
+                    'help': "List all the DAGs",
+                    'args': ('subdir', 'report'),
+                },
+                {
+                    'func': list_dag_runs,
+                    'name': 'list_runs',
+                    'help': "List dag runs given a DAG id. If state option is given, it will only "
+                            "search for all the dagruns with the given state. "
+                            "If no_backfill option is given, it will filter out "
+                            "all backfill dagruns for given dag id.",
+                    'args': ('dag_id', 'no_backfill', 'state'),
+                },
+                {
+                    'func': list_jobs,
+                    'name': 'list_jobs',
+                    'help': "List the jobs",
+                    'args': ('dag_id_opt', 'state', 'limit'),
+                },
+                {
+                    'func': dag_state,
+                    'name': 'state',
+                    'help': "Get the status of a dag run",
+                    'args': ('dag_id', 'execution_date', 'subdir'),
+                },
+                {
+                    'func': next_execution,
+                    'name': 'next_execution',
+                    'help': "Get the next execution datetime of a DAG.",
+                    'args': ('dag_id', 'subdir'),
+                },
+                {
+                    'func': pause,
+                    'name': 'pause',
+                    'help': 'Pause a DAG',
+                    'args': ('dag_id', 'subdir'),
+                },
+                {
+                    'func': unpause,
+                    'name': 'unpause',
+                    'help': 'Resume a paused DAG',
+                    'args': ('dag_id', 'subdir'),
+                },
+                {
+                    'func': trigger_dag,
+                    'name': 'trigger',
+                    'help': 'Trigger a DAG run',
+                    'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
+                },
+                {
+                    'func': delete_dag,
+                    'name': 'delete',
+                    'help': "Delete all DB records related to the specified DAG",
+                    'args': ('dag_id', 'yes'),
+                },
+                {
+                    'func': backfill,
+                    'name': 'backfill',
+                    'help': "Run subsections of a DAG for a specified date range. "
+                            "If reset_dag_run option is used,"
+                            " backfill will first prompt users whether airflow "
+                            "should clear all the previous dag_run and task_instances "
+                            "within the backfill date range. "
+                            "If rerun_failed_tasks is used, backfill "
+                            "will auto re-run the previous failed task instances"
+                            " within the backfill date range.",
+                    'args': (
+                        'dag_id', 'task_regex', 'start_date', 'end_date',
+                        'mark_success', 'local', 'donot_pickle',
+                        'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
+                        'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
+                        'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
+                    ),
+                },
+            ),
         }, {
-            'func': list_dag_runs,
-            'help': "List dag runs given a DAG id. If state option is given, it will only"
-                    "search for all the dagruns with the given state. "
-                    "If no_backfill option is given, it will filter out"
-                    "all backfill dagruns for given dag id.",
-            'args': (
-                'dag_id', 'no_backfill', 'state'
-            )
+            'help': 'List and manage tasks',
+            'name': 'tasks',
+            'subcommands': (
+                {
+                    'func': list_tasks,
+                    'name': 'list',
+                    'help': "List the tasks within a DAG",
+                    'args': ('dag_id', 'tree', 'subdir'),
+                },
+                {
+                    'func': clear,
+                    'name': 'clear',
+                    'help': "Clear a set of task instance, as if they never ran",
+                    'args': (
+                        'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
+                        'upstream', 'downstream', 'no_confirm', 'only_failed',
+                        'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
+                },
+                {
+                    'func': task_state,
+                    'name': 'state',
+                    'help': "Get the status of a task instance",
+                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+                },
+                {
+                    'func': task_failed_deps,
+                    'name': 'failed_deps',
+                    'help': (
+                        "Returns the unmet dependencies for a task instance from the perspective "
+                        "of the scheduler. In other words, why a task instance doesn't get "
+                        "scheduled and then queued by the scheduler, and then run by an "
+                        "executor)."),
+                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+                },
+                {
+                    'func': render,
+                    'name': 'render',
+                    'help': "Render a task instance's template(s)",
+                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+                },
+                {
+                    'func': run,
+                    'name': 'run',
+                    'help': "Run a single task instance",
+                    'args': (
+                        'dag_id', 'task_id', 'execution_date', 'subdir',
+                        'mark_success', 'force', 'pool', 'cfg_path',
+                        'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
+                        'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
+                },
+                {
+                    'func': test,
+                    'name': 'test',
+                    'help': (
+                        "Test a task instance. This will run a task without checking for "
+                        "dependencies or recording its state in the database."),
+                    'args': (
+                        'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
+                        'task_params', 'post_mortem'),
+                },
+            ),
         }, {
-            'func': list_tasks,
-            'help': "List the tasks within a DAG",
-            'args': ('dag_id', 'tree', 'subdir'),
-        }, {
-            'func': list_jobs,
-            'help': "List the jobs",
-            'args': ('dag_id_opt', 'state', 'limit'),
-        }, {
-            'func': clear,
-            'help': "Clear a set of task instance, as if they never ran",
-            'args': (
-                'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
-        }, {
-            'func': pause,
-            'help': "Pause a DAG",
-            'args': ('dag_id', 'subdir'),
-        }, {
-            'func': unpause,
-            'help': "Resume a paused DAG",
-            'args': ('dag_id', 'subdir'),
-        }, {
-            'func': trigger_dag,
-            'help': "Trigger a DAG run",
-            'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
-        }, {
-            'func': delete_dag,
-            'help': "Delete all DB records related to the specified DAG",
-            'args': ('dag_id', 'yes',),
-        }, {
-            'func': pool,
             'help': "CRUD operations on pools",
-            "args": ('pool_set', 'pool_get', 'pool_delete', 'pool_import', 'pool_export'),
+            'name': 'pools',
+            'subcommands': (
+                {
+                    'func': pool_list,
+                    'name': 'list',
+                    'help': 'List pools',
+                    'args': (),
+                },
+                {
+                    'func': pool_get,
+                    'name': 'get',
+                    'help': 'Get pool size',
+                    'args': ('pool_name',),
+                },
+                {
+                    'func': pool_set,
+                    'name': 'set',
+                    'help': 'Configure pool',
+                    'args': ('pool_name', 'pool_slots', 'pool_description'),
+                },
+                {
+                    'func': pool_delete,
+                    'name': 'delete',
+                    'help': 'Delete pool',
+                    'args': ('pool_name',),
+                },
+                {
+                    'func': pool_import,
+                    'name': 'import',
+                    'help': 'Import pool',
+                    'args': ('pool_import',),
+                },
+                {
+                    'func': pool_export,
+                    'name': 'export',
+                    'help': 'Export pool',
+                    'args': ('pool_export',),
+                },
+            ),
         }, {
-            'func': variables,
             'help': "CRUD operations on variables",
+            'name': 'variables',
+            'subcommands': (
+                {
+                    'func': variables_list,
+                    'name': 'list',
+                    'help': 'List variables',
+                    'args': (),
+                },
+                {
+                    'func': variables_get,
+                    'name': 'get',
+                    'help': 'Get variable',
+                    'args': ('var', 'json', 'default'),
+                },
+                {
+                    'func': variables_set,
+                    'name': 'set',
+                    'help': 'Set variable',
+                    'args': ('var', 'var_value', 'json'),
+                },
+                {
+                    'func': variables_delete,
+                    'name': 'delete',
+                    'help': 'Delete variable',
+                    'args': ('var',),
+                },
+                {
+                    'func': variables_import,
+                    'name': 'import',
+                    'help': 'Import variables',
+                    'args': ('var_import',),
+                },
+                {
+                    'func': variables_export,
+                    'name': 'export',
+                    'help': 'Export variables',
+                    'args': ('var_export',),
+                },
+            ),
             "args": ('set', 'get', 'json', 'default',
                      'var_import', 'var_export', 'var_delete'),
+        }, {
+            'help': "Database operations",
+            'name': 'db',
+            'subcommands': (
+                {
+                    'func': initdb,
+                    'name': 'init',
+                    'help': "Initialize the metadata database",
+                    'args': (),
+                },
+                {
+                    'func': resetdb,
+                    'name': 'reset',
+                    'help': "Burn down and rebuild the metadata database",
+                    'args': ('yes',),
+                },
+                {
+                    'func': upgradedb,
+                    'name': 'upgrade',
+                    'help': "Upgrade the metadata database to latest version",
+                    'args': tuple(),
+                },
+            ),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': render,
-            'help': "Render a task instance's template(s)",
-            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-        }, {
-            'func': run,
-            'help': "Run a single task instance",
-            'args': (
-                'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool', 'cfg_path',
-                'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
-                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
-        }, {
-            'func': initdb,
-            'help': "Initialize the metadata database",
-            'args': tuple(),
-        }, {
-            'func': list_dags,
-            'help': "List all the DAGs",
-            'args': ('subdir', 'report'),
-        }, {
-            'func': dag_state,
-            'help': "Get the status of a dag run",
-            'args': ('dag_id', 'execution_date', 'subdir'),
-        }, {
-            'func': task_failed_deps,
-            'help': (
-                "Returns the unmet dependencies for a task instance from the perspective "
-                "of the scheduler. In other words, why a task instance doesn't get "
-                "scheduled and then queued by the scheduler, and then run by an "
-                "executor)."),
-            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-        }, {
-            'func': task_state,
-            'help': "Get the status of a task instance",
-            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-        }, {
             'func': serve_logs,
             'help': "Serve logs generate by worker",
             'args': tuple(),
-        }, {
-            'func': test,
-            'help': (
-                "Test a task instance. This will run a task without checking for "
-                "dependencies or recording its state in the database."),
-            'args': (
-                'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                'task_params', 'post_mortem'),
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
                      'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
-        }, {
-            'func': resetdb,
-            'help': "Burn down and rebuild the metadata database",
-            'args': ('yes',),
-        }, {
-            'func': upgradedb,
-            'help': "Upgrade the metadata database to latest version",
-            'args': tuple(),
         }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
@@ -2338,30 +2413,97 @@ class CLIFactory:
             'help': "Show the version",
             'args': tuple(),
         }, {
-            'func': connections,
             'help': "List/Add/Delete connections",
-            'args': ('list_connections', 'add_connection', 'delete_connection',
-                     'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+            'name': 'connections',
+            'subcommands': (
+                {
+                    'func': connections_list,
+                    'name': 'list',
+                    'help': 'List connections',
+                    'args': (),
+                },
+                {
+                    'func': connections_add,
+                    'name': 'add',
+                    'help': 'Add a connection',
+                    'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+                },
+                {
+                    'func': connections_delete,
+                    'name': 'delete',
+                    'help': 'Delete a connection',
+                    'args': ('conn_id',),
+                },
+            ),
         }, {
-            'func': users,
             'help': "List/Create/Delete/Update users",
-            'args': ('list_users', 'create_user', 'delete_user',
-                     'add_role', 'remove_role', 'user_import', 'user_export',
-                     'username', 'email', 'firstname', 'lastname', 'role',
-                     'password', 'use_random_password'),
+            'name': 'users',
+            'subcommands': (
+                {
+                    'func': users_list,
+                    'name': 'list',
+                    'help': 'List users',
+                    'args': (),
+                },
+                {
+                    'func': users_create,
+                    'name': 'create',
+                    'help': 'Create a user',
+                    'args': ('role', 'username', 'email', 'firstname', 'lastname', 'password',
+                             'use_random_password')
+                },
+                {
+                    'func': users_delete,
+                    'name': 'delete',
+                    'help': 'Delete a user',
+                    'args': ('username',),
+                },
+                {
+                    'func': functools.partial(users_manage_role, remove=False),
+                    'name': 'add_role',
+                    'help': 'Add role to a user',
+                    'args': ('username_optional', 'email_optional', 'role'),
+                },
+                {
+                    'func': functools.partial(users_manage_role, remove=True),
+                    'name': 'remove_role',
+                    'help': 'Remove role from a user',
+                    'args': ('username_optional', 'email_optional', 'role'),
+                },
+                {
+                    'func': users_import,
+                    'name': 'import',
+                    'help': 'Import a user',
+                    'args': ('user_import',),
+                },
+                {
+                    'func': users_export,
+                    'name': 'export',
+                    'help': 'Export a user',
+                    'args': ('user_export',),
+                },
+            ),
         }, {
-            'func': roles,
             'help': 'Create/List roles',
-            'args': ('create_role', 'list_roles', 'roles'),
+            'name': 'roles',
+            'subcommands': (
+                {
+                    'func': roles_list,
+                    'name': 'list',
+                    'help': 'List roles',
+                    'args': (),
+                },
+                {
+                    'func': roles_create,
+                    'name': 'create',
+                    'help': 'Create role',
+                    'args': ('roles',),
+                },
+            ),
         }, {
             'func': sync_perm,
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
-        },
-        {
-            'func': next_execution,
-            'help': "Get the next execution datetime of a DAG.",
-            'args': ('dag_id', 'subdir')
         },
         {
             'func': rotate_fernet_key,
@@ -2371,7 +2513,7 @@ class CLIFactory:
             'args': (),
         },
     )
-    subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
+    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
@@ -2385,8 +2527,22 @@ class CLIFactory:
         subparser_list = cls.dag_subparsers if dag_parser else cls.subparsers_dict.keys()
         for sub in sorted(subparser_list):
             sub = cls.subparsers_dict[sub]
-            sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
-            sp.formatter_class = RawTextHelpFormatter
+            cls._add_subcommand(subparsers, sub)
+        return parser
+
+    @classmethod
+    def _add_subcommand(cls, subparsers, sub):
+        dag_parser = False
+        sp = subparsers.add_parser(sub.get('name') or sub['func'].__name__, help=sub['help'])
+        sp.formatter_class = RawTextHelpFormatter
+
+        subcommands = sub.get('subcommands', [])
+        if subcommands:
+            sub_subparsers = sp.add_subparsers(dest='subcommand')
+            sub_subparsers.required = True
+            for command in subcommands:
+                cls._add_subcommand(sub_subparsers, command)
+        else:
             for arg in sub['args']:
                 if 'dag_id' in arg and dag_parser:
                     continue
@@ -2396,7 +2552,6 @@ class CLIFactory:
                     for f, v in vars(arg).items() if f != 'flags' and v}
                 sp.add_argument(*arg.flags, **kwargs)
             sp.set_defaults(func=sub['func'])
-        return parser
 
 
 def get_parser():

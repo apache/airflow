@@ -25,9 +25,9 @@ There are very many reasons why your task might not be getting scheduled.
 Here are some of the common causes:
 
 - Does your script "compile", can the Airflow engine parse it and find your
-  DAG object. To test this, you can run ``airflow list_dags`` and
+  DAG object. To test this, you can run ``airflow dags list`` and
   confirm that your DAG shows up in the list. You can also run
-  ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
+  ``airflow tasks list foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
@@ -163,20 +163,20 @@ simple dictionary.
         other_dag_id = f'bar_{i}'
         globals()[other_dag_id] = create_dag(other_dag_id)
 
-What are all the ``airflow run`` commands in my process list?
----------------------------------------------------------------
+What are all the ``airflow tasks run`` commands in my process list?
+-------------------------------------------------------------------
 
-There are many layers of ``airflow run`` commands, meaning it can call itself.
+There are many layers of ``airflow tasks run`` commands, meaning it can call itself.
 
-- Basic ``airflow run``: fires up an executor, and tell it to run an
-  ``airflow run --local`` command. If using Celery, this means it puts a
+- Basic ``airflow tasks run``: fires up an executor, and tell it to run an
+  ``airflow tasks run --local`` command. If using Celery, this means it puts a
   command in the queue for it to run remotely on the worker. If using
   LocalExecutor, that translates into running it in a subprocess pool.
-- Local ``airflow run --local``: starts an ``airflow run --raw``
+- Local ``airflow tasks run --local``: starts an ``airflow tasks run --raw``
   command (described below) as a subprocess and is in charge of
   emitting heartbeats, listening for external kill signals
   and ensures some cleanup takes place if the subprocess fails.
-- Raw ``airflow run --raw`` runs the actual operator's execute method and
+- Raw ``airflow tasks run --raw`` runs the actual operator's execute method and
   performs the actual work.
 
 

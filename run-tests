@@ -130,8 +130,8 @@ if [[ "${WITH_DB_INIT}" == "true" || ! -f ${AIRFLOW_DB_INITIALISED_FILE} ]]; the
         echo "You can force re-initialization the database by adding --with-db-init switch to run-tests."
     fi
     echo
-    yes | airflow initdb || true
-    airflow resetdb -y
+    yes | airflow db init || true
+    airflow db reset -y
     touch "${AIRFLOW_DB_INITIALISED_FILE}"
 else
     echo

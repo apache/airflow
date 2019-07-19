@@ -374,7 +374,7 @@ DAGs/tasks:
 .. image:: img/task_manual_vs_scheduled.png
 
 The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by `airflow trigger_dag`.
+DAGs/tasks are manually triggered, i.e. by `airflow dags trigger`.
 
 Workflows
 =========

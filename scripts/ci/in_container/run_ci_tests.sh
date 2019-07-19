@@ -37,8 +37,8 @@ KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
 if [[ "${KUBERNETES_VERSION}" == "" ]]; then
     echo "Initializing the DB"
-    yes | airflow initdb || true
-    airflow resetdb -y
+    yes | airflow db init || true
+    airflow db reset -y
 
     kinit -kt "${KRB5_KTNAME}" airflow
 fi
