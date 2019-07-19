@@ -636,6 +636,24 @@ class BaseOperator(LoggingMixin):
         self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
+    def is_template(self, content, jinja_env):
+        """
+        This function attempts to quickly detect whether a value is a jinja2
+        template. To do so, we look for the first 2 matching jinja2 tokens for
+        start and end delimiters.
+        """
+        found = False
+        prep_data = jinja_env.preprocess(content)
+        try:
+            for token in jinja_env.lex(prep_data):
+                if token[2] == "{{":
+                    found = True
+                elif token[2] == "}}":
+                    return found
+        except Exception:
+            return False
+        return False
+
     def render_template_from_field(self, attr, content, context, jinja_env):
         """
         Renders a template from a field. If the field is a string, it will
@@ -645,7 +663,9 @@ class BaseOperator(LoggingMixin):
         """
         rt = self.render_template
         if isinstance(content, str):
-            result = jinja_env.from_string(content).render(**context)
+            result = content
+            while(self.is_template(result, jinja_env)):
+                result = jinja_env.from_string(result).render(**context)
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
