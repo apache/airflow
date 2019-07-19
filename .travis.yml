@@ -21,27 +21,22 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
-    - AIRFLOW_CONTAINER_BRANCH_NAME=${TRAVIS_BRANCH}
 python: "3.6"
 stages:
   - pre-test
   - test
 jobs:
   include:
-    - name: "Tests postgres python 3.6"
-      env: BACKEND=postgres ENV=docker
+    - env: BACKEND=postgres ENV=docker
       python: "3.6"
       stage: test
-    - name: "Tests sqlite python 3.5"
-      env: BACKEND=sqlite ENV=docker
+    - env: BACKEND=sqlite ENV=docker
       python: "3.5"
       stage: test
-    - name: "Tests mysql python 3.6"
-      env: BACKEND=mysql ENV=docker
+    - env: BACKEND=mysql ENV=docker
       python: "3.6"
       stage: test
-    - name: "Tests postgres kubernetes python 3.6"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0
+    - env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0
       python: "3.6"
       stage: test
     - name: Flake8
