@@ -124,6 +124,7 @@ function build_image {
         --build-arg APT_DEPS_IMAGE="${APT_DEPS_IMAGE}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg AIRFLOW_USER="${AIRFLOW_USER}" \
+        --build-arg AIRFLOW_BRANCH="${AIRFLOW_CONTAINER_BRANCH_NAME}" \
         --build-arg BUILD_NPM="${AIRFLOW_CONTAINER_BUILD_NPM}" \
         --build-arg AIRFLOW_CI_BUILD_EPOCH="${AIRFLOW_CI_BUILD_EPOCH}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
@@ -155,10 +156,22 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 export PYTHON_VERSION=\
 ${PYTHON_VERSION:=$(python -c 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
 
+. ${MY_DIR}/_default_branch.sh
+
+# Source brnnch will be set in DockerHub
+SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
+# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if set in DockerHub
+# or default branch configured in _default_branch.sh
+AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
+echo
+echo "Branch: ${AIRFLOW_CONTAINER_BRANCH_NAME}"
+echo
+
+
 # IMAGE_NAME might come from DockerHub and we decide which PYTHON_VERSION to use based on it (see below)
 # In case IMAGE_NAME is not set we determine PYTHON_VERSION based on the default python on the path
 # So in virtualenvs it will use the virtualenv's PYTHON_VERSION.
-export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:master-python${PYTHON_VERSION}}
+export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}}
 
 echo
 echo "BASE_IMAGE_NAME=${BASE_IMAGE_NAME:=} (final image will have -ci, -ci-slim suffixes)"
@@ -182,10 +195,11 @@ echo "LONG_PYTHON_VERSION=${LONG_PYTHON_VERSION}"
 echo
 
 if [[ ! ${LONG_PYTHON_VERSION} =~ python[2-3]\.[0-9]+ ]]; then
-    echo
+    echo >&2
     echo >&2 "ERROR! Python version extracted from IMAGE_NAME does not match the pythonX.Y format"
-    echo "The IMAGE_NAME format should be '<BRANCH>-pythonX.Y'"
-    echo
+    echo >&2
+    echo >&2 "The IMAGE_NAME format should be '<BRANCH>-pythonX.Y'"
+    echo >&2
     exit 1
 fi
 
@@ -195,6 +209,12 @@ echo
 echo "PYTHON_VERSION=${PYTHON_VERSION}"
 echo
 
+if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; then
+    echo >&2
+    echo >&2 "ERROR! The ${LOCAL_BASE_IMAGE_NAME} does not start with ${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
+    echo >&2
+    exit 1
+fi
 
 # Extract IMAGE_TAG from LOCAL_BASE_IMAGE_NAME (apache/airflow:master-python3.6 -> master-python3.6)
 IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${DOCKERHUB_USER}/${DOCKERHUB_REPO}:}
@@ -455,13 +475,8 @@ fi
 BUILD_ID=${BUILD_ID:="local"}
 
 
-# Default branch name for triggered builds is master (for dockerhub)
-BRANCH_NAME=${BRANCH_NAME:="master"}
-# Set Airflow container to branch name
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${BRANCH_NAME}}
-
 # directory where "deployment" artifacts should be placed
-DEPLOY_DIR=${AIRFLOW_ROOT}/dist/${BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
+DEPLOY_DIR=${AIRFLOW_ROOT}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
 
 mkdir -pv "${DEPLOY_DIR}"
 
