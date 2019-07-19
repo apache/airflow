@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import timedelta
 import os
 import sys
 import tempfile
@@ -135,6 +136,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
             stat_queue=MagicMock(),
             result_queue=MagicMock,
@@ -156,6 +158,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
             stat_queue=MagicMock(),
             result_queue=MagicMock,
@@ -211,12 +214,14 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     [],
                                                     0,
                                                     processor_factory,
+                                                    timedelta.max,
                                                     async_mode)
             manager_process = \
                 processor_agent._launch_process(processor_agent._dag_directory,
                                                 processor_agent._file_paths,
                                                 processor_agent._max_runs,
                                                 processor_agent._processor_factory,
+                                                processor_agent._processor_timeout,
                                                 processor_agent._child_signal_conn,
                                                 processor_agent._stat_queue,
                                                 processor_agent._result_queue,
@@ -242,6 +247,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [test_dag_path],
                                                 1,
                                                 processor_factory,
+                                                timedelta.max,
                                                 async_mode)
         processor_agent.start()
         parsing_result = []
@@ -274,12 +280,14 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [],
                                                 0,
                                                 processor_factory,
+                                                timedelta.max,
                                                 async_mode)
         manager_process = \
             processor_agent._launch_process(processor_agent._dag_directory,
                                             processor_agent._file_paths,
                                             processor_agent._max_runs,
                                             processor_agent._processor_factory,
+                                            processor_agent._processor_timeout,
                                             processor_agent._child_signal_conn,
                                             processor_agent._stat_queue,
                                             processor_agent._result_queue,

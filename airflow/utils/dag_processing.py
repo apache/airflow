@@ -473,6 +473,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  file_paths,
                  max_runs,
                  processor_factory,
+                 processor_timeout,
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -486,6 +487,8 @@ class DagFileProcessorAgent(LoggingMixin):
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path, log_file_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :param processor_timeout: How long to wait before timing out a DAG file processor
+        :type processor_timeout: timedelta
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
         """
@@ -494,6 +497,7 @@ class DagFileProcessorAgent(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._processor_factory = processor_factory
+        self._processor_timeout = processor_timeout
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -525,6 +529,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                              self._file_paths,
                                              self._max_runs,
                                              self._processor_factory,
+                                             self._processor_timeout,
                                              self._child_signal_conn,
                                              self._stat_queue,
                                              self._result_queue,
@@ -552,6 +557,7 @@ class DagFileProcessorAgent(LoggingMixin):
                         file_paths,
                         max_runs,
                         processor_factory,
+                        processor_timeout,
                         signal_conn,
                         _stat_queue,
                         result_queue,
@@ -572,6 +578,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                                         file_paths,
                                                         max_runs,
                                                         processor_factory,
+                                                        processor_timeout,
                                                         signal_conn,
                                                         _stat_queue,
                                                         result_queue,
@@ -709,6 +716,7 @@ class DagFileProcessorManager(LoggingMixin):
                  file_paths,
                  max_runs,
                  processor_factory,
+                 processor_timeout,
                  signal_conn,
                  stat_queue,
                  result_queue,
@@ -725,6 +733,8 @@ class DagFileProcessorManager(LoggingMixin):
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :param processor_timeout: How long to wait before timing out a DAG file processor
+        :type processor_timeout: timedelta
         :param signal_conn: connection to communicate signal with processor agent.
         :type signal_conn: airflow.models.connection.Connection
         :param stat_queue: the queue to use for passing back parsing stat to agent.
@@ -774,6 +784,8 @@ class DagFileProcessorManager(LoggingMixin):
         self._run_count = defaultdict(int)
         # Manager heartbeat key.
         self._heart_beat_key = 'heart-beat'
+        # How long to wait before timing out a process to parse a DAG file
+        self._processor_timeout = processor_timeout
 
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler',
@@ -1141,6 +1153,8 @@ class DagFileProcessorManager(LoggingMixin):
             have finished since the last time this was called
         :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
+        self._kill_timed_out_processors()
+
         finished_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""
         running_processors = {}
@@ -1231,6 +1245,21 @@ class DagFileProcessorManager(LoggingMixin):
         self._run_count[self._heart_beat_key] += 1
 
         return simple_dags
+
+    def _kill_timed_out_processors(self):
+        """
+        Kill any file processors that timeout to defend against process hangs.
+        """
+        now = timezone.utcnow()
+        for file_path, processor in self._processors.items():
+            duration = now - processor.start_time
+            if duration > self._processor_timeout:
+                self.log.info(
+                    "Processor for %s with PID %s started at %s has timed out, "
+                    "killing it.",
+                    processor.file_path, processor.pid, processor.start_time.isoformat())
+                Stats.incr('dag_file_processor_timeouts', 1, 1)
+                processor.kill()
 
     def max_runs_reached(self):
         """
