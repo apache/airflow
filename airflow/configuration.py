@@ -26,8 +26,9 @@ import shlex
 import subprocess
 import sys
 import warnings
+# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
+from configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError  # type: ignore
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException

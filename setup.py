@@ -324,7 +324,6 @@ def do_setup():
             'alembic>=1.0, <2.0',
             'cached_property~=1.5',
             'colorlog==4.0.2',
-            'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
