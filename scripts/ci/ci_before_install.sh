@@ -20,6 +20,26 @@
 
 set -xeuo pipefail
 
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# shellcheck source=./_utils.sh
+. "${MY_DIR}/_utils.sh"
+
+basic_sanity_checks
+
+script_start
+
+export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+
+# Cleanup docker installation. It should be empty in CI but let's not risk
+docker system prune --all --force
+
+if [[ ${TRAVIS_JOB_NAME} == "Tests"* || ${TRAVIS_JOB_NAME} == "Check license header" ]]; then
+    rebuild_image_if_needed_for_tests
+else
+    rebuild_image_if_needed_for_static_checks
+fi
+
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 # Required for K8s v1.10.x. See
 # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
@@ -27,5 +47,5 @@ if [[ "${KUBERNETES_VERSION}" == "" ]]; then
     sudo mount --make-shared /
     sudo service docker restart
 fi
-# Cleanup docker installation. It should be empty in CI but let's not risk
-docker system prune --all --force
+
+script_end

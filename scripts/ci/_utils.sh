@@ -325,7 +325,6 @@ EOF
             echo "Image built locally - skip force-pulling them"
             echo
         fi
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
     else
         echo
         echo "Image not built locally - force pulling them first"
