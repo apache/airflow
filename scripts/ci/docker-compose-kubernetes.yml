@@ -20,6 +20,7 @@ services:
     network_mode: host
     environment:
       - KUBERNETES_VERSION
+      - KUBERNETES_MODE
       - MINIKUBE_IP
     volumes:
       - /usr/local/bin/kubectl:/usr/local/bin/kubectl
