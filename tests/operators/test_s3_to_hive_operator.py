@@ -69,9 +69,9 @@ class S3ToHiveTransferTest(unittest.TestCase):
                        'input_compressed': self.input_compressed
                        }
         try:
-            header = "Sno\tSome,Text \n".encode()
-            line1 = "1\tAirflow Test\n".encode()
-            line2 = "2\tS32HiveTransfer\n".encode()
+            header = b"Sno\tSome,Text \n"
+            line1 = b"1\tAirflow Test\n"
+            line2 = b"2\tS32HiveTransfer\n"
             self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
             # create sample txt, gz and bz2 with and without headers
             with NamedTemporaryFile(mode='wb+',

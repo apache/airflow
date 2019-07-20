@@ -810,7 +810,8 @@ class BackfillJobTest(unittest.TestCase):
         dag.clear()
 
         task0_id = 'test_run_dependent_task'
-        args0 = ['run',
+        args0 = ['tasks',
+                 'run',
                  '-A',
                  dag_id,
                  task0_id,
@@ -824,7 +825,8 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti_dependent0.state, State.FAILED)
 
         task1_id = 'test_run_dependency_task'
-        args1 = ['run',
+        args1 = ['tasks',
+                 'run',
                  '-A',
                  dag_id,
                  task1_id,
@@ -838,7 +840,8 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti_dependency.state, State.FAILED)
 
         task2_id = 'test_run_dependent_task'
-        args2 = ['run',
+        args2 = ['tasks',
+                 'run',
                  '-A',
                  dag_id,
                  task2_id,
@@ -895,6 +898,7 @@ class BackfillJobTest(unittest.TestCase):
         dag_id = 'example_bash_operator'
         run_date = DEFAULT_DATE
         args = [
+            'dags',
             'backfill',
             dag_id,
             '-s',

@@ -113,7 +113,7 @@ class DaskExecutorTest(BaseDaskTest):
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
 
-        for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
+        for dag in sorted(dags, key=lambda d: d.dag_id):
             job = BackfillJob(
                 dag=dag,
                 start_date=DEFAULT_DATE,
@@ -136,7 +136,7 @@ class DaskExecutorTLSTest(BaseDaskTest):
     def test_tls(self):
         with dask_testing_cluster(
                 worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (s, workers):
+                scheduler_kwargs={'security': tls_security()}) as (s, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production

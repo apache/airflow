@@ -88,7 +88,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, client_mock, launcher_mock):
+    def test_image_pull_secrets_correctly_set(self, mock_client, launcher_mock):
         from airflow.utils.state import State
 
         fake_pull_secrets = "fakeSecret"
@@ -112,7 +112,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_delete_even_on_launcher_error(self, client_mock, delete_pod_mock, run_pod_mock):
+    def test_pod_delete_even_on_launcher_error(self, mock_client, delete_pod_mock, run_pod_mock):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -443,7 +443,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, client_mock, launcher_mock):
+    def test_envs_from_configmaps(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State
         configmaps = ['test-configmap']
@@ -459,13 +459,13 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             configmaps=configmaps
         )
         # THEN
-        launcher_mock.return_value = (State.SUCCESS, None)
+        mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
-        self.assertEqual(launcher_mock.call_args[0][0].configmaps, configmaps)
+        self.assertEqual(mock_launcher.call_args[0][0].configmaps, configmaps)
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, client_mock, launcher_mock):
+    def test_envs_from_secrets(self, mock_client, launcher_mock):
         # GIVEN
         from airflow.utils.state import State
         secrets = [Secret('env', None, "secret_name")]

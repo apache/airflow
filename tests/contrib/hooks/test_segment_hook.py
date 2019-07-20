@@ -43,7 +43,7 @@ class TestSegmentHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, _):
                 return conn
 
         self.test_hook = UnitTestSegmentHook(segment_conn_id=TEST_CONN_ID)

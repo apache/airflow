@@ -61,7 +61,7 @@ class TestAirflowJsonEncoder(unittest.TestCase):
 
     def test_encode_raises(self):
         self.assertRaisesRegex(TypeError,
-                               "^%s is not JSON serializable$" % Exception,
+                               "^.*is not JSON serializable$",
                                json.dumps,
                                Exception,
                                cls=utils_json.AirflowJsonEncoder)

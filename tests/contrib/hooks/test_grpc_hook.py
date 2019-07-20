@@ -48,13 +48,13 @@ def get_airflow_connection_with_port():
 
 
 class StubClass:
-    def __init__(self, channel):
+    def __init__(self, _):
         pass
 
     def single_call(self, data):
         return data
 
-    def stream_call(self, data):
+    def stream_call(self, data):  # pylint: disable=unused-argument
         return ["streaming", "call"]
 
 
@@ -62,7 +62,7 @@ class TestGrpcHook(unittest.TestCase):
     def setUp(self):
         self.channel_mock = mock.patch('grpc.Channel').start()
 
-    def custom_conn_func(self, connection):
+    def custom_conn_func(self, _):
         mocked_channel = self.channel_mock.return_value
         return mocked_channel
 
@@ -215,7 +215,7 @@ class TestGrpcHook(unittest.TestCase):
         channel = hook.get_conn()
         expected_url = "test:8080"
 
-        mock_google_default_auth.assert_called_once_with(scopes=[u"grpc", u"gcs"])
+        mock_google_default_auth.assert_called_once_with(scopes=["grpc", "gcs"])
         mock_secure_channel.assert_called_once_with(
             mock_credential_object,
             "request",

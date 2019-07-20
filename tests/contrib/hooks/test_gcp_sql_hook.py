@@ -16,10 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=too-many-lines
+
 import json
 import unittest
 
 from googleapiclient.errors import HttpError
+
+from parameterized import parameterized
 
 from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHook
 from airflow.exceptions import AirflowException
@@ -27,8 +32,6 @@ from airflow.models import Connection
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
     mock_base_gcp_hook_no_default_project_id
 from tests.compat import mock
-
-from parameterized import parameterized
 
 
 class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
@@ -41,7 +44,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
     def test_instance_import_exception(self):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
-                                  content='Error content'.encode('utf-8'))
+                                  content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
             self.cloudsql_hook.import_instance(
@@ -53,7 +56,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
     def test_instance_export_exception(self):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
-                                  content='Error content'.encode('utf-8'))
+                                  content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
             self.cloudsql_hook.export_instance(

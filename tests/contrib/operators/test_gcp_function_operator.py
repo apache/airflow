@@ -19,6 +19,8 @@
 
 import unittest
 
+from copy import deepcopy
+
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
@@ -28,9 +30,8 @@ from airflow import AirflowException
 from airflow.version import version
 from tests.compat import mock
 
-from copy import deepcopy
 
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 MOCK_RESP_404 = type('', (object,), {"status": 404})()
 
 GCP_PROJECT_ID = 'test_project_id'

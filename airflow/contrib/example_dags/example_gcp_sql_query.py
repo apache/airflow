@@ -37,9 +37,8 @@ This DAG relies on the following OS environment variables
 * GCSQL_MYSQL_PUBLIC_IP - Public IP of the mysql database
 * GCSQL_MYSQL_PUBLIC_PORT - Port of the mysql database
 """
-
-import os
 import subprocess
+import os
 from os.path import expanduser
 from urllib.parse import quote_plus
 
@@ -103,6 +102,9 @@ HOME_DIR = expanduser("~")
 
 
 def get_absolute_path(path):
+    """
+    Returns absolute path.
+    """
     if path.startswith("/"):
         return path
     else:

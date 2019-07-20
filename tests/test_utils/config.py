@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,21 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+import contextlib
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
+from airflow.configuration import conf
 
-FQDN=`hostname`
-ADMIN="admin"
-PASS="airflow"
-KRB5_KTNAME=/etc/airflow.keytab
 
-cat /etc/hosts
-echo "hostname: ${FQDN}"
-
-sudo cp $DIRNAME/krb5/krb5.conf /etc/krb5.conf
-
-echo -e "${PASS}\n${PASS}" | sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "addprinc -randkey airflow/${FQDN}"
-sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "ktadd -k ${KRB5_KTNAME} airflow"
-sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
-sudo chmod 0644 ${KRB5_KTNAME}
+@contextlib.contextmanager
+def conf_vars(overrides):
+    original = {}
+    for (section, key), value in overrides.items():
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            conf.set(section, key, value)
+        else:
+            conf.remove_option(section, key)
+    yield
+    for (section, key), value in original.items():
+        if value is not None:
+            conf.set(section, key, value)
+        else:
+            conf.remove_option(section, key)

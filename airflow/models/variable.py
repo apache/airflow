@@ -129,7 +129,7 @@ class Variable(Base, LoggingMixin):
     ):
 
         if serialize_json:
-            stored_value = json.dumps(value)
+            stored_value = json.dumps(value, indent=2)
         else:
             stored_value = str(value)
 

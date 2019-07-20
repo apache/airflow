@@ -152,7 +152,7 @@ External Triggers
 '''''''''''''''''
 
 Note that ``DAG Runs`` can also be created manually through the CLI while
-running an ``airflow trigger_dag`` command, where you can define a
+running an ``airflow dags trigger`` command, where you can define a
 specific ``run_id``. The ``DAG Runs`` created externally to the
 scheduler get associated to the trigger's timestamp, and will be displayed
 in the UI alongside scheduled ``DAG runs``.
@@ -177,7 +177,7 @@ Here are some of the ways you can **unblock tasks**:
   and the upstream/downstream dependencies. Note that a confirmation window comes next and
   allows you to see the set you are about to clear. You can also clear all task instances
   associated with the dag.
-* The CLI command ``airflow clear -h`` has lots of options when it comes to clearing task instance
+* The CLI command ``airflow tasks clear -h`` has lots of options when it comes to clearing task instance
   states, including specifying date ranges, targeting task_ids by specifying a regular expression,
   flags for including upstream and downstream relatives, and targeting task instances in specific
   states (``failed``, or ``success``)
@@ -186,6 +186,6 @@ Here are some of the ways you can **unblock tasks**:
 * Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
   or for instance when the fix has been applied outside of Airflow.
-* The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
+* The ``airflow dags backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
   subsections of the DAG as well as specifying date ranges.
 

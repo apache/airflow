@@ -230,7 +230,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
                  delegate_to=None,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageUploadSessionCompleteSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.bucket = bucket
         self.prefix = prefix

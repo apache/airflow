@@ -420,11 +420,11 @@ class CustomSQLAInterface(SQLAInterface):
 
         def clean_column_names():
             if self.list_properties:
-                self.list_properties = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
+                self.list_properties = {
+                    k.lstrip('_'): v for k, v in self.list_properties.items()}
             if self.list_columns:
-                self.list_columns = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
+                self.list_columns = {
+                    k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
 

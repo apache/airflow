@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,22 +22,22 @@
 
 # Wait for Kubernetes resources to be up and ready.
 function _wait_for_ready () {
-  local count="$1"
+  local COUNT="$1"
   shift
-  local evidence="$1"
+  local EVIDENCE="$1"
   shift
-  local attempts=40
-  echo "Waiting till ready (count: $count): $@"
-  while [[ "$count" < $("$@" 2>&1 | tail -n +2 | awk '{print $2}' | grep -c $evidence) ]];
+  local ATTEMPTS=40
+  echo "Waiting till ready (count: ${COUNT}): $*"
+  while [[ "${COUNT}" < $("$@" 2>&1 | tail -n +2 | awk '{print $2}' | grep -c "${EVIDENCE}") ]];
   do
-    if [[ "$attempts" = "1" ]]; then
-      echo "Last run: $@"
+    if [[ "${ATTEMPTS}" = "1" ]]; then
+      echo "Last run: $*"
       "$@" || true
-      local command="$@"
+      local command="$*"
       command="${command/get/describe}"
-      $command || true
+      ${command} || true
     fi
-    ((attempts--)) || return 1
+    (( ATTEMPTS-- )) || return 1
     sleep 5
   done
   "$@" || true
@@ -54,12 +55,12 @@ function k8s_single_node_ready () {
   k8s_all_nodes_ready 1
 }
 
-# Wait for at leat expected number of pods to be ready.
+# Wait for at least expected number of pods to be ready.
 function k8s_at_least_n_pods_ready () {
-  local count="$1"
+  local COUNT="$1"
   shift
-  local evidence="-E '([0-9])\/(\1)'"
-  _wait_for_ready "$count" "$evidence" kubectl get pods "$@"
+  local EVIDENCE="-E '([0-9])\/(\1)'"
+  _wait_for_ready "${COUNT}" "{EVIDENCE}" kubectl get pods "$@"
 }
 
 function k8s_single_pod_ready () {

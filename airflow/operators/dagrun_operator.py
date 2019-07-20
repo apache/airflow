@@ -18,7 +18,6 @@
 # under the License.
 
 import datetime
-import six
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -68,7 +67,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if isinstance(execution_date, datetime.datetime):
             self.execution_date = execution_date.isoformat()
-        elif isinstance(execution_date, six.string_types):
+        elif isinstance(execution_date, str):
             self.execution_date = execution_date
         elif execution_date is None:
             self.execution_date = execution_date

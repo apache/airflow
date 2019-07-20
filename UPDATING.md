@@ -23,7 +23,6 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-
 ### `pool` config option in Celery section to support different Celery pool implementation
 
 The new `pool` config option allows users to choose different pool
@@ -67,6 +66,13 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
+
+### CLI reorganization
+
+The Airflow CLI has been organized so that related commands are grouped
+together as subcommands. The `airflow list_dags` command is now `airflow
+dags list`, `airflow pause` is `airflow dags pause`, etc. For a complete
+list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
 ### Removal of Mesos Executor
 

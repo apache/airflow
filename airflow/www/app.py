@@ -26,8 +26,8 @@ from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from typing import Any
 from urllib.parse import urlparse
-from werkzeug.contrib.fixers import ProxyFix
-from werkzeug.wsgi import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from airflow import configuration as conf
 from airflow import settings
@@ -46,7 +46,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=None,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=1
+        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)

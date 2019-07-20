@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import doctest
 import json
 import multiprocessing
 import os
@@ -43,15 +42,17 @@ from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
 from airflow import configuration, models
-from airflow import jobs, DAG, utils, macros, settings, exceptions
+from airflow import jobs, DAG, utils, settings, exceptions
 from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, run_command
 from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import BaseOperator, Connection, TaskFail
 from airflow.models import (
+    BaseOperator,
+    Connection,
+    TaskFail,
     DagBag,
     DagRun,
     Pool,
@@ -72,6 +73,7 @@ from airflow.utils.dates import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
@@ -310,7 +312,7 @@ class CoreTest(unittest.TestCase):
         # Create and schedule the dag runs
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
-        for i in range(runs):
+        for _ in range(runs):
             dag_runs.append(scheduler.create_dag_run(dag))
 
         additional_dag_run = scheduler.create_dag_run(dag)
@@ -343,7 +345,7 @@ class CoreTest(unittest.TestCase):
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
-        for i in range(runs):
+        for _ in range(runs):
             dag_run = scheduler.create_dag_run(dag)
             dag_runs.append(dag_run)
 
@@ -521,7 +523,7 @@ class CoreTest(unittest.TestCase):
         self.assertTrue(data['called'])
 
     def test_trigger_dagrun(self):
-        def trigga(context, obj):
+        def trigga(_, obj):
             if True:
                 return obj
 
@@ -638,7 +640,7 @@ class CoreTest(unittest.TestCase):
 
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
-                             '{"foo": "bar"}')
+                             '{\n  "foo": "bar"\n}')
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -711,13 +713,6 @@ class CoreTest(unittest.TestCase):
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         ti.run(ignore_ti_state=True)
-
-    def test_doctests(self):
-        modules = [utils, macros]
-        for mod in modules:
-            failed, tests = doctest.testmod(mod)
-            if failed:
-                raise Exception("Failed a doctest")
 
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
@@ -805,35 +800,25 @@ class CoreTest(unittest.TestCase):
 
         FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
 
-        configuration.conf.set("core", "FERNET_KEY_CMD", "printf HELLO")
-
-        FALLBACK_FERNET_KEY = configuration.conf.get(
-            "core",
-            "FERNET_KEY"
-        )
+        with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
+            FALLBACK_FERNET_KEY = configuration.conf.get(
+                "core",
+                "FERNET_KEY"
+            )
 
         self.assertEqual(FERNET_KEY, FALLBACK_FERNET_KEY)
-
-        # restore the conf back to the original state
-        configuration.conf.remove_option("core", "FERNET_KEY_CMD")
 
     def test_config_throw_error_when_original_and_fallback_is_absent(self):
         self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
         self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = configuration.conf.get("core", "FERNET_KEY")
-        configuration.conf.remove_option("core", "FERNET_KEY")
-
-        with self.assertRaises(AirflowConfigException) as cm:
-            configuration.conf.get("core", "FERNET_KEY")
+        with conf_vars({('core', 'FERNET_KEY'): None}):
+            with self.assertRaises(AirflowConfigException) as cm:
+                configuration.conf.get("core", "FERNET_KEY")
 
         exception = str(cm.exception)
         message = "section/key [core/fernet_key] not found in config"
         self.assertEqual(message, exception)
-
-        # restore the conf back to the original state
-        configuration.conf.set("core", "FERNET_KEY", FERNET_KEY)
-        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
 
     def test_config_override_original_when_non_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
@@ -1002,7 +987,7 @@ class CoreTest(unittest.TestCase):
         utc_now = timezone.utcnow()
         run_id = 'trig__' + utc_now.isoformat()
 
-        def payload_generator(context, object):
+        def payload_generator(context, object):  # pylint: disable=unused-argument
             object.run_id = run_id
             return object
 
@@ -1019,10 +1004,10 @@ class CoreTest(unittest.TestCase):
 
     def test_trigger_dagrun_with_str_execution_date(self):
         utc_now_str = timezone.utcnow().isoformat()
-        self.assertIsInstance(utc_now_str, six.string_types)
+        self.assertIsInstance(utc_now_str, (str,))
         run_id = 'trig__' + utc_now_str
 
-        def payload_generator(context, object):
+        def payload_generator(context, object):  # pylint: disable=unused-argument
             object.run_id = run_id
             return object
 
@@ -1045,7 +1030,7 @@ class CoreTest(unittest.TestCase):
             execution_date='{{ execution_date }}',
             dag=self.dag)
 
-        self.assertTrue(isinstance(task.execution_date, six.string_types))
+        self.assertTrue(isinstance(task.execution_date, str))
         self.assertEqual(task.execution_date, '{{ execution_date }}')
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -1092,7 +1077,7 @@ class CliTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(CliTests, cls).setUpClass()
+        super().setUpClass()
         cls._cleanup()
 
     def setUp(self):
@@ -1129,57 +1114,57 @@ class CliTests(unittest.TestCase):
         session.close()
 
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['list_dags', '--report'])
+        args = self.parser.parse_args(['dags', 'list', '--report'])
         cli.list_dags(args)
 
     def test_cli_list_dag_runs(self):
         cli.trigger_dag(self.parser.parse_args([
-            'trigger_dag', 'example_bash_operator', ]))
-        args = self.parser.parse_args(['list_dag_runs',
+            'dags', 'trigger', 'example_bash_operator', ]))
+        args = self.parser.parse_args(['dags', 'list_runs',
                                        'example_bash_operator',
                                        '--no_backfill'])
         cli.list_dag_runs(args)
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
-            'users', '-c', '--username', 'test1', '--lastname', 'doe',
+            'users', 'create', '--username', 'test1', '--lastname', 'doe',
             '--firstname', 'jon',
             '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use_random_password'
         ])
-        cli.users(args)
+        cli.users_create(args)
 
     def test_cli_create_user_supplied_password(self):
         args = self.parser.parse_args([
-            'users', '-c', '--username', 'test2', '--lastname', 'doe',
+            'users', 'create', '--username', 'test2', '--lastname', 'doe',
             '--firstname', 'jon',
             '--email', 'jdoe@apache.org', '--role', 'Viewer', '--password', 'test'
         ])
-        cli.users(args)
+        cli.users_create(args)
 
     def test_cli_delete_user(self):
         args = self.parser.parse_args([
-            'users', '-c', '--username', 'test3', '--lastname', 'doe',
+            'users', 'create', '--username', 'test3', '--lastname', 'doe',
             '--firstname', 'jon',
             '--email', 'jdoe@example.com', '--role', 'Viewer', '--use_random_password'
         ])
-        cli.users(args)
+        cli.users_create(args)
         args = self.parser.parse_args([
-            'users', '-d', '--username', 'test3',
+            'users', 'delete', '--username', 'test3',
         ])
-        cli.users(args)
+        cli.users_delete(args)
 
     def test_cli_list_users(self):
         for i in range(0, 3):
             args = self.parser.parse_args([
-                'users', '-c', '--username', 'user{}'.format(i), '--lastname',
+                'users', 'create', '--username', 'user{}'.format(i), '--lastname',
                 'doe', '--firstname', 'jon',
                 '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
                 '--use_random_password'
             ])
-            cli.users(args)
+            cli.users_create(args)
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.users(self.parser.parse_args(['users', '-l']))
+            cli.users_list(self.parser.parse_args(['users', 'list']))
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
@@ -1268,18 +1253,18 @@ class CliTests(unittest.TestCase):
             f.flush()
 
             args = self.parser.parse_args([
-                'users', '-i', f.name
+                'users', 'import', f.name
             ])
-            cli.users(args)
+            cli.users_import(args)
         finally:
             os.remove(f.name)
 
     def _export_users_to_file(self):
         f = NamedTemporaryFile(delete=False)
         args = self.parser.parse_args([
-            'users', '-e', f.name
+            'users', 'export', f.name
         ])
-        cli.users(args)
+        cli.users_export(args)
         return f.name
 
     def _does_user_belong_to_role(self, email, rolename):
@@ -1292,11 +1277,11 @@ class CliTests(unittest.TestCase):
 
     def test_cli_add_user_role(self):
         args = self.parser.parse_args([
-            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            'users', 'create', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
             '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
         ])
-        cli.users(args)
+        cli.users_create(args)
 
         self.assertFalse(
             self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
@@ -1305,9 +1290,9 @@ class CliTests(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', '--add-role', '--username', 'test4', '--role', 'Op'
+            'users', 'add_role', '--username', 'test4', '--role', 'Op'
         ])
-        cli.users(args)
+        cli.users_manage_role(args, remove=False)
 
         self.assertTrue(
             self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
@@ -1317,11 +1302,11 @@ class CliTests(unittest.TestCase):
 
     def test_cli_remove_user_role(self):
         args = self.parser.parse_args([
-            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            'users', 'create', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
             '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
         ])
-        cli.users(args)
+        cli.users_create(args)
 
         self.assertTrue(
             self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
@@ -1330,9 +1315,9 @@ class CliTests(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', '--remove-role', '--username', 'test4', '--role', 'Viewer'
+            'users', 'remove_role', '--username', 'test4', '--role', 'Viewer'
         ])
-        cli.users(args)
+        cli.users_manage_role(args, remove=True)
 
         self.assertFalse(
             self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
@@ -1379,9 +1364,9 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
 
         args = self.parser.parse_args([
-            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
         ])
-        cli.roles(args)
+        cli.roles_create(args)
 
         self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
         self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
@@ -1391,11 +1376,10 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
 
         args = self.parser.parse_args([
-            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
         ])
 
-        cli.roles(args)
-        cli.roles(args)
+        cli.roles_create(args)
 
         self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
         self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
@@ -1406,7 +1390,7 @@ class CliTests(unittest.TestCase):
 
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.roles(self.parser.parse_args(['roles', '-l']))
+            cli.roles_list(self.parser.parse_args(['roles', 'list']))
             stdout = mock_stdout.getvalue()
 
         self.assertIn('FakeTeamA', stdout)
@@ -1414,19 +1398,19 @@ class CliTests(unittest.TestCase):
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
-            args = self.parser.parse_args(['list_tasks', dag_id])
+            args = self.parser.parse_args(['tasks', 'list', dag_id])
             cli.list_tasks(args)
 
         args = self.parser.parse_args([
-            'list_tasks', 'example_bash_operator', '--tree'])
+            'tasks', 'list', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
     def test_cli_list_jobs(self):
-        args = self.parser.parse_args(['list_jobs'])
+        args = self.parser.parse_args(['dags', 'list_jobs'])
         cli.list_jobs(args)
 
     def test_cli_list_jobs_with_args(self):
-        args = self.parser.parse_args(['list_jobs', '--dag_id',
+        args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
                                        'example_bash_operator',
                                        '--state', 'success',
                                        '--limit', '100'])
@@ -1434,20 +1418,20 @@ class CliTests(unittest.TestCase):
 
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
-        cli.initdb(self.parser.parse_args(['initdb']))
+        cli.initdb(self.parser.parse_args(['db', 'init']))
 
         initdb_mock.assert_called_once_with()
 
     @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
-        cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
+        cli.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
 
         resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(['connections', '--list']))
+            cli.connections_list(self.parser.parse_args(['connections', 'list']))
             stdout = mock_stdout.getvalue()
         conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
                  for ii, line in enumerate(stdout.split('\n'))
@@ -1465,27 +1449,8 @@ class CliTests(unittest.TestCase):
         self.assertIn(['wasb_default', 'wasb'], conns)
         self.assertIn(['segment_default', 'segment'], conns)
 
-        # Attempt to list connections with invalid cli args
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--list', '--conn_id=fake', '--conn_uri=fake-uri',
-                 '--conn_type=fake-type', '--conn_host=fake_host',
-                 '--conn_login=fake_login', '--conn_password=fake_password',
-                 '--conn_schema=fake_schema', '--conn_port=fake_port', '--conn_extra=fake_extra']))
-            stdout = mock_stdout.getvalue()
-
-        # Check list attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            ("\tThe following args are not compatible with the " +
-             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
-             "'conn_type', 'conn_host', 'conn_login', " +
-             "'conn_password', 'conn_schema', 'conn_port']"),
-        ])
-
     def test_cli_connections_list_redirect(self):
-        cmd = ['airflow', 'connections', '--list']
+        cmd = ['airflow', 'connections', 'list']
         with tempfile.TemporaryFile() as fp:
             p = subprocess.Popen(cmd, stdout=fp)
             p.wait()
@@ -1496,25 +1461,25 @@ class CliTests(unittest.TestCase):
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_id=new1',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
-            cli.connections(self.parser.parse_args(
-                ['connections', '-a', '--conn_id=new2',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new2',
                  '--conn_uri=%s' % uri]))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_id=new3',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new3',
                  '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
-            cli.connections(self.parser.parse_args(
-                ['connections', '-a', '--conn_id=new4',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new4',
                  '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_id=new5',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new5',
                  '--conn_type=hive_metastore', '--conn_login=airflow',
                  '--conn_password=airflow', '--conn_host=host',
                  '--conn_port=9083', '--conn_schema=airflow']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '-a', '--conn_id=new6',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new6',
                  '--conn_uri', "", '--conn_type=google_cloud_platform', '--conn_extra', "{'extra': 'yes'}"]))
             stdout = mock_stdout.getvalue()
 
@@ -1538,8 +1503,8 @@ class CliTests(unittest.TestCase):
         # Attempt to add duplicate
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_id=new1',
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
             stdout = mock_stdout.getvalue()
 
@@ -1549,33 +1514,15 @@ class CliTests(unittest.TestCase):
             "\tA connection with `conn_id`=new1 already exists",
         ])
 
-        # Attempt to add without providing conn_id
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_uri=%s' % uri]))
-            stdout = mock_stdout.getvalue()
-
-        # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            ("\tThe following args are required to add a connection:" +
-             " ['conn_id']"),
-        ])
-
         # Attempt to add without providing conn_uri
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--add', '--conn_id=new']))
-            stdout = mock_stdout.getvalue()
+        with self.assertRaises(SystemExit) as exc:
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new']))
 
-        # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            ("\tThe following args are required to add a connection:" +
-             " ['conn_uri or conn_type']"),
-        ])
+        self.assertEqual(
+            exc.exception.code,
+            "The following args are required to add a connection: ['conn_uri or conn_type']"
+        )
 
         # Prepare to add connections
         session = settings.Session()
@@ -1606,18 +1553,18 @@ class CliTests(unittest.TestCase):
         # Delete connections
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new1']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new2']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new3']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new4']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new5']))
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=new6']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new1']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new2']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new3']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new4']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new5']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new6']))
             stdout = mock_stdout.getvalue()
 
         # Check deletion stdout
@@ -1643,8 +1590,8 @@ class CliTests(unittest.TestCase):
         # Attempt to delete a non-existing connnection
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=fake']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'fake']))
             stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
@@ -1653,104 +1600,89 @@ class CliTests(unittest.TestCase):
             "\tDid not find a connection with `conn_id`=fake",
         ])
 
-        # Attempt to delete with invalid cli args
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
-            cli.connections(self.parser.parse_args(
-                ['connections', '--delete', '--conn_id=fake',
-                 '--conn_uri=%s' % uri, '--conn_type=fake-type']))
-            stdout = mock_stdout.getvalue()
-
-        # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            ("\tThe following args are not compatible with the " +
-             "--delete flag: ['conn_uri', 'conn_type']"),
-        ])
-
         session.close()
 
     def test_cli_test(self):
         cli.test(self.parser.parse_args([
-            'test', 'example_bash_operator', 'runme_0',
+            'tasks', 'test', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
         cli.test(self.parser.parse_args([
-            'test', 'example_bash_operator', 'runme_0', '--dry_run',
+            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
             DEFAULT_DATE.isoformat()]))
 
     def test_cli_test_with_params(self):
         cli.test(self.parser.parse_args([
-            'test', 'example_passing_params_via_test_command', 'run_this',
+            'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
             '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
         cli.test(self.parser.parse_args([
-            'test', 'example_passing_params_via_test_command', 'also_run_this',
+            'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
             '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
 
     def test_cli_run(self):
         cli.run(self.parser.parse_args([
-            'run', 'example_bash_operator', 'runme_0', '-l',
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
 
     def test_task_state(self):
         cli.task_state(self.parser.parse_args([
-            'task_state', 'example_bash_operator', 'runme_0',
+            'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
     def test_dag_state(self):
         self.assertEqual(None, cli.dag_state(self.parser.parse_args([
-            'dag_state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
+            'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
 
     def test_pause(self):
         args = self.parser.parse_args([
-            'pause', 'example_bash_operator'])
+            'dags', 'pause', 'example_bash_operator'])
         cli.pause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [True, 1])
 
         args = self.parser.parse_args([
-            'unpause', 'example_bash_operator'])
+            'dags', 'unpause', 'example_bash_operator'])
         cli.unpause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [False, 0])
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
-            'clear', 'example_subdag_operator', '--no_confirm'])
+            'tasks', 'clear', 'example_subdag_operator', '--no_confirm'])
         cli.clear(args)
         args = self.parser.parse_args([
-            'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
+            'tasks', 'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
     def test_parentdag_downstream_clear(self):
         args = self.parser.parse_args([
-            'clear', 'example_subdag_operator.section-1', '--no_confirm'])
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--no_confirm'])
         cli.clear(args)
         args = self.parser.parse_args([
-            'clear', 'example_subdag_operator.section-1', '--no_confirm',
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--no_confirm',
             '--exclude_parentdag'])
         cli.clear(args)
 
     def test_get_dags(self):
-        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator',
+        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator',
                                                     '-c']))
         self.assertEqual(len(dags), 1)
 
-        dags = cli.get_dags(self.parser.parse_args(['clear', 'subdag', '-dx', '-c']))
+        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '-c']))
         self.assertGreater(len(dags), 1)
 
         with self.assertRaises(AirflowException):
-            cli.get_dags(self.parser.parse_args(['clear', 'foobar', '-dx', '-c']))
+            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '-c']))
 
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
     def test_trigger_dag(self):
         cli.trigger_dag(self.parser.parse_args([
-            'trigger_dag', 'example_bash_operator',
+            'dags', 'trigger', 'example_bash_operator',
             '-c', '{"foo": "bar"}']))
         self.assertRaises(
             ValueError,
             cli.trigger_dag,
             self.parser.parse_args([
-                'trigger_dag', 'example_bash_operator',
+                'dags', 'trigger', 'example_bash_operator',
                 '--run_id', 'trigger_dag_xxx',
                 '-c', 'NOT JSON'])
         )
@@ -1762,38 +1694,32 @@ class CliTests(unittest.TestCase):
         session.add(DM(dag_id=key))
         session.commit()
         cli.delete_dag(self.parser.parse_args([
-            'delete_dag', key, '--yes']))
+            'dags', 'delete', key, '--yes']))
         self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
         self.assertRaises(
             AirflowException,
             cli.delete_dag,
             self.parser.parse_args([
-                'delete_dag',
+                'dags', 'delete',
                 'does_not_exist_dag',
                 '--yes'])
         )
 
     def test_pool_create(self):
-        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
         self.assertEqual(self.session.query(Pool).count(), 1)
 
     def test_pool_get(self):
-        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
         try:
-            cli.pool(self.parser.parse_args(['pool', '-g', 'foo']))
+            cli.pool_get(self.parser.parse_args(['pools', 'get', 'foo']))
         except Exception as e:
             self.fail("The 'pool -g foo' command raised unexpectedly: %s" % e)
 
     def test_pool_delete(self):
-        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
-        cli.pool(self.parser.parse_args(['pool', '-x', 'foo']))
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        cli.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
         self.assertEqual(self.session.query(Pool).count(), 0)
-
-    def test_pool_no_args(self):
-        try:
-            cli.pool(self.parser.parse_args(['pool']))
-        except Exception as e:
-            self.fail("The 'pool' command raised unexpectedly: %s" % e)
 
     def test_pool_import_export(self):
         # Create two pools first
@@ -1812,15 +1738,15 @@ class CliTests(unittest.TestCase):
 
         # Import json
         try:
-            cli.pool(self.parser.parse_args(['pool', '-i', 'pools_import.json']))
+            cli.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import.json']))
         except Exception as e:
-            self.fail("The 'pool -i pools_import.json' failed: %s" % e)
+            self.fail("The 'pool import pools_import.json' failed: %s" % e)
 
         # Export json
         try:
-            cli.pool(self.parser.parse_args(['pool', '-e', 'pools_export.json']))
+            cli.pool_export(self.parser.parse_args(['pools', 'export', 'pools_export.json']))
         except Exception as e:
-            self.fail("The 'pool -e pools_export.json' failed: %s" % e)
+            self.fail("The 'pool export pools_export.json' failed: %s" % e)
 
         with open('pools_export.json', mode='r') as file:
             pool_config_output = json.load(file)
@@ -1833,86 +1759,86 @@ class CliTests(unittest.TestCase):
 
     def test_variables(self):
         # Checks if all subcommands are properly received
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'foo', '{"foo":"bar"}']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-g', 'foo']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-g', 'baz', '-d', 'bar']))
-        cli.variables(self.parser.parse_args([
-            'variables']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-x', 'bar']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-i', DEV_NULL]))
-        cli.variables(self.parser.parse_args([
-            'variables', '-e', DEV_NULL]))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"bar"}']))
+        cli.variables_get(self.parser.parse_args([
+            'variables', 'get', 'foo']))
+        cli.variables_get(self.parser.parse_args([
+            'variables', 'get', 'baz', '-d', 'bar']))
+        cli.variables_list(self.parser.parse_args([
+            'variables', 'list']))
+        cli.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'bar']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', DEV_NULL]))
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', DEV_NULL]))
 
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'bar', 'original']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'original']))
         # First export
-        cli.variables(self.parser.parse_args([
-            'variables', '-e', 'variables1.json']))
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables1.json']))
 
         first_exp = open('variables1.json', 'r')
 
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'bar', 'updated']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'foo', '{"foo":"oops"}']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-x', 'foo']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'updated']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"oops"}']))
+        cli.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'foo']))
         # First import
-        cli.variables(self.parser.parse_args([
-            'variables', '-i', 'variables1.json']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables1.json']))
 
         self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
         # Second export
-        cli.variables(self.parser.parse_args([
-            'variables', '-e', 'variables2.json']))
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables2.json']))
 
         second_exp = open('variables2.json', 'r')
         self.assertEqual(first_exp.read(), second_exp.read())
         second_exp.close()
         first_exp.close()
         # Second import
-        cli.variables(self.parser.parse_args([
-            'variables', '-i', 'variables2.json']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables2.json']))
 
         self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{"foo": "bar"}', Variable.get('foo'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
 
         # Set a dict
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'dict', '{"foo": "oops"}']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'dict', '{"foo": "oops"}']))
         # Set a list
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'list', '["oops"]']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'list', '["oops"]']))
         # Set str
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'str', 'hello string']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'str', 'hello string']))
         # Set int
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'int', '42']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'int', '42']))
         # Set float
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'float', '42.0']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'float', '42.0']))
         # Set true
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'true', 'true']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'true', 'true']))
         # Set false
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'false', 'false']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'false', 'false']))
         # Set none
-        cli.variables(self.parser.parse_args([
-            'variables', '-s', 'null', 'null']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'null', 'null']))
 
         # Export and then import
-        cli.variables(self.parser.parse_args([
-            'variables', '-e', 'variables3.json']))
-        cli.variables(self.parser.parse_args([
-            'variables', '-i', 'variables3.json']))
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables3.json']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables3.json']))
 
         # Assert value
         self.assertEqual({'foo': 'oops'}, models.Variable.get('dict', deserialize_json=True))
@@ -1998,10 +1924,10 @@ class CliTests(unittest.TestCase):
     @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
     def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
         # Shorten timeout so that this test doesn't take too long time
-        configuration.conf.set("webserver", "web_server_master_timeout", "10")
         args = self.parser.parse_args(['webserver'])
-        with self.assertRaises(SystemExit) as e:
-            cli.webserver(args)
+        with conf_vars({('webserver', 'web_server_master_timeout'): '10'}):
+            with self.assertRaises(SystemExit) as e:
+                cli.webserver(args)
         self.assertEqual(e.exception.code, 1)
 
 
@@ -2319,8 +2245,8 @@ class EmailTest(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        configuration.conf.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
-        utils.email.send_email('to', 'subject', 'content')
+        with conf_vars({('email', 'EMAIL_BACKEND'): 'tests.core.send_email_test'}):
+            utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
             cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
@@ -2400,10 +2326,10 @@ class EmailSmtpTest(unittest.TestCase):
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
-        configuration.conf.set('smtp', 'SMTP_SSL', 'True')
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
+        with conf_vars({('smtp', 'SMTP_SSL'): 'True'}):
+            utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
         mock_smtp_ssl.assert_called_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
@@ -2413,11 +2339,13 @@ class EmailSmtpTest(unittest.TestCase):
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
-        configuration.conf.remove_option('smtp', 'SMTP_USER')
-        configuration.conf.remove_option('smtp', 'SMTP_PASSWORD')
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
+        with conf_vars({
+                ('smtp', 'SMTP_USER'): None,
+                ('smtp', 'SMTP_PASSWORD'): None,
+        }):
+            utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
         mock_smtp.assert_called_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),

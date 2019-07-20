@@ -1275,10 +1275,13 @@ class SchedulerJob(BaseJob):
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
 
+        processor_timeout_seconds = conf.getint('core', 'dagbag_import_timeout')
+        processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
                                                      processor_factory,
+                                                     processor_timeout,
                                                      async_mode)
 
         try:

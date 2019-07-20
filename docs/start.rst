@@ -31,7 +31,7 @@ The installation is quick and straightforward.
     pip install apache-airflow
 
     # initialize the database
-    airflow initdb
+    airflow db init
 
     # if you build with master
     airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
@@ -66,9 +66,9 @@ run the commands below.
 .. code-block:: bash
 
     # run your first task instance
-    airflow run example_bash_operator runme_0 2015-01-01
+    airflow tasks run example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
-    airflow backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
+    airflow dags backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
 
 What's Next?
 ''''''''''''

@@ -84,8 +84,8 @@ class DagBagTest(unittest.TestCase):
         should be discovered.
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
-            fp.write("# airflow".encode())
-            fp.write("# DAG".encode())
+            fp.write(b"# airflow")
+            fp.write(b"# DAG")
             fp.flush()
             dagbag = models.DagBag(
                 dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
@@ -119,7 +119,7 @@ class DagBagTest(unittest.TestCase):
         test that we're able to parse file that contains multi-byte char
         """
         f = NamedTemporaryFile()
-        f.write('\u3042'.encode('utf8'))  # write multi-byte char (hiragana)
+        f.write('\u3042'.encode())  # write multi-byte char (hiragana)
         f.flush()
 
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)

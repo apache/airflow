@@ -63,7 +63,7 @@ class GrpcOperator(BaseOperator):
                  response_callback=None,
                  log_response=False,
                  *args, **kwargs):
-        super(GrpcOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.stub_class = stub_class
         self.call_func = call_func
         self.grpc_conn_id = grpc_conn_id

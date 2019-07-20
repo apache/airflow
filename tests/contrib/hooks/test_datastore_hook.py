@@ -26,7 +26,7 @@ from unittest.mock import call, patch
 from tests.compat import mock
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(unused_self, unused_gcp_conn_id, unused_delegate_to=None):
     pass
 
 

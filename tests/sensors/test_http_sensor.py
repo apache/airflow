@@ -67,7 +67,7 @@ class HttpSensorTests(unittest.TestCase):
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         task = HttpSensor(
@@ -130,7 +130,7 @@ class HttpSensorTests(unittest.TestCase):
         self,
         mock_session_send
     ):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         response = requests.Response()
@@ -164,7 +164,7 @@ class FakeSession:
         self.response.status_code = 200
         self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
 
-    def send(self, request, **kwargs):
+    def send(self, *args, **kwargs):
         return self.response
 
     def prepare_request(self, request):
