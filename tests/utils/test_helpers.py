@@ -38,7 +38,7 @@ class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _ignores_sigterm(child_pid, child_setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
 
         signal.signal(signal.SIGTERM, signal_handler)
@@ -49,7 +49,7 @@ class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)

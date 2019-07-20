@@ -72,7 +72,7 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
         adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
         adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
 
-        def _assert_upload(bucket_name, object_name, filename):
+        def _assert_upload(bucket_name, object_name, filename):  # pylint: disable=unused-argument
             gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH)
 
             self.assertEqual(gcs_bucket, 'test')

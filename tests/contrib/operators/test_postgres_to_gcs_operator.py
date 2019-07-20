@@ -150,7 +150,7 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, content_type):
+        def _assert_upload(_, obj, tmp_filename, __):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     self.assertEqual(SCHEMA_JSON, file.read())
