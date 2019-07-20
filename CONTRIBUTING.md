@@ -442,20 +442,23 @@ PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow
 
 Running kubernetes tests:
 ```bash
-KUBERNETES_VERSION==v1.13.0 BACKEND=postgres ENV=kubernetes ./scripts/ci/local_ci_run_airflow_testing.sh
+KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
+  ./scripts/ci/local_ci_run_airflow_testing.sh
 ```
 
 * PYTHON_VERSION might be one of 3.5/3.6
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
 * KUBERNETES_VERSION - required for Kubernetes tessts - currently KUBERNETES_VERSION=v1.13.0.
+* KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
 The following environments are possible:
  * The "docker" environment (default) - it starts all dependencies required by full suite of tests
    including postgres/mysql and other components. It's quite resource heavy so do not forget to stop
    the environment using [Stop environment](#stopping-the-environment) when you finish working wit it. It
    can also slow down your local machine.
- * The "kubernetes" environment is used to run tests with kubernetes cluster.
+ * The "kubernetes" environment is used to run tests with kubernetes cluster (requires KUBERNETES_VERSION
+   and KUBERNETES_MODE variables).
  * The "bare" environment is used to run a bare docker instance of Airflow without any external dependencies
    which means that you can only run it with sqlite backend.
 
