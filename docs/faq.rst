@@ -211,3 +211,11 @@ How to reduce airflow dag scheduling latency in production?
 
 - ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value(e.g numbers of cpus where scheduler runs - 1) in production.
 - ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value(e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+
+Why next_ds or prev_ds might not contain expected values?
+---------------------------------------------------------
+
+- When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
+  ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
+  the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
+- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
