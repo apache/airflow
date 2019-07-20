@@ -280,11 +280,21 @@ clean the docker disk space periodically.
 If you are on MacOS:
 
 * Run `brew install gnu-getopt coreutils` (if you use brew, or use equivalent command for ports)
-* Then (with brew) link the gnu-getopt to become default as suggested by brew by typing.
+* Then (with brew) link the gnu-getopt to become default as suggested by brew by typing:
 ```bash
-echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
-. ~/.bash_profile"
+echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+. ~/.bash_profile
 ```
+
+if you use bash or
+
+```bash
+echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+. ~/.zprofile
+```
+
+if you use zsh
+
 * Login and logout afterwards
 
 If you are on Linux:
