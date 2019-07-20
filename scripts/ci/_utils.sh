@@ -307,9 +307,12 @@ EOF
 
     export THE_IMAGE="SLIM_CI"
     if [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}_${PYTHON_VERSION}" ]]; then
-        echo
-        echo "Image built locally - skip force-pulling them"
-        echo
+        if [[ ${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:=""} != "true" ]]; then
+            echo
+            echo "Image built locally - skip force-pulling them"
+            echo
+        fi
+        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
     else
         echo
         echo "Image not built locally - force pulling them first"
