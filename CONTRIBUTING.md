@@ -151,7 +151,7 @@ require those components to be setup. Only real unit tests can be run bu default
 
 If you want to run integration tests, you need to configure and install the dependencies on your own.
 
-It's also very difficult to make sure that your local environment is consistent with other's environments.
+It's also very difficult to make sure that your local environment is consistent with other environments.
 This can often lead to "works for me" syndrome. It's better to use the Docker Compose integration test
 environment in case you want reproducible environment consistent with other people.
 
@@ -230,7 +230,7 @@ or a single test method without colors or debug logs:
 ```bash
 ./run-tests tests.core:CoreTest.test_check_operators
 ```
-Note that `./run_tests` script runs tests but the first time it runs, ut performs database initialisation.
+Note that `./run_tests` script runs tests but the first time it runs, it performs database initialisation.
 If you run further tests without leaving the environment, the database will not be initialized, but you
 can always force database initialization with `--with-db-init` (`-i`) switch. The scripts will
 inform you what you can do when they are run.
@@ -244,13 +244,13 @@ from IDE is as simple as:
 
 Note that while most of the tests are typical "unit" tests that do not
 require external components, there are a number of tests that are more of
-"integration" ot even "system" tests (depending on the convention you use).
+"integration" or even "system" tests (depending on the convention you use).
 Those tests interact with external components. For those tests
 you need to run complete Docker Compose - base environment below.
 
 # Integration test development environment
 
-This is environment that is used during CI builds on Travis CI. We have scripts to reproduce the
+This is the environment that is used during CI builds on Travis CI. We have scripts to reproduce the
 Travis environment and you can enter the environment and run it locally.
 
 The scripts used by Travis CI run also image builds which make the images contain all the sources. You can
@@ -344,7 +344,7 @@ do that by running appropriate scripts (The same is done in TravisCI)
 * [ci_lint_dockerfile.sh](scripts/ci/ci_lint_dockerfile.sh) - runs lint checker for the Dockerfile
 * [ci_check_license.sh](scripts/ci/ci_check_license.sh) - checks if all licences are present in the sources
 
-Those scripts ar optimised for time of rebuilds of docker image. The image will be automatically
+Those scripts are optimised for time of rebuilds of docker image. The image will be automatically
 rebuilt when needed (for example when dependencies change).
 
 You can also force rebuilding of the image by deleting [.build](./build)
@@ -449,7 +449,7 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 * PYTHON_VERSION might be one of 3.5/3.6
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
-* KUBERNETES_VERSION - required for Kubernetes tessts - currently KUBERNETES_VERSION=v1.13.0.
+* KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
 * KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
 The following environments are possible:
@@ -527,7 +527,7 @@ can check if your problem is fixed)
 1. Remove and re-install Docker CE, then start with [force pulling the images](#force-pulling-the-images)
 
 In case the problems are not solved, you can set VERBOSE variable to "true" (`export VERBOSE="true"`)
-and rerun failing command, and copy&paste the output from your terminal, describe the problem and
+and rerun failing command, and copy & paste the output from your terminal, describe the problem and
 post it in [Airflow Slack](https://apache-airflow-slack.herokuapp.com/) #troubleshooting channel.
 
 # Git hooks
@@ -600,8 +600,8 @@ meets these guidelines:
 1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses
 [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and
 [codecov](https://codecov.io/gh/apache/airflow) to track coverage.
-You can set up both for free on your fork (see the "Testing on Travis CI" section below).
-It will help you making sure you do not break the build with your PR and that you help increase coverage.
+You can set up both for free on your fork (see "Testing on Travis CI" section below).
+It will help you make sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and
 resolve all conflicts.
 1. Every pull request should have an associated
@@ -767,7 +767,7 @@ npm run dev
 
 ### Upgrading npm packages
 
-Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `npm install`
+Should you add or upgrade an npm package, which involves changing `package.json`, you'll need to re-run `npm install`
 and push the newly generated `package-lock.json` file so we get the reproducible build.
 
 ### Javascript Style Guide
