@@ -447,7 +447,6 @@ function go_to_airflow_sources {
 function basic_sanity_checks() {
     assert_not_in_container
     go_to_airflow_sources
-    force_python_3_6
     check_if_coreutils_installed
     create_cache_directory
 }
