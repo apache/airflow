@@ -19,6 +19,7 @@
 """
 This module contains a Google Cloud Translate Hook.
 """
+from typing import Union, List, Dict, Optional
 
 from google.cloud.translate_v2 import Client
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -32,25 +33,29 @@ class CloudTranslateHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    _client = None
-
-    def __init__(self, gcp_conn_id='google_cloud_default'):
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default') -> None:
         super().__init__(gcp_conn_id)
+        self._client = None  # type: Optional[Client]
 
-    def get_conn(self):
+    def get_conn(self) -> Client:
         """
         Retrieves connection to Cloud Translate
 
         :return: Google Cloud Translate client object.
-        :rtype: Client
+        :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
             self._client = Client(credentials=self._get_credentials())
         return self._client
 
     def translate(
-        self, values, target_language, format_=None, source_language=None, model=None
-    ):
+        self,
+        values: Union[str, List[str]],
+        target_language: str,
+        format_: str = None,
+        source_language: str = None,
+        model: Union[str, List[str]] = None
+    ) -> Dict:
         """Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text
@@ -92,7 +97,7 @@ class CloudTranslateHook(GoogleCloudBaseHook):
         """
         client = self.get_conn()
 
-        return client.translate(
+        return client.translate(  # type: ignore
             values=values,
             target_language=target_language,
             format_=format_,
