@@ -206,7 +206,7 @@ class TestCLI(unittest.TestCase):
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
-            self.assertIn('END_DATE', output)
+            self.assertIn('end_date', output)
             self.assertIn("'example_python_operator__print_the_context__20180101'", output)
         finally:
             sys.stdout = saved_stdout
