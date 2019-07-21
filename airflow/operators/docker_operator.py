@@ -18,6 +18,7 @@
 # under the License.
 
 import json
+from typing import Union, List
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
@@ -48,20 +49,12 @@ class DockerOperator(BaseOperator):
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
     :type api_version: str
-    :param auto_remove: Auto-removal of the container on daemon side when the
-        container's process exits.
-        The default is False.
-    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
-    :param dns: Docker custom DNS servers
-    :type dns: list[str]
-    :param dns_search: Docker custom DNS search domain
-    :type dns_search: list[str]
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -109,6 +102,14 @@ class DockerOperator(BaseOperator):
     :type xcom_all: bool
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
+    :param dns: Docker custom DNS servers
+    :type dns: list[str]
+    :param dns_search: Docker custom DNS search domain
+    :type dns_search: list[str]
+    :param auto_remove: Auto-removal of the container on daemon side when the
+        container's process exits.
+        The default is False.
+    :type auto_remove: bool
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :type shm_size: int
@@ -119,15 +120,15 @@ class DockerOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            image,
-            api_version=None,
-            command=None,
-            cpus=1.0,
-            docker_url='unix://var/run/docker.sock',
-            environment=None,
-            force_pull=False,
-            mem_limit=None,
-            host_tmp_dir=None,
+            image: str,
+            api_version: str = None,
+            command: Union[str, List[str]] = None,
+            cpus: float = 1.0,
+            docker_url: str = 'unix://var/run/docker.sock',
+            environment: dict = None,
+            force_pull: bool = False,
+            mem_limit: Union[float, str] = None,
+            host_tmp_dir: str = None,
             network_mode=None,
             tls_ca_cert=None,
             tls_client_cert=None,
@@ -145,7 +146,7 @@ class DockerOperator(BaseOperator):
             auto_remove=False,
             shm_size=None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.api_version = api_version

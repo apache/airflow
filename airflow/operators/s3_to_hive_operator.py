@@ -18,6 +18,8 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
+from typing import Dict, Union
+
 from airflow.utils.file import TemporaryDirectory
 import gzip
 import bz2
@@ -55,6 +57,8 @@ class S3ToHiveTransfer(BaseOperator):
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
     :type hive_table: str
+    :param delimiter: field delimiter in the file
+    :type delimiter: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
     :param recreate: whether to drop and recreate the table at every
@@ -72,8 +76,6 @@ class S3ToHiveTransfer(BaseOperator):
     :param wildcard_match: whether the s3_key should be interpreted as a Unix
         wildcard pattern
     :type wildcard_match: bool
-    :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param aws_conn_id: source s3 connection
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -105,23 +107,23 @@ class S3ToHiveTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            s3_key,
-            field_dict,
-            hive_table,
-            delimiter=',',
-            create=True,
-            recreate=False,
-            partition=None,
-            headers=False,
-            check_headers=False,
-            wildcard_match=False,
-            aws_conn_id='aws_default',
-            verify=None,
-            hive_cli_conn_id='hive_cli_default',
-            input_compressed=False,
-            tblproperties=None,
-            select_expression=None,
-            *args, **kwargs):
+            s3_key: str,
+            field_dict: Dict,
+            hive_table: str,
+            delimiter: str = ',',
+            create: bool = True,
+            recreate: bool = False,
+            partition: Dict = None,
+            headers: bool = False,
+            check_headers: bool = False,
+            wildcard_match: bool = False,
+            aws_conn_id: str = 'aws_default',
+            verify: Union[bool, str] = None,
+            hive_cli_conn_id: str = 'hive_cli_default',
+            input_compressed: bool = False,
+            tblproperties: Dict = None,
+            select_expression: str = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict

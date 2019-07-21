@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Union, List
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.hooks.S3_hook import S3Hook
@@ -61,17 +62,16 @@ class S3ToRedshiftTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            schema,
-            table,
-            s3_bucket,
-            s3_key,
-            redshift_conn_id='redshift_default',
-            aws_conn_id='aws_default',
-            verify=None,
-            copy_options=tuple(),
-            autocommit=False,
-            parameters=None,
-            *args, **kwargs):
+            schema: str,
+            table: str,
+            s3_bucket: str,
+            s3_key: str,
+            redshift_conn_id: str = 'redshift_default',
+            aws_conn_id: str = 'aws_default',
+            verify: Union[bool, str] = None,
+            copy_options: List = None,
+            autocommit: bool = False,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.table = table
@@ -80,9 +80,8 @@ class S3ToRedshiftTransfer(BaseOperator):
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.copy_options = copy_options
+        self.copy_options = copy_options or []
         self.autocommit = autocommit
-        self.parameters = parameters
 
     def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)

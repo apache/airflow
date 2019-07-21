@@ -18,6 +18,7 @@
 # under the License.
 
 import re
+from typing import Dict
 
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow import configuration
@@ -49,6 +50,8 @@ class HiveOperator(BaseOperator):
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
+    :param run_as_owner: Run HQL code as a DAG's owner.
+    :type run_as_owner: bool
     :param mapred_queue: queue used by the Hadoop CapacityScheduler. (templated)
     :type  mapred_queue: str
     :param mapred_queue_priority: priority within CapacityScheduler queue.
@@ -66,17 +69,18 @@ class HiveOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, hql,
-            hive_cli_conn_id='hive_cli_default',
-            schema='default',
-            hiveconfs=None,
-            hiveconf_jinja_translate=False,
-            script_begin_tag=None,
-            run_as_owner=False,
-            mapred_queue=None,
-            mapred_queue_priority=None,
-            mapred_job_name=None,
-            *args, **kwargs):
+            self,
+            hql: str,
+            hive_cli_conn_id: str = 'hive_cli_default',
+            schema: str = 'default',
+            hiveconfs: Dict = None,
+            hiveconf_jinja_translate: bool = False,
+            script_begin_tag: str = None,
+            run_as_owner: bool = False,
+            mapred_queue: str = None,
+            mapred_queue_priority: str = None,
+            mapred_job_name: str = None,
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.hql = hql
