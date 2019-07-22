@@ -176,6 +176,17 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             "DagFileProcessor{}".format(self._instance_id))
         self._start_time = timezone.utcnow()
 
+    def kill(self):
+        """
+        Kill the process launched to process the file, and ensure consistent state.
+        """
+        if self._process is None:
+            raise AirflowException("Tried to kill before starting!")
+        # The queue will likely get corrupted, so remove the reference
+        self._result_queue = None
+        self._kill_process()
+        self._manager.shutdown()
+
     def terminate(self, sigkill=False):
         """
         Terminate (and then kill) the process launched to process the file.
@@ -184,16 +195,20 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type sigkill: bool
         """
         if self._process is None:
-            raise AirflowException("Tried to call stop before starting!")
+            raise AirflowException("Tried to call terminate before starting!")
         # The queue will likely get corrupted, so remove the reference
         self._result_queue = None
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
         self._process.join(5)
-        if sigkill and self._process.is_alive():
+        if sigkill:
+            self._kill_process()
+        self._manager.shutdown()
+
+    def _kill_process(self):
+        if self._process.is_alive():
             self.log.warning("Killing PID %s", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
-        self._manager.shutdown()
 
     @property
     def pid(self):

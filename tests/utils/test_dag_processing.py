@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+from datetime import (datetime, timedelta)
 import os
 import pathlib
 import sys
 import tempfile
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import (MagicMock, PropertyMock)
 
 from airflow import configuration as conf
 from airflow.jobs import DagFileProcessor
@@ -172,6 +172,48 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
         manager.set_file_paths(['abc.txt'])
         self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
+
+    @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.DagFileProcessor.kill")
+    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
+        mock_pid.return_value = 1234
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            file_paths=['abc.txt'],
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=MagicMock(),
+            stat_queue=MagicMock(),
+            result_queue=MagicMock,
+            async_mode=True)
+
+        processor = DagFileProcessor('abc.txt', False, [])
+        processor._start_time = timezone.make_aware(datetime.min)
+        manager._processors = {'abc.txt': processor}
+        manager._kill_timed_out_processors()
+        mock_kill.assert_called()
+
+    @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.scheduler_job.DagFileProcessor")
+    def test_kill_timed_out_processors_no_kill(self, mock_dag_file_processor, mock_pid):
+        mock_pid.return_value = 1234
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            file_paths=['abc.txt'],
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=MagicMock(),
+            stat_queue=MagicMock(),
+            result_queue=MagicMock,
+            async_mode=True)
+
+        processor = DagFileProcessor('abc.txt', False, [])
+        processor._start_time = timezone.make_aware(datetime.max)
+        manager._processors = {'abc.txt': processor}
+        manager._kill_timed_out_processors()
+        mock_dag_file_processor.kill.assert_not_called()
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
