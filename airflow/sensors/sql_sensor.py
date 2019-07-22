@@ -43,14 +43,15 @@ class SqlSensor(BaseSensorOperator):
     :param parameters: The parameters to render the SQL query with (optional).
     :type parameters: mapping or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
-    as the only argument, and returns a boolean (optional).
+        as the only argument, and returns a boolean (optional).
     :type: success: Optional<Callable[[Any], bool]>
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
-    as the only argument and return a boolean (optional).
+        as the only argument and return a boolean (optional).
     :type: failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned
     :type: fail_on_empty: bool
     """
+
     template_fields = ('sql',)  # type: Iterable[str]
     template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#7c7287'
