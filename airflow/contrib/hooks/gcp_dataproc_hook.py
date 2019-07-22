@@ -27,6 +27,7 @@ import uuid
 from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
+from airflow.version import version
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -208,12 +209,23 @@ class _DataProcJobBuilder:
                 "placement": {
                     "clusterName": cluster_name
                 },
+                "labels": {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')},
                 job_type: {
                 }
             }
         }
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
+
+    def add_labels(self, labels):
+        """
+        Set labels for Dataproc job.
+
+        :param labels: Labels for the job query.
+        :type labels: dict
+        """
+        if labels:
+            self.job["job"]["labels"].update(labels)
 
     def add_variables(self, variables):
         """

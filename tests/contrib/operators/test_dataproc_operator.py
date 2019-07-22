@@ -22,7 +22,6 @@ import datetime
 import re
 import unittest
 from unittest.mock import MagicMock, Mock, patch
-
 from typing import Dict
 
 import time
@@ -82,6 +81,12 @@ GCP_REGION = 'test-region'
 MAIN_URI = 'test-uri'
 TEMPLATE_ID = 'template-id'
 
+LABELS = {
+    'label_a': 'value_a',
+    'label_b': 'value_b',
+    'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')
+}
+
 HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
 DATAPROC_JOB_ID = 'dataproc_job_id'
 DATAPROC_JOB_TO_SUBMIT = {
@@ -92,7 +97,8 @@ DATAPROC_JOB_TO_SUBMIT = {
         },
         'placement': {
             'clusterName': CLUSTER_NAME
-        }
+        },
+        'labels': LABELS
     }
 }
 
@@ -563,7 +569,13 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
         with patch(HOOK) as mock_hook:
             mock_hook = mock_hook()
             mock_hook.submit.side_effect = submit_side_effect
-            mock_hook.create_job_template().build.return_value = {'job': {'reference': {'jobId': job_id}}}
+            mock_hook.create_job_template().build.return_value = {
+                'job': {
+                    'reference': {
+                        'jobId': job_id
+                    }
+                }
+            }
 
             task = DataProcJobBaseOperator(
                 task_id=TASK_ID,
@@ -580,6 +592,27 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
 
 class DataProcHadoopOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHadoopOperator
+    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    def test_correct_job_definition(self, mock_hook, mock_uuid):
+        # Expected job
+        job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
+        job_definition['job']['hadoopJob'] = {'mainClass': None}
+        job_definition['job']['reference']['projectId'] = None
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+
+        # Prepare job using operator
+        task = DataProcHadoopOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            job_name=DATAPROC_JOB_ID,
+            labels=LABELS
+        )
+
+        task.execute(context=None)
+        self.assertDictEqual(job_definition, task.job_template.job)
+
     @staticmethod
     def test_hook_correct_region():
         with patch(HOOK) as mock_hook:
@@ -604,6 +637,27 @@ class DataProcHadoopOperatorTest(unittest.TestCase):
 
 class DataProcHiveOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHiveOperator
+    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    def test_correct_job_definition(self, mock_hook, mock_uuid):
+        # Expected job
+        job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
+        job_definition['job']['hiveJob'] = {'queryFileUri': None}
+        job_definition['job']['reference']['projectId'] = None
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+
+        # Prepare job using operator
+        task = DataProcHiveOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            job_name=DATAPROC_JOB_ID,
+            labels=LABELS
+        )
+
+        task.execute(context=None)
+        self.assertDictEqual(job_definition, task.job_template.job)
+
     @staticmethod
     def test_hook_correct_region():
         with patch(HOOK) as mock_hook:
@@ -627,6 +681,27 @@ class DataProcHiveOperatorTest(unittest.TestCase):
 
 
 class DataProcPigOperatorTest(unittest.TestCase):
+    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    def test_correct_job_definition(self, mock_hook, mock_uuid):
+        # Expected job
+        job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
+        job_definition['job']['pigJob'] = {'queryFileUri': None}
+        job_definition['job']['reference']['projectId'] = None
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+
+        # Prepare job using operator
+        task = DataProcPigOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            job_name=DATAPROC_JOB_ID,
+            labels=LABELS
+        )
+
+        task.execute(context=None)
+        self.assertDictEqual(job_definition, task.job_template.job)
+
     @staticmethod
     def test_hook_correct_region():
         with patch(HOOK) as mock_hook:
@@ -655,6 +730,28 @@ class DataProcPigOperatorTest(unittest.TestCase):
 
 class DataProcPySparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcPySparkOperator
+    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    def test_correct_job_definition(self, mock_hook, mock_uuid):
+        # Expected job
+        job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
+        job_definition['job']['pysparkJob'] = {'mainPythonFileUri': 'main_class'}
+        job_definition['job']['reference']['projectId'] = None
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+
+        # Prepare job using operator
+        task = DataProcPySparkOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            job_name=DATAPROC_JOB_ID,
+            labels=LABELS,
+            main="main_class"
+        )
+
+        task.execute(context=None)
+        self.assertDictEqual(job_definition, task.job_template.job)
+
     @staticmethod
     def test_hook_correct_region():
         with patch(HOOK) as mock_hook:
@@ -681,6 +778,28 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
 
 class DataProcSparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcSparkOperator
+    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    def test_correct_job_definition(self, mock_hook, mock_uuid):
+        # Expected job
+        job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
+        job_definition['job']['sparkJob'] = {'mainClass': 'main_class'}
+        job_definition['job']['reference']['projectId'] = None
+        job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
+
+        # Prepare job using operator
+        task = DataProcSparkOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            job_name=DATAPROC_JOB_ID,
+            labels=LABELS,
+            main_class="main_class"
+        )
+
+        task.execute(context=None)
+        self.assertDictEqual(job_definition, task.job_template.job)
+
     @staticmethod
     def test_hook_correct_region():
         with patch(HOOK) as mock_hook:
