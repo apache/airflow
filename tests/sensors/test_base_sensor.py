@@ -56,6 +56,7 @@ class BaseSensorTest(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag.refresh_from_db()
 
         session = settings.Session()
         session.query(TaskReschedule).delete()

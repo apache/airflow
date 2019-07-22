@@ -110,6 +110,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             start_date=start_date,
         )
         dag.clear()
+        dag.refresh_from_db()
 
         run = dag.create_dagrun(
             run_id=iso_date,
@@ -117,12 +118,6 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             execution_date=execution_date,
             start_date=start_date,
             session=self.session,
-        )
-
-        run = DagRun.get_run(
-            self.session,
-            dag_id,
-            execution_date=execution_date,
         )
 
         self.assertIsInstance(run.execution_date, pendulum.now().__class__)

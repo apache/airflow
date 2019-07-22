@@ -474,6 +474,7 @@ class TaskInstanceTest(unittest.TestCase):
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(task=task, execution_date=timezone.utcnow())
+        ti.refresh_from_db()
         self.assertEqual(ti._try_number, 0)
         self.assertEqual(ti.try_number, 1)
 

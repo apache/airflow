@@ -234,8 +234,8 @@ class TestCLI(unittest.TestCase):
             )
         )
         next_execution_time_for_dag2 = now + timedelta(hours=4)
-        expected_output = [str(next_execution_time_for_dag1),
-                           str(next_execution_time_for_dag2),
+        expected_output = [next_execution_time_for_dag1.isoformat(),
+                           next_execution_time_for_dag2.isoformat(),
                            "None",
                            "None"]
 
