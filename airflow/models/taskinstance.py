@@ -1254,6 +1254,10 @@ class TaskInstance(Base, LoggingMixin):
                 context.update(self.task.dag.user_defined_macros)
 
         rt = self.task.render_template  # shortcut to method
+
+        if context['params']:
+            context['params'] = rt('params', context['params'], context)
+
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:

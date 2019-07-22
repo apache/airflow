@@ -199,6 +199,36 @@ class PythonOperatorTest(unittest.TestCase):
                      self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
         )
 
+    def test_python_operator_params_are_templatized(self):
+        """Test PythonOperator params are templatized"""
+        recorded_calls = []
+
+        task = PythonOperator(
+            task_id='python_operator',
+            # a Mock instance cannot be used as a callable function or test fails with a
+            # TypeError: Object of type Mock is not JSON serializable
+            python_callable=(build_recording_function(recorded_calls)),
+            params={"file": "{{ds}}.csv"},
+            op_args=["dag {{dag.dag_id}} ran on {{ds}} for file {{ params.file }}"],
+            dag=self.dag)
+
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        self.assertEqual(1, len(recorded_calls))
+        self._assertCallsEqual(
+            recorded_calls[0],
+            Call("dag {} ran on {} for file {}.csv.".format(
+                self.dag.dag_id,
+                DEFAULT_DATE.date().isoformat(),
+                DEFAULT_DATE.date().isoformat()))
+        )
+
     def test_python_operator_shallow_copy_attr(self):
         not_callable = lambda x: x
         original_task = PythonOperator(
