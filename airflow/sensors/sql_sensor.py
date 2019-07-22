@@ -27,7 +27,7 @@ from airflow.utils.decorators import apply_defaults
 
 class SqlSensor(BaseSensorOperator):
     """
-    Runs a sql statement repeteadly until a criteria is met. It will keep trying until
+    Runs a sql statement repeatedly until a criteria is met. It will keep trying until
     sql returns no rows, or if the first cell is in (0, '0', ''). Optional success
     and failure iterables are matched to the first cell returned. If success
     iterable is defined the sensor will keep retrying until the criteria is met.
