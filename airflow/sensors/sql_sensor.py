@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable
+from typing import Iterable, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -42,10 +42,12 @@ class SqlSensor(BaseSensorOperator):
     :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
     :type parameters: mapping or iterable
-    :param success: Success criteria for the sensor
-    :type: success: Optional<Iterable>
-    :param failure: Failure criteria for the sensor
-    :type: failure: Optional<Iterable>
+    :param success: Success criteria for the sensor is a Callable that takes first_cell
+    as the only argument, and returns a boolean (optional).
+    :type: success: Optional<Callable[[Any], bool]>
+    :param failure: Failure criteria for the sensor is a Callable that takes first_cell
+    as the only argument and return a boolean (optional).
+    :type: failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned
     :type: fail_on_empty: bool
     """
@@ -83,13 +85,10 @@ class SqlSensor(BaseSensorOperator):
             else:
                 return False
         first_cell = records[0][0]
-        if self.failure is not None:
-            if first_cell in self.failure:
+        if isinstance(self.failure, Callable):
+            if self.failure(first_cell):
                 raise AirflowException(
-                    "Failure criteria met. Value {} found in {}".format(first_cell, self.failure))
-        if self.success is not None:
-            if first_cell in self.success:
-                return True
-            else:
-                return False
+                    "Failure criteria met. self.failure({}) returned True".format(first_cell))
+        if isinstance(self.success, Callable):
+            return self.success(first_cell)
         return str(first_cell) not in ('0', '')
