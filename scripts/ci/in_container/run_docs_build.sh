@@ -32,7 +32,8 @@ in_container_basic_sanity_check
 in_container_script_start
 
 sudo rm -rf "$(pwd)/docs/_build/*"
-sudo "$(pwd)/docs/build.sh"
+sudo rm -rf "$(pwd)/docs/_api/*"
+sudo -E "$(pwd)/docs/build.sh"
 
 in_container_fix_ownership
 

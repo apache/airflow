@@ -38,7 +38,7 @@ def date_range(start_date, end_date=None, num=None, delta=None):
     can be something that can be added to `datetime.datetime`
     or a cron expression as a `str`
 
-    :Example::
+    .. code-block:: python
 
         date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
             [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
