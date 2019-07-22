@@ -236,8 +236,7 @@ intersphinx_mapping = {
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
-    # TODO: Re-enable when python-requests.org is working again!
-    #'requests': ('http://docs.python-requests.org/en/master/', None),
+    'requests': ('http://docs.python-requests.org/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
     'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
 }
@@ -392,7 +391,7 @@ man_pages = [
 texinfo_documents = [(
     'index', 'Airflow', 'Airflow Documentation',
     'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmaticaly author, schedule and monitor data pipelines.',
+    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
     'Miscellaneous'
 ), ]
 
@@ -434,7 +433,7 @@ autoapi_ignore = [
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
-autoapi_keep_files = False
+autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
