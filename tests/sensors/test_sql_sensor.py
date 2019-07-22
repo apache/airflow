@@ -41,16 +41,16 @@ class SqlSensorTests(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
-    # def test_unsupported_conn_type(self):
-    #     t = SqlSensor(
-    #         task_id='sql_sensor_check',
-    #         conn_id='redis_default',
-    #         sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-    #         dag=self.dag
-    #     )
-    #
-    #     with self.assertRaises(AirflowException):
-    #         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    def test_unsupported_conn_type(self):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='redis_default',
+            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
         'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")

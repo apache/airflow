@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable, Callable
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -28,10 +28,10 @@ from airflow.utils.decorators import apply_defaults
 class SqlSensor(BaseSensorOperator):
     """
     Runs a sql statement repeatedly until a criteria is met. It will keep trying until
-    sql returns no rows, or if the first cell is in (0, '0', ''). Optional success
-    and failure iterables are matched to the first cell returned. If success
-    iterable is defined the sensor will keep retrying until the criteria is met.
-    If failure iterable is defined and the criteria is met the sensor will raise AirflowException.
+    success or failure criteria are met, or if the first cell is in (0, '0', ''). Optional success
+    and failure callables are called with the first cell returned as the argument. If success
+    callable is defined the sensor will keep retrying until the criteria is met.
+    If failure callable is defined and the criteria is met the sensor will raise AirflowException.
     Failure criteria is evaluated before success criteria. A fail_on_empty boolean can also
     be passed to the sensor in which case it will fail if no rows have been returned
 
@@ -85,10 +85,10 @@ class SqlSensor(BaseSensorOperator):
             else:
                 return False
         first_cell = records[0][0]
-        if isinstance(self.failure, Callable):
+        if callable(self.failure):
             if self.failure(first_cell):
                 raise AirflowException(
                     "Failure criteria met. self.failure({}) returned True".format(first_cell))
-        if isinstance(self.success, Callable):
+        if callable(self.success):
             return self.success(first_cell)
         return str(first_cell) not in ('0', '')
