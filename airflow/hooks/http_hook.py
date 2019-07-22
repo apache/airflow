@@ -191,7 +191,7 @@ class HttpHook(BaseHook):
         :type _retry_args: dict
 
 
-        :Example::
+        .. code-block:: python
 
             hook = HttpHook(http_conn_id='my_conn',method='GET')
             retry_args = dict(
@@ -203,6 +203,7 @@ class HttpHook(BaseHook):
                      endpoint='v1/test',
                      _retry_args=retry_args
                  )
+
         """
         self._retry_obj = tenacity.Retrying(
             **_retry_args
