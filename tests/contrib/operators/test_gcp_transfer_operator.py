@@ -22,8 +22,8 @@ from copy import deepcopy
 from datetime import date, time
 from typing import Dict
 
-from parameterized import parameterized
 from botocore.credentials import Credentials
+from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_transfer_hook import (

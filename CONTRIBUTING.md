@@ -336,6 +336,7 @@ do that by running appropriate scripts (The same is done in TravisCI)
 * [ci_lint_dockerfile.sh](scripts/ci/ci_lint_dockerfile.sh) - runs lint checker for the Dockerfile
 * [ci_check_license.sh](scripts/ci/ci_check_license.sh) - checks if all licences are present in the sources
 
+
 Those scripts are optimised for time of rebuilds of docker image. The image will be automatically
 rebuilt when needed (for example when dependencies change). 
 

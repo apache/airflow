@@ -21,14 +21,6 @@
 ./airflow/contrib/example_dags/example_twitter_dag.py
 ./airflow/contrib/example_dags/example_winrm_operator.py
 ./airflow/contrib/example_dags/libs/helper.py
-./airflow/contrib/hooks/aws_athena_hook.py
-./airflow/contrib/hooks/aws_dynamodb_hook.py
-./airflow/contrib/hooks/aws_firehose_hook.py
-./airflow/contrib/hooks/aws_glue_catalog_hook.py
-./airflow/contrib/hooks/aws_hook.py
-./airflow/contrib/hooks/aws_lambda_hook.py
-./airflow/contrib/hooks/aws_sns_hook.py
-./airflow/contrib/hooks/aws_sqs_hook.py
 ./airflow/contrib/hooks/azure_container_instance_hook.py
 ./airflow/contrib/hooks/azure_container_registry_hook.py
 ./airflow/contrib/hooks/azure_container_volume_hook.py
