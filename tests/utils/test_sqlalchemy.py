@@ -24,7 +24,7 @@ import pendulum
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models import DAG, DagRun
+from airflow.models import DAG
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
@@ -110,7 +110,6 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             start_date=start_date,
         )
         dag.clear()
-        dag.refresh_from_db()
 
         run = dag.create_dagrun(
             run_id=iso_date,

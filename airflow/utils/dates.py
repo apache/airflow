@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 
 from croniter import croniter
+import pendulum
 
 cron_presets = {
     '@hourly': '0 * * * *',
@@ -241,3 +242,11 @@ def parse_execution_date(execution_date_str):
     Parse execution date string to datetime object.
     """
     return timezone.parse(execution_date_str)
+
+
+def pendulum_instance(dt):
+    """
+    Create ``pendulum.DateTime`` instace from ``datetime``. Just like 
+    ``pendulum.instance``, but is None safe.
+    """
+    return pendulum.instance(dt) if dt else None

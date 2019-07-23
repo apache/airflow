@@ -206,6 +206,10 @@ class DagTest(unittest.TestCase):
     def test_dag_naive_start_date_string(self):
         DAG('DAG', default_args={'start_date': '2019-06-01'})
 
+    def test_dag_start_date_is_pendulum(self):
+        dag = DAG('DAG', default_args={'start_date': '2019-06-01'})
+        self.assertIsInstance(dag.start_date, pendulum.now().__class__)
+
     def test_dag_naive_start_end_dates_strings(self):
         DAG('DAG', default_args={'start_date': '2019-06-01', 'end_date': '2019-06-05'})
 
@@ -230,6 +234,10 @@ class DagTest(unittest.TestCase):
         self.assertEqual(dag.timezone, settings.TIMEZONE)
         dag = DAG('DAG', start_date=datetime.datetime(2018, 1, 1))
         self.assertEqual(dag.timezone, settings.TIMEZONE)
+
+    def test_dag_default_args_start_date_is_pendulum(self):
+        dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
+        self.assertIsInstance(dag.default_args['start_date'], pendulum.now().__class__)
 
     def test_dag_none_default_args_start_date(self):
         """

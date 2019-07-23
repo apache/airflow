@@ -45,7 +45,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import timezone
-from airflow.utils.dates import cron_presets, date_range as utils_date_range
+from airflow.utils.dates import cron_presets, pendulum_instance, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -246,16 +246,16 @@ class DAG(BaseDag, LoggingMixin):
                     timezone.parse(self.default_args['end_date'], timezone=self.timezone)
                 )
 
-        self.start_date = timezone.convert_to_utc(start_date)
-        self.end_date = timezone.convert_to_utc(end_date)
+        self.start_date = pendulum_instance(timezone.convert_to_utc(start_date))
+        self.end_date = pendulum_instance(timezone.convert_to_utc(end_date))
 
         # also convert tasks
         if 'start_date' in self.default_args:
-            self.default_args['start_date'] = (
+            self.default_args['start_date'] = pendulum_instance(
                 timezone.convert_to_utc(self.default_args['start_date'])
             )
         if 'end_date' in self.default_args:
-            self.default_args['end_date'] = (
+            self.default_args['end_date'] = pendulum_instance(
                 timezone.convert_to_utc(self.default_args['end_date'])
             )
 
