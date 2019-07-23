@@ -633,6 +633,10 @@ class DataProcJobBaseOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
+        and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
+        characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
+    :type labels: dict
     :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param job_error_states: Job states that should be considered error states.
@@ -658,6 +662,7 @@ class DataProcJobBaseOperator(BaseOperator):
                  dataproc_jars=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 labels=None,
                  region='global',
                  job_error_states=None,
                  *args,
@@ -665,6 +670,7 @@ class DataProcJobBaseOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.labels = labels
         self.job_name = job_name
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
@@ -684,8 +690,9 @@ class DataProcJobBaseOperator(BaseOperator):
         """
         self.job_template = self.hook.create_job_template(self.task_id, self.cluster_name, self.job_type,
                                                           self.dataproc_properties)
-        self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.set_job_name(self.job_name)
+        self.job_template.add_jar_file_uris(self.dataproc_jars)
+        self.job_template.add_labels(self.labels)
 
     def execute(self, context):
         if self.job_template:
