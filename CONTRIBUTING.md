@@ -297,9 +297,6 @@ If you use zsh, you should run this command:
 echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
 . ~/.zprofile
 ```
-
-if you use zsh
-
 * Login and logout afterwards
 
 If you are on Linux:
@@ -413,9 +410,9 @@ the scripts will check automatically if the image needs to be re-built if needed
 automatically for you.
 
 Note that building image first time pulls the pre-built version of images from Dockerhub might take a bit
-of time - but this is not happening when you only change sources. If you change some sensitive files
-like setup.py or Dockerfile, then the image will be rebuilt and it will take again some time (but
-it is highly optimised to only rebuild what's needed)
+of time - but this wait-time will not repeat for any subsequent source code change. 
+However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild 
+that might take more time (but it is highly optimised to only rebuild what's needed)
 
 You can also [Build the images](#building-the-images) or
 [Force pull and build the images](#force-pulling-the-images)) manually at any time.
@@ -460,19 +457,19 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 * KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
 The following environments are possible:
- * The "docker" environment (default) - it starts all dependencies required by full suite of tests
-   including postgres/mysql and other components. It's quite resource heavy so do not forget to stop
-   the environment using [Stop environment](#stopping-the-environment) when you finish working wit it. It
-   can also slow down your local machine.
- * The "kubernetes" environment is used to run tests with kubernetes cluster (requires KUBERNETES_VERSION
+ * The "docker" environment (default): starts all dependencies required by full integration test-suite
+   (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to 
+   [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
+   and can slow down your machine.
+ * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
    and KUBERNETES_MODE variables).
- * The "bare" environment is used to run a bare docker instance of Airflow without any external dependencies
-   which means that you can only run it with sqlite backend.
+ * The "bare" environment:  runs airflow in docker without any external dependencies. 
+   It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
+   enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute 
+   `local_ci_run_airflow_testing.sh` with it.
 
-Note! The kubernetes env might not work locally as easily as other tests because it requires your host
-to be setup properly (specifically it installs minikube cluster locally on your host and depending
-on your machine setting it might or might not work out of the box.
-We are working on making the kubernetes tests more easily reproducible locally in the future.
+Note: The Kubernetes environment will require setting up minikube/kubernetes so it
+might require some host-network configuration.
 
 ### Stopping the environment
 
@@ -509,9 +506,9 @@ images you might end up with some unused image data.
 
 Cleanup can be performed with `docker system prune` command.
 
-In case you have huge problems with disk space and want to clean-up all image data you can run
-`docker system prune --all`. You might need to [Stop the environment](#stopping-the-environment) before
-in order to clean everything including running container or even restart the whole docker engine.
+If you run into disk space errors, we recommend you prune your docker images using the
+`docker system prune --all` command. You might need to
+[Stop the environment](#stopping-the-environment) or restart the docker engine before running this command.
 
 You can check if your docker is clean by running `docker images --all` and `docker ps --all` - both
 should return an empty list of images and containers respectively.
@@ -521,7 +518,7 @@ available for Docker. See [Docker for Mac - Space](https://docs.docker.com/docke
 
 ## Troubleshooting
 
-In case you have problems with the Docker Compose environment - try the following (after each step you
+If you are having problems with the Docker Compose environment - try the following (after each step you
 can check if your problem is fixed)
 
 1. Check if you have [enough disk space](#prerequisites) in Docker if you are on MacOS.
