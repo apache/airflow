@@ -204,6 +204,7 @@ gcp = [
     'google-cloud-tasks==1.1.0',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',
+    'google-cloud-automl>=0.4.0',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
     'pandas-gbq',
