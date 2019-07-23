@@ -53,10 +53,6 @@ jobs:
       stage: pre-test
       install: skip
       script: scripts/ci/ci_lint_dockerfile.sh
-    - name: Check docs
-      stage: pre-test
-      install: pip install -e .[doc]
-      script: docs/build.sh
     - name: Pylint
       stage: pre-test
       install: pip install pylint~=2.3.1  # Ensure the same version as in setup.py
