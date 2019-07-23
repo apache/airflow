@@ -228,21 +228,34 @@ function check_if_coreutils_installed() {
 
     set -e
 
+    CMDNAME="$(basename -- "$0")"
+
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
         echo
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo >&2 "You are running ${CMDNAME} in OSX environment"
             echo >&2 "And you need to install gnu commands"
-            echo
+            echo >&2
             echo >&2 "Run 'brew install gnu-getopt coreutils'"
-            echo
-            echo >&2 "Then link the gnu-getopt to become default as suggested by brew by typing:"
+            echo >&2
+            echo >&2 "Then link the gnu-getopt to become default as suggested by brew."
+            echo >&2
+            echo >&2 "If you use bash, you should run this command:"
+            echo >&2
             echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
             echo >&2 ". ~/.bash_profile"
-            echo
-            echo >&2 "Login and logout afterwards"
-            echo
+            echo >&2
+            echo >&2 "If you use zsh, you should run this command:"
+            echo >&2
+            echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile"
+            echo >&2 ". ~/.zprofile"
+            echo >&2
+            echo >&2 "Login and logout afterwards !!"
+            echo >&2
+            echo >&2 "After re-login, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
+            echo >&2 "Your current path is ${PATH}"
+            echo >&2
         else
             echo >&2 "You do not have necessary tools in your path (getopt, stat, md5sum)."
             echo >&2 "Please install latest/GNU version of getopt and coreutils."
