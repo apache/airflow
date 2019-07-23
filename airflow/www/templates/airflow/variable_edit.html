@@ -23,7 +23,8 @@
     #val { font-family: monospace; }
   </style>
   <script>
+    const val = document.getElementById('val');
     const height = Math.min(window.innerHeight * 0.5, val.scrollHeight);
-    document.getElementById('val').style.height = `${height}px`;
+    val.style.height = `${height}px`;
   </script>
 {% endblock %}
