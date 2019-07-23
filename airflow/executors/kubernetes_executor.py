@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
-                 request_cpu=None, limit_memory=None, limit_cpu=None,
+                 request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
                  annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels=None):
         self.image = image
@@ -52,6 +52,7 @@ class KubernetesExecutorConfig:
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
+        self.limit_gpu = limit_gpu
         self.gcp_service_account_key = gcp_service_account_key
         self.node_selectors = node_selectors
         self.affinity = affinity
@@ -63,12 +64,12 @@ class KubernetesExecutorConfig:
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
-               "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
+               "limit_memory={}, limit_cpu={}, limit_gpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
                "volume_mounts={}, tolerations={}, labels={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
-                    self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
+                    self.limit_cpu, self.limit_gpu, self.gcp_service_account_key, self.node_selectors,
                     self.affinity, self.annotations, self.volumes, self.volume_mounts,
                     self.tolerations, self.labels)
 
@@ -90,6 +91,7 @@ class KubernetesExecutorConfig:
             request_cpu=namespaced.get('request_cpu', None),
             limit_memory=namespaced.get('limit_memory', None),
             limit_cpu=namespaced.get('limit_cpu', None),
+            limit_gpu=namespaced.get('limit_gpu', None),
             gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
             node_selectors=namespaced.get('node_selectors', None),
             affinity=namespaced.get('affinity', None),
@@ -108,6 +110,7 @@ class KubernetesExecutorConfig:
             'request_cpu': self.request_cpu,
             'limit_memory': self.limit_memory,
             'limit_cpu': self.limit_cpu,
+            'limit_gpu': self.limit_gpu,
             'gcp_service_account_key': self.gcp_service_account_key,
             'node_selectors': self.node_selectors,
             'affinity': self.affinity,
