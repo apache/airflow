@@ -246,7 +246,7 @@ def parse_execution_date(execution_date_str):
 
 def pendulum_instance(dt):
     """
-    Create ``pendulum.DateTime`` instace from ``datetime``. Just like 
+    Create ``pendulum.DateTime`` instace from ``datetime``. Just like
     ``pendulum.instance``, but is None safe.
     """
     return pendulum.instance(dt) if dt else None
