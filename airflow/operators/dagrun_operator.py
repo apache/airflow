@@ -18,7 +18,6 @@
 # under the License.
 
 import datetime
-import six
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -27,7 +26,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 import json
 
 
-class DagRunOrder(object):
+class DagRunOrder:
     def __init__(self, run_id=None, payload=None):
         self.run_id = run_id
         self.payload = payload
@@ -62,13 +61,13 @@ class TriggerDagRunOperator(BaseOperator):
             python_callable=None,
             execution_date=None,
             *args, **kwargs):
-        super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 
         if isinstance(execution_date, datetime.datetime):
             self.execution_date = execution_date.isoformat()
-        elif isinstance(execution_date, six.string_types):
+        elif isinstance(execution_date, str):
             self.execution_date = execution_date
         elif execution_date is None:
             self.execution_date = execution_date

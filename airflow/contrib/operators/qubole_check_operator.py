@@ -80,15 +80,14 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
         sql = get_sql_from_qbol_cmd(kwargs)
-        super(QuboleCheckOperator, self)\
-            .__init__(qubole_conn_id=qubole_conn_id, sql=sql, *args, **kwargs)
+        super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, *args, **kwargs)
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
 
     def execute(self, context=None):
         try:
             self.hook = self.get_hook(context=context)
-            super(QuboleCheckOperator, self).execute(context=context)
+            super().execute(context=context)
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
@@ -164,7 +163,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
                  qubole_conn_id="qubole_default", *args, **kwargs):
 
         sql = get_sql_from_qbol_cmd(kwargs)
-        super(QuboleValueCheckOperator, self).__init__(
+        super().__init__(
             qubole_conn_id=qubole_conn_id,
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
@@ -175,7 +174,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     def execute(self, context=None):
         try:
             self.hook = self.get_hook(context=context)
-            super(QuboleValueCheckOperator, self).execute(context=context)
+            super().execute(context=context)
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
@@ -221,6 +220,8 @@ def handle_airflow_exception(airflow_exception, hook):
             qubole_command_id = cmd.id
             exception_message = '\nQubole Command Id: {qubole_command_id}' \
                                 '\nQubole Command Results:' \
-                                '\n{qubole_command_results}'.format(**locals())
+                                '\n{qubole_command_results}'.format(
+                qubole_command_id=qubole_command_id,  # noqa: E122
+                qubole_command_results=qubole_command_results)
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))

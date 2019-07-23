@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import mock
+from unittest import mock
 import unittest
 
 from airflow import DAG
@@ -25,8 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
 
-configuration.load_test_config()
-
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
@@ -34,7 +32,6 @@ TEST_DAG_ID = 'unit_test_sql_dag'
 class SqlSensorTests(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

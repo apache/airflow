@@ -23,19 +23,11 @@ import time
 from datetime import datetime
 from tzlocal import get_localzone
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
                                                   secondary_training_status_message, LogState)
 from airflow.hooks.S3_hook import S3Hook
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 role = 'arn:aws:iam:role/test-role'
@@ -252,10 +244,6 @@ test_evaluation_config = {
 
 
 class TestSageMakerHook(unittest.TestCase):
-
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch.object(SageMakerHook, 'log_stream')
     def test_multi_stream_iter(self, mock_log_stream):
         event = {'timestamp': 1}
@@ -315,7 +303,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_check_url.assert_called_once_with(data_url)
 
     @mock.patch.object(SageMakerHook, 'get_client_type')
-    def test_conn(self, mock_get_client):
+    def test_conn(self, mock_get_client_type):
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
         self.assertEqual(hook.aws_conn_id, 'sagemaker_test_conn_id')
 
@@ -379,7 +367,7 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'check_tuning_config')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_tuning_job(self, mock_client, mock_check_tuning):
+    def test_create_tuning_job(self, mock_client, mock_check_tuning_config):
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
                  test_arn_return}

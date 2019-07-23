@@ -25,9 +25,9 @@ There are very many reasons why your task might not be getting scheduled.
 Here are some of the common causes:
 
 - Does your script "compile", can the Airflow engine parse it and find your
-  DAG object. To test this, you can run ``airflow list_dags`` and
+  DAG object. To test this, you can run ``airflow dags list`` and
   confirm that your DAG shows up in the list. You can also run
-  ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
+  ``airflow tasks list foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
@@ -147,37 +147,49 @@ simple dictionary.
 
 .. code:: python
 
+    def create_dag(dag_id):
+        """
+        A function returning a DAG object.
+        """
+
+        return DAG(dag_id)
+
+
     for i in range(10):
-        dag_id = 'foo_{}'.format(i)
+        dag_id = f'foo_{i}'
         globals()[dag_id] = DAG(dag_id)
+
         # or better, call a function that returns a DAG object!
+        other_dag_id = f'bar_{i}'
+        globals()[other_dag_id] = create_dag(other_dag_id)
 
-What are all the ``airflow run`` commands in my process list?
----------------------------------------------------------------
+What are all the ``airflow tasks run`` commands in my process list?
+-------------------------------------------------------------------
 
-There are many layers of ``airflow run`` commands, meaning it can call itself.
+There are many layers of ``airflow tasks run`` commands, meaning it can call itself.
 
-- Basic ``airflow run``: fires up an executor, and tell it to run an
-  ``airflow run --local`` command. If using Celery, this means it puts a
+- Basic ``airflow tasks run``: fires up an executor, and tell it to run an
+  ``airflow tasks run --local`` command. If using Celery, this means it puts a
   command in the queue for it to run remotely on the worker. If using
   LocalExecutor, that translates into running it in a subprocess pool.
-- Local ``airflow run --local``: starts an ``airflow run --raw``
+- Local ``airflow tasks run --local``: starts an ``airflow tasks run --raw``
   command (described below) as a subprocess and is in charge of
   emitting heartbeats, listening for external kill signals
   and ensures some cleanup takes place if the subprocess fails.
-- Raw ``airflow run --raw`` runs the actual operator's execute method and
+- Raw ``airflow tasks run --raw`` runs the actual operator's execute method and
   performs the actual work.
 
 
 How can my airflow dag run faster?
 ----------------------------------
 
-There are three variables we could control to improve airflow dag performance:
+There are a few variables we could control to improve airflow dag performance:
 
-- ``parallelism``: This variable controls the number of task instances that the airflow worker can run simultaneously. User could increase the parallelism variable in the ``airflow.cfg``.
-- ``concurrency``: The Airflow scheduler will run no more than ``$concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``concurrency``: The Airflow scheduler will run no more than ``concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``task_concurrency``: This variable controls the number of concurrent running task instances across ``dag_runs`` per task.
 - ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
-
+- ``pool``: This variable controls the number of concurrent running task instances assigned to the pool.
 
 How can we reduce the airflow UI page load time?
 ------------------------------------------------
@@ -199,3 +211,11 @@ How to reduce airflow dag scheduling latency in production?
 
 - ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value(e.g numbers of cpus where scheduler runs - 1) in production.
 - ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value(e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+
+Why next_ds or prev_ds might not contain expected values?
+---------------------------------------------------------
+
+- When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
+  ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
+  the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
+- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``

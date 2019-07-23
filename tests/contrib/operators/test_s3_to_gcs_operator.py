@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.s3_to_gcs_operator import \
     S3ToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'
@@ -78,7 +71,7 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
         s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
 
-        def _assert_upload(bucket, object, tmp_filename):
+        def _assert_upload(bucket, object, _):
             gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH_PREFIX)
 
             self.assertEqual(gcs_bucket, bucket)

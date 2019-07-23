@@ -12,23 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
-from airflow import configuration
 from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
-from airflow.models.connection import Connection
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow.models import Connection
+from tests.compat import mock
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
@@ -58,23 +47,22 @@ def get_airflow_connection_with_port():
     )
 
 
-class StubClass(object):
-    def __init__(self, channel):
+class StubClass:
+    def __init__(self, _):
         pass
 
     def single_call(self, data):
         return data
 
-    def stream_call(self, data):
+    def stream_call(self, data):  # pylint: disable=unused-argument
         return ["streaming", "call"]
 
 
 class TestGrpcHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.channel_mock = mock.patch('grpc.Channel').start()
 
-    def custom_conn_func(self, connection):
+    def custom_conn_func(self, _):
         mocked_channel = self.channel_mock.return_value
         return mocked_channel
 
@@ -91,7 +79,7 @@ class TestGrpcHook(unittest.TestCase):
         expected_url = "test:8080"
 
         mock_insecure_channel.assert_called_once_with(expected_url)
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('grpc.insecure_channel')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
@@ -106,7 +94,7 @@ class TestGrpcHook(unittest.TestCase):
         expected_url = "test.com:1234"
 
         mock_insecure_channel.assert_called_once_with(expected_url)
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.contrib.hooks.grpc_hook.open')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
@@ -138,7 +126,7 @@ class TestGrpcHook(unittest.TestCase):
             expected_url,
             mock_credential_object
         )
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.contrib.hooks.grpc_hook.open')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
@@ -170,7 +158,7 @@ class TestGrpcHook(unittest.TestCase):
             expected_url,
             mock_credential_object
         )
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('google.auth.jwt.OnDemandCredentials.from_signing_credentials')
@@ -201,7 +189,7 @@ class TestGrpcHook(unittest.TestCase):
             None,
             expected_url
         )
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('google.auth.transport.requests.Request')
@@ -227,13 +215,13 @@ class TestGrpcHook(unittest.TestCase):
         channel = hook.get_conn()
         expected_url = "test:8080"
 
-        mock_google_default_auth.assert_called_once_with(scopes=[u"grpc", u"gcs"])
+        mock_google_default_auth.assert_called_once_with(scopes=["grpc", "gcs"])
         mock_secure_channel.assert_called_once_with(
             mock_credential_object,
             "request",
             expected_url
         )
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_custom_connection(self, mock_get_connection):
@@ -244,7 +232,7 @@ class TestGrpcHook(unittest.TestCase):
 
         channel = hook.get_conn()
 
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_custom_connection_with_no_connection_func(self, mock_get_connection):
@@ -280,7 +268,7 @@ class TestGrpcHook(unittest.TestCase):
 
         channel = hook.get_conn()
 
-        self.assertEquals(channel, mocked_channel)
+        self.assertEqual(channel, mocked_channel)
         mock_intercept_channel.assert_called_once_with(mocked_channel, "test1")
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
@@ -296,7 +284,7 @@ class TestGrpcHook(unittest.TestCase):
 
         response = hook.run(StubClass, "single_call", data={'data': 'hello'})
 
-        self.assertEquals(next(response), "hello")
+        self.assertEqual(next(response), "hello")
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('airflow.contrib.hooks.grpc_hook.GrpcHook.get_conn')
@@ -311,4 +299,4 @@ class TestGrpcHook(unittest.TestCase):
 
         response = hook.run(StubClass, "stream_call", data={'data': ['hello!', "hi"]})
 
-        self.assertEquals(next(response), ["streaming", "call"])
+        self.assertEqual(next(response), ["streaming", "call"])

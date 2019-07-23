@@ -19,22 +19,21 @@
 #
 import logging
 import socket
-from typing import Any
 
-import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from six.moves.urllib.parse import urlparse
-from werkzeug.wsgi import DispatcherMiddleware
-from werkzeug.contrib.fixers import ProxyFix
+from typing import Any
+from urllib.parse import urlparse
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from airflow import settings
 from airflow import configuration as conf
+from airflow import settings
 from airflow.logging_config import configure_logging
-from airflow.www.static_config import configure_manifest_files
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any
 appbuilder = None
@@ -47,12 +46,18 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=None,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=1
+        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
-    webserver_config_path = airflow_home_path + '/webserver_config.py'
-    app.config.from_pyfile(webserver_config_path, silent=True)
+    app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -73,7 +78,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
     # flake8: noqa: F841
     cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
@@ -192,11 +197,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)  # noqa
-            else:
-                import importlib
-                importlib.reload(e)
+            import importlib
+            importlib.reload(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 

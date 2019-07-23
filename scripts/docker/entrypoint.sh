@@ -21,6 +21,6 @@
 set -e
 
 echo Starting Apache Airflow with command:
-echo airflow $@
+echo airflow "$@"
 
-exec airflow $@
+exec airflow "$@"

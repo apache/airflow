@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint:disable=too-many-lines
+
 import ast
 import unittest
 from copy import deepcopy
@@ -23,23 +26,15 @@ from copy import deepcopy
 import httplib2
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException, configuration
+from airflow import AirflowException
 from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOperator, \
     GceInstanceStopOperator, GceSetMachineTypeOperator, GceInstanceTemplateCopyOperator, \
     GceInstanceGroupManagerUpdateTemplateOperator
 from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
+from tests.compat import mock
 
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 
 GCP_PROJECT_ID = 'project-id'
 GCE_ZONE = 'zone'
@@ -75,11 +70,10 @@ class GceInstanceStartTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_instance_start_with_templates(self, _):
         dag_id = 'test_dag_id'
-        configuration.load_test_config()
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceInstanceStartOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -112,7 +106,7 @@ class GceInstanceStartTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
-    def test_start_should_not_throw_ex_when_project_id_None(self, _):
+    def test_start_should_not_throw_ex_when_project_id_none(self, _):
         op = GceInstanceStartOperator(
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
@@ -170,11 +164,10 @@ class GceInstanceStopTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_instance_stop_with_templates(self, _):
         dag_id = 'test_dag_id'
-        configuration.load_test_config()
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceInstanceStopOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -275,11 +268,10 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_set_machine_type_with_templates(self, _):
         dag_id = 'test_dag_id'
-        configuration.load_test_config()
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)
+        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
         op = GceSetMachineTypeOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -421,7 +413,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         _check_zone_operation_status.assert_called_once_with(
-            {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE)
+            {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE, mock.ANY)
         _execute_set_machine_type.assert_called_once_with(
             GCE_ZONE, RESOURCE_ID, SET_MACHINE_TYPE_BODY, GCP_PROJECT_ID)
         # Checking the full message was sometimes failing due to different order

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
 
 import funcsigs
@@ -27,7 +25,7 @@ import unittest
 
 from subprocess import CalledProcessError
 
-from airflow import configuration, DAG
+from airflow import DAG
 from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.utils import timezone
 
@@ -42,8 +40,7 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestPythonVirtualenvOperator, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         self.dag = DAG(
             'test_dag',
             default_args={
@@ -197,7 +194,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
                 dag=self.dag)
 
     def test_nonimported_as_arg(self):
-        def f(a):
+        def f(_):
             return None
         self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 

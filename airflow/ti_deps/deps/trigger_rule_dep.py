@@ -37,7 +37,7 @@ class TriggerRuleDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         TI = airflow.models.TaskInstance
-        TR = airflow.models.TriggerRule
+        TR = airflow.utils.trigger_rule.TriggerRule
 
         # Checking that all upstream dependencies have succeeded
         if not ti.task.upstream_list:
@@ -76,16 +76,15 @@ class TriggerRuleDep(BaseTIDep):
         )
 
         successes, skipped, failed, upstream_failed, done = qry.first()
-        for dep_status in self._evaluate_trigger_rule(
-                ti=ti,
-                successes=successes,
-                skipped=skipped,
-                failed=failed,
-                upstream_failed=upstream_failed,
-                done=done,
-                flag_upstream_failed=dep_context.flag_upstream_failed,
-                session=session):
-            yield dep_status
+        yield from self._evaluate_trigger_rule(
+            ti=ti,
+            successes=successes,
+            skipped=skipped,
+            failed=failed,
+            upstream_failed=upstream_failed,
+            done=done,
+            flag_upstream_failed=dep_context.flag_upstream_failed,
+            session=session)
 
     @provide_session
     def _evaluate_trigger_rule(
@@ -123,7 +122,7 @@ class TriggerRuleDep(BaseTIDep):
         :type session: sqlalchemy.orm.session.Session
         """
 
-        TR = airflow.models.TriggerRule
+        TR = airflow.utils.trigger_rule.TriggerRule
 
         task = ti.task
         upstream = len(task.upstream_task_ids)
@@ -156,6 +155,9 @@ class TriggerRuleDep(BaseTIDep):
                 if upstream_failed or failed:
                     ti.set_state(State.UPSTREAM_FAILED, session)
                 elif skipped == upstream:
+                    ti.set_state(State.SKIPPED, session)
+            elif tr == TR.NONE_SKIPPED:
+                if skipped:
                     ti.set_state(State.SKIPPED, session)
 
         if tr == TR.ONE_SUCCESS:
@@ -207,6 +209,14 @@ class TriggerRuleDep(BaseTIDep):
                     "tasks to have succeeded or been skipped, but found {1} non-success(es). "
                     "upstream_tasks_state={2}, upstream_task_ids={3}"
                     .format(tr, num_failures, upstream_tasks_state,
+                            task.upstream_task_ids))
+        elif tr == TR.NONE_SKIPPED:
+            if skipped > 0:
+                yield self._failing_status(
+                    reason="Task's trigger rule '{0}' requires all upstream "
+                    "tasks to not have been skipped, but found {1} task(s) skipped. "
+                    "upstream_tasks_state={2}, upstream_task_ids={3}"
+                    .format(tr, skipped, upstream_tasks_state,
                             task.upstream_task_ids))
         else:
             yield self._failing_status(

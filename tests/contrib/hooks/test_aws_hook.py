@@ -22,17 +22,9 @@ import unittest
 
 import boto3
 
-from airflow import configuration
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 try:
     from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
@@ -44,10 +36,6 @@ except ImportError:
 
 
 class TestAwsHook(unittest.TestCase):
-    @mock_emr
-    def setUp(self):
-        configuration.load_test_config()
-
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):

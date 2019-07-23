@@ -17,20 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
+from unittest import mock
 from datetime import datetime
+from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
-import mock
-import six
-from six.moves.urllib.parse import parse_qs
 
 from airflow.www import utils
-
-if six.PY2:
-    # Need `assertRegex` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
 
 
 class UtilsTest(unittest.TestCase):
@@ -159,17 +153,9 @@ class UtilsTest(unittest.TestCase):
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
-        mocked_is_zipfile.assert_called_once()
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        mocked_ZipFile.assert_called_once()
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        instance.open.assert_called_once()
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
+        mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
+        mocked_ZipFile.assert_called_once_with('/path/to/archive.zip', mode='r')
+        instance.open.assert_called_once_with('deep/path/to/file.txt')
 
     def test_state_token(self):
         # It's shouldn't possible to set these odd values anymore, but lets
@@ -232,7 +218,7 @@ class AttrRendererTest(unittest.TestCase):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable(self):
+        def example_callable(unused_self):
             print("example")
         rendered = self.attr_renderer["python_callable"](example_callable)
         self.assertIn('&quot;example&quot;', rendered)

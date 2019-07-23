@@ -17,15 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function, unicode_literals
-
 import datetime
-import mock
+from unittest import mock
 import unittest
 
-from airflow import configuration, DAG
+from airflow import DAG
 from airflow.operators.email_operator import EmailOperator
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -38,8 +37,7 @@ send_email_test = mock.Mock()
 class TestEmailOperator(unittest.TestCase):
 
     def setUp(self):
-        super(TestEmailOperator, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         self.dag = DAG(
             'test_dag',
             default_args={
@@ -59,7 +57,6 @@ class TestEmailOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_execute(self):
-        configuration.conf.set('email', 'EMAIL_BACKEND',
-                               'tests.operators.test_email_operator.send_email_test')
-        self._run_as_operator()
-        send_email_test.assert_called_once()
+        with conf_vars({('email', 'EMAIL_BACKEND'): 'tests.operators.test_email_operator.send_email_test'}):
+            self._run_as_operator()
+        assert send_email_test.call_count == 1

@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the ShortCircuitOperator."""
+
 import airflow.utils.helpers
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
@@ -41,8 +43,8 @@ cond_false = ShortCircuitOperator(
     dag=dag,
 )
 
-true_1, true_2 = [DummyOperator(task_id='true_' + str(i), dag=dag) for i in [1, 2]]
-false_1, false_2 = [DummyOperator(task_id='false_' + str(i), dag=dag) for i in [1, 2]]
+ds_true = [DummyOperator(task_id='true_' + str(i), dag=dag) for i in [1, 2]]
+ds_false = [DummyOperator(task_id='false_' + str(i), dag=dag) for i in [1, 2]]
 
-cond_true >> true_1 >> true_2
-cond_false >> false_1 >> false_2
+airflow.utils.helpers.chain(cond_true, *ds_true)
+airflow.utils.helpers.chain(cond_false, *ds_false)

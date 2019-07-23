@@ -16,25 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import unittest
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.contrib.operators.postgres_to_gcs_operator import \
     PostgresToGoogleCloudStorageOperator
-
-try:
-    from unittest.mock import patch
-except ImportError:
-    try:
-        from mock import patch
-    except ImportError:
-        mock = None
+from tests.compat import patch
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
 
@@ -109,8 +97,8 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(FILENAME.format(0), obj)
             self.assertEqual('application/json', content_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(NDJSON_LINES), f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(NDJSON_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -129,8 +117,8 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
         def _assert_upload(bucket, obj, tmp_filename, content_type):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual('application/json', content_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(expected_upload[obj], f.read())
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(expected_upload[obj], file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -162,10 +150,10 @@ class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, content_type):
+        def _assert_upload(_, obj, tmp_filename, __):
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as f:
-                    self.assertEqual(SCHEMA_JSON, f.read())
+                with open(tmp_filename, 'rb') as file:
+                    self.assertEqual(SCHEMA_JSON, file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 

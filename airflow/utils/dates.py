@@ -16,16 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from airflow.utils import timezone
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
-import six
 
 from croniter import croniter
 
@@ -44,7 +38,7 @@ def date_range(start_date, end_date=None, num=None, delta=None):
     can be something that can be added to `datetime.datetime`
     or a cron expression as a `str`
 
-    :Example::
+    .. code-block:: python
 
         date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
             [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
@@ -76,7 +70,7 @@ def date_range(start_date, end_date=None, num=None, delta=None):
 
     delta_iscron = False
     tz = start_date.tzinfo
-    if isinstance(delta, six.string_types):
+    if isinstance(delta, str):
         delta_iscron = True
         start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
@@ -135,7 +129,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     datetime.datetime(2015, 9, 14, 0, 0)
     """
 
-    if isinstance(delta, six.string_types):
+    if isinstance(delta, str):
         # It's cron based, so it's easy
         tz = start_date.tzinfo
         start_date = timezone.make_naive(start_date, tz)

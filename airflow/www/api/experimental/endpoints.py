@@ -30,13 +30,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
 from airflow.www.app import csrf
 from airflow import models
-from airflow.utils.db import create_session
 
 from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
 
-requires_authentication = airflow.api.api_auth.requires_authentication
+requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
@@ -88,7 +87,7 @@ def trigger_dag(dag_id):
     if getattr(g, 'user', None):
         _log.info("User %s created %s", g.user, dr)
 
-    response = jsonify(message="Created {}".format(dr))
+    response = jsonify(message="Created {}".format(dr), execution_date=dr.execution_date.isoformat())
     return response
 
 
@@ -175,18 +174,11 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    DagModel = models.DagModel
-    with create_session() as session:
-        orm_dag = (
-            session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
-        )
-        if paused == 'true':
-            orm_dag.is_paused = True
-        else:
-            orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+    is_paused = True if paused == 'true' else False
+
+    models.DagModel.get_dagmodel(dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
     return jsonify({'response': 'ok'})
 

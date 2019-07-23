@@ -48,7 +48,7 @@ class OracleOperator(BaseOperator):
     def __init__(
             self, sql, oracle_conn_id='oracle_default', parameters=None,
             autocommit=False, *args, **kwargs):
-        super(OracleOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
         self.autocommit = autocommit

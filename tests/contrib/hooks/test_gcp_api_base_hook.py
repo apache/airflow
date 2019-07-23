@@ -20,28 +20,20 @@
 
 import os
 import unittest
+from io import StringIO
 
 from parameterized import parameterized
-from google.api_core.exceptions import RetryError, AlreadyExists
-from google.cloud.exceptions import MovedPermanently
-
-from airflow import AirflowException, LoggingMixin
-from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 import google.auth
 from google.auth.exceptions import GoogleAuthError
+from google.api_core.exceptions import RetryError, AlreadyExists
+from google.cloud.exceptions import MovedPermanently
+from googleapiclient.errors import HttpError
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow import AirflowException, LoggingMixin
+from airflow.contrib.hooks import gcp_api_base_hook as hook
+from airflow.hooks.base_hook import BaseHook
+from tests.compat import mock
 
 
 default_creds_available = True
@@ -53,51 +45,40 @@ except GoogleAuthError:
 
 
 class TestCatchHttpException(unittest.TestCase):
-    def test_no_exception(self):
-        self.called = False
-
-        class FixtureClass(LoggingMixin):
-            @hook.GoogleCloudBaseHook.catch_http_exception
-            def text_fixture(*args, **kwargs):
-                self.called = True
-
-        FixtureClass().text_fixture()
-
-        self.assertTrue(self.called)
-
+    # pylint:disable=no-method-argument,unused-argument
     @parameterized.expand(
         [
-            (MovedPermanently("MESSAGE"),),
-            (RetryError("MESSAGE", cause=Exception("MESSAGE")),),
-            (ValueError("MESSAGE"),),
+            ("no_exception", None, LoggingMixin, None, None),
+            ("raise_airflowexception", MovedPermanently("MESSAGE"), LoggingMixin, None, AirflowException),
+            (
+                "raise_airflowexception",
+                RetryError("MESSAGE", cause=Exception("MESSAGE")),
+                LoggingMixin, None, AirflowException
+            ),
+            ("raise_airflowexception", ValueError("MESSAGE"), LoggingMixin, None, AirflowException),
+            ("raise_alreadyexists", AlreadyExists("MESSAGE"), LoggingMixin, None, AlreadyExists),
+            (
+                "raise_http_error",
+                HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT"),
+                BaseHook, {"source": None}, AirflowException
+            ),
         ]
     )
-    def test_raise_airflowexception(self, ex_obj):
-        self.called = False
+    def test_catch_exception(self, name, exception, base_class, base_class_args, assert_raised):
+        self.called = False  # pylint:disable=attribute-defined-outside-init
 
-        class FixtureClass(LoggingMixin):
+        class FixtureClass(base_class):
             @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixutre(*args, **kwargs):
-                self.called = True
-                raise ex_obj
+            def test_fixture(*args, **kwargs):  # pylint:disable=unused-argument,no-method-argument
+                self.called = True  # pylint:disable=attribute-defined-outside-init
+                if exception is not None:
+                    raise exception
 
-        with self.assertRaises(AirflowException):
-            FixtureClass().test_fixutre()
-
-        self.assertTrue(self.called)
-
-    def test_raise_alreadyexists(self):
-        self.called = False
-
-        class FixtureClass(LoggingMixin):
-            @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixutre(*args, **kwargs):
-                self.called = True
-                raise AlreadyExists("MESSAGE")
-
-        with self.assertRaises(AlreadyExists):
-            FixtureClass().test_fixutre()
-
+        if assert_raised is None:
+            FixtureClass(base_class_args).test_fixture()
+        else:
+            with self.assertRaises(assert_raised):
+                FixtureClass(base_class_args).test_fixture()
         self.assertTrue(self.called)
 
 
@@ -105,17 +86,17 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
 
-    @unittest.skipIf(
-        not default_creds_available,
-        'Default GCP credentials not available to run tests')
+    @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
     def test_default_creds_with_scopes(self):
         self.instance.extras = {
             'extra__google_cloud_platform__project': default_project,
             'extra__google_cloud_platform__scope': (
-                ','.join((
-                    'https://www.googleapis.com/auth/bigquery',
-                    'https://www.googleapis.com/auth/devstorage.read_only',
-                ))
+                ','.join(
+                    (
+                        'https://www.googleapis.com/auth/bigquery',
+                        'https://www.googleapis.com/auth/devstorage.read_only',
+                    )
+                )
             ),
         }
 
@@ -154,7 +135,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              key_path)
 
@@ -173,7 +154,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              file_name)
             self.assertEqual(file_content, string_file.getvalue())

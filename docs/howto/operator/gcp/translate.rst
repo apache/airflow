@@ -37,7 +37,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_text]
@@ -46,7 +46,7 @@ Basic usage of the operator:
 The result of translation is available as dictionary or array of dictionaries accessible via the usual
 XCom mechanisms of Airflow:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_access]

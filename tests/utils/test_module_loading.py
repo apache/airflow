@@ -31,5 +31,5 @@ class ModuleImportTestCase(unittest.TestCase):
         with self.assertRaises(ImportError):
             import_string('no_dots_in_path')
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'
-        with self.assertRaisesRegexp(ImportError, msg):
+        with self.assertRaisesRegex(ImportError, msg):
             import_string('airflow.utils.nonexistent')

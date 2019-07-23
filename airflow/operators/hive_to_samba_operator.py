@@ -51,7 +51,7 @@ class Hive2SambaOperator(BaseOperator):
                  samba_conn_id='samba_default',
                  hiveserver2_conn_id='hiveserver2_default',
                  *args, **kwargs):
-        super(Hive2SambaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id
         self.destination_filepath = destination_filepath

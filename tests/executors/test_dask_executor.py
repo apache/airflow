@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 from airflow import configuration
 from airflow.models import DagBag
@@ -112,7 +113,7 @@ class DaskExecutorTest(BaseDaskTest):
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
 
-        for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
+        for dag in sorted(dags, key=lambda d: d.dag_id):
             job = BackfillJob(
                 dag=dag,
                 start_date=DEFAULT_DATE,
@@ -135,7 +136,7 @@ class DaskExecutorTLSTest(BaseDaskTest):
     def test_tls(self):
         with dask_testing_cluster(
                 worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (s, workers):
+                scheduler_kwargs={'security': tls_security()}) as (s, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production
@@ -155,3 +156,15 @@ class DaskExecutorTLSTest(BaseDaskTest):
                 configuration.set('dask', 'tls_ca', '')
                 configuration.set('dask', 'tls_key', '')
                 configuration.set('dask', 'tls_cert', '')
+
+    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
+    @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
+    @mock.patch('airflow.stats.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = DaskExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)

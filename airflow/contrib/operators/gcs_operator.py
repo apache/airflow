@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Storage Bucket operator.
+"""
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -69,9 +72,10 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         have domain-wide delegation enabled.
     :type delegate_to: str
 
-    :Example::
     The following Operator would create a new bucket ``test-bucket``
-    with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
+    with ``MULTI_REGIONAL`` storage class in ``EU`` region
+
+    .. code-block:: python
 
         CreateBucket = GoogleCloudStorageCreateBucketOperator(
             task_id='CreateNewBucket',
@@ -81,8 +85,8 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             labels={'env': 'dev', 'team': 'airflow'},
             google_cloud_storage_conn_id='airflow-service-account'
         )
-    """
 
+    """
     template_fields = ('bucket_name', 'storage_class',
                        'location', 'project_id')
     ui_color = '#f0eee4'
@@ -99,7 +103,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageCreateBucketOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
         self.resource = resource
         self.storage_class = storage_class

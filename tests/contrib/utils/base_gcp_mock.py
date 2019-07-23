@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 
-import mock
+from unittest import mock
 
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
@@ -39,9 +38,6 @@ def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None
 
 
 def get_open_mock():
-    m = mock.mock_open()
-    if sys.version_info[0] == 2:
-        open_module = '__builtin__'
-    else:
-        open_module = 'builtins'
-    return m, open_module
+    mck = mock.mock_open()
+    open_module = 'builtins'
+    return mck, open_module

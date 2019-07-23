@@ -22,7 +22,7 @@ from collections import namedtuple
 from airflow.utils.db import provide_session
 
 
-class BaseTIDep(object):
+class BaseTIDep:
     """
     Abstract base class for dependencies that must be satisfied in order for task
     instances to run. For example, a task that can only run if a certain number of its
@@ -103,8 +103,7 @@ class BaseTIDep(object):
                 reason="Context specified all task dependencies should be ignored.")
             return
 
-        for dep_status in self._get_dep_statuses(ti, session, dep_context):
-            yield dep_status
+        yield from self._get_dep_statuses(ti, session, dep_context)
 
     @provide_session
     def is_met(self, ti, session, dep_context=None):

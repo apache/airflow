@@ -19,7 +19,7 @@
 
 import unittest
 from airflow.utils.state import State
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
@@ -28,7 +28,7 @@ from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 class DagrunRunningDepTest(unittest.TestCase):
 
     @patch('airflow.models.DagRun.find', return_value=())
-    def test_dagrun_doesnt_exist(self, dagrun_find):
+    def test_dagrun_doesnt_exist(self, mock_dagrun_find):
         """
         Task instances without dagruns should fail this dep
         """

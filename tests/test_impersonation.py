@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# from __future__ import print_function
+
 import errno
 import os
 import subprocess
@@ -24,6 +24,7 @@ import unittest
 import logging
 
 from airflow import jobs, models
+from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -33,18 +34,33 @@ TEST_DAG_FOLDER = os.path.join(
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_USER = 'airflow_test_user'
 
-logger = logging.getLogger(__name__)
 
-# TODO(aoen): Adding/remove a user as part of a test is very bad (especially if the user
-# already existed to begin with on the OS), this logic should be moved into a test
-# that is wrapped in a container like docker so that the user can be safely added/removed.
-# When this is done we can also modify the sudoers file to ensure that useradd will work
-# without any manual modification of the sudoers file by the agent that is running these
-# tests.
+logger = logging.getLogger(__name__)
 
 
 class ImpersonationTest(unittest.TestCase):
+
+    @staticmethod
+    def grant_permissions():
+        airflow_home = os.environ['AIRFLOW_HOME']
+        subprocess.check_call(
+            'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True)
+
+    @staticmethod
+    def revoke_permissions():
+        airflow_home = os.environ['AIRFLOW_HOME']
+        subprocess.check_call(
+            'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True)
+
     def setUp(self):
+        if not os.path.isfile('/.dockerenv') or os.environ.get('APT_DEPS_IMAGE') is None:
+            raise unittest.SkipTest("""Adding/removing a user as part of a test is very bad for host os
+(especially if the user already existed to begin with on the OS), therefore we check if we run inside a
+the official docker container and only allow to run the test there. This is done by checking /.dockerenv
+file (always present inside container) and checking for APT_DEPS_IMAGE variable.
+""")
+        self.grant_permissions()
+        add_default_pool_if_not_exists()
         self.dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
@@ -71,6 +87,7 @@ class ImpersonationTest(unittest.TestCase):
 
     def tearDown(self):
         subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        self.revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):
         dag = self.dagbag.get_dag(dag_id)

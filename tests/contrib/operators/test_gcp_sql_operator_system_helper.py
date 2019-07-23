@@ -27,20 +27,11 @@ from threading import Thread
 
 import time
 
-from six.moves.urllib.parse import urlsplit
+from urllib.parse import urlsplit
 
 from tests.contrib.utils.base_gcp_system_test_case import RetrieveVariables
 from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUDSQL_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 retrieve_variables = RetrieveVariables()
 
@@ -126,14 +117,14 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         thread_postgres.join()
 
     def get_ip_addresses(self, instance_suffix):
-        with open(GCSQL_MYSQL_PUBLIC_IP_FILE, "w") as f:
-            ip = self.__get_ip_address(get_mysql_instance_name(instance_suffix),
-                                       'GCSQL_MYSQL_PUBLIC_IP')
-            f.write(ip)
-        with open(GCSQL_POSTGRES_PUBLIC_IP_FILE, "w") as f:
-            ip = self.__get_ip_address(get_postgres_instance_name(instance_suffix),
-                                       'GCSQL_POSTGRES_PUBLIC_IP')
-            f.write(ip)
+        with open(GCSQL_MYSQL_PUBLIC_IP_FILE, "w") as file:
+            ip_address = self.__get_ip_address(get_mysql_instance_name(instance_suffix),
+                                               'GCSQL_MYSQL_PUBLIC_IP')
+            file.write(ip_address)
+        with open(GCSQL_POSTGRES_PUBLIC_IP_FILE, "w") as file:
+            ip_address = self.__get_ip_address(get_postgres_instance_name(instance_suffix),
+                                               'GCSQL_POSTGRES_PUBLIC_IP')
+            file.write(ip_address)
 
     def raise_database_exception(self, database):
         raise Exception("The {database} instance does not exist. Make sure to run  "
@@ -157,17 +148,17 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             self.raise_database_exception('mysql')
 
     def authorize_address(self, instance_suffix=''):
-        ip = self.__get_my_public_ip()
-        self.log.info('Authorizing access from IP: %s', ip)
+        ip_address = self.__get_my_public_ip()
+        self.log.info('Authorizing access from IP: %s', ip_address)
         postgres_thread = Thread(target=lambda: self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'patch',
              get_postgres_instance_name(instance_suffix), '--quiet',
-             "--authorized-networks={}".format(ip),
+             "--authorized-networks={}".format(ip_address),
              "--project={}".format(GCP_PROJECT_ID)]))
         mysql_thread = Thread(target=lambda: self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'patch',
              get_mysql_instance_name(instance_suffix), '--quiet',
-             "--authorized-networks={}".format(ip),
+             "--authorized-networks={}".format(ip_address),
              "--project={}".format(GCP_PROJECT_ID)]))
         postgres_thread.start()
         mysql_thread.start()
@@ -224,20 +215,23 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                                              "--project={}".format(GCP_PROJECT_ID)])
         all_permissions_dejson = json.loads(all_permissions.decode("utf-8"))
         for binding in all_permissions_dejson['bindings']:
-            if binding['role'] == 'roles/storage.legacyBucketWriter':
-                for member in binding['members']:
-                    if not member.startswith('serviceAccount:gcp-storage-account'):
+            if binding['role'] != 'roles/storage.legacyBucketWriter':
+                continue
 
-                        self.log.info("Remove member: {}".format(member))
-                        member_type, member_email = member.split(':')
-                        if member_type != 'serviceAccount':
-                            self.log.warning("Skip removing member {} as the type {} is "
-                                             "not service account".format(member,
-                                                                          member_type))
-                        self.execute_cmd(['gsutil', 'acl', 'ch', '-d', member_email,
-                                         "gs://{}".format(export_bucket_name)])
-                    else:
-                        self.log.info("Skip removing member {}".format(member))
+            for member in binding['members']:
+                if member.startswith('serviceAccount:gcp-storage-account'):
+                    self.log.info("Skip removing member {}".format(member))
+                    continue
+
+                self.log.info("Remove member: {}".format(member))
+                member_type, member_email = member.split(':')
+
+                if member_type != 'serviceAccount':
+                    self.log.warning("Skip removing member {} as the type {} is "
+                                     "not service account".format(member,
+                                                                  member_type))
+                self.execute_cmd(['gsutil', 'acl', 'ch', '-d', member_email,
+                                 "gs://{}".format(export_bucket_name)])
 
     @staticmethod
     def set_ip_addresses_in_env():
@@ -247,9 +241,9 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
     @staticmethod
     def __set_ip_address_in_env(file_name):
         if os.path.exists(file_name):
-            with open(file_name, "r") as f:
-                env, ip = f.read().split("=")
-                os.environ[env] = ip
+            with open(file_name, "r") as file:
+                env, ip_address = file.read().split("=")
+                os.environ[env] = ip_address
 
     def __setup_instance_and_certs(self, instance_name, db_version, server_ca_file,
                                    client_key_file, client_cert_file, db_name,
@@ -282,8 +276,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                            'Aborting setting up test instance and certs.\n\n%s', ex)
             raise ex
 
-    def __delete_instance(self, instance_name):
-        # type: (str) -> None
+    def __delete_instance(self, instance_name: str) -> None:
         self.log.info('Deleting Cloud SQL instance "%s"...', instance_name)
         self.execute_cmd(['gcloud', 'sql', 'instances', 'delete',
                           instance_name, '--quiet'])
@@ -293,8 +286,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         return self.check_output(
             ['curl', 'https://ipinfo.io/ip']).decode('utf-8').strip()
 
-    def __create_sql_instance(self, instance_name, db_version):
-        # type: (str, str) -> int
+    def __create_sql_instance(self, instance_name: str, db_version: str) -> int:
         return self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'create', instance_name,
              '--region', GCP_LOCATION,
@@ -302,8 +294,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
              '--database-version', db_version,
              '--tier', 'db-f1-micro'])
 
-    def __get_server_ca_cert(self, instance_name):
-        # type: (str) -> bytes
+    def __get_server_ca_cert(self, instance_name: str) -> bytes:
         self.log.info('Getting server CA cert for "%s"...', instance_name)
         output = self.check_output(
             ['gcloud', 'sql', 'instances', 'describe', instance_name,
@@ -311,8 +302,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         self.log.info('... Done.')
         return output
 
-    def __get_client_cert(self, instance_name, client_cert_name):
-        # type: (str, str) -> bytes
+    def __get_client_cert(self, instance_name: str, client_cert_name: str) -> bytes:
         self.log.info('Getting client cert for "%s"...', instance_name)
         output = self.check_output(
             ['gcloud', 'sql', 'ssl', 'client-certs', 'describe', client_cert_name, '-i',
@@ -320,8 +310,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         self.log.info('... Done.')
         return output
 
-    def __create_user(self, instance_name, username):
-        # type: (str, str) -> None
+    def __create_user(self, instance_name: str, username: str) -> None:
         self.log.info('Creating user "%s" in Cloud SQL instance "%s"...', username,
                       instance_name)
         self.execute_cmd(['gcloud', 'sql', 'users', 'create', username, '-i',
@@ -329,24 +318,21 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                           '--quiet'])
         self.log.info('... Done.')
 
-    def __delete_db(self, instance_name, db_name):
-        # type: (str, str) -> None
+    def __delete_db(self, instance_name: str, db_name: str) -> None:
         self.log.info('Deleting database "%s" in Cloud SQL instance "%s"...', db_name,
                       instance_name)
         self.execute_cmd(['gcloud', 'sql', 'databases', 'delete', db_name, '-i',
                           instance_name, '--quiet'])
         self.log.info('... Done.')
 
-    def __create_db(self, instance_name, db_name):
-        # type: (str, str) -> None
+    def __create_db(self, instance_name: str, db_name: str) -> None:
         self.log.info('Creating database "%s" in Cloud SQL instance "%s"...', db_name,
                       instance_name)
         self.execute_cmd(['gcloud', 'sql', 'databases', 'create', db_name, '-i',
                           instance_name, '--quiet'])
         self.log.info('... Done.')
 
-    def __write_to_file(self, filepath, content):
-        # type: (str, bytes) -> None
+    def __write_to_file(self, filepath: str, content: bytes) -> None:
         # https://stackoverflow.com/a/12517490
         self.log.info("Checking file under: %s", filepath)
         if not os.path.exists(os.path.dirname(filepath)):
@@ -359,12 +345,12 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                     raise
         self.log.info("... Done. Dir created.")
 
-        with open(filepath, "w") as f:
-            f.write(str(content.decode('utf-8')))
+        with open(filepath, "w") as file:
+            file.write(str(content.decode('utf-8')))
         self.log.info('Written file in: %s', filepath)
 
     def __remove_keys_and_certs(self, filepaths):
-        if not len(filepaths):
+        if not filepaths:
             return
         self.log.info('Removing client keys and certs...')
 
@@ -389,8 +375,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                           client_key_file, '-i', instance_name])
         self.log.info('... Done.')
 
-    def __get_operation_name(self, instance_name):
-        # type: (str) -> str
+    def __get_operation_name(self, instance_name: str) -> str:
         op_name_bytes = self.check_output(
             ['gcloud', 'sql', 'operations', 'list', '-i',
              instance_name, '--format=get(name)'])
@@ -401,8 +386,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         self.log.info(operations)
         self.log.info("<<<< OPERATIONS ====\n")
 
-    def __wait_for_operations(self, instance_name):
-        # type: (str) -> None
+    def __wait_for_operations(self, instance_name: str) -> None:
         while True:
             operations = self.__get_operations(instance_name)
             self.__print_operations(operations)
@@ -412,25 +396,22 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             else:
                 break
 
-    def __get_ip_address(self, instance_name, env_var):
-        # type: (str, str) -> str
-        ip = self.check_output(
+    def __get_ip_address(self, instance_name: str, env_var: str) -> str:
+        ip_address = self.check_output(
             ['gcloud', 'sql', 'instances', 'describe',
              instance_name,
              '--format=get(ipAddresses[0].ipAddress)']
         ).decode('utf-8').strip()
-        os.environ[env_var] = ip
-        return "{}={}".format(env_var, ip)
+        os.environ[env_var] = ip_address
+        return "{}={}".format(env_var, ip_address)
 
-    def __get_operations(self, instance_name):
-        # type: (str) -> str
+    def __get_operations(self, instance_name: str) -> str:
         op_name_bytes = self.check_output(
             ['gcloud', 'sql', 'operations', 'list', '-i',
              instance_name, '--format=get(NAME,TYPE,STATUS)'])
         return op_name_bytes.decode('utf-8').strip()
 
-    def __wait_for_create(self, operation_name):
-        # type: (str) -> None
+    def __wait_for_create(self, operation_name: str) -> None:
         self.execute_cmd(['gcloud', 'beta', 'sql', 'operations', 'wait',
                           '--project', GCP_PROJECT_ID, operation_name])
 

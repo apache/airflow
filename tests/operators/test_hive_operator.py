@@ -17,21 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import datetime
 import os
 import unittest
 
-import mock
+from unittest import mock
 import nose
 
 from airflow import DAG, configuration, operators
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
-
-configuration.load_test_config()
 
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
@@ -42,7 +38,6 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 class HiveEnvironmentTest(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
@@ -60,6 +55,31 @@ class HiveEnvironmentTest(unittest.TestCase):
             PARTITION(ds='{{ ds }}')
         SELECT state, year, name, gender, num FROM static_babynames;
         """
+
+
+class HiveCliTest(unittest.TestCase):
+
+    def setUp(self):
+        self.nondefault_schema = "nondefault"
+        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
+
+    def tearDown(self):
+        del os.environ["AIRFLOW__CORE__SECURITY"]
+
+    def test_get_proxy_user_value(self):
+        from airflow.hooks.hive_hooks import HiveCliHook
+
+        hook = HiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        result = hook._prepare_cli_cmd()
+
+        # Verify
+        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
 
 
 class HiveOperatorConfigTest(HiveEnvironmentTest):
@@ -163,7 +183,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         def test_beeline(self):
             t = HiveOperator(
-                task_id='beeline_hql', hive_cli_conn_id='beeline_default',
+                task_id='beeline_hql', hive_cli_conn_id='hive_cli_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)

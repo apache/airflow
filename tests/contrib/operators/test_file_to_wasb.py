@@ -21,16 +21,9 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.file_to_wasb import FileToWasbOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestFileToWasbOperator(unittest.TestCase):
@@ -44,7 +37,6 @@ class TestFileToWasbOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)

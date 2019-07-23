@@ -17,21 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+"""Base classes for DAG and DagBag."""
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 
 
-class BaseDag(object):
+class BaseDag(metaclass=ABCMeta):
     """
     Base DAG object that both the SimpleDag and DAG inherit.
     """
-    __metaclass__ = ABCMeta
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def dag_id(self):
         """
         :return: the DAG ID
@@ -39,7 +36,8 @@ class BaseDag(object):
         """
         raise NotImplementedError()
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def task_ids(self):
         """
         :return: A list of task IDs that are in this DAG
@@ -47,7 +45,8 @@ class BaseDag(object):
         """
         raise NotImplementedError()
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def full_filepath(self):
         """
         :return: The absolute path to the file that contains this DAG's definition
@@ -55,6 +54,7 @@ class BaseDag(object):
         """
         raise NotImplementedError()
 
+    @property
     @abstractmethod
     def concurrency(self):
         """
@@ -80,11 +80,12 @@ class BaseDag(object):
         raise NotImplementedError
 
 
-class BaseDagBag(object):
+class BaseDagBag:
     """
     Base object that both the SimpleDagBag and DagBag inherit.
     """
-    @abstractproperty
+    @property
+    @abstractmethod
     def dag_ids(self):
         """
         :return: a list of DAG IDs in this bag

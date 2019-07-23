@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
@@ -34,7 +33,7 @@ class SequentialExecutor(BaseExecutor):
     SequentialExecutor alongside sqlite as you first install it.
     """
     def __init__(self):
-        super(SequentialExecutor, self).__init__()
+        super().__init__()
         self.commands_to_run = []
 
     def execute_async(self, key, command, queue=None, executor_config=None):

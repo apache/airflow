@@ -17,12 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
+from unittest import mock
 import unittest
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 
 from airflow.contrib.hooks.segment_hook import SegmentHook
+from airflow.contrib.operators.segment_track_event_operator \
+    import SegmentTrackEventOperator
 
 TEST_CONN_ID = 'test_segment'
 WRITE_KEY = 'foo'
@@ -31,8 +33,7 @@ WRITE_KEY = 'foo'
 class TestSegmentHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestSegmentHook, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
 
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
@@ -44,7 +45,7 @@ class TestSegmentHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, unused_connection_id):
                 return conn
 
         self.test_hook = UnitTestSegmentHook(segment_conn_id=TEST_CONN_ID)
@@ -58,6 +59,33 @@ class TestSegmentHook(unittest.TestCase):
     def test_on_error(self):
         with self.assertRaises(AirflowException):
             self.test_hook.on_error('error', ['items'])
+
+
+class SegmentTrackEventOperatorTest(unittest.TestCase):
+
+    @mock.patch('airflow.contrib.operators.segment_track_event_operator.SegmentHook')
+    def test_execute(self, mock_hook):
+        # Given
+        user_id = 'user_id'
+        event = 'event'
+        properties = {}
+
+        operator = SegmentTrackEventOperator(
+            task_id='segment-track',
+            user_id=user_id,
+            event=event,
+            properties=properties,
+        )
+
+        # When
+        operator.execute(None)
+
+        # Then
+        mock_hook.return_value.track.assert_called_once_with(
+            user_id=user_id,
+            event=event,
+            properties=properties,
+        )
 
 
 if __name__ == '__main__':

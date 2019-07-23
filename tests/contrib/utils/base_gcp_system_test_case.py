@@ -40,7 +40,7 @@ ENV_FILE_RETRIEVER = os.path.join(AIRFLOW_PARENT_FOLDER,
 
 
 # Retrieve environment variables from parent directory retriever - it should be
-# in the path ${AIRFLOW_SOURCE_DIR}/../../get_system_test_environment_variables.py
+# in the path ${AIRFLOW_ROOT}/../../get_system_test_environment_variables.py
 # and it should print all the variables in form of key=value to the stdout
 class RetrieveVariables:
     @staticmethod
@@ -94,7 +94,7 @@ class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):
                  method_name,
                  gcp_key,
                  project_extra=None):
-        super(BaseGcpSystemTestCase, self).__init__(methodName=method_name)
+        super().__init__(methodName=method_name)
         self.gcp_authenticator = GcpAuthenticator(gcp_key=gcp_key,
                                                   project_extra=project_extra)
         self.setup_called = False
@@ -125,14 +125,15 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
                  require_local_executor=False,
                  example_dags_folder=CONTRIB_OPERATORS_EXAMPLES_DAG_FOLDER,
                  project_extra=None):
-        super(DagGcpSystemTestCase, self).__init__(method_name=method_name,
-                                                   gcp_key=gcp_key,
-                                                   project_extra=project_extra)
+        super().__init__(method_name=method_name,
+                         gcp_key=gcp_key,
+                         project_extra=project_extra)
         self.dag_id = dag_id
         self.dag_name = self.dag_id + '.py' if not dag_name else dag_name
         self.example_dags_folder = example_dags_folder
         self.require_local_executor = require_local_executor
         self.temp_dir = None
+        self.args = {}
 
     @staticmethod
     def _get_dag_folder():
@@ -244,7 +245,7 @@ You can create the database via these commands:
             finally:
                 self._restore_dags_from_temporary_directory()
             self._symlink_dag_and_associated_files()
-            super(DagGcpSystemTestCase, self).setUp()
+            super().setUp()
 
         except Exception as e:
             # In case of any error during setup - restore the authentication
@@ -253,4 +254,4 @@ You can create the database via these commands:
 
     def tearDown(self):
         self._symlink_dag_and_associated_files(remove=True)
-        super(DagGcpSystemTestCase, self).tearDown()
+        super().tearDown()

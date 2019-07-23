@@ -16,30 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import json
+import unittest
 
 import requests
 import requests_mock
-
 import tenacity
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
-from airflow.models.connection import Connection
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow.models import Connection
+from tests.compat import mock
 
 
-def get_airflow_connection(conn_id=None):
+def get_airflow_connection(unused_conn_id=None):
     return Connection(
         conn_id='http_default',
         conn_type='http',
@@ -48,7 +38,7 @@ def get_airflow_connection(conn_id=None):
     )
 
 
-def get_airflow_connection_with_port(conn_id=None):
+def get_airflow_connection_with_port(unused_conn_id=None):
     return Connection(
         conn_id='http_default',
         conn_type='http',
@@ -59,13 +49,14 @@ def get_airflow_connection_with_port(conn_id=None):
 
 class TestHttpHook(unittest.TestCase):
     """Test get, post and raise_for_status"""
+
     def setUp(self):
         session = requests.Session()
         adapter = requests_mock.Adapter()
         session.mount('mock', adapter)
         self.get_hook = HttpHook(method='GET')
+        self.get_lowercase_hook = HttpHook(method='get')
         self.post_hook = HttpHook(method='POST')
-        configuration.load_test_config()
 
     @requests_mock.mock()
     def test_raise_for_status_with_200(self, m):
@@ -80,13 +71,13 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-
             resp = self.get_hook.run('v1/test')
             self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
     @requests_mock.mock()
+    @mock.patch('requests.Session')
     @mock.patch('requests.Request')
-    def test_get_request_with_port(self, m, request_mock):
+    def test_get_request_with_port(self, mock_requests, request_mock, mock_session):
         from requests.exceptions import MissingSchema
 
         with mock.patch(
@@ -128,7 +119,7 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
-    def test_hook_contains_header_from_extra_field(self, m):
+    def test_hook_contains_header_from_extra_field(self, mock_requests):
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
@@ -139,17 +130,37 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(conn.headers.get('bareer'), 'test')
 
     @requests_mock.mock()
-    def test_hook_uses_provided_header(self, m):
+    @mock.patch('requests.Request')
+    def test_hook_with_method_in_lowercase(self, mock_requests, request_mock):
+        from requests.exceptions import MissingSchema, InvalidURL
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection_with_port
+        ):
+            data = "test params"
+            try:
+                self.get_lowercase_hook.run('v1/test', data=data)
+            except (MissingSchema, InvalidURL):
+                pass
+            request_mock.assert_called_once_with(
+                mock.ANY,
+                mock.ANY,
+                headers=mock.ANY,
+                params=data
+            )
+
+    @requests_mock.mock()
+    def test_hook_uses_provided_header(self, mock_requests):
         conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
         self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
-    def test_hook_has_no_header_from_extra(self, m):
+    def test_hook_has_no_header_from_extra(self, mock_requests):
         conn = self.get_hook.get_conn()
         self.assertIsNone(conn.headers.get('bareer'))
 
     @requests_mock.mock()
-    def test_hooks_header_from_extra_is_overridden(self, m):
+    def test_hooks_header_from_extra_is_overridden(self, mock_requests):
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
@@ -158,9 +169,8 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(conn.headers.get('bareer'), 'newT0k3n')
 
     @requests_mock.mock()
-    def test_post_request(self, m):
-
-        m.post(
+    def test_post_request(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=200,
             text='{"status":{"status": 200}}',
@@ -175,9 +185,8 @@ class TestHttpHook(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
 
     @requests_mock.mock()
-    def test_post_request_with_error_code(self, m):
-
-        m.post(
+    def test_post_request_with_error_code(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=418,
             text='{"status":{"status": 418}}',
@@ -192,9 +201,8 @@ class TestHttpHook(unittest.TestCase):
                 self.post_hook.run('v1/test')
 
     @requests_mock.mock()
-    def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, m):
-
-        m.post(
+    def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, mock_requests):
+        mock_requests.post(
             'http://test:8080/v1/test',
             status_code=418,
             text='{"status":{"status": 418}}',
@@ -214,10 +222,12 @@ class TestHttpHook(unittest.TestCase):
         retry_args = dict(
             wait=tenacity.wait_none(),
             stop=tenacity.stop_after_attempt(7),
-            retry=requests.exceptions.ConnectionError
+            retry=tenacity.retry_if_exception_type(
+                requests.exceptions.ConnectionError
+            )
         )
 
-        def send_and_raise(request, **kwargs):
+        def send_and_raise(unused_request, **kwargs):
             raise requests.exceptions.ConnectionError
 
         mocked_session().send.side_effect = send_and_raise
@@ -232,9 +242,34 @@ class TestHttpHook(unittest.TestCase):
             mocked_session.call_count
         )
 
+    @requests_mock.mock()
+    def test_run_with_advanced_retry(self, m):
+
+        m.get(
+            'http://test:8080/v1/test',
+            status_code=200,
+            reason='OK'
+        )
+
+        retry_args = dict(
+            wait=tenacity.wait_none(),
+            stop=tenacity.stop_after_attempt(3),
+            retry=tenacity.retry_if_exception_type(Exception),
+            reraise=True
+        )
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection
+        ):
+            response = self.get_hook.run_with_advanced_retry(
+                endpoint='v1/test',
+                _retry_args=retry_args
+            )
+            self.assertIsInstance(response, requests.Response)
+
     def test_header_from_extra_and_run_method_are_merged(self):
 
-        def run_and_return(session, prepped_request, extra_options, **kwargs):
+        def run_and_return(unused_session, prepped_request, unused_extra_options, **kwargs):
             return prepped_request
 
         # The job failed for some reason
@@ -287,9 +322,8 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'https://localhost')
 
+    def test_method_converted_to_uppercase_when_created_in_lowercase(self):
+        self.assertEqual(self.get_lowercase_hook.method, 'GET')
+
 
 send_email_test = mock.Mock()
-
-
-if __name__ == '__main__':
-    unittest.main()

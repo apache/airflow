@@ -24,7 +24,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class SFTPOperation(object):
+class SFTPOperation:
     PUT = 'put'
     GET = 'get'
 
@@ -87,7 +87,7 @@ class SFTPOperator(BaseOperator):
                  create_intermediate_dirs=False,
                  *args,
                  **kwargs):
-        super(SFTPOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
@@ -172,7 +172,7 @@ def _make_intermediate_dirs(sftp_client, remote_directory):
         return
     try:
         sftp_client.chdir(remote_directory)
-    except IOError:
+    except OSError:
         dirname, basename = os.path.split(remote_directory.rstrip('/'))
         _make_intermediate_dirs(sftp_client, dirname)
         sftp_client.mkdir(basename)

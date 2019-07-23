@@ -31,7 +31,7 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.utils import timezone
 
 
-class LogState(object):
+class LogState:
     STARTING = 1
     WAIT_IN_PROGRESS = 2
     TAILING = 3
@@ -128,7 +128,7 @@ class SageMakerHook(AwsHook):
 
     def __init__(self,
                  *args, **kwargs):
-        super(SageMakerHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
     def tar_and_s3_upload(self, path, key, bucket):
@@ -283,8 +283,7 @@ class SageMakerHook(AwsHook):
             else:
                 skip = skip - event_count
                 events = []
-            for ev in events:
-                yield ev
+            yield from events
 
     def multi_stream_iter(self, log_group, streams, positions=None):
         """

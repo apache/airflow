@@ -15,20 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import datetime
 import unittest
 
-from airflow import configuration, DAG
+from airflow import DAG
 from airflow.contrib.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
 from airflow.version import version
 
-from mock import ANY
-from mock import patch
+from unittest.mock import ANY
+from unittest.mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
@@ -54,8 +50,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(CreateEvaluateOpsTest, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         self.dag = DAG(
             'test_dag',
             default_args={
@@ -153,25 +148,23 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             'dag': dag,
         }
 
-        with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
+        with self.assertRaisesRegex(AirflowException, 'Missing model origin'):
             mlengine_operator_utils.create_evaluate_ops(**other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+        with self.assertRaisesRegex(AirflowException, 'Ambiguous model origin'):
             mlengine_operator_utils.create_evaluate_ops(model_uri='abc', model_name='cde',
                                                         **other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+        with self.assertRaisesRegex(AirflowException, 'Ambiguous model origin'):
             mlengine_operator_utils.create_evaluate_ops(model_uri='abc', version_name='vvv',
                                                         **other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     '`metric_fn` param must be callable'):
+        with self.assertRaisesRegex(AirflowException, '`metric_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['metric_fn_and_keys'] = (None, ['abc'])
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     '`validate_fn` param must be callable'):
+        with self.assertRaisesRegex(AirflowException, '`validate_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)

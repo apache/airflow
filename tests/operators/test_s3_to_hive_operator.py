@@ -19,13 +19,7 @@
 
 import unittest
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 import logging
 from itertools import product
 from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
@@ -75,9 +69,9 @@ class S3ToHiveTransferTest(unittest.TestCase):
                        'input_compressed': self.input_compressed
                        }
         try:
-            header = "Sno\tSome,Text \n".encode()
-            line1 = "1\tAirflow Test\n".encode()
-            line2 = "2\tS32HiveTransfer\n".encode()
+            header = b"Sno\tSome,Text \n"
+            line1 = b"1\tAirflow Test\n"
+            line2 = b"2\tS32HiveTransfer\n"
             self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
             # create sample txt, gz and bz2 with and without headers
             with NamedTemporaryFile(mode='wb+',
@@ -162,10 +156,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
     def test_bad_parameters(self):
         self.kwargs['check_headers'] = True
         self.kwargs['headers'] = False
-        self.assertRaisesRegexp(AirflowException,
-                                "To check_headers.*",
-                                S3ToHiveTransfer,
-                                **self.kwargs)
+        self.assertRaisesRegex(AirflowException, "To check_headers.*", S3ToHiveTransfer, **self.kwargs)
 
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
@@ -226,10 +217,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
         for (ext, has_header) in product(['.txt', '.gz', '.bz2', '.GZ'], [True, False]):
             self.kwargs['headers'] = has_header
             self.kwargs['check_headers'] = has_header
-            logging.info("Testing {0} format {1} header".
-                         format(ext,
-                                ('with' if has_header else 'without'))
-                         )
+            logging.info("Testing %s format %s header", ext, 'with' if has_header else 'without')
             self.kwargs['input_compressed'] = ext.lower() != '.txt'
             self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs['headers'])

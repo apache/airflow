@@ -36,7 +36,7 @@ class SFTPSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, path, sftp_conn_id='sftp_default', *args, **kwargs):
-        super(SFTPSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.path = path
         self.hook = SFTPHook(sftp_conn_id)
 
@@ -44,7 +44,7 @@ class SFTPSensor(BaseSensorOperator):
         self.log.info('Poking for %s', self.path)
         try:
             self.hook.get_mod_time(self.path)
-        except IOError as e:
+        except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
             return False

@@ -16,22 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from __future__ import unicode_literals
 
 import unittest
 from base64 import b64encode
 
 from airflow.contrib.hooks.gcp_kms_hook import GoogleCloudKMSHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 KMS_STRING = 'airflow.contrib.hooks.gcp_kms_hook.{}'
@@ -45,7 +35,7 @@ TEST_KEY_ID = 'projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}'.format(
     TEST_PROJECT, TEST_LOCATION, TEST_KEY_RING, TEST_KEY)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
@@ -75,7 +65,7 @@ class GoogleCloudKMSHookTest(unittest.TestCase):
         ret_val = self.kms_hook.encrypt(TEST_KEY_ID, plaintext)
         encrypt_method.assert_called_with(name=TEST_KEY_ID,
                                           body=body)
-        execute_method.assert_called_with()
+        execute_method.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(ciphertext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -104,7 +94,7 @@ class GoogleCloudKMSHookTest(unittest.TestCase):
                                         authenticated_data=auth_data)
         encrypt_method.assert_called_with(name=TEST_KEY_ID,
                                           body=body)
-        execute_method.assert_called_with()
+        execute_method.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(ciphertext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -127,7 +117,7 @@ class GoogleCloudKMSHookTest(unittest.TestCase):
         ret_val = self.kms_hook.decrypt(TEST_KEY_ID, ciphertext)
         decrypt_method.assert_called_with(name=TEST_KEY_ID,
                                           body=body)
-        execute_method.assert_called_with()
+        execute_method.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(plaintext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -156,5 +146,5 @@ class GoogleCloudKMSHookTest(unittest.TestCase):
                                         authenticated_data=auth_data)
         decrypt_method.assert_called_with(name=TEST_KEY_ID,
                                           body=body)
-        execute_method.assert_called_with()
+        execute_method.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(plaintext, ret_val)

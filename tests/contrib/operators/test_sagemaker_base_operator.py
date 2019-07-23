@@ -18,15 +18,7 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
-from airflow import configuration
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
 
 config = {
@@ -65,7 +57,6 @@ parsed_config = {
 class TestSageMakerBaseOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.sagemaker = SageMakerBaseOperator(
             task_id='test_sagemaker_operator',
             aws_conn_id='sagemaker_test_id',

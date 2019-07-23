@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.operators.jdbc_operator import JdbcOperator
 

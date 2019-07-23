@@ -22,7 +22,7 @@ This is only an example DAG to highlight usage of QuboleSensor in various scenar
 some of these tasks may or may not work based on your QDS account setup.
 
 Run a shell command from Qubole Analyze against your Airflow cluster with following to
-trigger it manually `airflow trigger_dag example_qubole_sensor`.
+trigger it manually `airflow dags trigger example_qubole_sensor`.
 
 *Note: Make sure that connection `qubole_default` is properly set before running
 this example.*

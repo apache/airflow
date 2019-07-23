@@ -16,9 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from __future__ import unicode_literals
 
 from base64 import b64encode as b64e
 import unittest
@@ -26,19 +23,12 @@ import unittest
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubException, PubSubHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 PUBSUB_STRING = 'airflow.contrib.hooks.gcp_pubsub_hook.{}'
 
-EMPTY_CONTENT = ''.encode('utf8')
+EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'
 TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
@@ -56,7 +46,7 @@ EXPANDED_SUBSCRIPTION = 'projects/{}/subscriptions/{}'.format(
     TEST_PROJECT, TEST_SUBSCRIPTION)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
@@ -73,7 +63,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.create)
         create_method.assert_called_with(body={}, name=EXPANDED_TOPIC)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_topic(self, mock_service):
@@ -82,7 +72,7 @@ class PubSubHookTest(unittest.TestCase):
         delete_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.delete)
         delete_method.assert_called_with(topic=EXPANDED_TOPIC)
-        delete_method.return_value.execute.assert_called_with()
+        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
@@ -129,7 +119,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -149,7 +139,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=expected_subscription,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -159,7 +149,7 @@ class PubSubHookTest(unittest.TestCase):
         delete_method = (mock_service.return_value.projects
                          .return_value.subscriptions.return_value.delete)
         delete_method.assert_called_with(subscription=EXPANDED_SUBSCRIPTION)
-        delete_method.return_value.execute.assert_called_with()
+        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_subscription_failifnotexists(self,
@@ -179,7 +169,7 @@ class PubSubHookTest(unittest.TestCase):
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     @mock.patch(PUBSUB_STRING.format('uuid4'),
                 new_callable=mock.Mock(return_value=lambda: TEST_UUID))
-    def test_create_subscription_without_name(self, mock_uuid, mock_service):
+    def test_create_subscription_without_name(self, mock_uuid, mock_service):  # noqa  # pylint: disable=unused-argument,line-too-long
         response = self.pubsub_hook.create_subscription(TEST_PROJECT,
                                                         TEST_TOPIC)
         create_method = (
@@ -193,7 +183,7 @@ class PubSubHookTest(unittest.TestCase):
             TEST_SUBSCRIPTION, 'sub-%s' % TEST_UUID)
         create_method.assert_called_with(name=expected_name,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual('sub-%s' % TEST_UUID, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -210,7 +200,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -254,8 +244,8 @@ class PubSubHookTest(unittest.TestCase):
         pull_method = (mock_service.return_value.projects.return_value
                        .subscriptions.return_value.pull)
         pulled_messages = []
-        for i in range(len(TEST_MESSAGES)):
-            pulled_messages.append({'ackId': i, 'message': TEST_MESSAGES[i]})
+        for i, msg in enumerate(TEST_MESSAGES):
+            pulled_messages.append({'ackId': i, 'message': msg})
         pull_method.return_value.execute.return_value = {
             'receivedMessages': pulled_messages}
 

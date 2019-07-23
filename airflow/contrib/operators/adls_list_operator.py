@@ -57,7 +57,7 @@ class AzureDataLakeStorageListOperator(BaseOperator):
                  azure_data_lake_conn_id='azure_data_lake_default',
                  *args,
                  **kwargs):
-        super(AzureDataLakeStorageListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 

@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.adls_to_gcs import \
     AdlsToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-adls-gcs-operator'
 ADLS_PATH_1 = '*'
@@ -79,11 +72,11 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
         adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
         adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
 
-        def _assert_upload(bucket, object, filename):
+        def _assert_upload(bucket_name, object_name, filename):  # pylint: disable=unused-argument
             gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH)
 
             self.assertEqual(gcs_bucket, 'test')
-            self.assertIn(object[len(gcs_object_path):], MOCK_FILES)
+            self.assertIn(object_name[len(gcs_object_path):], MOCK_FILES)
 
         gcs_mock_hook.return_value.upload.side_effect = _assert_upload
 

@@ -15,21 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
-import mock
 import unittest
+from unittest import mock
+from urllib.parse import urlparse, parse_qsl
 
-try:  # python 2
-    from urlparse import urlparse, parse_qsl
-except ImportError:  # python 3
-    from urllib.parse import urlparse, parse_qsl
+import json
+import requests
+
+from google.auth.exceptions import GoogleAuthError
+from googleapiclient.discovery import build_from_document
+from googleapiclient.errors import HttpError
+from googleapiclient.http import HttpMockSequence
+
 
 from airflow.contrib.hooks import gcp_mlengine_hook as hook
-from googleapiclient.errors import HttpError
-from googleapiclient.discovery import build_from_document
-from googleapiclient.http import HttpMockSequence
-from google.auth.exceptions import GoogleAuthError
-import requests
 
 cml_available = True
 try:
@@ -38,7 +37,7 @@ except GoogleAuthError:
     cml_available = False
 
 
-class _TestMLEngineHook(object):
+class _TestMLEngineHook:
 
     def __init__(self, test_cls, responses, expected_requests):
         """
@@ -87,13 +86,12 @@ class _TestMLEngineHook(object):
             return hook.MLEngineHook()
 
     def __exit__(self, *args):
-        # Propogating exceptions here since assert will silence them.
-        if any(args):
-            return None
-        self._test_cls.assertEqual(
-            [self._normalize_requests_for_comparison(x[0], x[1], x[2])
-                for x in self._actual_requests],
-            self._expected_requests)
+        # Propagating exceptions here since assert will silence them.
+        if not any(args):
+            self._test_cls.assertEqual(
+                [self._normalize_requests_for_comparison(x[0], x[1], x[2])
+                    for x in self._actual_requests],
+                self._expected_requests)
 
 
 class TestMLEngineHook(unittest.TestCase):

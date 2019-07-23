@@ -18,17 +18,9 @@
 # under the License.
 
 import unittest
-from airflow import configuration
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
@@ -47,10 +39,6 @@ conn.sendall(b'hello')
 
 
 class SSHHookTest(unittest.TestCase):
-
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
@@ -173,7 +161,7 @@ class SSHHookTest(unittest.TestCase):
             response = s.recv(5)
             self.assertEqual(response, b"hello")
             s.close()
-            output, _ = server_handle.communicate()
+            server_handle.communicate()
             self.assertEqual(server_handle.returncode, 0)
 
 

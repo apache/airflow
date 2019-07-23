@@ -20,16 +20,12 @@ import unittest
 
 import boto3
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
+from tests.compat import mock
 
 try:
     from moto import mock_glue
 except ImportError:
     mock_glue = None
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 DB_NAME = 'db'
 TABLE_NAME = 'table'
@@ -100,7 +96,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
                                      page_size=2,
                                      max_items=3)
 
-        self.assertEqual(result, set([('2015-01-01',)]))
+        self.assertEqual(result, {('2015-01-01',)})
         mock_conn.get_paginator.assert_called_once_with('get_partitions')
         mock_paginator.paginate.assert_called_once_with(DatabaseName='db',
                                                         TableName='tbl',
@@ -112,7 +108,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'get_partitions')
     def test_check_for_partition(self, mock_get_partitions):
-        mock_get_partitions.return_value = set([('2018-01-01',)])
+        mock_get_partitions.return_value = {('2018-01-01',)}
         hook = AwsGlueCatalogHook(region_name="us-east-1")
 
         self.assertTrue(hook.check_for_partition('db', 'tbl', 'expr'))

@@ -17,15 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import unicode_literals
-
 import json
-from builtins import str
 from base64 import b64encode
 from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 from datetime import datetime
 from decimal import Decimal
-from six import text_type, binary_type, PY3
 from tempfile import NamedTemporaryFile
 from uuid import UUID
 
@@ -41,6 +37,35 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     Copy data from Cassandra to Google cloud storage in JSON format
 
     Note: Arrays of arrays are not supported.
+
+    :param cql: The CQL to execute on the Cassandra table.
+    :type cql: str
+    :param bucket: The bucket to upload to.
+    :type bucket: str
+    :param filename: The filename to use as the object name when uploading
+        to Google cloud storage. A {} should be specified in the filename
+        to allow the operator to inject file numbers in cases where the
+        file is split due to size.
+    :type filename: str
+    :param schema_filename: If set, the filename to use as the object name
+        when uploading a .json file containing the BigQuery schema fields
+        for the table that was dumped from MySQL.
+    :type schema_filename: str
+    :param approx_max_file_size_bytes: This operator supports the ability
+        to split large table dumps into multiple files (see notes in the
+        filename param docs above). This param allows developers to specify the
+        file size of the splits. Check https://cloud.google.com/storage/quotas
+        to see the maximum allowed file size for a single object.
+    :type approx_max_file_size_bytes: long
+    :param cassandra_conn_id: Reference to a specific Cassandra hook.
+    :type cassandra_conn_id: str
+    :param google_cloud_storage_conn_id: Reference to a specific Google
+        cloud storage hook.
+    :type google_cloud_storage_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to
+        work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ('cql', 'bucket', 'filename', 'schema_filename',)
     template_ext = ('.cql',)
@@ -58,37 +83,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        """
-        :param cql: The CQL to execute on the Cassandra table.
-        :type cql: str
-        :param bucket: The bucket to upload to.
-        :type bucket: str
-        :param filename: The filename to use as the object name when uploading
-            to Google cloud storage. A {} should be specified in the filename
-            to allow the operator to inject file numbers in cases where the
-            file is split due to size.
-        :type filename: str
-        :param schema_filename: If set, the filename to use as the object name
-            when uploading a .json file containing the BigQuery schema fields
-            for the table that was dumped from MySQL.
-        :type schema_filename: str
-        :param approx_max_file_size_bytes: This operator supports the ability
-            to split large table dumps into multiple files (see notes in the
-            filenamed param docs above). Google cloud storage allows for files
-            to be a maximum of 4GB. This param allows developers to specify the
-            file size of the splits.
-        :type approx_max_file_size_bytes: long
-        :param cassandra_conn_id: Reference to a specific Cassandra hook.
-        :type cassandra_conn_id: str
-        :param google_cloud_storage_conn_id: Reference to a specific Google
-            cloud storage hook.
-        :type google_cloud_storage_conn_id: str
-        :param delegate_to: The account to impersonate, if any. For this to
-            work, the service account making the request must have domain-wide
-            delegation enabled.
-        :type delegate_to: str
-        """
-        super(CassandraToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cql = cql
         self.bucket = bucket
         self.filename = filename
@@ -169,9 +164,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
         for row in cursor:
             row_dict = self.generate_data_dict(row._fields, row)
-            s = json.dumps(row_dict)
-            if PY3:
-                s = s.encode('utf-8')
+            s = json.dumps(row_dict).encode('utf-8')
             tmp_file_handle.write(s)
 
             # Append newline to make dumps BigQuery compatible.
@@ -198,9 +191,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
 
         for name, type in zip(cursor.column_names, cursor.column_types):
             schema.append(self.generate_schema_dict(name, type))
-        json_serialized_schema = json.dumps(schema)
-        if PY3:
-            json_serialized_schema = json_serialized_schema.encode('utf-8')
+        json_serialized_schema = json.dumps(schema).encode('utf-8')
 
         tmp_schema_file_handle.write(json_serialized_schema)
         return {self.schema_filename: tmp_schema_file_handle}
@@ -223,9 +214,9 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     def convert_value(cls, name, value):
         if not value:
             return value
-        elif isinstance(value, (text_type, int, float, bool, dict)):
+        elif isinstance(value, (str, int, float, bool, dict)):
             return value
-        elif isinstance(value, binary_type):
+        elif isinstance(value, bytes):
             return b64encode(value).decode('ascii')
         elif isinstance(value, UUID):
             return b64encode(value.bytes).decode('ascii')

@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-
 from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
@@ -45,7 +43,7 @@ class HipChatAPIOperator(BaseOperator):
                  base_url='https://api.hipchat.com/v2',
                  *args,
                  **kwargs):
-        super(HipChatAPIOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.token = token
         self.base_url = base_url
         self.method = None
@@ -59,7 +57,6 @@ class HipChatAPIOperator(BaseOperator):
         Override in child class. Each HipChatAPI child operator is responsible for having
         a prepare_request method call which sets self.method, self.url, and self.body.
         """
-        pass
 
     def execute(self, context):
         self.prepare_request()
@@ -107,7 +104,7 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     def __init__(self, room_id, message, message_format='html',
                  color='yellow', frm='airflow', attach_to=None,
                  notify=False, card=None, *args, **kwargs):
-        super(HipChatAPISendRoomNotificationOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.room_id = room_id
         self.message = message
         self.message_format = message_format
@@ -130,5 +127,5 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
 
         self.method = 'POST'
         self.url = '%s/room/%s/notification' % (self.base_url, self.room_id)
-        self.body = json.dumps(dict(
-            (str(k), str(v)) for k, v in params.items() if v))
+        self.body = json.dumps({
+            str(k): str(v) for k, v in params.items() if v})

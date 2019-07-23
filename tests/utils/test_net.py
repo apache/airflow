@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-import mock
+from unittest import mock
 
 from airflow.utils import net
 

@@ -19,15 +19,14 @@
 
 import unittest
 from base64 import b64encode
-import six
 
-from airflow import configuration
 from airflow import models
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2017, 1, 1)
@@ -46,7 +45,6 @@ reset()
 
 class SSHOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
@@ -77,8 +75,8 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(TIMEOUT, task.ssh_hook.timeout)
         self.assertEqual(SSH_ID, task.ssh_hook.ssh_conn_id)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "False")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -96,8 +94,8 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
                          b64encode(b'airflow').decode('utf-8'))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_command_execution(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -115,25 +113,25 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_command_execution_with_env(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command="echo -n airflow",
             do_xcom_push=True,
             dag=self.dag,
+            environment={'TEST': 'value'}
         )
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
-        ti.run()
-        self.assertIsNotNone(ti.duration)
-        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
+        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
+            ti = TaskInstance(
+                task=task, execution_date=timezone.utcnow())
+            ti.run()
+            self.assertIsNotNone(ti.duration)
+            self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_no_output_command(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -144,11 +142,12 @@ class SSHOperatorTest(unittest.TestCase):
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
-        ti.run()
-        self.assertIsNotNone(ti.duration)
-        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
+        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
+            ti = TaskInstance(
+                task=task, execution_date=timezone.utcnow())
+            ti.run()
+            self.assertIsNotNone(ti.duration)
+            self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
 
     def test_arg_checking(self):
         import os
@@ -158,8 +157,6 @@ class SSHOperatorTest(unittest.TestCase):
         os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
 
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
-        if six.PY2:
-            self.assertRaisesRegex = self.assertRaisesRegexp
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
             task_0 = SSHOperator(task_id="test", command="echo -n airflow",

@@ -26,11 +26,10 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-# from __future__ import print_function
 #
 # from airflow import DAG
 # import airflow
-# from datetime import datetime, timedelta
+# from datetime import timedelta
 # from airflow.operators import BashOperator
 # from airflow.operators import ShortCircuitOperator
 # from airflow.operators.docker_operator import DockerOperator
@@ -38,7 +37,7 @@ TODO: Review the workflow, change it accordingly to
 # default_args = {
 #     'owner': 'airflow',
 #     'depends_on_past': False,
-#     'start_date': datetime.utcnow(),
+#     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],
 #     'email_on_failure': False,
 #     'email_on_retry': False,

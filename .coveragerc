@@ -23,3 +23,4 @@ omit =
     dev/*
     airflow/migrations/*
     airflow/www/node_modules/**
+    airflow/_vendor/*

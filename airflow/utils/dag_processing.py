@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import logging
 import multiprocessing
@@ -33,13 +28,12 @@ import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from collections import namedtuple
-from datetime import timedelta
 from importlib import import_module
 import enum
+from queue import Empty
 
 import psutil
-from six.moves import range, reload_module
-from sqlalchemy import or_
+from six.moves import reload_module
 from tabulate import tabulate
 
 # To avoid circular imports
@@ -48,12 +42,10 @@ from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
-from airflow.settings import logging_class_path
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
 
 
 class SimpleDag(BaseDag):
@@ -142,7 +134,7 @@ class SimpleDag(BaseDag):
             return None
 
 
-class SimpleTaskInstance(object):
+class SimpleTaskInstance:
     def __init__(self, ti):
         self._dag_id = ti.dag_id
         self._task_id = ti.task_id
@@ -278,6 +270,23 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
+def correct_maybe_zipped(fileloc):
+    """
+    If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive and path to zip is returned.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return archive
+    else:
+        return fileloc
+
+
+COMMENT_PATTERN = re.compile(r"\s*#.*")
+
+
 def list_py_file_paths(directory, safe_mode=True,
                        include_examples=None):
     """
@@ -303,10 +312,11 @@ def list_py_file_paths(directory, safe_mode=True,
             patterns = patterns_by_dir.get(root, [])
             ignore_file = os.path.join(root, '.airflowignore')
             if os.path.isfile(ignore_file):
-                with open(ignore_file, 'r') as f:
+                with open(ignore_file, 'r') as file:
                     # If we have new patterns create a copy so we don't change
                     # the previous list (which would affect other subdirs)
-                    patterns += [re.compile(p) for p in f.read().split('\n') if p]
+                    lines_no_comments = [COMMENT_PATTERN.sub("", line) for line in file.read().split("\n")]
+                    patterns += [re.compile(line) for line in lines_no_comments if line]
 
             # If we can ignore any subdirs entirely we should - fewer paths
             # to walk is better. We have to modify the ``dirs`` array in
@@ -357,11 +367,10 @@ def list_py_file_paths(directory, safe_mode=True,
     return file_paths
 
 
-class AbstractDagFileProcessor(object):
+class AbstractDagFileProcessor(metaclass=ABCMeta):
     """
     Processes a DAG file. See SchedulerJob.process_file() for more details.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def start(self):
@@ -458,6 +467,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  file_paths,
                  max_runs,
                  processor_factory,
+                 processor_timeout,
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -471,6 +481,8 @@ class DagFileProcessorAgent(LoggingMixin):
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path, log_file_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :param processor_timeout: How long to wait before timing out a DAG file processor
+        :type processor_timeout: timedelta
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
         """
@@ -479,6 +491,7 @@ class DagFileProcessorAgent(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._processor_factory = processor_factory
+        self._processor_timeout = processor_timeout
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -493,8 +506,9 @@ class DagFileProcessorAgent(LoggingMixin):
         # Pipe for communicating signals
         self._parent_signal_conn, self._child_signal_conn = multiprocessing.Pipe()
         # Pipe for communicating DagParsingStat
-        self._stat_queue = multiprocessing.Queue()
-        self._result_queue = multiprocessing.Queue()
+        self._manager = multiprocessing.Manager()
+        self._stat_queue = self._manager.Queue()
+        self._result_queue = self._manager.Queue()
         self._process = None
         self._done = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
@@ -509,6 +523,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                              self._file_paths,
                                              self._max_runs,
                                              self._processor_factory,
+                                             self._processor_timeout,
                                              self._child_signal_conn,
                                              self._stat_queue,
                                              self._result_queue,
@@ -536,6 +551,7 @@ class DagFileProcessorAgent(LoggingMixin):
                         file_paths,
                         max_runs,
                         processor_factory,
+                        processor_timeout,
                         signal_conn,
                         _stat_queue,
                         result_queue,
@@ -548,13 +564,15 @@ class DagFileProcessorAgent(LoggingMixin):
             os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
             # Replicating the behavior of how logging module was loaded
             # in logging_config.py
-            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
+            reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
             reload_module(airflow.settings)
+            airflow.settings.initialize()
             del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
             processor_manager = DagFileProcessorManager(dag_directory,
                                                         file_paths,
                                                         max_runs,
                                                         processor_factory,
+                                                        processor_timeout,
                                                         signal_conn,
                                                         _stat_queue,
                                                         result_queue,
@@ -580,13 +598,15 @@ class DagFileProcessorAgent(LoggingMixin):
         # if it processed all files for max_run times and exit normally.
         self._heartbeat_manager()
         simple_dags = []
-        # multiprocessing.Queue().qsize will not work on MacOS.
-        if sys.platform == "darwin":
-            qsize = self._result_count
-        else:
-            qsize = self._result_queue.qsize()
-        for _ in range(qsize):
-            simple_dags.append(self._result_queue.get())
+        while True:
+            try:
+                result = self._result_queue.get_nowait()
+                try:
+                    simple_dags.append(result)
+                finally:
+                    self._result_queue.task_done()
+            except Empty:
+                break
 
         self._result_count = 0
 
@@ -668,6 +688,10 @@ class DagFileProcessorAgent(LoggingMixin):
             self.log.info("Killing manager process: %s", manager_process.pid)
             manager_process.kill()
             manager_process.wait()
+        # TODO: bring it back once we replace process termination above with multiprocess-friendly
+        #       way (https://issues.apache.org/jira/browse/AIRFLOW-4440)
+        # self._result_queue.join()
+        self._manager.shutdown()
 
 
 class DagFileProcessorManager(LoggingMixin):
@@ -689,6 +713,7 @@ class DagFileProcessorManager(LoggingMixin):
                  file_paths,
                  max_runs,
                  processor_factory,
+                 processor_timeout,
                  signal_conn,
                  stat_queue,
                  result_queue,
@@ -705,6 +730,8 @@ class DagFileProcessorManager(LoggingMixin):
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :param processor_timeout: How long to wait before timing out a DAG file processor
+        :type processor_timeout: timedelta
         :param signal_conn: connection to communicate signal with processor agent.
         :type signal_conn: airflow.models.connection.Connection
         :param stat_queue: the queue to use for passing back parsing stat to agent.
@@ -737,9 +764,6 @@ class DagFileProcessorManager(LoggingMixin):
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler',
                                                 'print_stats_interval')
-        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        self._zombie_threshold_secs = (
-            conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
         # Map from file path to the processor
         self._processors = {}
         # Map from file path to the last runtime
@@ -757,6 +781,8 @@ class DagFileProcessorManager(LoggingMixin):
         self._run_count = defaultdict(int)
         # Manager heartbeat key.
         self._heart_beat_key = 'heart-beat'
+        # How long to wait before timing out a process to parse a DAG file
+        self._processor_timeout = processor_timeout
 
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler',
@@ -1124,6 +1150,8 @@ class DagFileProcessorManager(LoggingMixin):
             have finished since the last time this was called
         :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
+        self._kill_timed_out_processors()
+
         finished_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""
         running_processors = {}
@@ -1197,13 +1225,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._file_path_queue.extend(files_paths_to_queue)
 
-        zombies = self._find_zombies()
-
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and
                len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, zombies)
+            processor = self._processor_factory(file_path)
 
             processor.start()
             self.log.debug(
@@ -1217,40 +1243,20 @@ class DagFileProcessorManager(LoggingMixin):
 
         return simple_dags
 
-    @provide_session
-    def _find_zombies(self, session):
+    def _kill_timed_out_processors(self):
         """
-        Find zombie task instances, which are tasks haven't heartbeated for too long.
-        :return: Zombie task instances in SimpleTaskInstance format.
+        Kill any file processors that timeout to defend against process hangs.
         """
         now = timezone.utcnow()
-        zombies = []
-        if (now - self._last_zombie_query_time).total_seconds() \
-                > self._zombie_query_interval:
-            # to avoid circular imports
-            from airflow.jobs import LocalTaskJob as LJ
-            self.log.info("Finding 'running' jobs without a recent heartbeat")
-            TI = airflow.models.TaskInstance
-            limit_dttm = timezone.utcnow() - timedelta(
-                seconds=self._zombie_threshold_secs)
-            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
-
-            tis = (
-                session.query(TI)
-                .join(LJ, TI.job_id == LJ.id)
-                .filter(TI.state == State.RUNNING)
-                .filter(
-                    or_(
-                        LJ.state != State.RUNNING,
-                        LJ.latest_heartbeat < limit_dttm,
-                    )
-                ).all()
-            )
-            self._last_zombie_query_time = timezone.utcnow()
-            for ti in tis:
-                zombies.append(SimpleTaskInstance(ti))
-
-        return zombies
+        for file_path, processor in self._processors.items():
+            duration = now - processor.start_time
+            if duration > self._processor_timeout:
+                self.log.info(
+                    "Processor for %s with PID %s started at %s has timed out, "
+                    "killing it.",
+                    processor.file_path, processor.pid, processor.start_time.isoformat())
+                Stats.incr('dag_file_processor_timeouts', 1, 1)
+                processor.kill()
 
     def max_runs_reached(self):
         """

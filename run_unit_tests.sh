@@ -35,8 +35,8 @@ nose_args=$@
 which airflow > /dev/null || python setup.py develop
 
 echo "Initializing the DB"
-yes | airflow initdb
-yes | airflow resetdb
+yes | airflow db init
+yes | airflow db reset
 
 if [ -z "$nose_args" ]; then
   nose_args="--with-coverage \
@@ -61,8 +61,13 @@ if [ -f "${AIRFLOW_DB}" ]; then
 fi
 
 # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
-# (which contains /usr/local/bin)
-sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+# (which contains /usr/local/bin).  Some test environments, like the docker instructions, won't have sudo and
+# are probably running as root anyway
+if command -v sudo > /dev/null; then
+  sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+else
+  ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+fi
 
 echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args
