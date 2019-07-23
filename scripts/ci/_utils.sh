@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
+# Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
+# and MY_DIR variable is set to this directory
+AIRFLOW_SOURCES=$(cd ${MY_DIR}/../../ && pwd)
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -37,6 +39,12 @@ mkdir -p ${AIRFLOW_SOURCES}/tmp
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE="true"
 
+# Read default branch name
+. ${AIRFLOW_SOURCES}/hooks/_default_branch.sh
+
+# Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
+export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
+
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -44,6 +52,7 @@ export PYTHONDONTWRITEBYTECODE="true"
 # Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
+
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
