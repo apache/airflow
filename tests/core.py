@@ -2269,7 +2269,8 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual(['to'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MIME_FROM') or
+                         configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
         self.assertEqual(filename, msg.get_payload()[-1].get('Content-Disposition'))
@@ -2297,7 +2298,8 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual(['to', 'cc', 'bcc'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MIME_FROM') or
+                         configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual('attachment; filename="' + os.path.basename(attachment.name) + '"',
                          msg.get_payload()[-1].get('Content-Disposition'))
