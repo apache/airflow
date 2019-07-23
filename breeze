@@ -189,8 +189,8 @@ function print_badge {
                                Docker image:       ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
                                Airflow version:    ${AIRFLOW_VERSION}
                                Python version:     ${PYTHON_VERSION}
-                               DockerHub user:     ${DOCKERHUB_USER}
-                               DockerHub repo:     ${DOCKERHUB_REPO}
+                               Container registry: ${CONTAINER_REGISTRY}
+                               Container repo:     ${CONTAINER_REPO}
                                Backend:            ${BACKEND}
                                Env:                ${ENV}
 EOF
@@ -210,8 +210,8 @@ EOF
    Docker image:       ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
    Airflow version:    ${AIRFLOW_VERSION}
    Python version:     ${PYTHON_VERSION}
-   DockerHub user:     ${DOCKERHUB_USER}
-   DockerHub repo:     ${DOCKERHUB_REPO}
+   Container registry: ${CONTAINER_REGISTRY}
+   Container repo:     ${CONTAINER_REPO}
    Backend:            ${BACKEND}
    Env:                ${ENV}
 EOF
@@ -234,8 +234,8 @@ function prepare_command_file() {
     cat <<EOF > "${FILE}"
 #!/usr/bin/env bash
 cd "\$(pwd)" || exit
-export DOCKERHUB_USER=${DOCKERHUB_USER}
-export DOCKERHUB_REPO=${DOCKERHUB_REPO}
+export CONTAINER_REGISTRY=${CONTAINER_REGISTRY}
+export CONTAINER_REPO=${CONTAINER_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_VERSION="${PYTHON_VERSION}"
 export BACKEND="${BACKEND}"
@@ -400,11 +400,11 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 ** Dockerfile management flags
 
--D, --dockerhub-user
-        DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
+-D, --container-registry
+        Container registry used to pull, push and build images. Default: ${_BREEZE_DEFAULT_CONTAINER_REGISTRY:=}.
 
--H, --dockerhub-repo
-        DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+-H, --container-repo
+        Container repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_CONTAINER_REPO:=}.
 
 -r, --force-rebuild-images
         Forces rebuilding of the local docker images. The images are rebuilt
@@ -577,16 +577,16 @@ do
       echo
       CLEANUP_IMAGES=true
       shift ;;
-    -D|--dockerhub-user)
-      export DOCKERHUB_USER="${2}"
+    -D|--container-registry)
+      export CONTAINER_REGISTRY="${2}"
       echo
-      echo "Dockerhub user ${DOCKERHUB_USER}"
+      echo "Container registry ${CONTAINER_REGISTRY}"
       echo
       shift 2 ;;
     -H|--dockerhub-repo)
       export DOCKERHUB_REPO="${2}"
       echo
-      echo "Dockerhub repo ${DOCKERHUB_REPO}"
+      echo "Container repo ${CONTAINER_REPO}"
       echo
       shift 2 ;;
     -e|--initialize-local-virtualenv)
@@ -688,17 +688,17 @@ export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
 export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
 export KUBERNETES_MODE="${KUBERNETES_MODE:=$(read_from_file KUBERNETES_MODE)}"
 
-# Here you read DockerHub user/account that you use
+# Here you read container registry/repo that you use
 # You can populate your own images in DockerHub this way and work with the,
 # You can override it with "-d" option and it will be stored in .build directory
-export DOCKERHUB_USER="${DOCKERHUB_USER:=$(read_from_file DOCKERHUB_USER)}"
-export DOCKERHUB_USER="${DOCKERHUB_USER:=${_BREEZE_DEFAULT_DOCKERHUB_USER}}"
+export CONTAINER_REGISTRY="${CONTAINER_REGISTRY:=$(read_from_file CONTAINER_REGISTRY)}"
+export CONTAINER_REGISTRY="${CONTAINER_REGISTRY:=${_BREEZE_DEFAULT_CONTAINER_REGISTRY}}"
 
-# Here you read DockerHub repo that you use
+# Here you read container repo that you use
 # You can populate your own images in DockerHub this way and work with them
 # You can override it with "-d" option and it will be stored in .build directory
-export DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(read_from_file DOCKERHUB_REPO)}"
-export DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_BREEZE_DEFAULT_DOCKERHUB_REPO}}"
+export CONTAINER_REPO="${CONTAINER_REPO:=$(read_from_file CONTAINER_REPO)}"
+export CONTAINER_REPO="${CONTAINER_REPO:=${_BREEZE_DEFAULT_CONTAINER_REPO}}"
 
 # Default environment for tests
 export ENV=${ENV:-${_BREEZE_DEFAULT_ENV}}
@@ -768,8 +768,8 @@ save_to_file ENV
 save_to_file KUBERNETES_VERSION
 save_to_file KUBERNETES_MODE
 save_to_file PYTHON_VERSION
-save_to_file DOCKERHUB_USER
-save_to_file DOCKERHUB_REPO
+save_to_file CONTAINER_REGISTRY
+save_to_file CONTAINER_REPO
 
 #################### Cleanup image if requested ########################################
 if [[ "${CLEANUP_IMAGES}" == "true" ]]; then
@@ -944,7 +944,7 @@ rebuild_ci_slim_image_if_needed
 rebuild_checklicence_image_if_needed
 
 export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+${CONTAINER_REGISTRY}/${CONTAINER_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
 

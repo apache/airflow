@@ -16,39 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Stops the Docker Compose environment
-#
-set -euo pipefail
+set -xeuo pipefail
+
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+.  "${MY_DIR}/_config.sh"
 
-basic_sanity_checks
+gcloud beta container --project "${PROJECT_ID}" clusters create \
+  "${CLUSTER_NAME}" --zone "${ZONE}" --no-enable-basic-auth \
+  --cluster-version "${CLUSTER_VERSION}" \
+  --machine-type "custom-6-23040" \
+  --image-type "COS" --disk-type "pd-standard" --disk-size "100" \
+  --local-ssd-count "1" --metadata disable-legacy-endpoints=true \
+  --max-pods-per-node "${MAX_PODS_PER_NODE}" --default-max-pods-per-node "${MAX_PODS_PER_NODE}" \
+  --preemptible --enable-autoscaling \
+  --num-nodes "${MIN_NODES}" --min-nodes "${MIN_NODES}" --max-nodes "${MAX_NODES}" \
+  --no-enable-cloud-logging --no-enable-cloud-monitoring --enable-ip-alias  \
+  --addons HorizontalPodAutoscaling,HttpLoadBalancing,KubernetesDashboard \
+  --enable-autoupgrade --enable-autorepair
 
-script_start
-
-export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
-
-# Default branch name for triggered builds is master
-export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:="master"}
-
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${CONTAINER_REGISTRY}/${CONTAINER_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
-
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
-
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
-
-docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-kubernetes.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    -f "${MY_DIR}/docker-compose-mysql.yml" \
-    -f "${MY_DIR}/docker-compose-postgres.yml" \
-    -f "${MY_DIR}/docker-compose-sqlite.yml" down
-
-script_end
+gcloud container clusters get-credentials "${CLUSTER_NAME}"

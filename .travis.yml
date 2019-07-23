@@ -55,7 +55,7 @@ jobs:
       script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
     - name: "Check licence compliance for Apache"
       stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
+      script: ./scripts/ci/ci_check_licence.sh
     - name: "Pylint checks"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests_pylint.sh

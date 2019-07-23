@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import os
 
 import unittest
 from unittest import mock
@@ -32,10 +33,13 @@ from airflow.gcp.hooks.bigquery import _cleanse_time_partitioning, \
 
 bq_available = True
 
-try:
-    hook.BigQueryHook().get_service()
-except GoogleAuthError:
+if os.environ.get('SKIP_BQ_TESTS', '') != '':
     bq_available = False
+else:
+    try:
+        hook.BigQueryHook().get_service()
+    except GoogleAuthError:
+        bq_available = False
 
 
 class TestBigQueryHookConnection(unittest.TestCase):

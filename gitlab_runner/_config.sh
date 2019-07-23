@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*- # pylint: disable=C0302
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`.
-"""
 
-import warnings
-
-# pylint: disable=unused-import
-from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook  # noqa
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`",
-    DeprecationWarning,
-)
+export RUNNER_NAME="gitlab-runner-apache"
+export CLUSTER_NAME="apache-airflow"
+export PROJECT_ID="apache-airflow-testing"
+export ZONE="europe-west1-b"
+export CLUSTER_VERSION="1.13.7-gke.8"
+export MAX_PODS_PER_NODE="110"
+export MIN_NODES="${MIN_NODES}"
+export MAX_NODES="12"

@@ -74,6 +74,7 @@ services:
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - SKIP_BQ_TESTS
       - ENV
       - BACKEND
       - CI

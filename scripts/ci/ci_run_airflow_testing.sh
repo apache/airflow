@@ -19,6 +19,8 @@
 set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+export AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
+
 # shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
@@ -51,7 +53,7 @@ else
 fi
 
 export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+${CONTAINER_REGISTRY}/${CONTAINER_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 echo
 echo "Using docker image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE} for docker compose runs"
@@ -70,6 +72,19 @@ if [[ "${ENV}" == "docker" ]]; then
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+elif [[ "${ENV}" == "kind-kubernetes" ]]; then
+  echo
+  echo "Running kind kubernetes tests in ${KUBERNETES_MODE}"
+  echo
+  docker-compose --log-level ERROR \
+      -f "${MY_DIR}/docker-compose.yml" \
+      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      -f "${MY_DIR}/docker-compose-kind-kubernetes.yml" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+         run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+  echo
+  echo "Finished Running kind kubernetes tests in ${KUBERNETES_MODE}"
+  echo
 elif [[ "${ENV}" == "kubernetes" ]]; then
   echo
   echo "Running kubernetes tests in ${KUBERNETES_MODE}"

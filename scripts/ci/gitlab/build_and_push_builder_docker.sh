@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*- # pylint: disable=C0302
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`.
-"""
 
-import warnings
+set -euo pipefail
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook  # noqa
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`",
-    DeprecationWarning,
-)
+cd "${MY_DIR}"
+
+docker build -f Dockerfile-builder . -t eu.gcr.io/apache-airflow-testing/builder
+
+docker push eu.gcr.io/apache-airflow-testing/builder

@@ -25,6 +25,11 @@ echo
 echo "Working in ${MY_DIR} folder"
 echo
 
+TTY=$(tty)
+
+echo
+echo "Terminal device: ${TTY}"
+echo
 
 if [[ -f /.dockerenv ]]; then
     # This script can be run both - in container and outside of it.
@@ -57,7 +62,7 @@ echo "Removed content of the _build and _api folders"
 set +e
 # shellcheck disable=SC2063
 NUM_INCORRECT_USE_LITERALINCLUDE=$(grep -inR --include \*.rst 'literalinclude::.\+example_dags' . | \
-    tee /dev/tty |
+    tee "${TTY}" |
     wc -l |\
     tr -d '[:space:]')
 set -e
@@ -80,7 +85,7 @@ else
 fi
 
 SUCCEED_LINE=$(make html |\
-    tee /dev/tty |\
+    tee "${TTY}" |\
     grep 'build succeeded' |\
     head -1)
 

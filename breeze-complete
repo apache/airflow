@@ -6,8 +6,8 @@ _BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.13.0 "
 _BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
 _BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck"
-_BREEZE_DEFAULT_DOCKERHUB_USER="apache"
-_BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
+_BREEZE_DEFAULT_CONTAINER_REGISTRY="apache"
+_BREEZE_DEFAULT_CONTAINER_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
 h P: E: B: K: M:
@@ -23,7 +23,7 @@ help python: env: backend: kubernetes-version: kubernetes-mode:
 skip-mounting-local-sources build-only build-docs
 verbose assume-yes toggle-suppress-cheatsheet toggle-suppress-asciiart
 force-rebuild-images force-rebuild-images-clean force-pull-images push-images
-cleanup-images dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
+cleanup-images container-registry: container-repo: initialize-local-virtualenv setup-autocomplete
 test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
 "
 
@@ -53,10 +53,10 @@ function _get_known_values_breeze {
               _docker_compose
             fi
             _BREEZE_KNOWN_VALUES="" ;;
-        -D | --dockerhub-user )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}" ;;
-        -H | --dockerhub-repo )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}" ;;
+        -D | --container-registry )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_CONTAINER_REGISTRY}" ;;
+        -H | --container-repo )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_CONTAINER_REPO}" ;;
         *)
             _BREEZE_KNOWN_VALUES=""
     esac

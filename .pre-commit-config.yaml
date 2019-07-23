@@ -30,7 +30,7 @@ repos:
         pass_filenames: false
       - id: check-apache-license
         name: Check if licences are OK for Apache
-        entry: ./scripts/ci/ci_check_license.sh
+        entry: ./scripts/ci/ci_check_licence.sh
         language: system
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false

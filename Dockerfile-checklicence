@@ -85,6 +85,10 @@ RUN adduser airflow \
 
 COPY --chown=airflow:airflow scripts ${AIRFLOW_SOURCES}/scripts
 
+# Kaniko does not support --chown flag so we have to (just in case)
+# Change the ownership of the files
+RUN chown -R airflow:airflow ${AIRFLOW_SOURCES}
+
 USER airflow
 
 WORKDIR ${AIRFLOW_SOURCES}

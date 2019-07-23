@@ -1,0 +1,149 @@
+variables:
+  BUILDER_IMAGE: "eu.gcr.io/apache-airflow-testing/builder"
+  PROJECT: "apache-airflow-testing"
+  AIRFLOW_CI_VERBOSE: "false"
+  CI: "true"
+
+  # Disable TLS for Docker Engine (it's not needed anyway as it is only exposed in the POD of runner!)
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_TLS_VERIFY: ""
+  DOCKER_HOST: "tcp://localhost:2375"
+
+  # Improve performance by using overlay2 driver
+  DOCKER_DRIVER: "overlay2"
+  # Docker in docker image version
+  DIND_VERSION: "19.03.1"
+  SKIP_BQ_TESTS: "true"
+  BUILD_NPM: "true"
+
+stages:
+  - static-analysis
+  - tests
+
+s/mypy: &static-check-common
+  stage: static-analysis
+  image: ${BUILDER_IMAGE}
+  variables:
+    PYTHON_VERSION: "3.5"
+    BUILD_NPM: "false"
+  services:
+    - name: "docker:${DIND_VERSION}-dind"
+      command: ["--registry-mirror=https://mirror.gcr.io"]
+  script:
+    - ./scripts/ci/ci_prepare_image_static.sh
+    - ./scripts/ci/ci_mypy.sh
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+s/pylint-main:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_prepare_image_static.sh
+    - ./scripts/ci/ci_pylint_main.sh
+
+s/pylint-tests:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_prepare_image_static.sh
+    - ./scripts/ci/ci_pylint_tests.sh
+
+s/flake8:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_prepare_image_static.sh
+    - ./scripts/ci/ci_flake8.sh
+
+s/docs:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_prepare_image_static.sh
+    - ./scripts/ci/ci_docs.sh
+
+s/lint_dockerfile:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_lint_dockerfile.sh
+
+s/checklicence:
+  <<: *static-check-common
+  script:
+    - ./scripts/ci/ci_prepare_image_check_licence.sh
+    - ./scripts/ci/ci_check_licence.sh
+
+t/postgres-3.5: &tests-common
+  stage: tests
+  image: ${BUILDER_IMAGE}
+  variables:
+    PYTHON_VERSION: "3.5"
+    BACKEND: "postgres"
+    ENV: "docker"
+  services:
+    - name: "docker:${DIND_VERSION}-dind"
+      command: ["--registry-mirror=https://mirror.gcr.io"]
+  script:
+    - ./scripts/ci/ci_prepare_image_tests.sh
+    - ./scripts/ci/ci_run_airflow_testing.sh
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+t/postgres-3.6:
+  <<: *tests-common
+  variables:
+    PYTHON_VERSION: "3.6"
+    BACKEND: "postgres"
+    ENV: "docker"
+
+t/mysql-3.5:
+  <<: *tests-common
+  variables:
+    PYTHON_VERSION: "3.5"
+    BACKEND: "mysql"
+    ENV: "docker"
+
+t/mysql-3.6:
+  <<: *tests-common
+  variables:
+    PYTHON_VERSION: "3.6"
+    BACKEND: "mysql"
+    ENV: "docker"
+
+t/sqlite-3.5:
+  <<: *tests-common
+  variables:
+    PYTHON_VERSION: "3.5"
+    BACKEND: "sqlite"
+    ENV: "docker"
+
+t/sqlite-3.6:
+  <<: *tests-common
+  variables:
+    PYTHON_VERSION: "3.6"
+    BACKEND: "sqlite"
+    ENV: "docker"
+
+#t/kubernetes-persistent:
+#  stage: tests
+#  image: ${BUILDER_IMAGE}
+#  variables:
+#    PYTHON_VERSION: "3.6"
+#    BACKEND: "postgres"
+#    ENV: "kind-kubernetes"
+#    KUBERNETES_MODE: "persistent_mode"
+#  services:
+#    - name: "docker:${DIND_VERSION}-dind"
+#      command: ["--registry-mirror=https://mirror.gcr.io"]
+#  script:
+#    - ./scripts/ci/ci_prepare_image_tests.sh
+#    - ./scripts/ci/ci_start_kubernetes_cluster.sh
+#    - ./scripts/ci/ci_run_airflow_testing.sh
+#  retry:
+#    max: 2
+#    when:
+#      - runner_system_failure
+#      - stuck_or_timeout_failure

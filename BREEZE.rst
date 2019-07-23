@@ -784,11 +784,11 @@ These are the current flags of the `./breeze <./breeze>`_ script
 
     ** Dockerfile management flags
 
-    -D, --dockerhub-user
-            DockerHub user used to pull, push and build images. Default: apache.
+    -D, --container-registry
+            Container registry used to pull, push and build images. Default: apache.
 
-    -H, --dockerhub-repo
-            DockerHub repository used to pull, push, build images. Default: airflow.
+    -H, --container-repo
+            Container repository used to pull, push, build images. Default: airflow.
 
     -r, --force-rebuild-images
             Forces rebuilding of the local docker images. The images are rebuilt
@@ -843,13 +843,13 @@ Running manually static code checks
 You can trigger the static checks from the host environment, without entering Docker container. You
 do that by running appropriate scripts (The same is done in TravisCI)
 
-* `<scripts/ci/ci_check_license.sh>`_ - checks if all licences are OK
+* `<scripts/ci/ci_check_licence.sh>`_ - checks if all licences are OK
 * `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings
 * `<scripts/ci/ci_flake8.sh>`_ - runs flake8 source code style guide enforcement tool
 * `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the Dockerfile
 * `<scripts/ci/ci_mypy.sh>`_ - runs mypy type annotation consistency check
 * `<scripts/ci/ci_pylint_main.sh>`_ - runs pylint static code checker for main files
-* '`<scripts/ci/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests
+* `<scripts/ci/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests
 
 The scripts will ask to rebuild the images if needed.
 

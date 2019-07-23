@@ -1865,6 +1865,8 @@ class TestCli(unittest.TestCase):
             except Exception:
                 sleep(1)
 
+    @unittest.skipIf("CI" in os.environ and os.environ["CI"] != '',
+                     "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground(self):
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
@@ -1880,7 +1882,7 @@ class TestCli(unittest.TestCase):
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+    @unittest.skipIf("CI" in os.environ and os.environ["CI"] != '',
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
         # Run webserver in foreground with --pid option
@@ -1894,7 +1896,7 @@ class TestCli(unittest.TestCase):
         p.terminate()
         p.wait()
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+    @unittest.skipIf("CI" in os.environ and os.environ["CI"] != '',
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
         import psutil

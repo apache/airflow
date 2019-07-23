@@ -66,7 +66,8 @@ export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
 #
-# Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
+# Note that this cannot be function because we need the
+# AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS array variable
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
 
@@ -83,12 +84,12 @@ if [[ ${REBUILD:=false} ==  "true" ]]; then
     export ASSUME_YES_TO_ALL_QUESTIONS="true"
 fi
 
-declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
+declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS
 if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
     print_info "Mounting host volumes to Docker"
     print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS=( \
       "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
       "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache:cached" \
       "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
@@ -115,12 +116,12 @@ else
     print_info
     print_info "Skip mounting host volumes to Docker"
     print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS=( \
         "--env" "PYTHONDONTWRITEBYTECODE" \
     )
 fi
 
-export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
+export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS
 
 #
 # Creates cache directory where we will keep temporary files needed for the build
@@ -311,15 +312,21 @@ function check_if_coreutils_installed() {
 # Asserts that we are not inside of the container
 #
 function assert_not_in_container() {
-    if [[ -f /.dockerenv ]]; then
-        echo >&2
-        echo >&2 "You are inside the Airflow docker container!"
-        echo >&2 "You should only run this script from the host."
-        echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md"
-        echo >&2
-        exit 1
-    fi
+  if [[ ${CI:=} != "true" ]]; then
+      if [[ -f /.dockerenv ]]; then
+          echo >&2
+          echo >&2 "You are inside the Airflow docker container!"
+          echo >&2 "You should only run this script from the host."
+          echo >&2 "Learn more about how we develop and test airflow in:"
+          echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md"
+          echo >&2
+          exit 1
+      fi
+  else
+    echo
+    echo "CI variable is set to ${CI}. We are likely running in Kubernetes' Docker in GitLab"
+    echo
+  fi
 }
 
 function confirm_image_rebuild() {
@@ -575,7 +582,7 @@ function run_flake8() {
     FILES=("$@")
 
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -587,7 +594,7 @@ function run_flake8() {
             "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -602,7 +609,7 @@ function run_flake8() {
 }
 
 function run_docs() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -616,7 +623,7 @@ function run_docs() {
 }
 
 function run_check_license() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" -t \
             --entrypoint "/usr/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -632,7 +639,7 @@ function run_check_license() {
 function run_mypy() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -644,7 +651,7 @@ function run_mypy() {
             "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
             | tee -a "${OUTPUT_LOG}"
     else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -661,7 +668,7 @@ function run_mypy() {
 function run_pylint_main() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -673,7 +680,7 @@ function run_pylint_main() {
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -691,7 +698,7 @@ function run_pylint_main() {
 function run_pylint_tests() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -703,7 +710,7 @@ function run_pylint_tests() {
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS_FOR_STATIC_CHECKS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \

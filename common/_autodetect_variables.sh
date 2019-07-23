@@ -45,13 +45,23 @@
 # shellcheck source=common/_default_branch.sh
 . "${AIRFLOW_SOURCES}/common/_default_branch.sh"
 
-# You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
 
-# You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
+# You can override CONTAINER_REGISTRY to use your own registry and play with your
 # own docker images. In this case you can build images locally and push them
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+# the registry might be DockerHub's user name in which case just account is needed
+# or full URL to container registry
+export CONTAINER_REGISTRY=${CONTAINER_REGISTRY:="apache"}
+
+# You can override CONTAINER_REPO to use your own repository in registry and play with your
+# own docker images. In this case you can build images locally and push them
+export CONTAINER_REPO=${CONTAINER_REPO:="airflow"}
+
+# Container registry used for cache - by default it's the same as the for which we build but it might be
+# also a different one
+export CACHE_CONTAINER_REGISTRY=${CACHE_CONTAINER_REGISTRY:=${CONTAINER_REGISTRY}}
+# Container repo used for cache - by default it's the same as the for which we build but it might be
+# also a different one
+export CACHE_CONTAINER_REPO=${CACHE_CONTAINER_REPO:=${CONTAINER_REPO}}
 
 # if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH
 # (if overridden by configuration) or default branch configured in /common/_default_branch.sh
@@ -94,7 +104,7 @@ export AUTODETECT_PYTHON_VERSION=${PYTHON_VERSION:=$(${AUTODETECT_PYTHON_BINARY}
 # PYTHHON_VERSION from the IMAGE_NAME set in the DockerHub build.
 # See comment above in PYTHON_VERSION - we will be able to get rid of this cumbersomness when we switch
 # to a different CI system and start pushing images to DockerHub rather than build it there.
-export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${AUTODETECT_PYTHON_VERSION}}
+export BASE_IMAGE_NAME=${IMAGE_NAME:=${CONTAINER_REGISTRY}/${CONTAINER_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${AUTODETECT_PYTHON_VERSION}}
 
 echo
 echo "BASE_IMAGE_NAME=${BASE_IMAGE_NAME:=} (final image will have -ci, -ci-slim suffixes)"
@@ -106,15 +116,15 @@ echo
 echo "LOCAL_BASE_IMAGE_NAME=${LOCAL_BASE_IMAGE_NAME}"
 echo
 
-if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; then
+if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${CONTAINER_REGISTRY}/${CONTAINER_REPO}* ]]; then
     echo >&2
-    echo >&2 "ERROR:  The ${LOCAL_BASE_IMAGE_NAME} does not start with ${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
+    echo >&2 "ERROR:  The ${LOCAL_BASE_IMAGE_NAME} does not start with ${CONTAINER_REGISTRY}/${CONTAINER_REPO}"
     echo >&2
     exit 1
 fi
 
 # Extract IMAGE_TAG from LOCAL_BASE_IMAGE_NAME (apache/airflow:master-python3.6 -> master-python3.6)
-IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${DOCKERHUB_USER}/${DOCKERHUB_REPO}:}
+IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${CONTAINER_REGISTRY}/${CONTAINER_REPO}:}
 echo
 echo "Image tag: ${IMAGE_TAG}"
 echo

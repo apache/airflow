@@ -1,0 +1,99 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+## The GitLab Server URL (with protocol) that want to register the runner against
+## ref: https://docs.gitlab.com/runner/commands/README.html#gitlab-runner-register
+##
+gitlabUrl: https://gitlab.com/
+
+## The registration token for adding new Runners to the GitLab server. This must
+## be retrieved from your GitLab instance.
+## ref: https://docs.gitlab.com/ee/ci/runners/
+##
+runnerRegistrationToken: "GITLAB_TOKEN"
+
+## Set the certsSecretName in order to pass custom certificates for GitLab Runner to use
+## Provide resource name for a Kubernetes Secret Object in the same namespace,
+## this is used to populate the /etc/gitlab-runner/certs directory
+## ref: https://docs.gitlab.com/runner/configuration/
+##             tls-self-signed.html#supported-options-for-self-signed-certificates
+##
+#certsSecretName:
+
+## Configure the maximum number of concurrent jobs
+## ref: https://docs.gitlab.com/runner/configuration/advanced-configuration.html#the-global-section
+##
+concurrent: 8
+
+## Defines in seconds how often to check GitLab for a new builds
+## ref: https://docs.gitlab.com/runner/configuration/advanced-configuration.html#the-global-section
+##
+checkInterval: 3
+
+## For RBAC support:
+rbac:
+  create: true
+
+  ## Run the gitlab-bastion container with the ability to deploy/manage containers of jobs
+  ## cluster-wide or only within namespace
+  clusterWideAccess: false
+
+  ## If RBAC is disabled in this Helm chart, use the following Kubernetes Service Account name.
+  ##
+  # serviceAccountName: runner-gitlab-runner
+
+## Configuration for the Pods that the runner launches for each new job
+##
+runners:
+  ## Default container image to use for builds when none is specified
+  ##
+  image: ubuntu:18.04
+
+  ## Run all containers with the privileged flag enabled
+  ## This will allow the docker:stable-dind image to run if you need to run Docker
+  ## commands. Please read the docs before turning this on:
+  ## ref: https://docs.gitlab.com/runner/executors/kubernetes.html#using-docker-dind
+  ##
+  privileged: true
+
+  ## Namespace to run Kubernetes jobs in (defaults to 'default')
+  ##
+  # namespace:
+
+  ## Build Container specific configuration
+  ##
+  builds:
+    # cpuLimit: 200m
+    # memoryLimit: 256Mi
+    cpuRequests: 200m
+    memoryRequests: 256Mi
+
+  ## Service Container specific configuration
+  ##
+  services:
+    # cpuLimit: 200m
+    # memoryLimit: 256Mi
+    cpuRequests: 2300m
+    memoryRequests: 8Gi
+
+  ## Helper Container specific configuration
+  ##
+  helpers:
+    # cpuLimit: 200m
+    # memoryLimit: 256Mi
+    cpuRequests: 100m
+    memoryRequests: 128Mi
