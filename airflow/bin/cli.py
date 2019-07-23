@@ -293,11 +293,7 @@ def pool_delete(args):
 @cli_utils.action_logging
 def pool_import(args):
     log = LoggingMixin().log
-    if os.path.exists(args.file):
-        pools = pool_import_helper(args.file)
-    else:
-        print("Missing pools file.")
-        pools = api_client.get_pools()
+    pools = pool_import_helper(args.file)
     log.info(_tabulate_pools(pools=pools))
 
 
@@ -307,40 +303,36 @@ def pool_export(args):
     log.info(_tabulate_pools(pools=pools))
 
 
-def pool_import_helper(filepath):
-    with open(filepath, 'r') as poolfile:
+def pool_import_helper(file):
+    with file as poolfile:
         pl = poolfile.read()
     try:
         d = json.loads(pl)
     except Exception as e:
-        print("Please check the validity of the json file: " + str(e))
+        raise SystemExit("Please check the validity of the json file: " + str(e))
     else:
-        try:
-            pools = []
-            n = 0
-            for k, v in d.items():
-                if isinstance(v, dict) and len(v) == 2:
-                    pools.append(api_client.create_pool(name=k,
-                                                        slots=v["slots"],
-                                                        description=v["description"]))
-                    n += 1
-                else:
-                    pass
-        except Exception:
-            pass
-        finally:
-            print("{} of {} pool(s) successfully updated.".format(n, len(d)))
-            return pools
+        pools = []
+        errors = []
+        for n, (k, v) in enumerate(d.items()):
+            try:
+                pools.append(api_client.create_pool(name=k,
+                                                    slots=v["slots"],
+                                                    description=v["description"]))
+            except Exception as error:
+                errors.append(error)
+        if len(errors) > 0:
+            raise SystemExit('Error(s) updating pools: {}'.format(', '.join(str(error) for error in errors)))
+        return pools
 
 
-def pool_export_helper(filepath):
+def pool_export_helper(file):
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
         pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
-    with open(filepath, 'w') as poolfile:
+    with file as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
-    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
+    print("{} pools successfully exported to {}".format(len(pool_dict), file.name))
     return pools
 
 
@@ -351,13 +343,10 @@ def variables_list(args):
 
 
 def variables_get(args):
-    try:
-        var = Variable.get(args.key,
-                           deserialize_json=args.json,
-                           default_var=args.default)
-        print(var)
-    except ValueError as e:
-        print(e)
+    var = Variable.get(args.key,
+                       deserialize_json=args.json,
+                       default_var=args.default)
+    print(var)
 
 
 @cli_utils.action_logging
@@ -372,24 +361,13 @@ def variables_delete(args):
 
 @cli_utils.action_logging
 def variables_import(args):
-    if os.path.exists(args.file):
-        import_helper(args.file)
-    else:
-        print("Missing variables file.")
-
-
-def variables_export(args):
-    variable_export_helper(args.file)
-
-
-def import_helper(filepath):
-    with open(filepath, 'r') as varfile:
+    with args.file as varfile:
         var = varfile.read()
 
     try:
         d = json.loads(var)
     except Exception:
-        print("Invalid variables file.")
+        raise SystemExit("Invalid variables file.")
     else:
         suc_count = fail_count = 0
         for k, v in d.items():
@@ -402,10 +380,10 @@ def import_helper(filepath):
                 suc_count += 1
         print("{} of {} variables successfully updated.".format(suc_count, len(d)))
         if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
+            raise SystemExit("{} variable(s) failed to be updated.".format(fail_count))
 
 
-def variable_export_helper(filepath):
+def variables_export(args):
     var_dict = {}
     with db.create_session() as session:
         qry = session.query(Variable).all()
@@ -418,9 +396,9 @@ def variable_export_helper(filepath):
                 val = var.val
             var_dict[var.key] = val
 
-    with open(filepath, 'w') as varfile:
+    with args.file as varfile:
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print("{} variables successfully exported to {}".format(len(var_dict), filepath))
+    print("{} variables successfully exported to {}".format(len(var_dict), args.file.name))
 
 
 @cli_utils.action_logging
@@ -1253,14 +1231,12 @@ def connections_delete(args):
         except exc.NoResultFound:
             msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
             msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            raise SystemExit(msg)
         except exc.MultipleResultsFound:
             msg = ('\n\tFound more than one connection with ' +
                    '`conn_id`={conn_id}\n')
             msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            raise SystemExit(msg)
         else:
             deleted_conn_id = to_delete.conn_id
             session.delete(to_delete)
@@ -1376,8 +1352,7 @@ def users_create(args):
             raise SystemExit('Passwords did not match!')
 
     if appbuilder.sm.find_user(args.username):
-        print('{} already exist in the db'.format(args.username))
-        return
+        raise SystemExit('{} already exists in the db'.format(args.username))
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
@@ -1463,7 +1438,7 @@ def users_export(args):
         for user in users
     ]
 
-    with open(args.export, 'w') as file:
+    with args.export as file:
         file.write(json.dumps(users, sort_keys=True, indent=4))
         print("{} users successfully exported to {}".format(len(users), file.name))
 
@@ -1471,17 +1446,12 @@ def users_export(args):
 @cli_utils.action_logging
 def users_import(args):
     json_file = getattr(args, 'import')
-    if not os.path.exists(json_file):
-        print("File '{}' does not exist")
-        exit(1)
-
     users_list = None
     try:
-        with open(json_file, 'r') as file:
+        with json_file as file:
             users_list = json.loads(file.read())
     except ValueError as e:
-        print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
-        exit(1)
+        raise SystemExit("File '{}' is not valid JSON. Error: {}".format(json_file, e))
 
     users_created, users_updated = _import_users(users_list)
     if users_created:
@@ -1503,8 +1473,7 @@ def _import_users(users_list):
         for rolename in user['roles']:
             role = appbuilder.sm.find_role(rolename)
             if not role:
-                print("Error: '{}' is not a valid role".format(rolename))
-                exit(1)
+                raise SystemExit("Error: '{}' is not a valid role".format(rolename))
             else:
                 roles.append(role)
 
@@ -1512,9 +1481,8 @@ def _import_users(users_list):
                            'email', 'roles']
         for field in required_fields:
             if not user.get(field):
-                print("Error: '{}' is a required field, but was not "
-                      "specified".format(field))
-                exit(1)
+                raise SystemExit("Error: '{}' is a required field, but was not "
+                                 "specified".format(field))
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
@@ -1524,10 +1492,9 @@ def _import_users(users_list):
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing the username is not allowed - "
-                      "please delete and recreate the user with "
-                      "email '{}'".format(user['email']))
-                exit(1)
+                raise SystemExit("Error: Changing the username is not allowed - "
+                                 "please delete and recreate the user with "
+                                 "email '{}'".format(user['email']))
 
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])
@@ -1818,10 +1785,12 @@ class CLIFactory:
         'pool_import': Arg(
             ("file",),
             metavar="FILEPATH",
+            type=argparse.FileType("r"),
             help="Import pool from JSON file"),
         'pool_export': Arg(
             ("file",),
             metavar="FILEPATH",
+            type=argparse.FileType("w"),
             help="Export pool to JSON file"),
         # variables
         'var': Arg(
@@ -1842,9 +1811,11 @@ class CLIFactory:
             action="store_true"),
         'var_import': Arg(
             ("file",),
+            type=argparse.FileType("r"),
             help="Import variables from JSON file"),
         'var_export': Arg(
             ("file",),
+            type=argparse.FileType("w"),
             help="Export variables to JSON file"),
         # kerberos
         'principal': Arg(
@@ -2093,6 +2064,7 @@ class CLIFactory:
         'user_import': Arg(
             ("import",),
             metavar="FILEPATH",
+            type=argparse.FileType("r"),
             help="Import users from JSON file. Example format:" +
                     textwrap.dedent('''
                     [
@@ -2108,6 +2080,7 @@ class CLIFactory:
         'user_export': Arg(
             ("export",),
             metavar="FILEPATH",
+            type=argparse.FileType("w"),
             help="Export users to JSON file"),
         # roles
         'create_role': Arg(

@@ -1127,17 +1127,17 @@ class CliTests(unittest.TestCase):
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
-            'users', 'create', '--username', 'test1', '--lastname', 'doe',
+            'users', 'create', '--username', 'random-password-user', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use_random_password'
+            '--email', 'random-password-user@foo.com', '--role', 'Viewer', '--use_random_password'
         ])
         cli.users_create(args)
 
     def test_cli_create_user_supplied_password(self):
         args = self.parser.parse_args([
-            'users', 'create', '--username', 'test2', '--lastname', 'doe',
+            'users', 'create', '--username', 'password-supplied-user', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', 'jdoe@apache.org', '--role', 'Viewer', '--password', 'test'
+            '--email', 'password-supplied-user@apache.org', '--role', 'Viewer', '--password', 'test'
         ])
         cli.users_create(args)
 
@@ -1156,9 +1156,9 @@ class CliTests(unittest.TestCase):
     def test_cli_list_users(self):
         for i in range(0, 3):
             args = self.parser.parse_args([
-                'users', 'create', '--username', 'user{}'.format(i), '--lastname',
+                'users', 'create', '--username', 'list-user{}'.format(i), '--lastname',
                 'doe', '--firstname', 'jon',
-                '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
+                '--email', 'list-user{}@gmail.com'.format(i), '--role', 'Viewer',
                 '--use_random_password'
             ])
             cli.users_create(args)
@@ -1167,7 +1167,7 @@ class CliTests(unittest.TestCase):
             cli.users_list(self.parser.parse_args(['users', 'list']))
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
-            self.assertIn('user{}'.format(i), stdout)
+            self.assertIn('list-user{}'.format(i), stdout)
 
     def test_cli_import_users(self):
         def assertUserInRoles(email, roles):
@@ -1588,14 +1588,12 @@ class CliTests(unittest.TestCase):
             self.assertTrue(result is None)
 
         # Attempt to delete a non-existing connnection
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with self.assertRaises(SystemExit) as ctx:
             cli.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'fake']))
-            stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [l for l in str(ctx.exception).split('\n') if len(l) > 0]
         self.assertListEqual(lines, [
             "\tDid not find a connection with `conn_id`=fake",
         ])
@@ -1769,10 +1767,6 @@ class CliTests(unittest.TestCase):
             'variables', 'list']))
         cli.variables_delete(self.parser.parse_args([
             'variables', 'delete', 'bar']))
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', DEV_NULL]))
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', DEV_NULL]))
 
         cli.variables_set(self.parser.parse_args([
             'variables', 'set', 'bar', 'original']))
