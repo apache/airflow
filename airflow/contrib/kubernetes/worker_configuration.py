@@ -122,13 +122,19 @@ class WorkerConfiguration(LoggingMixin):
                 'value': 'false'
             })
 
-        return [{
+        init_containers = [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
-            'securityContext': {'runAsUser': 65533},  # git-sync user
             'env': init_environment,
             'volumeMounts': volume_mounts
         }]
+
+        if self.kube_config.git_sync_run_as_user != "":
+            init_containers[0]['securityContext'] = {
+                'runAsUser': self.kube_config.git_sync_run_as_user  # git-sync user
+            }
+
+        return init_containers
 
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
