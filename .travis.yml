@@ -27,16 +27,24 @@ stages:
   - test
 jobs:
   include:
-    - env: BACKEND=postgres ENV=docker
+    - name: "Tests postgres python 3.6"
+      env: BACKEND=postgres ENV=docker
       python: "3.6"
       stage: test
-    - env: BACKEND=sqlite ENV=docker
+    - name: "Tests sqlite python 3.5"
+      env: BACKEND=sqlite ENV=docker
       python: "3.5"
       stage: test
-    - env: BACKEND=mysql ENV=docker
+    - name: "Tests mysql python 3.6"
+      env: BACKEND=mysql ENV=docker
       python: "3.6"
       stage: test
-    - env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0
+    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (git)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
       python: "3.6"
       stage: test
     - name: Flake8
