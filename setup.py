@@ -333,7 +333,6 @@ def do_setup():
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
-            'gitpython>=2.0.2',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
@@ -360,6 +359,7 @@ def do_setup():
         ],
         setup_requires=[
             'docutils>=0.14, <1.0',
+            'gitpython>=2.0.2',
         ],
         extras_require={
             'all': devel_all,
