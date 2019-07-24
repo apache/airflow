@@ -240,6 +240,8 @@ class KubeConfig:
         self.git_sync_init_container_name = conf.get(
             self.kubernetes_section, 'git_sync_init_container_name')
 
+        self.git_sync_run_as_user = self._get_security_context_val('git_sync_run_as_user')
+
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')

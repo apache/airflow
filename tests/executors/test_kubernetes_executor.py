@@ -376,6 +376,23 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                         'value': '/etc/git-secret/known_hosts'} in env)
         self.assertFalse({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
 
+    def test_init_environment_using_git_sync_run_as_user_empty(self):
+        # Tests if git_syn_run_as_user is none, then no securityContext created in init container
+
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_sync_run_as_user = ''
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        init_containers = worker_config._get_init_containers()
+        self.assertTrue(init_containers)  # check not empty
+
+        self.assertNotIn(
+            'securityContext', init_containers[0],
+            "securityContext shouldn't be defined"
+        )
+
     def test_make_pod_run_as_user_0(self):
         # Tests the pod created with run-as-user 0 actually gets that in it's config
         self.kube_config.worker_run_as_user = 0
@@ -531,6 +548,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_sync_init_container_name = 'git-sync-clone'
         self.kube_config.git_subpath = 'dags_folder'
         self.kube_config.git_sync_root = '/git'
+        self.kube_config.git_sync_run_as_user = 65533
         self.kube_config.git_dags_folder_mount_point = '/usr/local/airflow/dags/repo/dags_folder'
 
         worker_config = WorkerConfiguration(self.kube_config)
@@ -551,6 +569,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual('gcr.io/google-containers/git-sync-amd64:v2.0.5', init_container['image'])
         self.assertEqual(1, len(init_container_volume_mount))
         self.assertFalse(init_container_volume_mount[0]['readOnly'])
+        self.assertEqual(65533, init_container['securityContext']['runAsUser'])
 
     def test_worker_container_dags(self):
         # Tests that the 'airflow-dags' persistence volume is NOT created when `dags_in_image` is set

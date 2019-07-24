@@ -46,7 +46,7 @@ little bit helps, and credit will always be given.
       - [Running static code analysis from the host](#running-static-code-analysis-from-the-host)
       - [Running static code analysis in the docker compose environment](#running-static-code-analysis-in-the-docker-compose-environment)
       - [Running static code analysis on selected files/modules](#running-static-code-analysis-on-selected-filesmodules)
-  - [Automation of image building](#automation-of-image-building)
+  - [Docker images](#docker-images)
   - [Local Docker Compose scripts](#local-docker-compose-scripts)
     - [Running the whole suite of tests](#running-the-whole-suite-of-tests)
     - [Stopping the environment](#stopping-the-environment)
@@ -152,7 +152,7 @@ require those components to be setup. Only real unit tests can be run bu default
 
 If you want to run integration tests, you need to configure and install the dependencies on your own.
 
-It's also very difficult to make sure that your local environment is consistent with other's environments.
+It's also very difficult to make sure that your local environment is consistent with other environments.
 This can often lead to "works for me" syndrome. It's better to use the Docker Compose integration test
 environment in case you want reproducible environment consistent with other people.
 
@@ -188,7 +188,7 @@ development.
 
 Once you activate virtualenv (or enter docker container) as described below you should be able to run
 `run-tests` at will (it is in the path in Docker environment but you need to prepend it with `./` in local
-virtualenv (`./run-tests`). 
+virtualenv (`./run-tests`).
 
 Note that this script has several flags that can be useful for your testing.
 
@@ -219,7 +219,7 @@ Flags:
 
 You can pass extra parameters to nose, by adding nose arguments after `--`
 
-For example, in order to just execute the "core" unit tests and add ipdb set_trace method, you can 
+For example, in order to just execute the "core" unit tests and add ipdb set_trace method, you can
 run the following command:
 
 ```bash
@@ -231,8 +231,8 @@ or a single test method without colors or debug logs:
 ```bash
 ./run-tests tests.core:CoreTest.test_check_operators
 ```
-Note that `./run_tests` script runs tests but the first time it runs, ut performs database initialisation.
-If you run further tests without leaving the environment, the database will not be initialized, but you 
+Note that `./run_tests` script runs tests but the first time it runs, it performs database initialisation.
+If you run further tests without leaving the environment, the database will not be initialized, but you
 can always force database initialization with `--with-db-init` (`-i`) switch. The scripts will
 inform you what you can do when they are run.
 
@@ -245,13 +245,13 @@ from IDE is as simple as:
 
 Note that while most of the tests are typical "unit" tests that do not
 require external components, there are a number of tests that are more of
-"integration" ot even "system" tests (depending on the convention you use).
+"integration" or even "system" tests (depending on the convention you use).
 Those tests interact with external components. For those tests
 you need to run complete Docker Compose - base environment below.
 
 # Integration test development environment
 
-This is environment that is used during CI builds on Travis CI. We have scripts to reproduce the
+This is the environment that is used during CI builds on Travis CI. We have scripts to reproduce the
 Travis environment and you can enter the environment and run it locally.
 
 The scripts used by Travis CI run also image builds which make the images contain all the sources. You can
@@ -281,10 +281,21 @@ clean the docker disk space periodically.
 If you are on MacOS:
 
 * Run `brew install gnu-getopt coreutils` (if you use brew, or use equivalent command for ports)
-* Then (with brew) link the gnu-getopt to become default as suggested by brew by typing.
+* Then (with brew) link the gnu-getopt to become default as suggested by brew.
+
+If you use bash, you should run this command:
+
+
 ```bash
-echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
-. ~/.bash_profile"
+echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+. ~/.bash_profile
+```
+
+If you use zsh, you should run this command:
+
+```bash
+echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+. ~/.zprofile
 ```
 * Login and logout afterwards
 
@@ -336,10 +347,10 @@ do that by running appropriate scripts (The same is done in TravisCI)
 * [ci_lint_dockerfile.sh](scripts/ci/ci_lint_dockerfile.sh) - runs lint checker for the Dockerfile
 * [ci_check_license.sh](scripts/ci/ci_check_license.sh) - checks if all licences are present in the sources
 
-Those scripts ar optimised for time of rebuilds of docker image. The image will be automatically
-rebuilt when needed (for example when dependencies change). 
+Those scripts are optimised for time of rebuilds of docker image. The image will be automatically
+rebuilt when needed (for example when dependencies change).
 
-You can also force rebuilding of the image by deleting [.build](./build) 
+You can also force rebuilding of the image by deleting [.build](./build)
 directory which keeps cached information about the images built.
 
 Documentation after it is built, is available in [docs/_build/html](docs/_build/html) folder.
@@ -358,7 +369,7 @@ you can also run the same static checks from within container:
 
 #### Running static code analysis on selected files/modules
 
-In all static check scripts - both in container and in the host you can also pass module/file path as 
+In all static check scripts - both in container and in the host you can also pass module/file path as
 parameters of the scripts to only check selected modules or files. For example:
 
 In container:
@@ -379,20 +390,36 @@ or
 
 And similarly for other scripts.
 
-## Automation of image building
+## Docker images
 
-When you run tests or enter environment (see below) the first time you do it, the local image will be
-pulled and build for you automatically.
 
-Note that building image first time pulls the pre-built version of image from Dockerhub based on master 
-sources and rebuilds the layers that need to be rebuilt - because they changed in local sources. 
-This might take a bit of time when you run it for the first time and when you add new dependencies - 
-but rebuilding the image should be an operation done quite rarely (mostly when you start seeing some
-unknown problems and want to refresh the environment). 
+For all development related tasks related to integration tests and static code checks we are using Docker
+images that are maintained in Dockerhub under `apache/airflow` repository.
+
+There are two images that we currently manage:
+
+* Slim CI image that is used for static code checks (size around 500MB) - labelled following the pattern
+  of <BRANCH>-python<PYTHON_VERSION>-ci-slim (for example master-python3.6-ci-slim)
+* Full CI image that is used for testing - containing a lot more test-related installed software
+  (size around 1GB)  - labelled following the pattern of <BRANCH>-python<PYTHON_VERSION>-ci
+  (for example master-python3.6-ci)
+
+When you run tests or enter environment or run local static checks, the first time you do it,
+the necessary local images will be pulled and built for you automatically from DockerHub. Then
+the scripts will check automatically if the image needs to be re-built if needed and will do that
+automatically for you.
+
+Note that building image first time pulls the pre-built version of images from Dockerhub might take a bit
+of time - but this wait-time will not repeat for any subsequent source code change. 
+However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild 
+that might take more time (but it is highly optimised to only rebuild what's needed)
+
+You can also [Build the images](#building-the-images) or
+[Force pull and build the images](#force-pulling-the-images)) manually at any time.
 
 See [Troubleshooting section](#troubleshooting) for steps you can make to clean the environment.
- 
-Once you performed the first build, the images are rebuilt locally rather than pulled - unless you 
+
+Once you performed the first build, the images are rebuilt locally rather than pulled - unless you
 force pull the images. But you can force it using the scripts described below.
 
 ## Local Docker Compose scripts
@@ -419,43 +446,55 @@ PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow
 
 Running kubernetes tests:
 ```bash
-KUBERNETES_VERSION==v1.13.0 BACKEND=postgres ENV=kubernetes ./scripts/ci/local_ci_run_airflow_testing.sh
+KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
+  ./scripts/ci/local_ci_run_airflow_testing.sh
 ```
 
 * PYTHON_VERSION might be one of 3.5/3.6
 * BACKEND might be one of postgres/sqlite/mysql
-* ENV might be one of docker/kubernetes
-* KUBERNETES_VERSION - required for Kubernetes tessts - currently KUBERNETES_VERSION=v1.13.0.
+* ENV might be one of docker/kubernetes/bare
+* KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
+* KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
-The kubernetes env might not work locally as easily as other tests because it requires your host
-to be setup properly (specifically it installs minikube cluster locally on your host and depending 
-on your machine setting it might or might not work out of the box.
-We are working on making the kubernetes tests more easily reproducible locally in the future.
+The following environments are possible:
+ * The "docker" environment (default): starts all dependencies required by full integration test-suite
+   (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to 
+   [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
+   and can slow down your machine.
+ * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
+   and KUBERNETES_MODE variables).
+ * The "bare" environment:  runs airflow in docker without any external dependencies. 
+   It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
+   enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute 
+   `local_ci_run_airflow_testing.sh` with it.
+
+Note: The Kubernetes environment will require setting up minikube/kubernetes so it
+might require some host-network configuration.
 
 ### Stopping the environment
 
 Docker-compose environment starts a number of docker containers and keep them running.
-You can tear them down by running 
+You can tear them down by running
 [/scripts/ci/local_ci_stop_environment.sh](scripts/ci/local_ci_stop_environment.sh)
 
 
 ### Fixing file/directory ownership
 
 On Linux there is a problem with propagating ownership of created files (known Docker problem). Basically
-files and directories created in container are not owned by the host user (but by the root user in our case). 
-This might prevent you from switching branches for example if files owned by root user are created within 
-your sources. In case you are on Linux host and haa some files in your sources created by the root user, 
-you can fix the ownership of those files by running 
+files and directories created in container are not owned by the host user (but by the root user in our case).
+This might prevent you from switching branches for example if files owned by root user are created within
+your sources. In case you are on Linux host and haa some files in your sources created by the root user,
+you can fix the ownership of those files by running
 [scripts/ci/local_ci_fix_ownership.sh](scripts/ci/local_ci_fix_ownership.sh) script.
 
 ### Building the images
 
-You can manually trigger building of the local CI image using
-[scripts/ci/local_ci_build.sh](scripts/ci/local_ci_build.sh). 
+You can manually trigger building of the local images using
+[scripts/ci/local_ci_build.sh](scripts/ci/local_ci_build.sh).
 
 ### Force pulling the images
 
-You can later force-pull the images before building it locally so that you are sure that you download
+You can also force-pull the images before building them locally so that you are sure that you download
 latest images from DockerHub repository before building. This can be done with
 [scripts/ci/local_ci_pull_and_build.sh](scripts/ci/local_ci_pull_and_build.sh) script.
 
@@ -463,33 +502,36 @@ latest images from DockerHub repository before building. This can be done with
 
 Note that you might need to cleanup your Docker environment occasionally. The images are quite big
 (1.5GB for both images needed for static code analysis and CI tests). And if you often rebuild/update
-images you might end up with some unused image data. 
+images you might end up with some unused image data.
 
-Cleanup can be performed with `docker system prune` command. In case you have huge problems with disk space
-and want to clean-up all image data you can run `docker system prune --all`. You might need to 
-[Stop the environment](#stopping-the-environment) in order to clean everything including running containers.
+Cleanup can be performed with `docker system prune` command.
+
+If you run into disk space errors, we recommend you prune your docker images using the
+`docker system prune --all` command. You might need to
+[Stop the environment](#stopping-the-environment) or restart the docker engine before running this command.
+
+You can check if your docker is clean by running `docker images --all` and `docker ps --all` - both
+should return an empty list of images and containers respectively.
 
 If you are on Mac OS and you end up with not enough disk space for Docker you should increase disk space
 available for Docker. See [Docker for Mac - Space](https://docs.docker.com/docker-for-mac/space/) for details.
 
 ## Troubleshooting
 
-In case you have problems with the Docker Compose environment - try the following:
+If you are having problems with the Docker Compose environment - try the following (after each step you
+can check if your problem is fixed)
 
-1. [Stop the environment](#stopping-the-environment)
-2. Delete [.build](.build)
-3. [Force pull the images](#force-pulling-the-images)
-4. Re-run the scripts
-5. [Clean Up Docker engine](#cleaning-up-cached-docker-imagescontainers)
-6. [Fix file/directory ownership](#fixing-filedirectory-ownership)
-7. Run `docker system prune --all` to cleanup all images/containers
-8. Restart your docker and try again
-9. Restart your machine and try again
-10. Run `docker system prune --all` after restart (if you had previously errors when running it)
-1. Remove and re-install Docker CE, then [force pull the images](#force-pulling-the-images)
+1. Check if you have [enough disk space](#prerequisites) in Docker if you are on MacOS.
+2. [Stop the environment](#stopping-the-environment)
+3. Delete [.build](.build) and [Force pull the images](#force-pulling-the-images)
+4. [Clean Up Docker engine](#cleaning-up-cached-docker-imagescontainers)
+5. [Fix file/directory ownership](#fixing-filedirectory-ownership)
+6. Restart your docker engine and try again
+7. Restart your machine and try again
+8. Remove and re-install Docker CE, then start with [force pulling the images](#force-pulling-the-images)
 
 In case the problems are not solved, you can set VERBOSE variable to "true" (`export VERBOSE="true"`)
-and rerun failing command, and copy&paste the output from your terminal, describe the problem and 
+and rerun failing command, and copy & paste the output from your terminal, describe the problem and
 post it in [Airflow Slack](https://apache-airflow-slack.herokuapp.com/) #troubleshooting channel.
 
 # Pylint checks
@@ -602,8 +644,8 @@ meets these guidelines:
 1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses
 [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and
 [codecov](https://codecov.io/gh/apache/airflow) to track coverage.
-You can set up both for free on your fork (see the "Testing on Travis CI" section below).
-It will help you making sure you do not break the build with your PR and that you help increase coverage.
+You can set up both for free on your fork (see "Testing on Travis CI" section below).
+It will help you make sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and
 resolve all conflicts.
 1. Every pull request should have an associated
@@ -769,7 +811,7 @@ npm run dev
 
 ### Upgrading npm packages
 
-Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `npm install`
+Should you add or upgrade an npm package, which involves changing `package.json`, you'll need to re-run `npm install`
 and push the newly generated `package-lock.json` file so we get the reproducible build.
 
 ### Javascript Style Guide

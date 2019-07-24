@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
+# Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
+# and MY_DIR variable is set to this directory
+AIRFLOW_SOURCES=$(cd ${MY_DIR}/../../ && pwd)
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -37,6 +39,12 @@ mkdir -p ${AIRFLOW_SOURCES}/tmp
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE="true"
 
+# Read default branch name
+. ${AIRFLOW_SOURCES}/hooks/_default_branch.sh
+
+# Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
+export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
+
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -44,6 +52,7 @@ export PYTHONDONTWRITEBYTECODE="true"
 # Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
+
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
@@ -219,21 +228,34 @@ function check_if_coreutils_installed() {
 
     set -e
 
+    CMDNAME="$(basename -- "$0")"
+
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
         echo
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo >&2 "You are running ${CMDNAME} in OSX environment"
             echo >&2 "And you need to install gnu commands"
-            echo
+            echo >&2
             echo >&2 "Run 'brew install gnu-getopt coreutils'"
-            echo
-            echo >&2 "Then link the gnu-getopt to become default as suggested by brew by typing:"
+            echo >&2
+            echo >&2 "Then link the gnu-getopt to become default as suggested by brew."
+            echo >&2
+            echo >&2 "If you use bash, you should run this command:"
+            echo >&2
             echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
             echo >&2 ". ~/.bash_profile"
-            echo
-            echo >&2 "Login and logout afterwards"
-            echo
+            echo >&2
+            echo >&2 "If you use zsh, you should run this command:"
+            echo >&2
+            echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile"
+            echo >&2 ". ~/.zprofile"
+            echo >&2
+            echo >&2 "Login and logout afterwards !!"
+            echo >&2
+            echo >&2 "After re-login, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
+            echo >&2 "Your current path is ${PATH}"
+            echo >&2
         else
             echo >&2 "You do not have necessary tools in your path (getopt, stat, md5sum)."
             echo >&2 "Please install latest/GNU version of getopt and coreutils."
@@ -298,9 +320,11 @@ EOF
 
     export THE_IMAGE="SLIM_CI"
     if [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}_${PYTHON_VERSION}" ]]; then
-        echo
-        echo "Image built locally - skip force-pulling them"
-        echo
+        if [[ ${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:=""} != "true" ]]; then
+            echo
+            echo "Image built locally - skip force-pulling them"
+            echo
+        fi
     else
         echo
         echo "Image not built locally - force pulling them first"
@@ -447,7 +471,6 @@ function go_to_airflow_sources {
 function basic_sanity_checks() {
     assert_not_in_container
     go_to_airflow_sources
-    force_python_3_6
     check_if_coreutils_installed
     create_cache_directory
 }

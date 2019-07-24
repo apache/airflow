@@ -35,4 +35,6 @@ export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
 
 rebuild_image_if_needed_for_tests
 
+rebuild_image_if_needed_for_static_checks
+
 script_end

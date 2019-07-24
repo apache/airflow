@@ -173,7 +173,7 @@ class FTPHook(BaseHook):
             [default: output_handle.write()]
         :type callback: callable
 
-        :Example::
+        .. code-block:: python
 
             hook = FTPHook(ftp_conn_id='my_conn')
 
@@ -196,6 +196,7 @@ class FTPHook(BaseHook):
 
             # without a custom callback data is written to the local_path
             hook.retrieve_file(remote_path, local_path)
+
         """
         conn = self.get_conn()
 
