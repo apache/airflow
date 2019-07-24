@@ -1854,14 +1854,19 @@ class SkipMixin(object):
 
         return all_downstream
 
-    def find_all_downstream_skippable(self, task):
+    def find_all_downstream_skippable(self, task, blacklisted_ti_reprs=None):
+        if blacklisted_ti_reprs is None:
+            blacklisted_ti_reprs = set()
+
         immediate_downstream = task.downstream_list
         all_downstream = []
         for downstream_task in immediate_downstream:
-            if downstream_task.trigger_rule in ['all_success', 'all_failed']:
+            if downstream_task.trigger_rule in ['all_success', 'all_failed'] \
+                    and repr(downstream_task) not in blacklisted_ti_reprs:
                 all_downstream.append(downstream_task)
+                blacklisted_ti_reprs.add(repr(downstream_task))
         for downstream_task in all_downstream:
-            all_downstream.extend(self.find_all_downstream_skippable(downstream_task))
+            all_downstream.extend(self.find_all_downstream_skippable(downstream_task, blacklisted_ti_reprs))
             
         return all_downstream
 
