@@ -34,6 +34,7 @@ rebuild_image_if_needed_for_tests
 
 export BACKEND=${BACKEND:="sqlite"}
 export ENV=${ENV:="docker"}
+export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="8080"}
 export AIRFLOW_CI_VERBOSE=${VERBOSE}
@@ -65,31 +66,35 @@ if [[ "${ENV}" == "docker" ]]; then
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+elif [[ "${ENV}" == "kubernetes" ]]; then
+  echo
+  echo "Running kubernetes tests in ${KUBERNETES_MODE}"
+  echo
+  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
+  "${MY_DIR}/kubernetes/setup_kubernetes.sh"
+  "${MY_DIR}/kubernetes/kube/deploy.sh" -d "${KUBERNETES_MODE}"
+  MINIKUBE_IP=$(minikube ip)
+  export MINIKUBE_IP
+  docker-compose --log-level ERROR \
+      -f "${MY_DIR}/docker-compose.yml" \
+      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+         run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
+  echo
+  echo "Finished Running kubernetes tests in ${KUBERNETES_MODE}"
+  echo
+elif [[ "${ENV}" == "bare" ]]; then
+  docker-compose --log-level INFO \
+      -f "${MY_DIR}/docker-compose.yml" \
+      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+        run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
 else
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh" && "${MY_DIR}/kubernetes/setup_kubernetes.sh" && \
-    "${MY_DIR}/kubernetes/kube/deploy.sh" -d persistent_mode
-  MINIKUBE_IP=$(minikube ip)
-  export MINIKUBE_IP
-  docker-compose --log-level ERROR \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-  set +x
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
-
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh" && "${MY_DIR}/kubernetes/setup_kubernetes.sh" && \
-    "${MY_DIR}/kubernetes/kube/deploy.sh" -d git_mode
-  MINIKUBE_IP=$(minikube ip)
-  export MINIKUBE_IP
-  docker-compose --log-level ERROR \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
+    echo >&2
+    echo >&2 "ERROR! The ENV variable should be one of [docker, kubernetes, bare] and is '${ENV}'"
+    echo >&2
 fi
 set -u
 
