@@ -15,8 +15,7 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
-set -o xtrace
-set -e
+set -euo pipefail
 
 echo "This script downloads minikube, starts a driver=None minikube cluster, builds the airflow source\
  and docker image, and then deploys airflow onto kubernetes"
@@ -27,12 +26,11 @@ DIRNAME=$(cd "$(dirname "$0")" && pwd)
 
 # Fix file permissions
 # TODO: change this - it should be Travis independent
-if [[ "${TRAVIS}" == true ]]; then
+if [[ "${TRAVIS:=}" == true ]]; then
   sudo chown -R travis.travis .
 fi
 
 "${DIRNAME}/minikube/start_minikube.sh"
 "${DIRNAME}/docker/build.sh"
-
 
 echo "Airflow environment on kubernetes is good to go!"
