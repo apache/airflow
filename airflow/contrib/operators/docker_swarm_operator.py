@@ -102,7 +102,7 @@ class DockerSwarmOperator(DockerOperator):
 
         self.service = None
 
-    def _execute(self):
+    def _run_image(self):
         self.log.info('Starting docker service from image %s', self.image)
 
         self.service = self.cli.create_service(

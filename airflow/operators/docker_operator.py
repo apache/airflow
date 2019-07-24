@@ -187,7 +187,10 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config()
         )
 
-    def _execute(self):
+    def _run_image(self):
+        """
+        Run a Docker container with the provided image
+        """
         self.log.info('Starting docker container from image %s', self.image)
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
@@ -243,6 +246,7 @@ class DockerOperator(BaseOperator):
                 tls=tls_config
             )
 
+        # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or len(self.cli.images(name=self.image)) == 0:
             self.log.info('Pulling docker image %s', self.image)
             for l in self.cli.pull(self.image, stream=True):
@@ -252,7 +256,7 @@ class DockerOperator(BaseOperator):
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
-        self._execute()
+        self._run_image()
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
