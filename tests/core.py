@@ -1587,7 +1587,7 @@ class CliTests(unittest.TestCase):
 
             self.assertTrue(result is None)
 
-        # Attempt to delete a non-existing connnection
+        # Attempt to delete a non-existing connection
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
             cli.connections_delete(self.parser.parse_args(
