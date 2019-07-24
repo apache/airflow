@@ -1157,4 +1157,3 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)
-

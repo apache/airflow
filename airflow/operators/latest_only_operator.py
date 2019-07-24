@@ -22,7 +22,6 @@ import pendulum
 from airflow.models import BaseOperator, SkipMixin
 
 
-
 class LatestOnlyOperator(BaseOperator, SkipMixin):
     """
     Allows a workflow to skip tasks that are not running during the most
