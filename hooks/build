@@ -278,8 +278,7 @@ echo
 export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:=${NON_CI}}
 
 # Whether to force pull images to populate cache
-# This is set to true by default in CI test environment (we always pull latest images first)
-export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:=${CI}}
+export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:="false"}
 
 # Skips downloading and building the slim image of airflow
 # This is set to true by default in CI test environment (we only need full CI image then)
