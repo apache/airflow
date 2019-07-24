@@ -192,7 +192,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         processor._start_time = timezone.make_aware(datetime.min)
         manager._processors = {'abc.txt': processor}
         manager._kill_timed_out_processors()
-        mock_kill.assert_called()
+        mock_kill.assert_called_once()
 
     @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessor")
