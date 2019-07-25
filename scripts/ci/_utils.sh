@@ -285,19 +285,7 @@ function assert_not_in_container() {
 # Forces Python version to 3.6 (for static checks)
 #
 function force_python_3_6() {
-    export PYTHON_BINARY=python3.6
-
-    # And fail in case it is not available
-    if [[ ! -x "$(command -v "${PYTHON_BINARY}")" ]]; then
-        echo >&2
-        echo >&2 "${PYTHON_BINARY} is missing in your \$PATH"
-        echo >&2
-        echo >&2 "Please install Python 3.6 and make it available in your path"
-        echo >&2
-        exit 1
-    fi
-
-    # Set python version variable to force it in the scripts as well
+    # Set python version variable to force it in the container scripts
     PYTHON_VERSION=3.6
     export PYTHON_VERSION
 }
