@@ -323,6 +323,7 @@ def do_setup():
         install_requires=[
             'alembic>=1.0, <2.0',
             'cached_property~=1.5',
+            'colorlog==4.0.2',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
@@ -351,6 +352,7 @@ def do_setup():
             'sqlalchemy~=1.3',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
+            'termcolor==1.1.0',
             'text-unidecode==1.2',
             'typing;python_version<"3.5"',
             'thrift>=0.9.2',
