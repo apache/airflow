@@ -23,6 +23,7 @@
 {{ super() }}
 <link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
 <link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for("static", filename="coatue.css") }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block body %}
@@ -41,6 +42,15 @@
         </form>
       </div>
     </div>
+
+    <div id="owner-boxes">
+      {% for owner in dags | map(attribute='owners') | unique(case_sensitive=True) | sort %}
+        <div id="owner-box">
+          <input type="checkbox" class="owner-checkbox" name="owner-checkbox-{{ owner }}" owner="{{ owner }}" checked>
+          <label for="owner-checkbox-{{ owner }}">{{ owner }}</label>
+        </div>
+      {% endfor %}
+    </div>
     <table id="dags" class="table table-striped table-bordered">
         <thead>
             <tr>
@@ -48,7 +58,9 @@
                 <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
                 <th>Schedule</th>
+                <!--
                 <th>Owner</th>
+                -->
                 <th style="padding-left: 5px;">Recent Tasks
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
@@ -59,12 +71,19 @@
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
+                <!--
                 <th class="text-center">Links</th>
+                -->
             </tr>
         </thead>
+        <tr hidden></tr>
         <tbody>
         {% for dag in dags %}
+            <!--
             <tr>
+            -->
+            <!-- de-indented for compat -->
+            <tr class="dag-row" owner="{{ dag.owners }}">
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                   <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag.dag_id }}" title="Info">
@@ -92,9 +111,11 @@
                 </td>
 
                 <!-- Column 5: Dag Owners -->
+                <!--
                 <td>
                   {{ dag.owners }}
                 </td>
+                -->
 
                 <!-- Column 6: Recent Tasks -->
                 <td style="padding:0px; width:200px; height:10px;">
@@ -118,68 +139,92 @@
                 </td>
 
                 <!-- Column 9: Links -->
+                <!--
                 <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
                 {% if dag %}
+                -->
 
                 <!-- Trigger Dag -->
+                <!--
                 <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}"
                    onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
+                -->
 
                 <!-- Tree -->
+                <!--
                 <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
                     <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
                 </a>
+                -->
 
                 <!-- Graph -->
+                <!--
                 <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-certificate" aria-hidden="true" data-original-title="Graph View"></span>
                 </a>
+                -->
 
                 <!-- Duration -->
+                <!--
                 <a href="{{ url_for('airflow.duration', dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-stats" aria-hidden="true" data-original-title="Tasks Duration"></span>
                 </a>
+                -->
 
                 <!-- Retries -->
+                <!--
                 <a href="{{ url_for('airflow.tries', dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-duplicate" aria-hidden="true" data-original-title="Task Tries"></span>
                 </a>
+                -->
 
                 <!-- Landing Times -->
+                <!--
                 <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-plane" aria-hidden="true" data-original-title="Landing Times"></span>
                 </a>
+                -->
 
                 <!-- Gantt -->
+                <!--
                 <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt View"></span>
                 </a>
+                -->
 
                 <!-- Code -->
+                <!--
                 <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code View"></span>
                 </a>
+                -->
 
                 <!-- Logs -->
+                <!--
                 <a href="{{ url_for('log.index_view') }}?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}">
                     <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
                 {% endif %}
+                -->
 
                 <!-- Refresh -->
+                <!--
                 <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
+                -->
 
                 <!-- Delete -->
                 <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
+                <!--
                 <a href="{{ url_for('airflow.delete', dag_id=dag.dag_id) }}"
                   onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
                    <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>
+                -->
             </tr>
         {% endfor %}
         </tbody>
@@ -212,6 +257,15 @@
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
+      // Make clicking a group name toggle display of group elems
+      $('.owner-checkbox').change(function() {
+        const dag_group = ".dag-row[owner=" + $(this).attr("owner") + "]";
+        if(this.checked) {
+          $(dag_group).show();
+        } else {
+          $(dag_group).hide();
+        }
+      });
 
       const DAGS_INDEX = "{{ url_for('admin.index') }}";
       const ENTER_KEY_CODE = 13;
@@ -285,6 +339,7 @@
 
       $input.attr("autocomplete", "off");
 
+      /*
       $('#dags').dataTable({
         "iDisplayLength": 500,
         "bSort": false,
@@ -293,6 +348,7 @@
         "paging": false,
         "info": false
       });
+      */
       $("#main_content").show(250);
       diameter = 25;
       circle_margin = 4;

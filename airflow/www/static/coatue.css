@@ -1,0 +1,12 @@
+#owner-boxes {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+#owner-box {
+  margin: 10px;
+  padding: 0px 5px;
+  border: 2px darkgray solid;
+  background-color: lightgray;
+  border-radius: 5px;
+}
