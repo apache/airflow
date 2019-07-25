@@ -193,7 +193,8 @@ class BranchOperatorTest(unittest.TestCase):
         when trying to find skippable downstreams of branch_2
         """
         tasks_to_skip = [t.task_id for t in self.branch_op.find_all_downstream_skippable(self.branch_2)]
-        expected_tasks_id = ['sub_branch_3', 'sub_branch_4', 'sub_branch_5']
+        expected_tasks_id = ['make_choice_skipped', 'sub_branch_1', 'sub_branch_2',
+                             'sub_branch_3', 'sub_branch_4', 'sub_branch_5']
         assert len(tasks_to_skip) == len(expected_tasks_id) and sorted(tasks_to_skip) == sorted(expected_tasks_id)
 
 
