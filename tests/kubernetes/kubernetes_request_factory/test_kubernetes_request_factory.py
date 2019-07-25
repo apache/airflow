@@ -233,19 +233,28 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         self.input_req['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertEqual(self.input_req, self.expected)
 
-    def test_extract_resources(self):
+    def test_extract_requested_resources(self):
         # Test when resources is not empty
-        resources = Resources('1Gi', 1, '2Gi', 2)
+        resources = Resources(request_memory='1Gi', request_cpu=1)
         pod = Pod('v3.14', {}, [], resources=resources)
         self.expected['spec']['containers'][0]['resources'] = {
             'requests': {
                 'memory': '1Gi',
                 'cpu': 1
-            },
+            }
+        }
+        KubernetesRequestFactory.extract_resources(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_limits_resources(self):
+        # Test when resources is not empty
+        resources = Resources(limit_memory='2Gi', limit_cpu=2)
+        pod = Pod('v3.14', {}, [], resources=resources)
+        self.expected['spec']['containers'][0]['resources'] = {
             'limits': {
                 'memory': '2Gi',
                 'cpu': 2
-            },
+            }
         }
         KubernetesRequestFactory.extract_resources(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
