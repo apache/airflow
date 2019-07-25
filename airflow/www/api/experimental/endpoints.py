@@ -20,7 +20,7 @@ import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
-from airflow.api.common.experimental.dag_runs import get_dag_runs
+from airflow.api.common.experimental.dag_runs import get_all_dag_runs, get_dag_runs
 from airflow.api.common.experimental.task_instance import get_task_instance, get_all_task_instances
 from airflow.api.common.experimental.dags import get_dags, get_dag
 from airflow.api.common.experimental.get_task import get_task, get_task_as_dict
@@ -100,9 +100,9 @@ def dag_runs_filter():
     execution_date_after = request.args.get('execution_date_after')
     dag_id = request.args.get('dag_id')
 
-    dagruns = get_dag_runs(dag_id=dag_id, state=state, state_ne=state_ne,
-                           execution_date_before=execution_date_before,
-                           execution_date_after=execution_date_after)
+    dagruns = get_all_dag_runs(dag_id=dag_id, state=state, state_ne=state_ne,
+                               execution_date_before=execution_date_before,
+                               execution_date_after=execution_date_after)
 
     return jsonify(dagruns)
 
