@@ -20,6 +20,8 @@
 import os
 from typing import Dict, Any
 
+import six
+
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
 
@@ -35,6 +37,12 @@ LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
+
+COLORED_LOG_FORMAT = conf.get('core', 'COLORED_LOG_FORMAT')
+
+COLORED_LOG = conf.getboolean('core', 'COLORED_CONSOLE_LOG')
+
+COLORED_FORMATTER_CLASS = conf.get('core', 'COLORED_FORMATTER_CLASS')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
@@ -66,19 +74,24 @@ ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'JSON_FORMAT')
 
 ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'JSON_FIELDS')
 
+FORMATTER_CLASS_KEY = '()' if six.PY2 else 'class'
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'airflow': {
-            'format': LOG_FORMAT,
+            'format': LOG_FORMAT
+        },
+        'airflow_coloured': {
+            'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
+            FORMATTER_CLASS_KEY: COLORED_FORMATTER_CLASS if COLORED_LOG else 'logging.Formatter'
         },
     },
     'handlers': {
         'console': {
             'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
-            'formatter': 'airflow',
+            'formatter': 'airflow_coloured',
             'stream': 'sys.stdout'
         },
         'task': {
