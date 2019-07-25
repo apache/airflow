@@ -130,6 +130,15 @@ class BranchOperatorTest(unittest.TestCase):
         self.sub_branch_1.set_upstream(self.branch_2_sub_branch)
         self.sub_branch_2 = DummyOperator(task_id='sub_branch_2', dag=self.dag)
         self.sub_branch_2.set_upstream(self.branch_2_sub_branch)
+
+        self.sub_branch_3 = DummyOperator(task_id='sub_branch_3', dag=self.dag)
+        self.sub_branch_3.set_upstream(self.branch_2)
+        self.sub_branch_4 = DummyOperator(task_id='sub_branch_4', dag=self.dag)
+        self.sub_branch_4.set_upstream(self.branch_2)
+        self.sub_branch_5 = DummyOperator(task_id='sub_branch_5', dag=self.dag)
+        self.sub_branch_5.set_upstream(self.sub_branch_3)
+        self.sub_branch_5.set_upstream(self.sub_branch_4)
+
         self.dag.clear()
 
     def test_without_dag_run(self):
@@ -149,7 +158,8 @@ class BranchOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_1':
                 # should not exist
                 raise
-            elif ti.task_id in ['branch_2', 'make_choice_skipped', 'sub_branch_1', 'sub_branch_2']:
+            elif ti.task_id in ['branch_2', 'make_choice_skipped', 'sub_branch_1', 'sub_branch_2',
+                                'sub_branch_3', 'sub_branch_4', 'sub_branch_5']:
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
                 raise
@@ -170,10 +180,21 @@ class BranchOperatorTest(unittest.TestCase):
                 self.assertEquals(ti.state, State.SUCCESS)
             elif ti.task_id == 'branch_1':
                 self.assertEquals(ti.state, State.NONE)
-            elif ti.task_id in ['branch_2', 'make_choice_skipped', 'sub_branch_1', 'sub_branch_2']:
+            elif ti.task_id in ['branch_2', 'make_choice_skipped', 'sub_branch_1', 'sub_branch_2',
+                                'sub_branch_3', 'sub_branch_4', 'sub_branch_5']:
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
                 raise
+
+    def test_find_all_dowmstream_skippable(self):
+        """
+        sub_branch_5 is downstream of both sub_branch_3 and sub_branch_4,
+        but we only want to visit it once instead of twice
+        when trying to find skippable downstreams of branch_2
+        """
+        tasks_to_skip = [t.task_id for t in self.branch_op.find_all_downstream_skippable(self.branch_2)]
+        expected_tasks_id = ['sub_branch_3', 'sub_branch_4', 'sub_branch_5']
+        assert len(tasks_to_skip) == len(expected_tasks_id) and sorted(tasks_to_skip) == sorted(expected_tasks_id)
 
 
 class ShortCircuitOperatorTest(unittest.TestCase):
