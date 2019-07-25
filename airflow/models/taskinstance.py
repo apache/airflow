@@ -222,9 +222,9 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def find(session=None, dag_id=None, task_id=None, execution_date=None,
+    def find(dag_id=None, task_id=None, execution_date=None,
              execution_date_before=None, execution_date_after=None,
-             state=None, state_not_equal=None):
+             state=None, state_ne=None, session=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -236,7 +236,7 @@ class TaskInstance(Base, LoggingMixin):
         :type execution_date_before: datetime.datetime
         :param execution_date_after: filter on execution date after the provided one
         :type execution_date_after: datetime.datetime
-        :param state_not_equal: the state of the task instance not to be in the results
+        :param state_ne: the state of the task instance not to be in the results
         :type state: airflow.utils.state.State
         :param state: the state of the task instance
         :type state: airflow.utils.state.State
@@ -252,8 +252,8 @@ class TaskInstance(Base, LoggingMixin):
             query = query.filter(TI.task_id == task_id)
         if state:
             query = query.filter(TI.state == state)
-        if state_not_equal:
-            query = query.filter(TI.state != state_not_equal)
+        if state_ne:
+            query = query.filter(TI.state != state_ne)
         if execution_date_before:
             query = query.filter(TI.execution_date <= execution_date_before)
         if execution_date_after:

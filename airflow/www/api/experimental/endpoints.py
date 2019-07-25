@@ -20,18 +20,15 @@ import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
-from airflow.api.common.experimental.get_dag_runs import get_dag_runs
-from airflow.api.common.experimental.get_task_logs import get_task_logs
-from airflow.api.common.experimental.get_all_dag_runs import get_all_dag_runs
-from airflow.api.common.experimental.get_all_task_instances import get_all_task_instances
-from airflow.api.common.experimental.get_dags import get_dags
-from airflow.api.common.experimental.get_dag import get_dag
-from airflow.api.common.experimental.get_task import get_task
-from airflow.api.common.experimental.get_task import get_task_as_dict
+from airflow.api.common.experimental.dag_runs import get_dag_runs
+from airflow.api.common.experimental.task_instance import get_task_instance, get_all_task_instances
+from airflow.api.common.experimental.dags import get_dags, get_dag
+from airflow.api.common.experimental.get_task import get_task, get_task_as_dict
 from airflow.api.common.experimental.get_tasks import get_tasks
-from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
+from airflow.api.common.experimental.get_task_logs import get_task_logs
 from airflow.exceptions import AirflowException
+from airflow.exceptions import DagNotFound
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
 from airflow.www.app import csrf
@@ -54,13 +51,9 @@ def logs(dag_id, execution_date, task_id):
     """
     Return logs for the specified task identified by dag_id, execution_date and task_id
     """
+
     try:
-        log = get_task_logs(dag_id, task_id, execution_date)
-    except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        execution_date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -68,6 +61,14 @@ def logs(dag_id, execution_date, task_id):
             .format(execution_date))
         response = jsonify({'error': error_message})
         response.status_code = 400
+        return response
+
+    try:
+        log = get_task_logs(dag_id, task_id, execution_date)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     except AttributeError as e:
         error_message = ["Unable to read logs.\n{}\n".format(str(e))]
@@ -83,8 +84,9 @@ def logs(dag_id, execution_date, task_id):
 def dag_runs_filter():
     """
     Return the list of all dag_runs
+
     :query param state: a query string parameter '?state=queued|running|success...'
-    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
     should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
     :query param execution_date_after: a query string parameter to find all runs after provided date,
@@ -93,14 +95,14 @@ def dag_runs_filter():
     :return: List of DAG runs of a DAG with requested state,
     """
     state = request.args.get('state')
-    state_not_equal = request.args.get('state_not_equal')
+    state_ne = request.args.get('state_ne')
     execution_date_before = request.args.get('execution_date_before')
     execution_date_after = request.args.get('execution_date_after')
     dag_id = request.args.get('dag_id')
 
-    dagruns = get_all_dag_runs(dag_id=dag_id, state=state, state_not_equal=state_not_equal,
-                               execution_date_before=execution_date_before,
-                               execution_date_after=execution_date_after)
+    dagruns = get_dag_runs(dag_id=dag_id, state=state, state_ne=state_ne,
+                           execution_date_before=execution_date_before,
+                           execution_date_after=execution_date_after)
 
     return jsonify(dagruns)
 
@@ -111,7 +113,7 @@ def task_instances_filter():
     """
     Return the list of all dag_runs
     :query param state: a query string parameter '?state=queued|running|success...'
-    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
     should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
     :query param execution_date_after: a query string parameter to find all runs after provided date,
@@ -121,17 +123,18 @@ def task_instances_filter():
     :return: List of task instances
     """
     state = request.args.get('state')
-    state_not_equal = request.args.get('state_not_equal')
+    state_ne = request.args.get('state_ne')
     execution_date_before = request.args.get('execution_date_before')
     execution_date_after = request.args.get('execution_date_after')
     dag_id = request.args.get('dag_id')
     task_id = request.args.get('task_id')
 
-    task_instances = get_all_task_instances(dag_id=dag_id, state=state, state_not_equal=state_not_equal,
+    task_instances = get_all_task_instances(dag_id=dag_id, state=state, state_ne=state_ne,
                                             execution_date_before=execution_date_before,
                                             execution_date_after=execution_date_after, task_id=task_id)
 
     return jsonify(task_instances)
+
 
 @api_experimental.route('/dags', methods=['GET'])
 @requires_authentication
@@ -142,9 +145,30 @@ def get_all_dags():
     :return: List of all DAGs
     """
     is_paused = request.args.get('is_paused')
-    dag_list = get_dags(is_paused)
+    if is_paused:
+        is_paused = is_paused.lower()
+        is_paused = 1 if is_paused == 'true' else 0
+
+    is_subdag = request.args.get('is_subdag')
+    if is_subdag:
+        is_subdag = is_subdag.lower()
+        is_subdag = 1 if is_subdag == 'true' else 0
+
+    is_active = request.args.get('is_active')
+    if is_active:
+        is_active = is_active.lower()
+        is_active = 1 if is_active == 'true' else 0
+
+    scheduler_lock = request.args.get('scheduler_lock')
+    if scheduler_lock:
+        scheduler_lock = scheduler_lock.lower()
+        scheduler_lock = 1 if scheduler_lock == 'true' else 0
+
+    dag_list = get_dags(is_paused=is_paused, is_subdag=is_subdag, is_active=is_active,
+                        scheduler_lock=scheduler_lock)
 
     return jsonify(dag_list)
+
 
 @api_experimental.route('/dags/<string:dag_id>', methods=['GET'])
 @requires_authentication
@@ -152,12 +176,13 @@ def get_dag_info(dag_id):
     """
     Returns information for a single dag
     """
+    dag = None
     try:
         dag = get_dag(dag_id)
-    except AirflowException as err:
+    except DagNotFound as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
+        response.status_code = 404
         return response
     return jsonify(dag)
 
@@ -236,21 +261,21 @@ def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
-    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
     :query param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
     :param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
     """
     try:
         state = request.args.get('state')
-        state_not_equal = request.args.get('state_not_equal')
+        state_ne = request.args.get('state_ne')
         execution_date_before = request.args.get('execution_date_before')
         execution_date_after = request.args.get('execution_date_after')
-        dagruns = get_dag_runs(dag_id, state=state, state_not_equal=state_not_equal,
+        dagruns = get_dag_runs(dag_id, state=state, state_ne=state_ne,
                                execution_date_before=execution_date_before,
                                execution_date_after=execution_date_after)
     except AirflowException as err:
@@ -285,8 +310,9 @@ def get_dag_code(dag_id):
 @requires_authentication
 def tasks(dag_id):
     """Returns a JSON with all tasks associated with the dag_id. """
+
+    task_list = list()
     try:
-        task_list = list()
         task_ids = get_tasks(dag_id)
         for task_id in task_ids:
             task_list.append(get_task_as_dict(dag_id, task_id))
@@ -406,8 +432,8 @@ def dag_run(dag_id, execution_date):
         return response
 
     if not dagruns:
-        err = "No Dag run found with provided execution date"
-        response = jsonify(error="{}".format(err))
+        error_message = "No Dag run found with provided execution date"
+        response = jsonify(error=error_message)
         response.status_code = 404
         return response
     return jsonify(dagruns[0])

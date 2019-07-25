@@ -1560,3 +1560,28 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
+    @staticmethod
+    @provide_session
+    def find(dag_id=None, is_paused=None, is_subdag=None, is_active=None,
+             scheduler_lock=None, session=None):
+        """
+        Find a set of dags known to the system for the given search criteria.
+
+        """
+
+        DM = DagModel
+        query = session.query(DM)
+
+        if dag_id:
+            query = query.filter(DM.dag_id == dag_id)
+        if is_paused:
+            query = query.filter(DM.is_paused == is_paused)
+        if is_subdag:
+            query = query.filter(DM.is_subdag == is_subdag)
+        if is_active:
+            query = query.filter(DM.is_active == is_active)
+        if scheduler_lock:
+            query = query.filter(DM.scheduler_lock == scheduler_lock)
+
+        return query.order_by(DM.last_scheduler_run).all()

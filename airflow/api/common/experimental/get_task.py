@@ -19,7 +19,6 @@
 """Task APIs.."""
 from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import TaskInstance
-from airflow.exceptions import AirflowException
 
 
 def get_task(dag_id: str, task_id: str) -> TaskInstance:
@@ -32,15 +31,13 @@ def get_task(dag_id: str, task_id: str) -> TaskInstance:
 
 def get_task_as_dict(dag_id, task_id):
     """Return the task object as a dictionary identified by the given dag_id and task_id"""
-    try:
-        task = get_task(dag_id, task_id)
-        fields = {k: str(v)
-                  for k, v in vars(task).items()
-                  if not k.startswith('_')}
-        fields.update({
-            'upstream_task_ids': list(task._upstream_task_ids),
-            'downstream_task_ids': list(task._downstream_task_ids)})
-    except AirflowException as err:
-        raise err
+
+    task = get_task(dag_id, task_id)
+    fields = {k: str(v)
+              for k, v in vars(task).items()
+              if not k.startswith('_')}
+    fields.update({
+        'upstream_task_ids': list(task._upstream_task_ids),
+        'downstream_task_ids': list(task._downstream_task_ids)})
 
     return fields
