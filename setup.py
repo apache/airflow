@@ -242,7 +242,7 @@ grpc = [
     'grpcio>=1.15.0',
 ]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite-py3>=3.0.5',
 ]
 hive = [
     'hmsclient>=0.1.0',
@@ -260,7 +260,7 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'snakebite[kerberos]>=2.7.8',
+    'snakebite-py3[kerberos]>=3.0.5',
     'thrift_sasl>=0.2.0',
 ]
 kubernetes = [
@@ -416,13 +416,6 @@ devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel 
              password + pinot + redis + salesforce + samba + segment + sendgrid +
              sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
-if PY3:
-    devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
-else:
-    devel_ci = devel_all
-
 
 def do_setup():
     """Perform the Airflow package setup."""
@@ -518,7 +511,6 @@ def do_setup():
             'databricks': databricks,
             'datadog': datadog,
             'devel': devel_minreq,
-            'devel_ci': devel_ci,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,

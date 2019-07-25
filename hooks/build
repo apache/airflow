@@ -176,7 +176,7 @@ else
 fi
 
 # Extras used to build cache and CI image
-AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS:="devel_ci"}
+AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS:="devel_all"}
 
 # Whether this is a release build
 AIRFLOW_RELEASE_BUILD=${AIRFLOW_RELEASE_BUILD:="false"}
@@ -419,7 +419,7 @@ else
     build_python_image "Airflow CI" \
                 "${AIRFLOW_CI_IMAGE}" \
                 "main" \
-                "devel_ci" \
+                "devel_all" \
                 "root" \
                 "/root"
 
