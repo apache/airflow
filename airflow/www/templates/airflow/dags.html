@@ -106,8 +106,9 @@
                 <!-- Column 4: Dag Schedule -->
                 <td>
                   <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
-                        {{ dag.schedule_interval | string }}
+                        {{ get_human_readable_cron(dag.schedule_interval, airflow_timezone.name) | string }}
                     </a>
+                  <span aria-hidden="true" id="cron_info" title="{{ dag.schedule_interval }}" class="glyphicon glyphicon-info-sign"></span>
                 </td>
 
                 <!-- Column 5: Dag Owners -->

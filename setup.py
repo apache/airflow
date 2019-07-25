@@ -291,6 +291,7 @@ def do_setup():
         install_requires=[
             'alembic>=0.9, <1.0',
             'configparser>=3.5.0, <3.6.0',
+            'cron-descriptor>=1.2.21',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6;python_version<"3.4"',

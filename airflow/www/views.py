@@ -77,6 +77,7 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils import cron
 from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
@@ -2189,7 +2190,9 @@ class HomeView(AdminIndexView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=arg_search_query,
                                            showPaused=not hide_paused),
-            auto_complete_data=auto_complete_data)
+            auto_complete_data=auto_complete_data,
+            get_human_readable_cron=cron.get_human_readable_cron,
+            airflow_timezone=settings.TIMEZONE)
 
 
 class QueryView(wwwutils.DataProfilingMixin, BaseView):
