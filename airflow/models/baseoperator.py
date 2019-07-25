@@ -137,7 +137,7 @@ class BaseOperator(LoggingMixin):
         complete for all runs before each dag can continue processing
         downstream tasks. When set to ``upstream`` the effective weight is the
         aggregate sum of all upstream ancestors. This is the opposite where
-        downtream tasks have higher weight and will be scheduled more
+        downstream tasks have higher weight and will be scheduled more
         aggressively when using positive weight values. This is useful when you
         have multiple dag run instances and prefer to have each dag complete
         before starting upstream tasks of other dags.  When set to

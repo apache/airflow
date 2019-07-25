@@ -182,10 +182,10 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
-            if pod.resources.request_memory:
+            if pod.resources.limit_memory:
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
+            if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
 
