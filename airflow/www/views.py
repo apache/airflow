@@ -65,7 +65,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
                                                         set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, errors
+from airflow.models import BaseOperator, errors, DagModel
 from airflow.models import XCom, DagRun
 from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
@@ -2142,7 +2142,9 @@ class HomeView(AdminIndexView):
             query = query.filter(~DM.is_paused)
 
         if arg_search_query:
-            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
+            # token based substring searching. given search tokens separated by spaces,
+            # matches DAGs with given tokens in given order.
+            query = query.filter(DagModel.dag_id.ilike('%' + arg_search_query.replace(' ', '%') + '%'))
 
         query = query.order_by(DM.dag_id)
 
