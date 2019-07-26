@@ -21,6 +21,7 @@
 This module contains a Google Cloud Storage hook.
 """
 
+from typing import Optional
 import gzip as gz
 import os
 import shutil
@@ -38,7 +39,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     connection.
     """
 
-    _conn = None
+    _conn = None  # type: Optional[storage.Client]
 
     def __init__(self,
                  google_cloud_storage_conn_id='google_cloud_default',

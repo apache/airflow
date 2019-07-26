@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
 import io
 import json
 import multiprocessing
@@ -73,6 +74,7 @@ from airflow.utils.dates import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.hooks import hdfs_hook
 from tests.test_utils.config import conf_vars
 
 NUM_EXAMPLE_DAGS = 19
@@ -2178,8 +2180,8 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
-HDFSHook = None
-snakebite = None
+HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
+snakebite = None  # type: None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")

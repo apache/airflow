@@ -20,6 +20,7 @@
 This module contains Google Cloud Functions operators.
 """
 
+from typing import Optional
 import re
 
 from googleapiclient.errors import HttpError
@@ -226,7 +227,7 @@ class ZipPathPreprocessor:
     :type body: dict
 
     """
-    upload_function = None
+    upload_function = None  # type: Optional[bool]
 
     def __init__(self, body, zip_path):
         self.body = body
@@ -260,7 +261,7 @@ class ZipPathPreprocessor:
                                    "allowed. Found both."
                                    .format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH))
 
-    def should_upload_function(self):
+    def should_upload_function(self) -> bool:
         """
         Checks if function source should be uploaded.
 

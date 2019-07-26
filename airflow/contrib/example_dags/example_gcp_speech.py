@@ -57,7 +57,7 @@ AUDIO = {"uri": "gs://{bucket}/{object}".format(bucket=BUCKET_NAME, object=FILEN
 TARGET_LANGUAGE = 'pl'
 FORMAT = 'text'
 MODEL = 'base'
-SOURCE_LANGUAGE = None
+SOURCE_LANGUAGE = None  # type: None
 # [END howto_operator_translate_speech_arguments]
 
 default_args = {"start_date": dates.days_ago(1)}
