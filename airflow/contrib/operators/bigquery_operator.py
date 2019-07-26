@@ -21,9 +21,11 @@ This module contains Google BigQuery operators.
 """
 
 import json
+from typing import Iterable, List, Optional, Union
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
@@ -136,26 +138,26 @@ class BigQueryOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 sql,
-                 destination_dataset_table=None,
-                 write_disposition='WRITE_EMPTY',
-                 allow_large_results=False,
-                 flatten_results=None,
-                 bigquery_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 udf_config=None,
-                 use_legacy_sql=True,
-                 maximum_billing_tier=None,
-                 maximum_bytes_billed=None,
-                 create_disposition='CREATE_IF_NEEDED',
-                 schema_update_options=(),
-                 query_params=None,
-                 labels=None,
-                 priority='INTERACTIVE',
-                 time_partitioning=None,
-                 api_resource_configs=None,
-                 cluster_fields=None,
-                 location=None,
+                 sql: Union[str, Iterable],
+                 destination_dataset_table: Optional[str] = None,
+                 write_disposition: Optional[str] = 'WRITE_EMPTY',
+                 allow_large_results: Optional[bool] = False,
+                 flatten_results: Optional[bool] = None,
+                 bigquery_conn_id: Optional[str] = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 udf_config: Optional[list] = None,
+                 use_legacy_sql: Optional[bool] = True,
+                 maximum_billing_tier: Optional[int] = None,
+                 maximum_bytes_billed: Optional[float] = None,
+                 create_disposition: Optional[str] = 'CREATE_IF_NEEDED',
+                 schema_update_options: Optional[tuple] = (),
+                 query_params: Optional[list] = None,
+                 labels: Optional[dict] = None,
+                 priority: Optional[str] = 'INTERACTIVE',
+                 time_partitioning: Optional[dict] = None,
+                 api_resource_configs: Optional[dict] = None,
+                 cluster_fields: Optional[List[str]] = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -192,24 +194,49 @@ class BigQueryOperator(BaseOperator):
             )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
-        job_id = self.bq_cursor.run_query(
-            sql=self.sql,
-            destination_dataset_table=self.destination_dataset_table,
-            write_disposition=self.write_disposition,
-            allow_large_results=self.allow_large_results,
-            flatten_results=self.flatten_results,
-            udf_config=self.udf_config,
-            maximum_billing_tier=self.maximum_billing_tier,
-            maximum_bytes_billed=self.maximum_bytes_billed,
-            create_disposition=self.create_disposition,
-            query_params=self.query_params,
-            labels=self.labels,
-            schema_update_options=self.schema_update_options,
-            priority=self.priority,
-            time_partitioning=self.time_partitioning,
-            api_resource_configs=self.api_resource_configs,
-            cluster_fields=self.cluster_fields,
-        )
+        if isinstance(self.sql, str):
+            job_id = self.bq_cursor.run_query(
+                sql=self.sql,
+                destination_dataset_table=self.destination_dataset_table,
+                write_disposition=self.write_disposition,
+                allow_large_results=self.allow_large_results,
+                flatten_results=self.flatten_results,
+                udf_config=self.udf_config,
+                maximum_billing_tier=self.maximum_billing_tier,
+                maximum_bytes_billed=self.maximum_bytes_billed,
+                create_disposition=self.create_disposition,
+                query_params=self.query_params,
+                labels=self.labels,
+                schema_update_options=self.schema_update_options,
+                priority=self.priority,
+                time_partitioning=self.time_partitioning,
+                api_resource_configs=self.api_resource_configs,
+                cluster_fields=self.cluster_fields,
+            )
+        elif isinstance(self.sql, Iterable):
+            job_id = [
+                self.bq_cursor.run_query(
+                    sql=s,
+                    destination_dataset_table=self.destination_dataset_table,
+                    write_disposition=self.write_disposition,
+                    allow_large_results=self.allow_large_results,
+                    flatten_results=self.flatten_results,
+                    udf_config=self.udf_config,
+                    maximum_billing_tier=self.maximum_billing_tier,
+                    maximum_bytes_billed=self.maximum_bytes_billed,
+                    create_disposition=self.create_disposition,
+                    query_params=self.query_params,
+                    labels=self.labels,
+                    schema_update_options=self.schema_update_options,
+                    priority=self.priority,
+                    time_partitioning=self.time_partitioning,
+                    api_resource_configs=self.api_resource_configs,
+                    cluster_fields=self.cluster_fields,
+                )
+                for s in self.sql]
+        else:
+            raise AirflowException(
+                "argument 'sql' of type {} is neither a string nor an iterable".format(type(str)))
         context['task_instance'].xcom_push(key='job_id', value=job_id)
 
     def on_kill(self):

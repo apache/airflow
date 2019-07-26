@@ -32,6 +32,7 @@ from airflow.contrib.operators.bigquery_table_delete_operator import \
 from airflow.contrib.operators.bigquery_to_bigquery import \
     BigQueryToBigQueryOperator
 from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance
 from airflow.settings import Session
 from tests.compat import mock
@@ -215,6 +216,104 @@ class BigQueryOperatorTest(unittest.TestCase):
                 api_resource_configs=None,
                 cluster_fields=None,
             )
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute_list(self, mock_hook):
+        operator = BigQueryOperator(
+            task_id=TASK_ID,
+            sql=[
+                'Select * from test_table',
+                'Select * from other_test_table',
+            ],
+            destination_dataset_table=None,
+            write_disposition='WRITE_EMPTY',
+            allow_large_results=False,
+            flatten_results=None,
+            bigquery_conn_id='google_cloud_default',
+            udf_config=None,
+            use_legacy_sql=True,
+            maximum_billing_tier=None,
+            maximum_bytes_billed=None,
+            create_disposition='CREATE_IF_NEEDED',
+            schema_update_options=(),
+            query_params=None,
+            labels=None,
+            priority='INTERACTIVE',
+            time_partitioning=None,
+            api_resource_configs=None,
+            cluster_fields=None,
+        )
+
+        operator.execute(MagicMock())
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .run_query \
+            .assert_has_calls([
+                mock.call(
+                    sql='Select * from test_table',
+                    destination_dataset_table=None,
+                    write_disposition='WRITE_EMPTY',
+                    allow_large_results=False,
+                    flatten_results=None,
+                    udf_config=None,
+                    maximum_billing_tier=None,
+                    maximum_bytes_billed=None,
+                    create_disposition='CREATE_IF_NEEDED',
+                    schema_update_options=(),
+                    query_params=None,
+                    labels=None,
+                    priority='INTERACTIVE',
+                    time_partitioning=None,
+                    api_resource_configs=None,
+                    cluster_fields=None,
+                ),
+                mock.call(
+                    sql='Select * from other_test_table',
+                    destination_dataset_table=None,
+                    write_disposition='WRITE_EMPTY',
+                    allow_large_results=False,
+                    flatten_results=None,
+                    udf_config=None,
+                    maximum_billing_tier=None,
+                    maximum_bytes_billed=None,
+                    create_disposition='CREATE_IF_NEEDED',
+                    schema_update_options=(),
+                    query_params=None,
+                    labels=None,
+                    priority='INTERACTIVE',
+                    time_partitioning=None,
+                    api_resource_configs=None,
+                    cluster_fields=None,
+                ),
+            ])
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute_bad_type(self, mock_hook):
+        operator = BigQueryOperator(
+            task_id=TASK_ID,
+            sql=1,
+            destination_dataset_table=None,
+            write_disposition='WRITE_EMPTY',
+            allow_large_results=False,
+            flatten_results=None,
+            bigquery_conn_id='google_cloud_default',
+            udf_config=None,
+            use_legacy_sql=True,
+            maximum_billing_tier=None,
+            maximum_bytes_billed=None,
+            create_disposition='CREATE_IF_NEEDED',
+            schema_update_options=(),
+            query_params=None,
+            labels=None,
+            priority='INTERACTIVE',
+            time_partitioning=None,
+            api_resource_configs=None,
+            cluster_fields=None,
+        )
+
+        with self.assertRaises(AirflowException):
+            operator.execute(MagicMock())
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_bigquery_operator_defaults(self, mock_hook):
