@@ -246,6 +246,12 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         KubernetesRequestFactory.extract_resources(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
 
+    def test_display_resources(self):
+        resources_string = str(Resources('1Gi', 1))
+        self.assertEqual(
+            resources_string,
+            "{'request': {'memory': '1Gi', 'cpu': 1}, 'limit': {'memory': None}, 'cpu': None}")
+
     def test_extract_limits_resources(self):
         # Test when resources is not empty
         resources = Resources(limit_memory='2Gi', limit_cpu=2)
