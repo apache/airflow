@@ -230,6 +230,15 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
         self.assertTrue(self.es_task_handler.mark_end_on_close)
 
+    def test_set_context_w_json_format_and_write_stdout(self):
+        self.es_task_handler.formatter = mock.MagicMock()
+        self.es_task_handler.formatter._fmt = mock.MagicMock()
+        self.es_task_handler.formatter._fmt.find = mock.MagicMock(return_value=1)
+        self.es_task_handler.writer = mock.MagicMock()
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+        self.es_task_handler.set_context(self.ti)
+
     def test_close(self):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
