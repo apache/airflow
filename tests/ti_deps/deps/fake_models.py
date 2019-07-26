@@ -37,7 +37,7 @@ class FakeTI:
     def get_dagrun(self, _):
         return self.dagrun
 
-    def are_dependents_done(self, session):
+    def are_dependents_done(self, session):  # pylint: disable=unused-argument
         return self.dependents_done
 
 

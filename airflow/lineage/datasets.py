@@ -77,8 +77,7 @@ class DataSet:
         return self.__getattr__(item)
 
     def __iter__(self):
-        for key, value in six.iteritems(self._data):
-            yield (key, value)
+        yield from self._data.items()
 
     def as_dict(self):
         attributes = dict(self._data)

@@ -21,7 +21,6 @@ import json
 import unittest
 from copy import deepcopy
 
-import six
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -114,7 +113,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_next = get_conn.return_value.transferJobs.return_value.list_next
         list_next.return_value = None
 
-        res = self.gct_hook.list_transfer_job(filter=TEST_TRANSFER_JOB_FILTER)
+        res = self.gct_hook.list_transfer_job(request_filter=TEST_TRANSFER_JOB_FILTER)
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_JOB])
         list_method.assert_called_once_with(filter=mock.ANY)
@@ -184,7 +183,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_next = get_conn.return_value.transferOperations.return_value.list_next
         list_next.return_value = None
 
-        res = self.gct_hook.list_transfer_operations(filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION])
         list_method.assert_called_once_with(filter=mock.ANY, name='transferOperations')
@@ -238,7 +237,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 
     @mock.patch('time.sleep')
     @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.get_conn')
-    def test_wait_for_transfer_job_failed(self, get_conn, mock_sleep):
+    def test_wait_for_transfer_job_failed(self, get_conn, mock_sleep):  # pylint: disable=unused-argument
         list_method = get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -255,7 +254,9 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 
     @mock.patch('time.sleep')
     @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.get_conn')
-    def test_wait_for_transfer_job_expect_failed(self, get_conn, mock_sleep):
+    def test_wait_for_transfer_job_expect_failed(self,
+                                                 get_conn,
+                                                 mock_sleep):  # pylint: disable=unused-argument
         list_method = get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -265,8 +266,8 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         }
 
         get_conn.return_value.transferOperations.return_value.list_next.return_value = None
-        with six.assertRaisesRegex(
-            self, AirflowException, "An unexpected operation status was encountered. Expected: SUCCESS"
+        with self.assertRaisesRegex(
+            AirflowException, "An unexpected operation status was encountered. Expected: SUCCESS"
         ):
             self.gct_hook.wait_for_transfer_job(
                 job={PROJECT_ID: 'test-project', NAME: 'transferJobs/test-job'},
@@ -298,8 +299,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
         operations = [{NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}} for status in statuses]
 
-        with six.assertRaisesRegex(
-            self,
+        with self.assertRaisesRegex(
             AirflowException,
             "An unexpected operation status was encountered. Expected: {}".format(
                 ", ".join(expected_statuses)
@@ -378,7 +378,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         list_next.return_value = None
 
         res = self.gct_hook.list_transfer_job(
-            filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID)
+            request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID)
         )
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_JOB])
@@ -452,7 +452,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         list_next.return_value = None
 
         res = self.gct_hook.list_transfer_operations(
-            filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
+            request_filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
         )
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION])
@@ -524,7 +524,8 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         list_next.return_value = None
 
         with self.assertRaises(AirflowException) as e:
-            self.gct_hook.list_transfer_job(filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID))
+            self.gct_hook.list_transfer_job(
+                request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID))
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as '
@@ -543,7 +544,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         get_conn.return_value.transferOperations.return_value = transfer_operation_mock
 
-        res = self.gct_hook.list_transfer_operations(filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
         self.assertEqual(res, [TEST_TRANSFER_OPERATION] * 4)
 
     @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.get_conn')
@@ -563,9 +564,10 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.get_conn')
-    def test_delete_transfer_job(self, get_conn):
+    def test_delete_transfer_job(self, get_conn):  # pylint: disable=unused-argument
         with self.assertRaises(AirflowException) as e:
-            self.gct_hook.delete_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
+            self.gct_hook.delete_transfer_job(  # pylint: disable=no-value-for-parameter
+                job_name=TEST_TRANSFER_JOB_NAME)
 
         self.assertEqual(
             'The project id must be passed either as keyword project_id parameter or as project_id extra in '
@@ -584,7 +586,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as e:
             self.gct_hook.list_transfer_operations(
-                filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
+                request_filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
             )
 
         self.assertEqual(

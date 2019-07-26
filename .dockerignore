@@ -30,16 +30,21 @@
 !airflow
 !dags
 !dev
-#!/docs - we do not need docs in the Docker!
+!docs
 !licenses
 !scripts
 !tests
 
 !.coveragerc
 !.rat-excludes
+!.flake8
+!pylintrc
 !LICENSE
 !MANIFEST.in
 !NOTICE
+!CHANGELOG.txt
+!.github
+!run-tests
 
 # Avoid triggering context change on README change (new companies using Airflow)
 # So please do not uncomment this line ;)
@@ -98,3 +103,7 @@ airflow/www/static/docs
 # Exclude auto-generated Finder files on Mac OS
 **/.DS_Store
 **/Thumbs.db
+
+# Exclude docs generated files
+docs/_build/
+docs/_api/

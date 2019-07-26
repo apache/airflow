@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 
 from airflow.contrib.operators.opsgenie_alert_operator import OpsgenieAlertOperator
 from airflow.utils import timezone
@@ -76,7 +76,6 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

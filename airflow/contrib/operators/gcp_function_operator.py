@@ -16,6 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Functions operators.
+"""
+
 import re
 
 from googleapiclient.errors import HttpError
@@ -236,10 +240,10 @@ class ZipPathPreprocessor:
         if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
-                    "Parameter '{}' is empty in the body and argument '{}' "
-                    "is missing or empty. You need to have non empty '{}' "
-                    "when '{}' is present and empty.".
-                    format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH, GCF_ZIP_PATH, GCF_SOURCE_UPLOAD_URL))
+                    "Parameter '{url}' is empty in the body and argument '{path}' "
+                    "is missing or empty. You need to have non empty '{path}' "
+                    "when '{url}' is present and empty.".
+                    format(url=GCF_SOURCE_UPLOAD_URL, path=GCF_ZIP_PATH))
 
     def _verify_upload_url_and_zip_path(self):
         if GCF_SOURCE_UPLOAD_URL in self.body and self.zip_path:
@@ -257,12 +261,21 @@ class ZipPathPreprocessor:
                                    .format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH))
 
     def should_upload_function(self):
+        """
+        Checks if function source should be uploaded.
+
+        :rtype: bool
+        """
         if self.upload_function is None:
             raise AirflowException('validate() method has to be invoked before '
                                    'should_upload_function')
         return self.upload_function
 
     def preprocess_body(self):
+        """
+        Modifies sourceUploadUrl body field in special way when zip_path
+        is not empty.
+        """
         self._verify_archive_url_and_zip_path()
         self._verify_upload_url_and_zip_path()
         self._verify_upload_url_and_no_zip_path()

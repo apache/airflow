@@ -22,7 +22,7 @@ This is only an example DAG to highlight usage of QuboleOperator in various scen
 some of these tasks may or may not work based on your Qubole account setup.
 
 Run a shell command from Qubole Analyze against your Airflow cluster with following to
-trigger it manually `airflow trigger_dag example_qubole_operator`.
+trigger it manually `airflow dags trigger example_qubole_operator`.
 
 *Note: Make sure that connection `qubole_default` is properly set before running this
 example. Also be aware that it might spin up clusters to run these examples.*

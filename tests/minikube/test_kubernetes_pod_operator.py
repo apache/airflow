@@ -25,6 +25,7 @@ from kubernetes.client.rest import ApiException
 from subprocess import check_call
 import json
 from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod import Port
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.volume import Volume
 from tests.compat import mock
@@ -87,7 +88,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, client_mock, launcher_mock):
+    def test_image_pull_secrets_correctly_set(self, mock_client, launcher_mock):
         from airflow.utils.state import State
 
         fake_pull_secrets = "fakeSecret"
@@ -111,7 +112,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_delete_even_on_launcher_error(self, client_mock, delete_pod_mock, run_pod_mock):
+    def test_pod_delete_even_on_launcher_error(self, mock_client, delete_pod_mock, run_pod_mock):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -171,6 +172,21 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_dnspolicy():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            hostnetwork=True,
+            dnspolicy="ClusterFirstWithHostNet"
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_pod_node_selectors():
         node_selectors = {
             'beta.kubernetes.io/os': 'linux'
@@ -190,10 +206,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @staticmethod
     def test_pod_resources():
-        resources = {
-            'limit_memory': 1,
-            'limit_cpu': 1,
-        }
+        resources = {}
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -254,6 +267,22 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"+ echo 10\n")
+
+    @staticmethod
+    def test_port():
+        port = Port('http', 80)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            ports=[port]
+        )
+        k.execute(None)
 
     @staticmethod
     def test_volume_mount():
@@ -411,7 +440,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, client_mock, launcher_mock):
+    def test_envs_from_configmaps(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State
         configmaps = ['test-configmap']
@@ -427,13 +456,13 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             configmaps=configmaps
         )
         # THEN
-        launcher_mock.return_value = (State.SUCCESS, None)
+        mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
-        self.assertEqual(launcher_mock.call_args[0][0].configmaps, configmaps)
+        self.assertEqual(mock_launcher.call_args[0][0].configmaps, configmaps)
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, client_mock, launcher_mock):
+    def test_envs_from_secrets(self, mock_client, launcher_mock):
         # GIVEN
         from airflow.utils.state import State
         secrets = [Secret('env', None, "secret_name")]

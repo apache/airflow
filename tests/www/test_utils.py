@@ -18,10 +18,10 @@
 # under the License.
 
 import unittest
+from unittest import mock
 from datetime import datetime
 from urllib.parse import parse_qs
 
-from unittest import mock
 from bs4 import BeautifulSoup
 
 from airflow.www import utils
@@ -218,7 +218,7 @@ class AttrRendererTest(unittest.TestCase):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable(self):
+        def example_callable(unused_self):
             print("example")
         rendered = self.attr_renderer["python_callable"](example_callable)
         self.assertIn('&quot;example&quot;', rendered)

@@ -17,24 +17,35 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains a Google Kubernetes Engine Hook.
+"""
+
 import json
 import time
 
-from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.client_info import ClientInfo
+
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf import json_format
-from google.api_core.gapic_v1.client_info import ClientInfo
+
+from airflow import AirflowException, version
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
 
 class GKEClusterHook(GoogleCloudBaseHook):
+    """
+    Hook for Google Kubernetes Engine APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
+    """
 
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
@@ -46,6 +57,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
         self.location = location
 
     def get_client(self):
+        """
+        Returns ClusterManagerCLinet object.
+
+        :rtype: google.cloud.container_v1.ClusterManagerCLinet
+        """
         if self._client is None:
             credentials = self._get_credentials()
             # Add client library info for better error tracking
@@ -156,14 +172,14 @@ class GKEClusterHook(GoogleCloudBaseHook):
         )
 
         try:
-            op = self.get_client().delete_cluster(project_id=project_id or self.project_id,
-                                                  zone=self.location,
-                                                  cluster_id=name,
-                                                  retry=retry,
-                                                  timeout=timeout)
-            op = self.wait_for_operation(op)
+            resource = self.get_client().delete_cluster(project_id=project_id or self.project_id,
+                                                        zone=self.location,
+                                                        cluster_id=name,
+                                                        retry=retry,
+                                                        timeout=timeout)
+            resource = self.wait_for_operation(resource)
             # Returns server-defined url for the resource
-            return op.self_link
+            return resource.self_link
         except NotFound as error:
             self.log.info('Assuming Success: %s', error.message)
 
@@ -206,14 +222,14 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.project_id, self.location, cluster.name
         )
         try:
-            op = self.get_client().create_cluster(project_id=project_id or self.project_id,
-                                                  zone=self.location,
-                                                  cluster=cluster,
-                                                  retry=retry,
-                                                  timeout=timeout)
-            op = self.wait_for_operation(op)
+            resource = self.get_client().create_cluster(project_id=project_id or self.project_id,
+                                                        zone=self.location,
+                                                        cluster=cluster,
+                                                        retry=retry,
+                                                        timeout=timeout)
+            resource = self.wait_for_operation(resource)
 
-            return op.target_link
+            return resource.target_link
         except AlreadyExists as error:
             self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name).self_link

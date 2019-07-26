@@ -33,7 +33,7 @@ This DAG relies on the following environment variables:
 * CBT_INSTANCE_ID - desired ID of a Cloud Bigtable instance
 * CBT_INSTANCE_DISPLAY_NAME - desired human-readable display name of the Instance
 * CBT_INSTANCE_TYPE - type of the Instance, e.g. 1 for DEVELOPMENT
-    See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance # noqa E501
+    See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance # noqa E501  # pylint: disable=line-too-long
 * CBT_INSTANCE_LABELS - labels to add for the Instance
 * CBT_CLUSTER_ID - desired ID of the main Cluster created for the Instance
 * CBT_CLUSTER_ZONE - zone in which main Cluster will be created. e.g. europe-west1-b
@@ -41,7 +41,7 @@ This DAG relies on the following environment variables:
 * CBT_CLUSTER_NODES - initial amount of nodes of the Cluster
 * CBT_CLUSTER_NODES_UPDATED - amount of nodes for BigtableClusterUpdateOperator
 * CBT_CLUSTER_STORAGE_TYPE - storage for the Cluster, e.g. 1 for SSD
-    See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.cluster # noqa E501
+    See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.cluster # noqa E501  # pylint: disable=line-too-long
 * CBT_TABLE_ID - desired ID of the Table
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
 
@@ -109,7 +109,7 @@ with models.DAG(
         cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
         task_id='create_instance_task2',
     )
-    create_instance_task >> create_instance_task2  # pylint: disable=pointless-statement
+    create_instance_task >> create_instance_task2
     # [END howto_operator_gcp_bigtable_instance_create]
 
     # [START howto_operator_gcp_bigtable_cluster_update]
@@ -126,7 +126,7 @@ with models.DAG(
         nodes=int(CBT_CLUSTER_NODES_UPDATED),
         task_id='update_cluster_task2',
     )
-    cluster_update_task >> cluster_update_task2  # pylint: disable=pointless-statement
+    cluster_update_task >> cluster_update_task2
     # [END howto_operator_gcp_bigtable_cluster_update]
 
     # [START howto_operator_gcp_bigtable_instance_delete]
@@ -153,7 +153,7 @@ with models.DAG(
         table_id=CBT_TABLE_ID,
         task_id='create_table_task2',
     )
-    create_table_task >> create_table_task2  # pylint: disable=pointless-statement
+    create_table_task >> create_table_task2
     # [END howto_operator_gcp_bigtable_table_create]
 
     # [START howto_operator_gcp_bigtable_table_wait_for_replication]
@@ -188,7 +188,6 @@ with models.DAG(
     )
     # [END howto_operator_gcp_bigtable_table_delete]
 
-    # pylint: disable=pointless-statement
     wait_for_table_replication_task >> delete_table_task
     wait_for_table_replication_task2 >> delete_table_task
     wait_for_table_replication_task >> delete_table_task2
@@ -205,4 +204,3 @@ with models.DAG(
     # Only delete instances after all tables are deleted
     [delete_table_task, delete_table_task2] >> \
         delete_instance_task >> delete_instance_task2
-    # pylint: enable=pointless-statement

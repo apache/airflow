@@ -44,6 +44,8 @@ class KubernetesPodOperator(BaseOperator):
                                If more than one secret is required, provide a
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
+    :param ports: ports for launched pod
+    :type ports: list[airflow.kubernetes.pod.Port]
     :param volume_mounts: volumeMounts for launched pod
     :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
@@ -91,6 +93,11 @@ class KubernetesPodOperator(BaseOperator):
     :param configmaps: A list of configmap names objects that we
         want mount as env variables
     :type configmaps: list[str]
+    :param pod_runtime_info_envs: environment variables about
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list[PodRuntimeEnv]
+    :param dnspolicy: Specify a dnspolicy for the pod
+    :type dnspolicy: str
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -101,6 +108,8 @@ class KubernetesPodOperator(BaseOperator):
                                                  config_file=self.config_file)
             gen = pod_generator.PodGenerator()
 
+            for port in self.ports:
+                gen.add_port(port)
             for mount in self.volume_mounts:
                 gen.add_mount(mount)
             for volume in self.volumes:
@@ -128,6 +137,8 @@ class KubernetesPodOperator(BaseOperator):
             pod.tolerations = self.tolerations
             pod.configmaps = self.configmaps
             pod.security_context = self.security_context
+            pod.pod_runtime_info_envs = self.pod_runtime_info_envs
+            pod.dnspolicy = self.dnspolicy
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -163,6 +174,7 @@ class KubernetesPodOperator(BaseOperator):
                  name,
                  cmds=None,
                  arguments=None,
+                 ports=None,
                  volume_mounts=None,
                  volumes=None,
                  env_vars=None,
@@ -186,6 +198,8 @@ class KubernetesPodOperator(BaseOperator):
                  tolerations=None,
                  configmaps=None,
                  security_context=None,
+                 pod_runtime_info_envs=None,
+                 dnspolicy=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -197,6 +211,7 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = name
         self.env_vars = env_vars or {}
+        self.ports = ports or []
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
         self.secrets = secrets or []
@@ -219,3 +234,5 @@ class KubernetesPodOperator(BaseOperator):
         self.tolerations = tolerations or []
         self.configmaps = configmaps or []
         self.security_context = security_context or {}
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.dnspolicy = dnspolicy

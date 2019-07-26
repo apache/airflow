@@ -35,7 +35,7 @@ from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
 
-requires_authentication = airflow.api.api_auth.requires_authentication
+requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
@@ -176,8 +176,7 @@ def dag_paused(dag_id, paused):
 
     is_paused = True if paused == 'true' else False
 
-    models.DagModel.set_is_paused(
-        dag_id=dag_id,
+    models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
     )
 

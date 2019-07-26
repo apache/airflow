@@ -33,7 +33,6 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
 
         :param pod: The pod object
         """
-        pass
 
     @staticmethod
     def extract_image(pod, req):
@@ -52,6 +51,17 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
                 'secretKeyRef': {
                     'name': secret.secret,
                     'key': secret.key
+                }
+            }
+        })
+
+    @staticmethod
+    def add_runtime_info_env(env, runtime_info):
+        env.append({
+            'name': runtime_info.name,
+            'valueFrom': {
+                'fieldRef': {
+                    'fieldPath': runtime_info.field_path
                 }
             }
         })
@@ -87,6 +97,13 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
     @staticmethod
     def extract_args(pod, req):
         req['spec']['containers'][0]['args'] = pod.args
+
+    @staticmethod
+    def attach_ports(pod, req):
+        req['spec']['containers'][0]['ports'] = (
+            req['spec']['containers'][0].get('ports', []))
+        if len(pod.ports) > 0:
+            req['spec']['containers'][0]['ports'].extend(pod.ports)
 
     @staticmethod
     def attach_volumes(pod, req):
@@ -134,12 +151,14 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             env for env in pod.secrets if env.deploy_type == 'env' and env.key is not None
         ]
 
-        if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0:
+        if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0 or len(pod.pod_runtime_info_envs) > 0:
             env = []
             for k in pod.envs.keys():
                 env.append({'name': k, 'value': pod.envs[k]})
             for secret in envs_from_key_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
+            for runtime_info in pod.pod_runtime_info_envs:
+                KubernetesRequestFactory.add_runtime_info_env(env, runtime_info)
 
             req['spec']['containers'][0]['env'] = env
 
@@ -163,10 +182,10 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
-            if pod.resources.request_memory:
+            if pod.resources.limit_memory:
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
+            if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
 
@@ -184,6 +203,11 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
     def extract_hostnetwork(pod, req):
         if pod.hostnetwork:
             req['spec']['hostNetwork'] = pod.hostnetwork
+
+    @staticmethod
+    def extract_dnspolicy(pod, req):
+        if pod.dnspolicy:
+            req['spec']['dnsPolicy'] = pod.dnspolicy
 
     @staticmethod
     def extract_image_pull_secrets(pod, req):

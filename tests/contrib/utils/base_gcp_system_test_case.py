@@ -40,7 +40,7 @@ ENV_FILE_RETRIEVER = os.path.join(AIRFLOW_PARENT_FOLDER,
 
 
 # Retrieve environment variables from parent directory retriever - it should be
-# in the path ${AIRFLOW_SOURCE_DIR}/../../get_system_test_environment_variables.py
+# in the path ${AIRFLOW_ROOT}/../../get_system_test_environment_variables.py
 # and it should print all the variables in form of key=value to the stdout
 class RetrieveVariables:
     @staticmethod
@@ -133,6 +133,7 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
         self.example_dags_folder = example_dags_folder
         self.require_local_executor = require_local_executor
         self.temp_dir = None
+        self.args = {}
 
     @staticmethod
     def _get_dag_folder():

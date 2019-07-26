@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import six
+"""
+This module contains a Google Cloud Transfer sensor.
+"""
 
 from airflow.contrib.hooks.gcp_transfer_hook import GCPTransferServiceHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -60,7 +62,7 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.expected_statuses = (
-            {expected_statuses} if isinstance(expected_statuses, six.string_types) else expected_statuses
+            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
         )
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
@@ -68,7 +70,7 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
     def poke(self, context):
         hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
         operations = hook.list_transfer_operations(
-            filter={'project_id': self.project_id, 'job_names': [self.job_name]}
+            request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
         )
 
         check = GCPTransferServiceHook.operations_contain_expected_statuses(

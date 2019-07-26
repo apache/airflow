@@ -66,7 +66,7 @@ from the GCP connection id used:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_start_template_fields]
@@ -121,7 +121,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_stop_template_fields]
@@ -182,7 +182,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_set_machine_type_template_fields]
@@ -243,7 +243,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_copy_operator_template_fields]
@@ -304,7 +304,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_compute_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_update_template_operator_template_fields]

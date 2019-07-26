@@ -23,12 +23,10 @@ import pickle
 import subprocess
 import sys
 import types
-from builtins import str
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
 
 import dill
-import six
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
@@ -134,29 +132,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         branch = super().execute(context)
-        if isinstance(branch, six.string_types):
-            branch = [branch]
-        self.log.info("Following branch %s", branch)
-        self.log.info("Marking other directly downstream tasks as skipped")
-
-        downstream_tasks = context['task'].downstream_list
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-
-        if downstream_tasks:
-            # Also check downstream tasks of the branch task. In case the task to skip
-            # is a downstream task of the branch task, we exclude it from skipping.
-            branch_downstream_task_ids = set()
-            for b in branch:
-                branch_downstream_task_ids.update(context["dag"].
-                                                  get_task(b).
-                                                  get_flat_relative_ids(upstream=False))
-            skip_tasks = [t
-                          for t in downstream_tasks
-                          if t.task_id not in branch and
-                          t.task_id not in branch_downstream_task_ids]
-            self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
-
-        self.log.info("Done.")
+        self.skip_all_except(context['ti'], branch)
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -342,28 +318,28 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _write_string_args(self, filename):
         # writes string_args to a file, which are read line by line
-        with open(filename, 'w') as f:
-            f.write('\n'.join(map(str, self.string_args)))
+        with open(filename, 'w') as file:
+            file.write('\n'.join(map(str, self.string_args)))
 
     def _write_args(self, input_filename):
         # serialize args to file
         if self._pass_op_args():
-            with open(input_filename, 'wb') as f:
+            with open(input_filename, 'wb') as file:
                 arg_dict = ({'args': self.op_args, 'kwargs': self.op_kwargs})
                 if self.use_dill:
-                    dill.dump(arg_dict, f)
+                    dill.dump(arg_dict, file)
                 else:
-                    pickle.dump(arg_dict, f)
+                    pickle.dump(arg_dict, file)
 
     def _read_result(self, output_filename):
         if os.stat(output_filename).st_size == 0:
             return None
-        with open(output_filename, 'rb') as f:
+        with open(output_filename, 'rb') as file:
             try:
                 if self.use_dill:
-                    return dill.load(f)
+                    return dill.load(file)
                 else:
-                    return pickle.load(f)
+                    return pickle.load(file)
             except ValueError:
                 self.log.error("Error deserializing result. "
                                "Note that result deserialization "
@@ -371,10 +347,10 @@ class PythonVirtualenvOperator(PythonOperator):
                 raise
 
     def _write_script(self, script_filename):
-        with open(script_filename, 'w') as f:
+        with open(script_filename, 'w') as file:
             python_code = self._generate_python_code()
-            self.log.debug('Writing code to file\n{}'.format(python_code))
-            f.write(python_code)
+            self.log.debug('Writing code to file\n', python_code)
+            file.write(python_code)
 
     def _generate_virtualenv_cmd(self, tmp_dir):
         cmd = ['virtualenv', tmp_dir]
@@ -407,7 +383,7 @@ class PythonVirtualenvOperator(PythonOperator):
         fn = self.python_callable
         # dont try to read pickle if we didnt pass anything
         if self._pass_op_args():
-            load_args_line = 'with open(sys.argv[1], "rb") as f: arg_dict = {}.load(f)'\
+            load_args_line = 'with open(sys.argv[1], "rb") as file: arg_dict = {}.load(file)'\
                 .format(pickling_library)
         else:
             load_args_line = 'arg_dict = {"args": [], "kwargs": {}}'
@@ -421,12 +397,12 @@ class PythonVirtualenvOperator(PythonOperator):
         {load_args_code}
         args = arg_dict["args"]
         kwargs = arg_dict["kwargs"]
-        with open(sys.argv[3], 'r') as f:
-            virtualenv_string_args = list(map(lambda x: x.strip(), list(f)))
+        with open(sys.argv[3], 'r') as file:
+            virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
         {python_callable_lines}
         res = {python_callable_name}(*args, **kwargs)
-        with open(sys.argv[2], 'wb') as f:
-            res is not None and {pickling_library}.dump(res, f)
+        with open(sys.argv[2], 'wb') as file:
+            res is not None and {pickling_library}.dump(res, file)
         """).format(load_args_code=load_args_line,
                     python_callable_lines=dedent(inspect.getsource(fn)),
                     python_callable_name=fn.__name__,

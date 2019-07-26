@@ -20,7 +20,7 @@
 import json
 import unittest
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
 
@@ -49,7 +49,6 @@ class TestDiscordWebhookHook(unittest.TestCase):
     expected_payload = json.dumps(expected_payload_dict)
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='default-discord-webhook',
@@ -74,7 +73,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
 
         # When/Then
         expected_message = 'Expected Discord webhook endpoint in the form of'
-        with self.assertRaisesRegexp(AirflowException, expected_message):
+        with self.assertRaisesRegex(AirflowException, expected_message):
             DiscordWebhookHook(webhook_endpoint=provided_endpoint)
 
     def test_get_webhook_endpoint_conn_id(self):
@@ -108,7 +107,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
 
         # When/Then
         expected_message = 'Discord message length must be 2000 or fewer characters'
-        with self.assertRaisesRegexp(AirflowException, expected_message):
+        with self.assertRaisesRegex(AirflowException, expected_message):
             hook._build_discord_payload()
 
 

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Cloud Natural Language Hook.
+"""
 
 from google.cloud.language_v1 import LanguageServiceClient
 
@@ -36,10 +39,9 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _conn = None
-
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
+        self._conn = None
 
     def get_conn(self):
         """

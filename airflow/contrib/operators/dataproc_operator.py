@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains Google Dataproc operators.
+"""
+# pylint: disable=too-many-lines
 
 import ntpath
 import os
@@ -35,7 +39,9 @@ from airflow.utils import timezone
 
 
 class DataprocOperationBaseOperator(BaseOperator):
-    """The base class for operators that poll on a Dataproc Operation."""
+    """
+    The base class for operators that poll on a Dataproc Operation.
+    """
     @apply_defaults
     def __init__(self,
                  project_id,
@@ -56,12 +62,17 @@ class DataprocOperationBaseOperator(BaseOperator):
         )
 
     def execute(self, context):
+        # pylint: disable=no-value-for-parameter
         self.hook.wait(self.start())
 
     def start(self, context):
+        """
+        You are expected to override the method.
+        """
         raise AirflowException('Please submit an operation')
 
 
+# pylint: disable=too-many-instance-attributes
 class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
@@ -99,6 +110,10 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     :param custom_image: custom Dataproc image for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image: str
+    :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
+        including projectid and location (region) are valid. Example:
+        ``projects/[projectId]/locations/[dataproc_region]/autoscalingPolicies/[policy_id]``
+    :type autoscaling_policy: str
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
@@ -162,12 +177,13 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
     :param customer_managed_key: The customer-managed key used for disk encryption
-        (projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME])
+        ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa # pylint: disable=line-too-long
     :type customer_managed_key: str
     """
 
     template_fields = ['cluster_name', 'project_id', 'zone', 'region']
 
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
                  project_id,
@@ -184,6 +200,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                  metadata=None,
                  custom_image=None,
                  image_version=None,
+                 autoscaling_policy=None,
                  properties=None,
                  master_machine_type='n1-standard-4',
                  master_disk_type='pd-standard',
@@ -217,6 +234,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
+        self.autoscaling_policy = autoscaling_policy
         self.worker_machine_type = worker_machine_type
         self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
@@ -256,6 +274,58 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             "DataprocClusterCreateOperator init_action_timeout"
             " should be expressed in minutes or seconds. i.e. 10m, 30s")
 
+    def _build_gce_cluster_config(self, cluster_data):
+        if self.zone:
+            zone_uri = \
+                'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
+                    self.project_id, self.zone
+                )
+            cluster_data['config']['gceClusterConfig']['zoneUri'] = zone_uri
+
+        if self.metadata:
+            cluster_data['config']['gceClusterConfig']['metadata'] = self.metadata
+
+        if self.network_uri:
+            cluster_data['config']['gceClusterConfig']['networkUri'] = self.network_uri
+
+        if self.subnetwork_uri:
+            cluster_data['config']['gceClusterConfig']['subnetworkUri'] = \
+                self.subnetwork_uri
+
+        if self.internal_ip_only:
+            if not self.subnetwork_uri:
+                raise AirflowException("Set internal_ip_only to true only when"
+                                       " you pass a subnetwork_uri.")
+            cluster_data['config']['gceClusterConfig']['internalIpOnly'] = True
+
+        if self.tags:
+            cluster_data['config']['gceClusterConfig']['tags'] = self.tags
+
+        if self.service_account:
+            cluster_data['config']['gceClusterConfig']['serviceAccount'] = \
+                self.service_account
+
+        if self.service_account_scopes:
+            cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] = \
+                self.service_account_scopes
+
+        return cluster_data
+
+    def _build_lifecycle_config(self, cluster_data):
+        if self.idle_delete_ttl:
+            cluster_data['config']['lifecycleConfig']['idleDeleteTtl'] = \
+                "{}s".format(self.idle_delete_ttl)
+
+        if self.auto_delete_time:
+            utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
+            cluster_data['config']['lifecycleConfig']['autoDeleteTime'] = \
+                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
+        elif self.auto_delete_ttl:
+            cluster_data['config']['lifecycleConfig']['autoDeleteTtl'] = \
+                "{}s".format(self.auto_delete_ttl)
+
+        return cluster_data
+
     def _build_cluster_data(self):
         if self.zone:
             master_type_uri = \
@@ -293,7 +363,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'secondaryWorkerConfig': {},
                 'softwareConfig': {},
                 'lifecycleConfig': {},
-                'encryptionConfig': {}
+                'encryptionConfig': {},
+                'autoscalingConfig': {},
             }
         }
         if self.num_preemptible_workers > 0:
@@ -307,7 +378,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'isPreemptible': True
             }
 
-        cluster_data['labels'] = self.labels if self.labels else {}
+        cluster_data['labels'] = self.labels or {}
+
         # Dataproc labels must conform to the following regex:
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
         # semantic versioning spec: x.y.z).
@@ -315,28 +387,10 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                                        'v' + version.replace('.', '-').replace('+', '-')})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
-        if self.zone:
-            zone_uri = \
-                'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
-                    self.project_id, self.zone
-                )
-            cluster_data['config']['gceClusterConfig']['zoneUri'] = zone_uri
-        if self.metadata:
-            cluster_data['config']['gceClusterConfig']['metadata'] = self.metadata
-        if self.network_uri:
-            cluster_data['config']['gceClusterConfig']['networkUri'] = self.network_uri
-        if self.subnetwork_uri:
-            cluster_data['config']['gceClusterConfig']['subnetworkUri'] = \
-                self.subnetwork_uri
-        if self.internal_ip_only:
-            if not self.subnetwork_uri:
-                raise AirflowException("Set internal_ip_only to true only when"
-                                       " you pass a subnetwork_uri.")
-            cluster_data['config']['gceClusterConfig']['internalIpOnly'] = True
-        if self.tags:
-            cluster_data['config']['gceClusterConfig']['tags'] = self.tags
+
         if self.image_version:
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
+
         elif self.custom_image:
             custom_image_url = 'https://www.googleapis.com/compute/beta/projects/' \
                                '{}/global/images/{}'.format(self.project_id,
@@ -345,21 +399,16 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             if not self.single_node:
                 cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
 
+        cluster_data = self._build_gce_cluster_config(cluster_data)
+
         if self.single_node:
             self.properties["dataproc:dataproc.allow.zero.workers"] = "true"
 
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
-        if self.idle_delete_ttl:
-            cluster_data['config']['lifecycleConfig']['idleDeleteTtl'] = \
-                "{}s".format(self.idle_delete_ttl)
-        if self.auto_delete_time:
-            utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
-            cluster_data['config']['lifecycleConfig']['autoDeleteTime'] = \
-                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
-        elif self.auto_delete_ttl:
-            cluster_data['config']['lifecycleConfig']['autoDeleteTtl'] = \
-                "{}s".format(self.auto_delete_ttl)
+
+        cluster_data = self._build_lifecycle_config(cluster_data)
+
         if self.init_actions_uris:
             init_actions_dict = [
                 {
@@ -368,23 +417,24 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 } for uri in self.init_actions_uris
             ]
             cluster_data['config']['initializationActions'] = init_actions_dict
-        if self.service_account:
-            cluster_data['config']['gceClusterConfig']['serviceAccount'] =\
-                self.service_account
-        if self.service_account_scopes:
-            cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
-                self.service_account_scopes
+
         if self.customer_managed_key:
             cluster_data['config']['encryptionConfig'] =\
                 {'gcePdKmsKeyName': self.customer_managed_key}
+        if self.autoscaling_policy:
+            cluster_data['config']['autoscalingConfig'] = {'policyUri': self.autoscaling_policy}
+
         return cluster_data
 
     def start(self):
+        """
+        Create a new cluster on Google Cloud Dataproc.
+        """
         self.log.info('Creating cluster: %s', self.cluster_name)
         cluster_data = self._build_cluster_data()
 
         return (
-            self.hook.get_conn().projects().regions().clusters().create(
+            self.hook.get_conn().projects().regions().clusters().create(  # pylint: disable=no-member
                 projectId=self.project_id,
                 region=self.region,
                 body=cluster_data,
@@ -493,6 +543,9 @@ class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
             " i.e. 1d, 4h, 10m, 30s")
 
     def start(self):
+        """
+        Scale, up or down, a cluster on Google Cloud Dataproc.
+        """
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         update_mask = "config.worker_config.num_instances," \
@@ -500,7 +553,7 @@ class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
         scaling_cluster_data = self._build_scale_cluster_data()
 
         return (
-            self.hook.get_conn().projects().regions().clusters().patch(
+            self.hook.get_conn().projects().regions().clusters().patch(  # pylint: disable=no-member
                 projectId=self.project_id,
                 region=self.region,
                 clusterName=self.cluster_name,
@@ -545,9 +598,12 @@ class DataprocClusterDeleteOperator(DataprocOperationBaseOperator):
         self.cluster_name = cluster_name
 
     def start(self):
+        """
+        Delete a cluster on Google Cloud Dataproc.
+        """
         self.log.info('Deleting cluster: %s in %s', self.cluster_name, self.region)
         return (
-            self.hook.get_conn().projects().regions().clusters().delete(
+            self.hook.get_conn().projects().regions().clusters().delete(  # pylint: disable=no-member
                 projectId=self.project_id,
                 region=self.region,
                 clusterName=self.cluster_name,
@@ -566,7 +622,7 @@ class DataProcJobBaseOperator(BaseOperator):
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
-        default arguments
+        default arguments (templated)
     :type dataproc_properties: dict
     :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
@@ -577,6 +633,10 @@ class DataProcJobBaseOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
+        and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
+        characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
+    :type labels: dict
     :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param job_error_states: Job states that should be considered error states.
@@ -602,6 +662,7 @@ class DataProcJobBaseOperator(BaseOperator):
                  dataproc_jars=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 labels=None,
                  region='global',
                  job_error_states=None,
                  *args,
@@ -609,6 +670,7 @@ class DataProcJobBaseOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.labels = labels
         self.job_name = job_name
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
@@ -628,14 +690,11 @@ class DataProcJobBaseOperator(BaseOperator):
         """
         self.job_template = self.hook.create_job_template(self.task_id, self.cluster_name, self.job_type,
                                                           self.dataproc_properties)
-        self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.set_job_name(self.job_name)
+        self.job_template.add_jar_file_uris(self.dataproc_jars)
+        self.job_template.add_labels(self.labels)
 
     def execute(self, context):
-        """
-        Build `self.job` based on the job template, and submit it.
-        :raises AirflowException if no template has been initialized (see create_job_template)
-        """
         if self.job_template:
             self.job = self.job_template.build()
             self.dataproc_job_id = self.job["job"]["reference"]["jobId"]
@@ -689,13 +748,13 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     :param query: The query or reference to the query
         file (pg or pig extension). (templated)
     :type query: str
-    :param query_uri: The uri of a pig script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Pig queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
     job_type = 'pigJob'
@@ -723,7 +782,7 @@ class DataProcPigOperator(DataProcJobBaseOperator):
             self.job_template.add_query(self.query)
         self.job_template.add_variables(self.variables)
 
-        self.execute(context)
+        super().execute(context)
 
 
 class DataProcHiveOperator(DataProcJobBaseOperator):
@@ -732,14 +791,14 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension).
     :type query: str
-    :param query_uri: The uri of a hive script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query.
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars']
-    template_ext = ('.q',)
+                       'region', 'dataproc_jars', 'dataproc_properties']
+    template_ext = ('.q', '.hql',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
 
@@ -756,6 +815,8 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()
@@ -774,12 +835,13 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
 
     :param query: The query or reference to the query file (q extension). (templated)
     :type query: str
-    :param query_uri: The uri of a spark sql script on Cloud Storage.
+    :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :type query_uri: str
     :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'sparkSqlJob'
@@ -797,6 +859,8 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()
@@ -813,8 +877,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file that contains the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -828,7 +892,8 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'sparkJob'
 
@@ -864,8 +929,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-    :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
-            the main_class, not both together).
+    :param main_jar: The HCFS URI of the jar file containing the main class
+        (use this or the main_class, not both together).
     :type main_jar: str
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -879,7 +944,8 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     :type files: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'hadoopJob'
 
@@ -930,19 +996,20 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name', 'region', 'dataproc_jars']
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pysparkJob'
 
     @staticmethod
     def _generate_temp_filename(filename):
-        dt = time.strftime('%Y%m%d%H%M%S')
-        return "{}_{}_{}".format(dt, str(uuid.uuid4())[:8], ntpath.basename(filename))
+        date = time.strftime('%Y%m%d%H%M%S')
+        return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
-    """
-    Upload a local file to a Google Cloud Storage bucket
-    """
     def _upload_file_temp(self, bucket, local_file):
+        """
+        Upload a local file to a Google Cloud Storage bucket.
+        """
         temp_filename = self._generate_temp_filename(local_file)
         if not bucket:
             raise AirflowException(
@@ -990,8 +1057,8 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
             )
             bucket = cluster_info['config']['configBucket']
             self.main = self._upload_file_temp(bucket, self.main)
-        self.job_template.set_python_main(self.main)
 
+        self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)
         self.job_template.add_file_uris(self.files)
@@ -1028,14 +1095,16 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
 
     @apply_defaults
     def __init__(self, template_id, *args, **kwargs):
-        (super()
-            .__init__(*args, **kwargs))
+        super().__init__(*args, **kwargs)
         self.template_id = template_id
 
     def start(self):
+        """
+        Instantiate a WorkflowTemplate on Google Cloud Dataproc.
+        """
         self.log.info('Instantiating Template: %s', self.template_id)
         return (
-            self.hook.get_conn().projects().regions().workflowTemplates()
+            self.hook.get_conn().projects().regions().workflowTemplates()  # pylint: disable=no-member
             .instantiate(
                 name=('projects/%s/regions/%s/workflowTemplates/%s' %
                       (self.project_id, self.region, self.template_id)),
@@ -1072,14 +1141,16 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
 
     @apply_defaults
     def __init__(self, template, *args, **kwargs):
-        (super()
-            .__init__(*args, **kwargs))
+        super().__init__(*args, **kwargs)
         self.template = template
 
     def start(self):
+        """
+        Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
+        """
         self.log.info('Instantiating Inline Template')
         return (
-            self.hook.get_conn().projects().regions().workflowTemplates()
+            self.hook.get_conn().projects().regions().workflowTemplates()  # pylint: disable=no-member
             .instantiateInline(
                 parent='projects/%s/regions/%s' % (self.project_id, self.region),
                 requestId=str(uuid.uuid4()),

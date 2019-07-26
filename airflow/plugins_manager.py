@@ -72,7 +72,6 @@ class AirflowPlugin:
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
         """
-        pass
 
 
 def load_entrypoint_plugins(entry_points, airflow_plugins):
@@ -120,6 +119,9 @@ def is_valid_plugin(plugin_obj, existing_plugins):
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
+
+if settings.PLUGINS_FOLDER is None:
+    raise AirflowPluginException("Plugins folder is not set")
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):

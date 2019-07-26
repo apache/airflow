@@ -19,7 +19,6 @@
 
 import unittest
 from unittest import mock
-from builtins import str
 from airflow.contrib.operators.cassandra_to_gcs import \
     CassandraToGoogleCloudStorageOperator
 

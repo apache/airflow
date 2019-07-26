@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,24 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+import contextlib
 
-if [[ ${INSIDE_DOCKER_CONTAINER:-} != true ]]; then
-    echo "You are not inside a docker container!"
-    echo "You should only run this script in the docker container as it may override your files."
-    echo "Learn more about how we develop and test airflow in:"
-    echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md#development-and-testing"
-    exit 1
-fi
+from airflow.configuration import conf
 
-# Start MiniCluster
-java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &
 
-# Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-chmod 600 ~/.ssh/*
-
-# SSH Service
-sudo service ssh restart
+@contextlib.contextmanager
+def conf_vars(overrides):
+    original = {}
+    for (section, key), value in overrides.items():
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            conf.set(section, key, value)
+        else:
+            conf.remove_option(section, key)
+    yield
+    for (section, key), value in original.items():
+        if value is not None:
+            conf.set(section, key, value)
+        else:
+            conf.remove_option(section, key)

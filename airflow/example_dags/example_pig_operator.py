@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the PigOperator."""
+
 import airflow
 from airflow.models import DAG
 from airflow.operators.pig_operator import PigOperator
@@ -38,5 +40,3 @@ run_this = PigOperator(
     pig_opts="-x local",
     dag=dag,
 )
-
-run_this

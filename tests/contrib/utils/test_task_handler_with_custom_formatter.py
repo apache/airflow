@@ -37,7 +37,7 @@ PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 
 class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
     def setUp(self):
-        super(TestTaskHandlerWithCustomFormatter, self).setUp()
+        super().setUp()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
             'class': TASK_HANDLER_CLASS,
             'formatter': 'airflow',

@@ -38,6 +38,15 @@ class Resources:
         return self.request_cpu is not None or self.request_memory is not None
 
 
+class Port:
+    def __init__(
+            self,
+            name=None,
+            container_port=None):
+        self.name = name
+        self.container_port = container_port
+
+
 class Pod:
     """
     Represents a kubernetes pod and manages execution of a single pod.
@@ -69,7 +78,11 @@ class Pod:
     :param configmaps: A list containing names of configmaps object
         mounting env variables to the pod
     :type configmaps: list[str]
-
+    :param pod_runtime_info_envs: environment variables about
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list[PodRuntimeEnv]
+    :param dnspolicy: Specify a dnspolicy for the pod
+    :type dnspolicy: str
     """
     def __init__(
             self,
@@ -81,6 +94,7 @@ class Pod:
             labels=None,
             node_selectors=None,
             name=None,
+            ports=None,
             volumes=None,
             volume_mounts=None,
             namespace='default',
@@ -95,7 +109,9 @@ class Pod:
             hostnetwork=False,
             tolerations=None,
             security_context=None,
-            configmaps=None
+            configmaps=None,
+            pod_runtime_info_envs=None,
+            dnspolicy=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -105,6 +121,7 @@ class Pod:
         self.result = result
         self.labels = labels or {}
         self.name = name
+        self.ports = ports or []
         self.volumes = volumes or []
         self.volume_mounts = volume_mounts or []
         self.node_selectors = node_selectors or {}
@@ -120,3 +137,5 @@ class Pod:
         self.tolerations = tolerations or []
         self.security_context = security_context
         self.configmaps = configmaps or []
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.dnspolicy = dnspolicy

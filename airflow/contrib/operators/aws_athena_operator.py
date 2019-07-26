@@ -29,6 +29,9 @@ class AWSAthenaOperator(BaseOperator):
     """
     An operator that submit presto query to athena.
 
+    If ``do_xcom_push`` is True, the QueryExecutionID assigned to the
+    query will be pushed to an XCom when it successfuly completes.
+
     :param query: Presto to be run on athena. (templated)
     :type query: str
     :param database: Database to select. (templated)
@@ -72,7 +75,6 @@ class AWSAthenaOperator(BaseOperator):
         Run Presto Query on Athena
         """
         self.hook = self.get_hook()
-        self.hook.get_conn()
 
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location
@@ -81,14 +83,17 @@ class AWSAthenaOperator(BaseOperator):
         query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
 
         if query_status in AWSAthenaHook.FAILURE_STATES:
+            error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
-                'Final state of Athena job is {}, query_execution_id is {}.'
-                .format(query_status, self.query_execution_id))
+                'Final state of Athena job is {}, query_execution_id is {}. Error: {}'
+                .format(query_status, self.query_execution_id, error_message))
         elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
             raise Exception(
                 'Final state of Athena job is {}. '
                 'Max tries of poll status exceeded, query_execution_id is {}.'
                 .format(query_status, self.query_execution_id))
+
+        return self.query_execution_id
 
     def on_kill(self):
         """

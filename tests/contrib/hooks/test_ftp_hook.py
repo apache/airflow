@@ -129,11 +129,9 @@ class TestIntegrationFTPHook(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        from airflow import configuration
         from airflow.utils import db
         from airflow.models import Connection
 
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='ftp_passive', conn_type='ftp',
@@ -150,22 +148,22 @@ class TestIntegrationFTPHook(unittest.TestCase):
         conn.set_pasv.assert_called_with(expected_mode)
 
     @mock.patch("ftplib.FTP")
-    def test_ftp_passive_mode(self, ftp_mock):
+    def test_ftp_passive_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPHook
         self._test_mode(FTPHook, "ftp_passive", True)
 
     @mock.patch("ftplib.FTP")
-    def test_ftp_active_mode(self, ftp_mock):
+    def test_ftp_active_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPHook
         self._test_mode(FTPHook, "ftp_active", False)
 
     @mock.patch("ftplib.FTP_TLS")
-    def test_ftps_passive_mode(self, ftps_mock):
+    def test_ftps_passive_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPSHook
         self._test_mode(FTPSHook, "ftp_passive", True)
 
     @mock.patch("ftplib.FTP_TLS")
-    def test_ftps_active_mode(self, ftps_mock):
+    def test_ftps_active_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPSHook
         self._test_mode(FTPSHook, "ftp_active", False)
 

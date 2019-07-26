@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from builtins import bytes
 from typing import Any
 
 from sqlalchemy import Column, Integer, String, Text, Boolean
@@ -130,7 +129,7 @@ class Variable(Base, LoggingMixin):
     ):
 
         if serialize_json:
-            stored_value = json.dumps(value)
+            stored_value = json.dumps(value, indent=2)
         else:
             stored_value = str(value)
 

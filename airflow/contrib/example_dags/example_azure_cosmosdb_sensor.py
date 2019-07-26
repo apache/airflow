@@ -21,7 +21,7 @@
 This is only an example DAG to highlight usage of AzureCosmosDocumentSensor to detect
 if a document now exists.
 
-You can trigger this manually with `airflow trigger_dag example_cosmosdb_sensor`.
+You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor`.
 
 *Note: Make sure that connection `azure_cosmos_default` is properly set before running
 this example.*
@@ -61,4 +61,4 @@ t2 = AzureCosmosInsertDocumentOperator(
     document={"id": "someuniqueid", "param1": "value1", "param2": "value2"},
     azure_cosmos_conn_id='azure_cosmos_default')
 
-t1 >> t2  # pylint: disable=pointless-statement
+t1 >> t2

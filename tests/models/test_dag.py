@@ -22,13 +22,13 @@ import logging
 import os
 import re
 import unittest
+from unittest.mock import patch
 import uuid
 from tempfile import NamedTemporaryFile
 
 import jinja2
 import pendulum
 import six
-from unittest.mock import patch
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException
@@ -202,6 +202,28 @@ class DagTest(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         self.assertEqual(tuple(), dag.topological_sort())
+
+    def test_dag_naive_start_date_string(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01'})
+
+    def test_dag_naive_start_end_dates_strings(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01', 'end_date': '2019-06-05'})
+
+    def test_dag_start_date_propagates_to_end_date(self):
+        """
+        Tests that a start_date string with a timezone and an end_date string without a timezone
+        are accepted and that the timezone from the start carries over the end
+
+        This test is a little indirect, it works by setting start and end equal except for the
+        timezone and then testing for equality after the DAG construction.  They'll be equal
+        only if the same timezone was applied to both.
+
+        An explicit check the the `tzinfo` attributes for both are the same is an extra check.
+        """
+        dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00',
+                                       'end_date': '2019-06-05T00:00:00'})
+        self.assertEqual(dag.default_args['start_date'], dag.default_args['end_date'])
+        self.assertEqual(dag.default_args['start_date'].tzinfo, dag.default_args['end_date'].tzinfo)
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
@@ -578,7 +600,7 @@ class DagTest(unittest.TestCase):
     def test_resolve_template_files_value(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
@@ -601,7 +623,7 @@ class DagTest(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.template') as f:
             f = NamedTemporaryFile(suffix='.template')
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
@@ -937,9 +959,9 @@ class DagTest(unittest.TestCase):
             DagModel.is_paused.is_(False)
         ).count()
 
-        self.assertEquals(2, unpaused_dags)
+        self.assertEqual(2, unpaused_dags)
 
-        DagModel.set_is_paused(dag.dag_id, is_paused=True)
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
         paused_dags = session.query(
             DagModel
@@ -949,4 +971,43 @@ class DagTest(unittest.TestCase):
             DagModel.is_paused.is_(True)
         ).count()
 
-        self.assertEquals(2, paused_dags)
+        self.assertEqual(2, paused_dags)
+
+    def test_existing_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'dag'
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        self.assertFalse(orm_dag.is_paused)
+        dag = DAG(
+            'dag',
+            is_paused_upon_creation=True
+        )
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        # Since the dag existed before, it should not follow the pause flag upon creation
+        self.assertFalse(orm_dag.is_paused)
+
+    def test_new_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'new_nonexisting_dag',
+            is_paused_upon_creation=True
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
+        # Since the dag didn't exist before, it should follow the pause flag upon creation
+        self.assertTrue(orm_dag.is_paused)
+
+    def test_dag_naive_default_args_start_date_with_timezone(self):
+        local_tz = pendulum.timezone('Europe/Zurich')
+        default_args = {'start_date': datetime.datetime(2018, 1, 1, tzinfo=local_tz)}
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)

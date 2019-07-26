@@ -23,14 +23,10 @@ import requests
 from airflow.contrib.operators.hipchat_operator import \
     HipChatAPISendRoomNotificationOperator
 from airflow.exceptions import AirflowException
-from airflow import configuration
 from tests.compat import mock
 
 
 class HipChatOperatorTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('requests.request')
     def test_execute(self, request_mock):

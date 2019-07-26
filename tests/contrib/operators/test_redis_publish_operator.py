@@ -19,7 +19,7 @@
 
 
 import unittest
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.redis_publish_operator import RedisPublishOperator
 from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.utils import timezone
@@ -31,8 +31,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestRedisPublishOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
-
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -61,10 +59,10 @@ class TestRedisPublishOperator(unittest.TestCase):
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
         message = pubsub.get_message()
-        self.assertEquals(message['type'], 'subscribe')
+        self.assertEqual(message['type'], 'subscribe')
 
         message = pubsub.get_message()
-        self.assertEquals(message['type'], 'message')
-        self.assertEquals(message['data'], b'hello')
+        self.assertEqual(message['type'], 'message')
+        self.assertEqual(message['data'], b'hello')
 
         pubsub.unsubscribe(self.channel)

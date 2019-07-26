@@ -45,6 +45,9 @@ class SSHOperator(BaseOperator):
     :type command: str
     :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
+    :param environment: a dict of shell environment variables. Note that the
+        server will reject them silently if `AcceptEnv` is not set in SSH config.
+    :type environment: dict
     """
 
     template_fields = ('command', 'remote_host')
@@ -57,6 +60,7 @@ class SSHOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
+                 environment=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +69,7 @@ class SSHOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
+        self.environment = environment
 
     def execute(self, context):
         try:
@@ -100,7 +105,8 @@ class SSHOperator(BaseOperator):
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
                                                                 get_pty=get_pty,
-                                                                timeout=self.timeout
+                                                                timeout=self.timeout,
+                                                                environment=self.environment
                                                                 )
                 # get channels
                 channel = stdout.channel

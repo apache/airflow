@@ -47,6 +47,7 @@ class TestPodRequestFactory(unittest.TestCase):
             labels={'app': 'myapp'},
             image_pull_secrets='pull_secret_a,pull_secret_b',
             configmaps=['configmap_a', 'configmap_b'],
+            ports=[{'name': 'foo', 'containerPort': 1234}],
             secrets=[
                 # This should be a secretRef
                 Secret('env', None, 'secret_a'),
@@ -105,6 +106,7 @@ class TestPodRequestFactory(unittest.TestCase):
                             'name': 'configmap_b'
                         }
                     }],
+                    'ports': [{'name': 'foo', 'containerPort': 1234}],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
                         'name': 'secretvol0',

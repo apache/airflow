@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG using GoogleCloudStorageToBigQueryOperator.
+"""
 
 from typing import Any
 
@@ -64,4 +67,4 @@ if gcs_to_bq is not None:
         bash_command='bq rm -rf airflow_test',
         dag=dag)
 
-    create_test_dataset >> load_csv >> delete_test_dataset  # pylint: disable=pointless-statement
+    create_test_dataset >> load_csv >> delete_test_dataset

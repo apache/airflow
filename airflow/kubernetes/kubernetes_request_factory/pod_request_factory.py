@@ -55,6 +55,7 @@ spec:
         self.extract_node_selector(pod, req)
         self.extract_env_and_secrets(pod, req)
         self.extract_volume_secrets(pod, req)
+        self.attach_ports(pod, req)
         self.attach_volumes(pod, req)
         self.attach_volume_mounts(pod, req)
         self.extract_resources(pod, req)
@@ -66,6 +67,7 @@ spec:
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
         self.extract_security_context(pod, req)
+        self.extract_dnspolicy(pod, req)
         return req
 
 
@@ -124,6 +126,7 @@ spec:
         self.extract_node_selector(pod, req)
         self.extract_env_and_secrets(pod, req)
         self.extract_volume_secrets(pod, req)
+        self.attach_ports(pod, req)
         self.attach_volumes(pod, req)
         self.attach_volume_mounts(pod, req)
         self.extract_resources(pod, req)
@@ -135,4 +138,5 @@ spec:
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
         self.extract_security_context(pod, req)
+        self.extract_dnspolicy(pod, req)
         return req

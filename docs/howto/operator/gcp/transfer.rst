@@ -80,7 +80,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_create_template_fields]
@@ -121,7 +121,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_delete_template_fields]
@@ -167,7 +167,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_update_template_fields]
@@ -208,7 +208,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_cancel_template_fields]
@@ -250,7 +250,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_get_template_fields]
@@ -291,7 +291,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operations_list_template_fields]
@@ -332,7 +332,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_pause_template_fields]
@@ -373,7 +373,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_resume_template_fields]
@@ -413,7 +413,7 @@ Using the operator
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/sensors/gcp_transfer_sensor.py
+.. literalinclude:: ../../../../airflow/contrib/sensors/gcp_transfer_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_sensor_template_fields]
