@@ -23,8 +23,7 @@ from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.dag_runs import get_all_dag_runs, get_dag_runs
 from airflow.api.common.experimental.task_instance import get_task_instance, get_all_task_instances
 from airflow.api.common.experimental.dags import get_dags, get_dag
-from airflow.api.common.experimental.get_task import get_task, get_task_as_dict
-from airflow.api.common.experimental.get_tasks import get_tasks
+from airflow.api.common.experimental.get_task import get_task, get_task_as_dict, get_tasks
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_task_logs import get_task_logs
 from airflow.exceptions import AirflowException
@@ -88,9 +87,9 @@ def dag_runs_filter():
     :query param state: a query string parameter '?state=queued|running|success...'
     :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
     :query param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
     :query param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
     """
@@ -112,12 +111,13 @@ def dag_runs_filter():
 def task_instances_filter():
     """
     Return the list of all dag_runs
+
     :query param state: a query string parameter '?state=queued|running|success...'
     :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
     :query param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
     :query param dag_id: String identifier of a DAG
     :query param task_id: String identifier of a task
     :return: List of task instances
@@ -141,6 +141,7 @@ def task_instances_filter():
 def get_all_dags():
     """
     Returns a list of Dags
+
     :query param is_paused: a query string parameter '?is_paused=true|false'
     :return: List of all DAGs
     """
@@ -260,15 +261,16 @@ def delete_dag(dag_id):
 def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
+
     :query param state: a query string parameter '?state=queued|running|success...'
     :query param state_ne: a query string parameter '?state_ne=queued|running|success...'
     :query param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
     :query param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"'
     :param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
+        or all runs if the state is not specified
     """
     try:
         state = request.args.get('state')
@@ -410,6 +412,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 def dag_run(dag_id, execution_date):
     """
     Returns a JSON with a dag_run's public instance variables.
+
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.

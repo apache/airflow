@@ -30,17 +30,18 @@ def get_dag_runs(dag_id: str, state: Optional[str] = None, state_ne: Optional[st
                  execution_date: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Returns a list of Dag Runs for a specific DAG ID.
+
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...
     :param state_ne: queued|running|success...
     :param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date: a query string parameter to find all runs on the provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
+        or all runs if the state is not specified
     :rtype: list[dict]
     """
     check_and_get_dag(dag_id=dag_id)
@@ -58,17 +59,18 @@ def get_all_dag_runs(dag_id: Optional[str], state: Optional[str] = None,
                      execution_date: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Returns a list of Dag Runs which out a need for specific DAG ID.
+
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...
     :param state_ne: queued|running|success...
     :param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date: a query string parameter to find all runs on the provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
+        or all runs if the state is not specified
     :rtype: list[dict]
     """
 

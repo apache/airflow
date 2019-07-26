@@ -23,10 +23,20 @@ from airflow.models import TaskInstance
 
 def get_task(dag_id: str, task_id: str) -> TaskInstance:
     """Return the task object identified by the given dag_id and task_id."""
+
     dag = check_and_get_dag(dag_id, task_id)
 
     # Return the task.
     return dag.get_task(task_id)
+
+
+def get_tasks(dag_id: str):
+    """Return all tasks identified by the given dag_id."""
+
+    dag = check_and_get_dag(dag_id)
+
+    # Return the task ids.
+    return dag.task_ids
 
 
 def get_task_as_dict(dag_id, task_id):
@@ -37,7 +47,7 @@ def get_task_as_dict(dag_id, task_id):
               for k, v in vars(task).items()
               if not k.startswith('_')}
     fields.update({
-        'upstream_task_ids': list(task._upstream_task_ids),
-        'downstream_task_ids': list(task._downstream_task_ids)})
+        'upstream_task_ids': list(task.upstream_task_ids),
+        'downstream_task_ids': list(task.downstream_task_ids)})
 
     return fields

@@ -16,13 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""DAG API Helpers"""
+from flask import url_for
 from airflow.models import DagModel
 from airflow.exceptions import DagNotFound
-from flask import url_for
 
 
 def get_dag_as_dict(dag):
+    """
+    Returns a DAG as a dictionary
+
+    :return: DAG as a dictionary
+    """
     dag_dict = {'dag_id': dag.dag_id,
                 'is_paused': dag.is_paused,
                 'is_subdag': dag.is_subdag,
@@ -40,6 +45,7 @@ def get_dag_as_dict(dag):
 def get_dags(is_paused=None, is_subdag=None, is_active=None, scheduler_lock=None):
     """
     Returns a list of all Dags
+
     :return: List of all DAGs
     """
     dag_list = list()

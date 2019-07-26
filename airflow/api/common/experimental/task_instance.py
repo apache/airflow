@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Task Instance APIs Helper"""
 
 from airflow.exceptions import (DagNotFound, TaskNotFound,
                                 DagRunNotFound, TaskInstanceNotFound)
@@ -31,7 +32,7 @@ def get_task_instance(dag_id, task_id, execution_date):
     :param dag_id: String identifier of a DAG
     :param task_id: String identifier of a task
     :param execution_date: date to identify dag run
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     """
 
     dagbag = DagBag()
@@ -74,9 +75,9 @@ def get_all_task_instances(dag_id=None, state=None, state_ne=None, execution_dat
     :param state: queued|running|success...
     :param state_ne: queued|running|success...
     :param execution_date_before: a query string parameter to find all runs before provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :param execution_date_after: a query string parameter to find all runs after provided date,
-    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+        should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
     :return: List of task instances
     """
 
@@ -91,7 +92,7 @@ def get_all_task_instances(dag_id=None, state=None, state_ne=None, execution_dat
         fields = {k: str(v)
                   for k, v in vars(instance).items()
                   if not k.startswith('_')}
-        fields.update({'try_number': instance._try_number})
+        fields.update({'try_number': instance.try_number})
         task_instances.append(fields)
 
     return task_instances

@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import DagBag
+"""Tasks APIs Helper"""
 import logging
 from io import BytesIO
-from airflow import configuration as conf
-from airflow.utils.helpers import render_log_filename
 from flask import send_file
+from airflow import configuration as conf
+from airflow.models import DagBag
+from airflow.utils.helpers import render_log_filename
 from airflow.api.common.experimental.task_instance import get_task_instance
 
 
@@ -32,7 +33,7 @@ def get_task_logs(dag_id, task_id, execution_date):
     dagbag = DagBag()
     ti = get_task_instance(dag_id, task_id, execution_date)
 
-    try_number = ti._try_number
+    try_number = ti.try_number
     metadata = {}
 
     logger = logging.getLogger('airflow.task')
