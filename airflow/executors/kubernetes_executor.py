@@ -134,7 +134,7 @@ class KubeConfig:
                                                      'env_from_secret_ref')
         self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
-        self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
+        self.parallelism = configuration.getint(self.core_section, 'parallelism')
         self.worker_container_repository = configuration.get(
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
