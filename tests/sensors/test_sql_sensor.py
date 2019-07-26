@@ -203,3 +203,33 @@ class SqlSensorTests(unittest.TestCase):
 
         mock_get_records.return_value = [[1]]
         self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_failure(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_success(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            success=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)

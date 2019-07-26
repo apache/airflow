@@ -65,7 +65,7 @@ class SqlSensor(BaseSensorOperator):
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
-        super(SqlSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         conn = BaseHook.get_connection(self.conn_id)
@@ -86,10 +86,16 @@ class SqlSensor(BaseSensorOperator):
             else:
                 return False
         first_cell = records[0][0]
-        if callable(self.failure):
-            if self.failure(first_cell):
-                raise AirflowException(
-                    "Failure criteria met. self.failure({}) returned True".format(first_cell))
-        if callable(self.success):
-            return self.success(first_cell)
+        if self.failure is not None:
+            if callable(self.failure):
+                if self.failure(first_cell):
+                    raise AirflowException(
+                        "Failure criteria met. self.failure({}) returned True".format(first_cell))
+            else:
+                raise AirflowException("self.failure is present, but not callable -> {}".format(self.success))
+        if self.success is not None:
+            if callable(self.success):
+                return self.success(first_cell)
+            else:
+                raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
         return str(first_cell) not in ('0', '')
