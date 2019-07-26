@@ -80,7 +80,7 @@ class SalesforceHook(BaseHook):
         :param query:    The query to make to Salesforce
         :type query: str
         :param include_deleted -- True if the query should include deleted records.
-        :param include_deleted: True if the query should include deleted.
+        :type include_deleted: bool
         :return: The query result.
         :rtype: dict
         """
