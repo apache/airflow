@@ -53,7 +53,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
-                 write_stdout, json_format, record_labels,
+                 write_stdout, json_format, json_fields,
                  host='localhost:9200'):
         """
         :param base_log_folder: base folder to store logs locally
@@ -73,7 +73,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.end_of_log_mark = end_of_log_mark
         self.write_stdout = write_stdout
         self.json_format = json_format
-        self.record_labels = [label.strip() for label in record_labels.split(",")]
+        self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.handler = None
 
     def _render_log_id(self, ti, try_number):
