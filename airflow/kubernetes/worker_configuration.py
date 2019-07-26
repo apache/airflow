@@ -324,7 +324,8 @@ class WorkerConfiguration(LoggingMixin):
             request_memory=kube_executor_config.request_memory,
             request_cpu=kube_executor_config.request_cpu,
             limit_memory=kube_executor_config.limit_memory,
-            limit_cpu=kube_executor_config.limit_cpu
+            limit_cpu=kube_executor_config.limit_cpu,
+            limit_gpu=kube_executor_config.limit_gpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
         annotations = dict(kube_executor_config.annotations) or self.kube_config.kube_annotations
