@@ -18,7 +18,7 @@
 from airflow.contrib.kubernetes.kubernetes_request_factory.\
     pod_request_factory import SimplePodRequestFactory, \
     ExtractXcomPodRequestFactory
-from airflow.contrib.kubernetes.pod import Pod
+from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.exceptions import AirflowConfigException
 import unittest
@@ -49,6 +49,7 @@ class TestPodRequestFactory(unittest.TestCase):
             image_pull_secrets='pull_secret_a,pull_secret_b',
             configmaps=['configmap_a', 'configmap_b'],
             ports=[{'name': 'foo', 'containerPort': 1234}],
+            resources=Resources('1Gi', 1, '2Gi', 2, 1),
             secrets=[
                 # This should be a secretRef
                 Secret('env', None, 'secret_a'),
@@ -107,6 +108,17 @@ class TestPodRequestFactory(unittest.TestCase):
                             'name': 'configmap_b'
                         }
                     }],
+                    'resources': {
+                        'requests': {
+                            'memory': '1Gi',
+                            'cpu': 1
+                        },
+                        'limits': {
+                            'memory': '2Gi',
+                            'cpu': 2,
+                            'nvidia.com/gpu': 1
+                        },
+                    },
                     'ports': [{'name': 'foo', 'containerPort': 1234}],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',

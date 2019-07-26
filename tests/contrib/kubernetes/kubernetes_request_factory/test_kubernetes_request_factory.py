@@ -236,7 +236,12 @@ class TestKubernetesRequestFactory(unittest.TestCase):
 
     def test_extract_resources(self):
         # Test when resources is not empty
-        resources = Resources('1Gi', 1, '2Gi', 2)
+        resources = Resources(
+            request_memory='1Gi',
+            request_cpu=1,
+            limit_memory='2Gi',
+            limit_cpu=2)
+
         pod = Pod('v3.14', {}, [], resources=resources)
         self.expected['spec']['containers'][0]['resources'] = {
             'requests': {
@@ -247,6 +252,46 @@ class TestKubernetesRequestFactory(unittest.TestCase):
                 'memory': '2Gi',
                 'cpu': 2
             },
+        }
+        KubernetesRequestFactory.extract_resources(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_limits(self):
+        # Test when resources is not empty
+        resources = Resources(
+            limit_memory='1Gi',
+            limit_cpu=1)
+
+        pod = Pod('v3.14', {}, [], resources=resources)
+        self.expected['spec']['containers'][0]['resources'] = {
+            'limits': {
+                'memory': '1Gi',
+                'cpu': 1
+            }
+        }
+        KubernetesRequestFactory.extract_resources(pod, self.input_req)
+        self.assertEqual(self.expected, self.input_req)
+
+    def test_extract_all_resources(self):
+        # Test when resources is not empty
+        resources = Resources(
+            request_memory='1Gi',
+            request_cpu=1,
+            limit_memory='2Gi',
+            limit_cpu=2,
+            limit_gpu=3)
+
+        pod = Pod('v3.14', {}, [], resources=resources)
+        self.expected['spec']['containers'][0]['resources'] = {
+            'requests': {
+                'memory': '1Gi',
+                'cpu': 1
+            },
+            'limits': {
+                'memory': '2Gi',
+                'cpu': 2,
+                'nvidia.com/gpu': 3
+            }
         }
         KubernetesRequestFactory.extract_resources(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
