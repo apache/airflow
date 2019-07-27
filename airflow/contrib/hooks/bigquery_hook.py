@@ -471,7 +471,6 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'allowQuotedNewlines': allow_quoted_newlines,
                                           'allowJaggedRows': allow_jagged_rows}
 
-
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
             'GOOGLE_SHEETS': 'googleSheetsOptions'
@@ -498,7 +497,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
             for k, v in src_fmt_configs.items():
                 if k not in valid_configs:
-                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}.".format(k, source_format))
+                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
+                                     .format(k, source_format))
 
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
