@@ -188,6 +188,9 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
+            if pod.resources.limit_gpu:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'nvidia.com/gpu'] = pod.resources.limit_gpu
 
     @staticmethod
     def extract_init_containers(pod, req):

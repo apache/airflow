@@ -27,8 +27,13 @@ from airflow.utils.decorators import apply_defaults
 
 class SqlSensor(BaseSensorOperator):
     """
-    Runs a sql statement until a criteria is met. It will keep trying while
-    sql returns no row, or if the first cell in (0, '0', '').
+    Runs a sql statement repeatedly until a criteria is met. It will keep trying until
+    success or failure criteria are met, or if the first cell is in (0, '0', ''). Optional success
+    and failure callables are called with the first cell returned as the argument. If success
+    callable is defined the sensor will keep retrying until the criteria is met.
+    If failure callable is defined and the criteria is met the sensor will raise AirflowException.
+    Failure criteria is evaluated before success criteria. A fail_on_empty boolean can also
+    be passed to the sensor in which case it will fail if no rows have been returned
 
     :param conn_id: The connection to run the sensor against
     :type conn_id: str
@@ -37,16 +42,29 @@ class SqlSensor(BaseSensorOperator):
     :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
     :type parameters: mapping or iterable
+    :param success: Success criteria for the sensor is a Callable that takes first_cell
+        as the only argument, and returns a boolean (optional).
+    :type: success: Optional<Callable[[Any], bool]>
+    :param failure: Failure criteria for the sensor is a Callable that takes first_cell
+        as the only argument and return a boolean (optional).
+    :type: failure: Optional<Callable[[Any], bool]>
+    :param fail_on_empty: Explicitly fail on no rows returned
+    :type: fail_on_empty: bool
     """
+
     template_fields = ('sql',)  # type: Iterable[str]
     template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#7c7287'
 
     @apply_defaults
-    def __init__(self, conn_id, sql, parameters=None, *args, **kwargs):
+    def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False, *args,
+                 **kwargs):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
+        self.success = success
+        self.failure = failure
+        self.fail_on_empty = fail_on_empty
         super().__init__(*args, **kwargs)
 
     def poke(self, context):
@@ -63,5 +81,21 @@ class SqlSensor(BaseSensorOperator):
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)
         records = hook.get_records(self.sql, self.parameters)
         if not records:
-            return False
-        return str(records[0][0]) not in ('0', '')
+            if self.fail_on_empty:
+                raise AirflowException("No rows returned, raising as per fail_on_empty flag")
+            else:
+                return False
+        first_cell = records[0][0]
+        if self.failure is not None:
+            if callable(self.failure):
+                if self.failure(first_cell):
+                    raise AirflowException(
+                        "Failure criteria met. self.failure({}) returned True".format(first_cell))
+            else:
+                raise AirflowException("self.failure is present, but not callable -> {}".format(self.success))
+        if self.success is not None:
+            if callable(self.success):
+                return self.success(first_cell)
+            else:
+                raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
+        return str(first_cell) not in ('0', '')
