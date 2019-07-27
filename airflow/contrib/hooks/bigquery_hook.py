@@ -463,18 +463,15 @@ class BigQueryBaseCursor(LoggingMixin):
         if max_bad_records:
             table_resource['externalDataConfiguration']['maxBadRecords'] = max_bad_records
 
+
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
-        if 'skipLeadingRows' not in src_fmt_configs:
-            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
-        if 'fieldDelimiter' not in src_fmt_configs:
-            src_fmt_configs['fieldDelimiter'] = field_delimiter
-        if 'quote_character' not in src_fmt_configs:
-            src_fmt_configs['quote'] = quote_character
-        if 'allowQuotedNewlines' not in src_fmt_configs:
-            src_fmt_configs['allowQuotedNewlines'] = allow_quoted_newlines
-        if 'allowJaggedRows' not in src_fmt_configs:
-            src_fmt_configs['allowJaggedRows'] = allow_jagged_rows
+        backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
+                                          'fieldDelimiter': field_delimiter,
+                                          'quote': quote_character,
+                                          'allowQuotedNewlines': allow_quoted_newlines,
+                                          'allowJaggedRows': allow_jagged_rows}
+
 
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
@@ -496,10 +493,14 @@ class BigQueryBaseCursor(LoggingMixin):
                 src_fmt_to_param_mapping[source_format]
             ]
 
-            src_fmt_configs = {
-                k: v
-                for k, v in src_fmt_configs.items() if k in valid_configs
-            }
+            for k, v in backward_compatibility_configs.items():
+                if k not in src_fmt_configs and k in valid_configs:
+                    src_fmt_configs[k] = v
+
+            for k, v in src_fmt_configs.items():
+                if k not in valid_configs:
+                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
+                             .format(k, source_format))
 
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
