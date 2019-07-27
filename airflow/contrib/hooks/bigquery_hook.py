@@ -1192,10 +1192,10 @@ class BigQueryBaseCursor(LoggingMixin):
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
         backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
-                             'fieldDelimiter': field_delimiter,
-                             'ignoreUnknownValues': ignore_unknown_values,
-                             'quote': quote_character,
-                             'allowQuotedNewlines': allow_quoted_newlines}
+                                          'fieldDelimiter': field_delimiter,
+                                          'ignoreUnknownValues': ignore_unknown_values,
+                                          'quote': quote_character,
+                                          'allowQuotedNewlines': allow_quoted_newlines}
 
         for k, v in backward_compatibility_configs.items():
             if k not in src_fmt_configs and k in valid_configs:
