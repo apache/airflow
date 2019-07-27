@@ -463,7 +463,6 @@ class BigQueryBaseCursor(LoggingMixin):
         if max_bad_records:
             table_resource['externalDataConfiguration']['maxBadRecords'] = max_bad_records
 
-
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
         backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
@@ -499,8 +498,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
             for k, v in src_fmt_configs.items():
                 if k not in valid_configs:
-                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                             .format(k, source_format))
+                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}.".format(k, source_format))
 
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
