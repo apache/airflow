@@ -23,6 +23,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
+
+ImapHook:
+* The order of arguments has changed for `has_mail_attachment`, 
+`retrieve_mail_attachments` and `download_mail_attachments`.
+* A new `mail_filter` argument has been added to each of those.
+
+ImapAttachmentSensor:
+* The order of arguments has changed for `__init__`.
+* A new `mail_filter` argument has been added to `__init__`. 
+
+ImapAttachmentToS3Operator:
+* The order of arguments has changed for `__init__`.
+* A new `imap_mail_filter` argument has been added to `__init__`. 
+
 ### Changes to `SubDagOperator`
 
 `SubDagOperator` is changed to use Airflow scheduler instead of backfill

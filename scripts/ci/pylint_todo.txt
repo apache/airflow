@@ -38,7 +38,6 @@
 ./airflow/contrib/hooks/fs_hook.py
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/contrib/hooks/grpc_hook.py
-./airflow/contrib/hooks/imap_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
 ./airflow/contrib/hooks/jira_hook.py
 ./airflow/contrib/hooks/mongo_hook.py
@@ -85,7 +84,6 @@
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/hipchat_operator.py
 ./airflow/contrib/operators/hive_to_dynamodb.py
-./airflow/contrib/operators/imap_attachment_to_s3_operator.py
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
 ./airflow/contrib/operators/jira_operator.py
 ./airflow/contrib/operators/kubernetes_pod_operator.py
@@ -144,7 +142,6 @@
 ./airflow/contrib/sensors/file_sensor.py
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/contrib/sensors/hdfs_sensor.py
-./airflow/contrib/sensors/imap_attachment_sensor.py
 ./airflow/contrib/sensors/jira_sensor.py
 ./airflow/contrib/sensors/mongo_sensor.py
 ./airflow/contrib/sensors/python_sensor.py
@@ -421,7 +418,6 @@
 ./tests/contrib/hooks/test_datastore_hook.py
 ./tests/contrib/hooks/test_discord_webhook_hook.py
 ./tests/contrib/hooks/test_ftp_hook.py
-./tests/contrib/hooks/test_imap_hook.py
 ./tests/contrib/hooks/test_jira_hook.py
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
