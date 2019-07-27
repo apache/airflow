@@ -285,7 +285,6 @@ If you are on MacOS:
 
 If you use bash, you should run this command:
 
-
 ```bash
 echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
 . ~/.bash_profile
@@ -296,7 +295,16 @@ If you use zsh, you should run this command:
 ```bash
 echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
 . ~/.zprofile
+
+If you use zsh, you should run this command:
+
+```bash
+echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+. ~/.zprofile
 ```
+
+if you use zsh
+
 * Login and logout afterwards
 
 If you are on Linux:
@@ -410,8 +418,8 @@ the scripts will check automatically if the image needs to be re-built if needed
 automatically for you.
 
 Note that building image first time pulls the pre-built version of images from Dockerhub might take a bit
-of time - but this wait-time will not repeat for any subsequent source code change. 
-However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild 
+of time - but this wait-time will not repeat for any subsequent source code change.
+However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild
 that might take more time (but it is highly optimised to only rebuild what's needed)
 
 You can also [Build the images](#building-the-images) or
@@ -457,15 +465,16 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 * KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
 The following environments are possible:
+
  * The "docker" environment (default): starts all dependencies required by full integration test-suite
-   (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to 
+   (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to
    [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
    and can slow down your machine.
  * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
    and KUBERNETES_MODE variables).
- * The "bare" environment:  runs airflow in docker without any external dependencies. 
+ * The "bare" environment:  runs airflow in docker without any external dependencies.
    It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
-   enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute 
+   enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute
    `local_ci_run_airflow_testing.sh` with it.
 
 Note: The Kubernetes environment will require setting up minikube/kubernetes so it

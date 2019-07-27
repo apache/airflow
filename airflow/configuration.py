@@ -389,7 +389,7 @@ class AirflowConfigParser(ConfigParser):
         if include_env:
             for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
                 try:
-                    _, section, key = ev.split('__')
+                    _, section, key = ev.split('__', 2)
                     opt = self._get_env_var_option(section, key)
                 except ValueError:
                     continue
