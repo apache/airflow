@@ -646,6 +646,9 @@ class BaseOperator(LoggingMixin):
         rt = self.render_template
         if isinstance(content, str):
             result = jinja_env.from_string(content).render(**context)
+        # Special case for named tuples
+        elif isinstance(content, tuple) and type(content) is not tuple:
+            result = content.__class__(*(rt(attr, e, context) for e in content))
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
