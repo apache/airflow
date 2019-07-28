@@ -46,6 +46,7 @@ if [[ ${#@} == "0" ]]; then
     # the directory and only excludes it after all of it is scanned
     find . \
     -path "./airflow/www/node_modules" -prune -o \
+    -path "./airflow/www_rbac/node_modules" -prune -o \
     -path "./airflow/_vendor" -prune -o \
     -path "./.eggs" -prune -o \
     -path "./docs/_build" -prune -o \
