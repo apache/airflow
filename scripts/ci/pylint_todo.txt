@@ -198,7 +198,6 @@
 ./airflow/hooks/pig_hook.py
 ./airflow/hooks/postgres_hook.py
 ./airflow/hooks/presto_hook.py
-./airflow/hooks/S3_hook.py
 ./airflow/hooks/samba_hook.py
 ./airflow/hooks/slack_hook.py
 ./airflow/hooks/sqlite_hook.py
@@ -509,7 +508,6 @@
 ./tests/hooks/test_oracle_hook.py
 ./tests/hooks/test_pig_hook.py
 ./tests/hooks/test_postgres_hook.py
-./tests/hooks/test_s3_hook.py
 ./tests/hooks/test_webhdfs_hook.py
 ./tests/jobs/test_backfill_job.py
 ./tests/jobs/test_base_job.py

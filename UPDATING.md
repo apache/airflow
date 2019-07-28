@@ -23,6 +23,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to S3Hook
+
+Note: The order of arguments has changed for `check_for_prefix`. 
+The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
+
 ### `pool` config option in Celery section to support different Celery pool implementation
 
 The new `pool` config option allows users to choose different pool
