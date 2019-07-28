@@ -206,7 +206,10 @@ class KubernetesPodOperatorTest(unittest.TestCase):
 
     @staticmethod
     def test_pod_resources():
-        resources = {}
+        resources = {
+            'limit_memory': '1Gi',
+            'limit_cpu': 1,
+        }
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
