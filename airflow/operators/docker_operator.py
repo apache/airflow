@@ -18,7 +18,7 @@
 # under the License.
 
 import json
-from typing import Union, List
+from typing import Union, List, Dict, Iterable
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
@@ -125,26 +125,26 @@ class DockerOperator(BaseOperator):
             command: Union[str, List[str]] = None,
             cpus: float = 1.0,
             docker_url: str = 'unix://var/run/docker.sock',
-            environment: dict = None,
+            environment: Dict = None,
             force_pull: bool = False,
             mem_limit: Union[float, str] = None,
             host_tmp_dir: str = None,
-            network_mode=None,
-            tls_ca_cert=None,
-            tls_client_cert=None,
-            tls_client_key=None,
-            tls_hostname=None,
-            tls_ssl_version=None,
-            tmp_dir='/tmp/airflow',
-            user=None,
-            volumes=None,
-            working_dir=None,
-            xcom_all=False,
-            docker_conn_id=None,
-            dns=None,
-            dns_search=None,
-            auto_remove=False,
-            shm_size=None,
+            network_mode: str = None,
+            tls_ca_cert: str = None,
+            tls_client_cert: str = None,
+            tls_client_key: str = None,
+            tls_hostname: Union[str, bool] = None,
+            tls_ssl_version: str = None,
+            tmp_dir: str = '/tmp/airflow',
+            user: Union[str, int] = None,
+            volumes: Iterable[str] = None,
+            working_dir: str = None,
+            xcom_all: bool = False,
+            docker_conn_id: str = None,
+            dns: List[str] = None,
+            dns_search: List[str] = None,
+            auto_remove: bool = False,
+            shm_size: int = None,
             *args,
             **kwargs) -> None:
 

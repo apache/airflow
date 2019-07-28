@@ -57,7 +57,7 @@ class EmailOperator(BaseOperator):
             to: Union[List[str], str],
             subject: str,
             html_content: str,
-            files: list = None,
+            files: List = None,
             cc: Union[List[str], str] = None,
             bcc: Union[List[str], str] = None,
             mime_subtype: str = 'mixed',

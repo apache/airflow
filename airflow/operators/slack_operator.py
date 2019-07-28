@@ -57,8 +57,8 @@ class SlackAPIOperator(BaseOperator):
             raise AirflowException('Cannot determine Slack credential '
                                    'when both token and slack_conn_id are supplied.')
 
-        self.token: Optional[str] = token
-        self.slack_conn_id: Optional[str] = slack_conn_id
+        self.token = token  # type: Optional[str]
+        self.slack_conn_id = slack_conn_id  # type: Optional[str]
 
         self.method = method
         self.api_params = api_params

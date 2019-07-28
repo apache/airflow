@@ -81,7 +81,7 @@ class RedshiftToS3Transfer(BaseOperator):
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.unload_options: List = unload_options or []
+        self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
 

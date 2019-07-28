@@ -18,7 +18,7 @@
 # under the License.
 
 import datetime
-from typing import Callable, Union, Optional
+from typing import Callable, Union, Optional, Dict
 
 from airflow.models import BaseOperator
 from airflow.utils import timezone
@@ -60,7 +60,7 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id: str,
-            python_callable: Callable = None,
+            python_callable: Callable[[Dict, DagRunOrder], DagRunOrder] = None,
             execution_date: Optional[Union[str, datetime.datetime]] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
