@@ -1147,12 +1147,14 @@ class TaskInstance(Base, LoggingMixin):
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
             next_ds_nodash = next_ds.replace('-', '')
+            next_execution_date = pendulum.instance(next_execution_date)
 
         prev_ds = None
         prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
             prev_ds_nodash = prev_ds.replace('-', '')
+            prev_execution_date = pendulum.instance(prev_execution_date)
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
@@ -1218,7 +1220,7 @@ class TaskInstance(Base, LoggingMixin):
             'end_date': ds,
             'dag_run': dag_run,
             'run_id': run_id,
-            'execution_date': self.execution_date,
+            'execution_date': pendulum.instance(self.execution_date),
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
                 lambda: self.previous_execution_date_success),
