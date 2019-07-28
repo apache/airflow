@@ -292,6 +292,21 @@ class TestS3Hook(unittest.TestCase):
 
             self.assertEqual(body, b'Content')
 
+    @mock_s3
+    def test_get_object_permission(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", "mybucket", ACL='bucket-owner-full-control')
+            permission = hook.get_object_permission('mybucket', 'my_key')
+
+            self.assertEqual(permission, 'FULL_CONTROL')
+
 
 if __name__ == '__main__':
     unittest.main()
