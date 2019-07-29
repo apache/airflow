@@ -136,6 +136,13 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -171,6 +178,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  cluster_fields=None,
                  autodetect=False,
+                 encryption_configuration=None,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -210,6 +218,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.time_partitioning = time_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
+        self.encryption_configuration = encryption_configuration
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -251,7 +260,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
-                src_fmt_configs=self.src_fmt_configs
+                src_fmt_configs=self.src_fmt_configs,
+                encryption_configuration=self.encryption_configuration
             )
         else:
             cursor.run_load(
@@ -272,7 +282,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 schema_update_options=self.schema_update_options,
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,
-                cluster_fields=self.cluster_fields)
+                cluster_fields=self.cluster_fields,
+                encryption_configuration=self.encryption_configuration)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
