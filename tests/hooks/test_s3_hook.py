@@ -302,7 +302,7 @@ class TestS3Hook(unittest.TestCase):
         with tempfile.TemporaryFile() as temp_file:
             temp_file.write(b"Content")
             temp_file.seek(0)
-            hook.load_file_obj(temp_file, "my_key", "mybucket", ACL='bucket-owner-full-control')
+            hook.load_file_obj(temp_file, "my_key", "mybucket", acl='bucket-owner-full-control')
             permission = hook.get_object_permission('mybucket', 'my_key')
 
             self.assertEqual(permission, 'FULL_CONTROL')

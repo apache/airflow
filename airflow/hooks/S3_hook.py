@@ -319,7 +319,7 @@ class S3Hook(AwsHook):
                   bucket_name=None,
                   replace=False,
                   encrypt=False,
-                  ACL=None):
+                  acl=None):
         """
         Loads a local file to S3
 
@@ -336,8 +336,8 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
-        :param ACL: The access control list for the uploaded file
-        :type ACL: str
+        :param acl: The access control list for the uploaded file
+        :type acl: str
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -348,8 +348,8 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
-        if ACL:
-            extra_args['ACL'] = ACL
+        if acl:
+            extra_args['ACL'] = acl
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
@@ -392,7 +392,7 @@ class S3Hook(AwsHook):
                    bucket_name=None,
                    replace=False,
                    encrypt=False,
-                   ACL=None):
+                   acl=None):
         """
         Loads bytes to S3
 
@@ -411,8 +411,8 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
-        :param ACL: The access control list for the uploaded file
-        :type ACL: str
+        :param acl: The access control list for the uploaded file
+        :type acl: str
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -423,8 +423,8 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
-        if ACL:
-            extra_args['ACL'] = ACL
+        if acl:
+            extra_args['ACL'] = acl
 
         filelike_buffer = BytesIO(bytes_data)
 
@@ -437,7 +437,7 @@ class S3Hook(AwsHook):
                       bucket_name=None,
                       replace=False,
                       encrypt=False,
-                      ACL=None):
+                      acl=None):
         """
         Loads a file object to S3
 
@@ -453,8 +453,8 @@ class S3Hook(AwsHook):
         :param encrypt: If True, S3 encrypts the file on the server,
             and the file is stored in encrypted form at rest in S3.
         :type encrypt: bool
-        :param ACL: The access control list for the uploaded file
-        :type ACL: str
+        :param acl: The access control list for the uploaded file
+        :type acl: str
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -465,8 +465,8 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
-        if ACL:
-            extra_args['ACL'] = ACL
+        if acl:
+            extra_args['ACL'] = acl
 
         client = self.get_conn()
         client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
