@@ -34,6 +34,7 @@ in_container_script_start
 echo
 echo "Running mypy with parameters: $*"
 echo
+echo
 
 mypy "$@"
 
