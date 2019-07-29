@@ -22,9 +22,10 @@ import decimal
 import sys
 import unittest
 
+from parameterized import parameterized
+
 from airflow.contrib.operators.mysql_to_gcs import \
     MySqlToGoogleCloudStorageOperator
-from parameterized import parameterized
 from tests.compat import mock
 
 PY3 = sys.version_info[0] == 3
@@ -92,12 +93,18 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         (b"bytes", "BYTES", "Ynl0ZXM="),
     ])
     def test_convert_type(self, value, schema_type, expected):
+        op = MySqlToGoogleCloudStorageOperator(
+            task_id=TASK_ID,
+            mysql_conn_id=MYSQL_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME)
         self.assertEqual(
-            MySqlToGoogleCloudStorageOperator._convert_type(value, schema_type),
+            op.convert_type(value, schema_type),
             expected)
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_json(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for JSON"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -113,12 +120,13 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(JSON_FILENAME.format(0), obj)
             self.assertEqual('application/json', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(NDJSON_LINES), f.read())
+            self.assertFalse(gzip)
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(NDJSON_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -128,7 +136,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -145,12 +153,13 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES), f.read())
+            self.assertFalse(gzip)
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -160,7 +169,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv_ensure_utc(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -178,12 +187,13 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES), f.read())
+            self.assertFalse(gzip)
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -193,7 +203,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         mysql_hook_mock.get_conn().cursor().execute.assert_has_calls([mock.call(TZ_QUERY), mock.call(SQL)])
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv_with_delimiter(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV with a field delimiter"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -211,12 +221,13 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(b''.join(CSV_LINES_PIPE_DELIMITED), f.read())
+            self.assertFalse(gzip)
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(b''.join(CSV_LINES_PIPE_DELIMITED), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -226,7 +237,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_file_splitting(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
         mysql_hook_mock = mysql_hook_mock_class.return_value
@@ -239,11 +250,12 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual('application/json', mime_type)
-            with open(tmp_filename, 'rb') as f:
-                self.assertEqual(expected_upload[obj], f.read())
+            self.assertFalse(gzip)
+            with open(tmp_filename, 'rb') as file:
+                self.assertEqual(expected_upload[obj], file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -256,7 +268,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         op.execute(None)
 
     @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_schema_file(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test writing schema files."""
         mysql_hook_mock = mysql_hook_mock_class.return_value
@@ -265,10 +277,11 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as f:
-                    self.assertEqual(b''.join(SCHEMA_JSON), f.read())
+                self.assertFalse(gzip)
+                with open(tmp_filename, 'rb') as file:
+                    self.assertEqual(b''.join(SCHEMA_JSON), file.read())
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
