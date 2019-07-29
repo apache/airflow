@@ -131,8 +131,6 @@ class HiveToDruidTransfer(BaseOperator):
         # Get the path on hdfs
         static_path = m.get_table(hive_table).sd.location
 
-        schema, table = hive_table.split('.')
-
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 
         try:

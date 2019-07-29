@@ -304,7 +304,7 @@ class KubeConfig:
                 'through ssh key, but not both')
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
+class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace

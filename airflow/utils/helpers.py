@@ -314,7 +314,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     log.info("Sending %s to GPID %s", sig, pg)
     os.killpg(os.getpgid(pid), sig)
 
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
