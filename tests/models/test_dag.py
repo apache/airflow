@@ -449,7 +449,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         # tuple is returned
-        self.assertListEqual(
+        self.assertTupleEqual(
             task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
             ('bar_1', 'bar_2')
         )
@@ -469,7 +469,7 @@ class DagTest(unittest.TestCase):
         actual = task.render_template('', Named('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'})
 
         # Named tuple's field access is preserved but are still rendered
-        self.assertListEqual(expected, actual)
+        self.assertTupleEqual(expected, actual)
         self.assertEqual(
             expected.var1,
             actual.var1,

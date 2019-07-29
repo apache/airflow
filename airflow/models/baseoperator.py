@@ -651,7 +651,7 @@ class BaseOperator(LoggingMixin):
                 # Special case for named tuples
                 result = content.__class__(*(rt(attr, e, context) for e in content))
             else:
-                result = (rt(attr, e, context) for e in content)
+                result = tuple(rt(attr, e, context) for e in content)
         elif isinstance(content, list):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
