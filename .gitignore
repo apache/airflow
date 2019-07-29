@@ -13,6 +13,7 @@ unittests.db
 # Airflow temporary artifacts
 airflow/git_version
 airflow/www/static/coverage/
+airflow/www_rbac/static/coverage/
 logs/
 airflow-webserver.pid
 
