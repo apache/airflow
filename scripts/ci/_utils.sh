@@ -28,6 +28,7 @@ FILES_FOR_REBUILD_CHECK="\
 setup.py \
 setup.cfg \
 Dockerfile \
+.dockerignore \
 airflow/version.py
 "
 
@@ -68,6 +69,7 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
+      "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
@@ -282,11 +284,11 @@ function assert_not_in_container() {
 }
 
 #
-# Forces Python version to 3.6 (for static checks)
+# Forces Python version to 3.5 (for static checks)
 #
-function force_python_3_6() {
+function force_python_3_5() {
     # Set python version variable to force it in the container scripts
-    PYTHON_VERSION=3.6
+    PYTHON_VERSION=3.5
     export PYTHON_VERSION
 }
 
@@ -299,7 +301,7 @@ function rebuild_image_if_needed_for_static_checks() {
     export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
     export AIRFLOW_CONTAINER_BUILD_NPM="false"  # Skip NPM builds to make them faster !
 
-    export PYTHON_VERSION=3.6  # Always use python version 3.6 for static checks
+    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
@@ -325,15 +327,26 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            ${MY_DIR}/../../confirm "The image might need to be rebuild. This will take short time"
+            if [[ $? != "0" ]]; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"

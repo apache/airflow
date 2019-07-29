@@ -21,6 +21,7 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
+    - CI="true"
 python: "3.6"
 stages:
   - pre-test
