@@ -41,7 +41,7 @@ class Resources:
 
     def __str__(self):
         return str({'request': {'memory': self.request_memory, 'cpu': self.request_cpu},
-                    'limit': {'memory': self.limit_memory}, 'cpu': self.limit_cpu})
+                    'limit': {'memory': self.limit_memory}, 'cpu': self.limit_cpu, 'gpu': self.limit_gpu})
 
 
 class Port:
