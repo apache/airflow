@@ -130,6 +130,13 @@ class BigQueryOperator(BaseOperator):
         US and EU. See details at
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
 
     template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
@@ -140,7 +147,7 @@ class BigQueryOperator(BaseOperator):
         BigQueryConsoleLink(),
     )
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-locals
     @apply_defaults
     def __init__(self,
                  bql=None,
@@ -164,6 +171,7 @@ class BigQueryOperator(BaseOperator):
                  api_resource_configs=None,
                  cluster_fields=None,
                  location=None,
+                 encryption_configuration=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -189,6 +197,7 @@ class BigQueryOperator(BaseOperator):
         self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
         self.location = location
+        self.encryption_configuration = encryption_configuration
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -233,6 +242,7 @@ class BigQueryOperator(BaseOperator):
                 time_partitioning=self.time_partitioning,
                 api_resource_configs=self.api_resource_configs,
                 cluster_fields=self.cluster_fields,
+                encryption_configuration=self.encryption_configuration
             )
         elif isinstance(self.sql, Iterable):
             job_id = [
@@ -253,6 +263,7 @@ class BigQueryOperator(BaseOperator):
                     time_partitioning=self.time_partitioning,
                     api_resource_configs=self.api_resource_configs,
                     cluster_fields=self.cluster_fields,
+                    encryption_configuration=self.encryption_configuration
                 )
                 for s in self.sql]
         else:
@@ -354,7 +365,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 google_cloud_storage_conn_id='airflow-service-account'
             )
     :type labels: dict
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
 
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
                        'gcs_schema_object', 'labels')
@@ -373,6 +390,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
+                 encryption_configuration=None,
                  *args, **kwargs):
 
         super(BigQueryCreateEmptyTableOperator, self).__init__(*args, **kwargs)
@@ -387,6 +405,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -414,7 +433,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
             table_id=self.table_id,
             schema_fields=schema_fields,
             time_partitioning=self.time_partitioning,
-            labels=self.labels
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration
         )
 
 
@@ -490,6 +510,13 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type src_fmt_configs: dict
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :type labels: dict
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table', 'labels')
@@ -516,6 +543,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  delegate_to=None,
                  src_fmt_configs=None,
                  labels=None,
+                 encryption_configuration=None,
                  *args, **kwargs):
 
         super(BigQueryCreateExternalTableOperator, self).__init__(*args, **kwargs)
@@ -543,6 +571,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         self.src_fmt_configs = src_fmt_configs if src_fmt_configs is not None else dict()
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -577,7 +606,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             allow_quoted_newlines=self.allow_quoted_newlines,
             allow_jagged_rows=self.allow_jagged_rows,
             src_fmt_configs=self.src_fmt_configs,
-            labels=self.labels
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration
         )
 
 

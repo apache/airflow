@@ -71,7 +71,8 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
-                labels=None
+                labels=None,
+                encryption_configuration=None
             )
 
 
@@ -111,7 +112,8 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 allow_quoted_newlines=False,
                 allow_jagged_rows=False,
                 src_fmt_configs={},
-                labels=None
+                labels=None,
+                encryption_configuration=None
             )
 
 
@@ -185,6 +187,8 @@ class BigQueryOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_execute(self, mock_hook):
+        encryption_configuration = {'key': 'kk'}
+
         operator = BigQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
@@ -205,6 +209,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             time_partitioning=None,
             api_resource_configs=None,
             cluster_fields=None,
+            encryption_configuration=encryption_configuration
         )
 
         operator.execute(MagicMock())
@@ -229,6 +234,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                 time_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
+                encryption_configuration=encryption_configuration
             )
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -256,6 +262,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             time_partitioning=None,
             api_resource_configs=None,
             cluster_fields=None,
+            encryption_configuration=None,
         )
 
         operator.execute(MagicMock())
@@ -281,6 +288,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                     time_partitioning=None,
                     api_resource_configs=None,
                     cluster_fields=None,
+                    encryption_configuration=None,
                 ),
                 mock.call(
                     sql='Select * from other_test_table',
@@ -299,6 +307,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                     time_partitioning=None,
                     api_resource_configs=None,
                     cluster_fields=None,
+                    encryption_configuration=None,
                 ),
             ])
 
@@ -360,6 +369,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                 time_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
+                encryption_configuration=None
             )
 
         self.assertTrue(isinstance(operator.sql, six.string_types))
@@ -454,6 +464,7 @@ class BigQueryToBigQueryOperatorTest(unittest.TestCase):
         write_disposition = 'WRITE_EMPTY'
         create_disposition = 'CREATE_IF_NEEDED'
         labels = {'k1': 'v1'}
+        encryption_configuration = {'key': 'kk'}
 
         operator = BigQueryToBigQueryOperator(
             task_id=TASK_ID,
@@ -461,7 +472,8 @@ class BigQueryToBigQueryOperatorTest(unittest.TestCase):
             destination_project_dataset_table=destination_project_dataset_table,
             write_disposition=write_disposition,
             create_disposition=create_disposition,
-            labels=labels
+            labels=labels,
+            encryption_configuration=encryption_configuration
         )
 
         operator.execute(None)
@@ -474,7 +486,8 @@ class BigQueryToBigQueryOperatorTest(unittest.TestCase):
                 destination_project_dataset_table=destination_project_dataset_table,
                 write_disposition=write_disposition,
                 create_disposition=create_disposition,
-                labels=labels
+                labels=labels,
+                encryption_configuration=encryption_configuration
             )
 
 

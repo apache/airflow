@@ -52,6 +52,13 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
     template_fields = ('source_project_dataset_tables',
                        'destination_project_dataset_table', 'labels')
@@ -67,6 +74,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  labels=None,
+                 encryption_configuration=None,
                  *args,
                  **kwargs):
         super(BigQueryToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -77,6 +85,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
 
     def execute(self, context):
         self.log.info(
@@ -92,4 +101,5 @@ class BigQueryToBigQueryOperator(BaseOperator):
             destination_project_dataset_table=self.destination_project_dataset_table,
             write_disposition=self.write_disposition,
             create_disposition=self.create_disposition,
-            labels=self.labels)
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration)
