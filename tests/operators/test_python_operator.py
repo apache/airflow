@@ -141,8 +141,8 @@ class PythonOperatorTest(unittest.TestCase):
 
         # Create a named tuple and ensure it is still preserved
         # after the rendering is done
-        Named = namedtuple('Named', ['var'])
-        named_tuple = Named('foo')
+        Named = namedtuple('Named', ['var1', 'var2'])
+        named_tuple = Named('{{ ds }}', 'unchanged')
 
         task = PythonOperator(
             task_id='python_operator',
@@ -165,13 +165,14 @@ class PythonOperatorTest(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+        ds_templated = DEFAULT_DATE.date().isoformat()
         self.assertEqual(1, len(recorded_calls))
         self._assertCallsEqual(
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, DEFAULT_DATE.date().isoformat()),
-                 Named('foo'))
+                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 Named(ds_templated, 'unchanged'))
         )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
