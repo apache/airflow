@@ -44,9 +44,9 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
     connection.
     """
 
-    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to=delegate_to)
-        self.num_retries = self._get_field('num_retries', 5)
+        self.num_retries = self._get_field('num_retries', 5)  # type: int
 
     def get_conn(self):
         """
@@ -58,7 +58,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         return build(
             'cloudkms', 'v1', http=http_authorized, cache_discovery=False)
 
-    def encrypt(self, key_name, plaintext, authenticated_data=None):
+    def encrypt(self, key_name: str, plaintext: bytes, authenticated_data: bytes = None) -> str:
         """
         Encrypts a plaintext message using Google Cloud KMS.
 
@@ -85,7 +85,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         ciphertext = response['ciphertext']
         return ciphertext
 
-    def decrypt(self, key_name, ciphertext, authenticated_data=None):
+    def decrypt(self, key_name: str, ciphertext: str, authenticated_data: bytes = None) -> bytes:
         """
         Decrypts a ciphertext message using Google Cloud KMS.
 

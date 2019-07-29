@@ -30,6 +30,7 @@ from datetime import timedelta
 from time import sleep
 
 import six
+from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
@@ -69,9 +70,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type dag_id_whitelist: list[unicode]
         """
         self._file_path = file_path
-        # Queue that's used to pass results from the child process.
-        self._manager = multiprocessing.Manager()
-        self._result_queue = self._manager.Queue()
+
         # The process that was launched to process the given .
         self._process = None
         self._dag_id_white_list = dag_id_white_list
@@ -92,16 +91,16 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         return self._file_path
 
     @staticmethod
-    def _launch_process(result_queue,
-                        file_path,
-                        pickle_dags,
-                        dag_id_white_list,
-                        thread_name):
+    def _run_file_processor(result_channel,
+                            file_path,
+                            pickle_dags,
+                            dag_id_white_list,
+                            thread_name):
         """
-        Launch a process to process the given file.
+        Process the given file.
 
-        :param result_queue: the queue to use for passing back the result
-        :type result_queue: Queue
+        :param result_channel: the connection to use for passing back the result
+        :type result_channel: multiprocessing.Connection
         :param file_path: the file to process
         :type file_path: unicode
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -115,66 +114,68 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
-        def helper():
-            # This helper runs in the newly created process
-            log = logging.getLogger("airflow.processor")
+        # This helper runs in the newly created process
+        log = logging.getLogger("airflow.processor")
 
-            stdout = StreamLogWriter(log, logging.INFO)
-            stderr = StreamLogWriter(log, logging.WARN)
+        stdout = StreamLogWriter(log, logging.INFO)
+        stderr = StreamLogWriter(log, logging.WARN)
 
-            set_context(log, file_path)
+        set_context(log, file_path)
+        setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 
-            try:
-                # redirect stdout/stderr to log
-                sys.stdout = stdout
-                sys.stderr = stderr
+        try:
+            # redirect stdout/stderr to log
+            sys.stdout = stdout
+            sys.stderr = stderr
 
-                # Re-configure the ORM engine as there are issues with multiple processes
-                settings.configure_orm()
+            # Re-configure the ORM engine as there are issues with multiple processes
+            settings.configure_orm()
 
-                # Change the thread name to differentiate log lines. This is
-                # really a separate process, but changing the name of the
-                # process doesn't work, so changing the thread name instead.
-                threading.current_thread().name = thread_name
-                start_time = time.time()
+            # Change the thread name to differentiate log lines. This is
+            # really a separate process, but changing the name of the
+            # process doesn't work, so changing the thread name instead.
+            threading.current_thread().name = thread_name
+            start_time = time.time()
 
-                log.info("Started process (PID=%s) to work on %s",
-                         os.getpid(), file_path)
-                scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
-                result = scheduler_job.process_file(file_path, pickle_dags)
-                result_queue.put(result)
-                end_time = time.time()
-                log.info(
-                    "Processing %s took %.3f seconds", file_path, end_time - start_time
-                )
-            except Exception:
-                # Log exceptions through the logging framework.
-                log.exception("Got an exception! Propagating...")
-                raise
-            finally:
-                sys.stdout = sys.__stdout__
-                sys.stderr = sys.__stderr__
-                # We re-initialized the ORM within this Process above so we need to
-                # tear it down manually here
-                settings.dispose_orm()
-
-        p = multiprocessing.Process(target=helper,
-                                    args=(),
-                                    name="{}-Process".format(thread_name))
-        p.start()
-        return p
+            log.info("Started process (PID=%s) to work on %s",
+                     os.getpid(), file_path)
+            scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
+            result = scheduler_job.process_file(file_path, pickle_dags)
+            result_channel.send(result)
+            end_time = time.time()
+            log.info(
+                "Processing %s took %.3f seconds", file_path, end_time - start_time
+            )
+        except Exception:
+            # Log exceptions through the logging framework.
+            log.exception("Got an exception! Propagating...")
+            raise
+        finally:
+            result_channel.close()
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            # We re-initialized the ORM within this Process above so we need to
+            # tear it down manually here
+            settings.dispose_orm()
 
     def start(self):
         """
         Launch the process and start processing the DAG.
         """
-        self._process = DagFileProcessor._launch_process(
-            self._result_queue,
-            self.file_path,
-            self._pickle_dags,
-            self._dag_id_white_list,
-            "DagFileProcessor{}".format(self._instance_id))
+        self._parent_channel, _child_channel = multiprocessing.Pipe()
+        self._process = multiprocessing.Process(
+            target=type(self)._run_file_processor,
+            args=(
+                _child_channel,
+                self.file_path,
+                self._pickle_dags,
+                self._dag_id_white_list,
+                "DagFileProcessor{}".format(self._instance_id),
+            ),
+            name="DagFileProcessor{}-Process".format(self._instance_id)
+        )
         self._start_time = timezone.utcnow()
+        self._process.start()
 
     def kill(self):
         """
@@ -196,14 +197,13 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         if self._process is None:
             raise AirflowException("Tried to call terminate before starting!")
-        # The queue will likely get corrupted, so remove the reference
-        self._result_queue = None
+
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
         self._process.join(5)
         if sigkill:
             self._kill_process()
-        self._manager.shutdown()
+        self._parent_channel.close()
 
     def _kill_process(self):
         if self._process.is_alive():
@@ -246,22 +246,22 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         if self._done:
             return True
 
-        # In case result queue is corrupted.
-        if self._result_queue and not self._result_queue.empty():
-            self._result = self._result_queue.get()
-            self._done = True
-            self.log.debug("Waiting for %s", self._process)
-            self._process.join()
-            return True
+        if self._parent_channel.poll():
+            try:
+                self._result = self._parent_channel.recv()
+                self._done = True
+                self.log.debug("Waiting for %s", self._process)
+                self._process.join()
+                self._parent_channel.close()
+                return True
+            except EOFError:
+                pass
 
-        # Potential error case when process dies
-        if self._result_queue and not self._process.is_alive():
+        if not self._process.is_alive():
             self._done = True
-            # Get the object from the queue or else join() can hang.
-            if not self._result_queue.empty():
-                self._result = self._result_queue.get()
             self.log.debug("Waiting for %s", self._process)
             self._process.join()
+            self._parent_channel.close()
             return True
 
         return False
@@ -354,7 +354,6 @@ class SchedulerJob(BaseJob):
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
-        self._last_loop = False
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
@@ -1414,13 +1413,7 @@ class SchedulerJob(BaseJob):
                 self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
                 time.sleep(self._processor_poll_interval)
 
-            # Exit early for a test mode, run one additional scheduler loop
-            # to reduce the possibility that parsed DAG was put into the queue
-            # by the DAG manager but not yet received by DAG agent.
             if self.processor_agent.done:
-                self._last_loop = True
-
-            if self._last_loop:
                 self.log.info("Exiting scheduler loop as all files"
                               " have been processed {} times".format(self.num_runs))
                 break

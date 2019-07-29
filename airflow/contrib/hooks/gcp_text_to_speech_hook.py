@@ -19,8 +19,13 @@
 """
 This module contains a Google Cloud Text to Speech Hook.
 """
-from google.cloud.texttospeech_v1 import TextToSpeechClient
+from typing import Union, Dict, Optional
 
+from google.api_core.retry import Retry
+from google.cloud.texttospeech_v1 import TextToSpeechClient
+from google.cloud.texttospeech_v1.types import (
+    AudioConfig, SynthesisInput, VoiceSelectionParams, SynthesizeSpeechResponse
+)
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
@@ -39,11 +44,11 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
-        self._client = None
+        self._client = None  # type: Optional[TextToSpeechClient]
 
-    def get_conn(self):
+    def get_conn(self) -> TextToSpeechClient:
         """
         Retrieves connection to Cloud Text to Speech.
 
@@ -55,7 +60,14 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
 
         return self._client
 
-    def synthesize_speech(self, input_data, voice, audio_config, retry=None, timeout=None):
+    def synthesize_speech(
+        self,
+        input_data: Union[Dict, SynthesisInput],
+        voice: Union[Dict, VoiceSelectionParams],
+        audio_config: Union[Dict, AudioConfig],
+        retry: Retry = None,
+        timeout: float = None
+    ) -> SynthesizeSpeechResponse:
         """
         Synthesizes text input
 
@@ -79,7 +91,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
         :type timeout: float
         """
         client = self.get_conn()
-        self.log.info("Synthesizing input: %s" % input_data)
+        self.log.info("Synthesizing input: %s", input_data)
         return client.synthesize_speech(
             input_=input_data, voice=voice, audio_config=audio_config, retry=retry, timeout=timeout
         )

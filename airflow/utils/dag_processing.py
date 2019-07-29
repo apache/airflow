@@ -30,9 +30,10 @@ from collections import defaultdict
 from collections import namedtuple
 from importlib import import_module
 import enum
-from queue import Empty
+from typing import Optional
 
 import psutil
+from setproctitle import setproctitle
 from six.moves import reload_module
 from tabulate import tabulate
 
@@ -44,6 +45,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.helpers import reap_process_group
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -442,14 +444,11 @@ class AbstractDagFileProcessor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-DagParsingStat = namedtuple('DagParsingStat',
-                            ['file_paths', 'all_pids', 'done',
-                             'all_files_processed', 'result_count'])
+DagParsingStat = namedtuple('DagParsingStat', ['file_paths', 'done', 'all_files_processed'])
 
 
 class DagParsingSignal(enum.Enum):
     AGENT_HEARTBEAT = 'agent_heartbeat'
-    MANAGER_DONE = 'manager_done'
     TERMINATE_MANAGER = 'terminate_manager'
     END_MANAGER = 'end_manager'
 
@@ -460,6 +459,8 @@ class DagFileProcessorAgent(LoggingMixin):
     related jobs in scheduler process. Mainly it can spin up DagFileProcessorManager
     in a subprocess, collect DAG parsing results from it and communicate
     signal/DAG parsing stat with it.
+
+    This class runs in the main `airflow scheduler` process.
     """
 
     def __init__(self,
@@ -501,137 +502,151 @@ class DagFileProcessorAgent(LoggingMixin):
         self._last_finish_time = {}
         # Map from file path to the number of runs
         self._run_count = defaultdict(int)
-        # Pids of DAG parse
-        self._all_pids = []
         # Pipe for communicating signals
-        self._parent_signal_conn, self._child_signal_conn = multiprocessing.Pipe()
-        # Pipe for communicating DagParsingStat
-        self._manager = multiprocessing.Manager()
-        self._stat_queue = self._manager.Queue()
-        self._result_queue = self._manager.Queue()
         self._process = None
         self._done = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
         self._all_files_processed = True
-        self._result_count = 0
+
+        self._parent_signal_conn = None
+        self._collected_dag_buffer = []
 
     def start(self):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
-        self._process = self._launch_process(self._dag_directory,
-                                             self._file_paths,
-                                             self._max_runs,
-                                             self._processor_factory,
-                                             self._processor_timeout,
-                                             self._child_signal_conn,
-                                             self._stat_queue,
-                                             self._result_queue,
-                                             self._async_mode)
+        self._parent_signal_conn, child_signal_conn = multiprocessing.Pipe()
+        self._process = multiprocessing.Process(
+            target=type(self)._run_processor_manager,
+            args=(
+                self._dag_directory,
+                self._file_paths,
+                self._max_runs,
+                self._processor_factory,
+                self._processor_timeout,
+                child_signal_conn,
+                self._async_mode,
+            )
+        )
+        self._process.start()
+
         self.log.info("Launched DagFileProcessorManager with pid: %s", self._process.pid)
 
     def heartbeat(self):
         """
         Should only be used when launched DAG file processor manager in sync mode.
-        Send agent heartbeat signal to the manager.
+        Send agent heartbeat signal to the manager, requesting that it runs one
+        processing "loop".
+
+        Call wait_until_finished to ensure that any launched processors have
+        finished before continuing
         """
-        self._parent_signal_conn.send(DagParsingSignal.AGENT_HEARTBEAT)
+        if not self._process.is_alive():
+            return
+
+        try:
+            self._parent_signal_conn.send(DagParsingSignal.AGENT_HEARTBEAT)
+        except ConnectionError:
+            # If this died cos of an error then we will noticed and restarted
+            # when harvest_simple_dags calls _heartbeat_manager.
+            pass
 
     def wait_until_finished(self):
-        """
-        Should only be used when launched DAG file processor manager in sync mode.
-        Wait for done signal from the manager.
-        """
-        while True:
-            if self._parent_signal_conn.recv() == DagParsingSignal.MANAGER_DONE:
+        while self._parent_signal_conn.poll():
+            try:
+                result = self._parent_signal_conn.recv()
+            except EOFError:
                 break
+            self._process_message(result)
+            if isinstance(result, DagParsingStat):
+                # In sync mode we don't send this message from the Manager
+                # until all the running processors have finished
+                return
 
     @staticmethod
-    def _launch_process(dag_directory,
-                        file_paths,
-                        max_runs,
-                        processor_factory,
-                        processor_timeout,
-                        signal_conn,
-                        _stat_queue,
-                        result_queue,
-                        async_mode):
-        def helper():
-            # Reload configurations and settings to avoid collision with parent process.
-            # Because this process may need custom configurations that cannot be shared,
-            # e.g. RotatingFileHandler. And it can cause connection corruption if we
-            # do not recreate the SQLA connection pool.
-            os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-            # Replicating the behavior of how logging module was loaded
-            # in logging_config.py
-            reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
-            reload_module(airflow.settings)
-            airflow.settings.initialize()
-            del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
-            processor_manager = DagFileProcessorManager(dag_directory,
-                                                        file_paths,
-                                                        max_runs,
-                                                        processor_factory,
-                                                        processor_timeout,
-                                                        signal_conn,
-                                                        _stat_queue,
-                                                        result_queue,
-                                                        async_mode)
+    def _run_processor_manager(dag_directory,
+                               file_paths,
+                               max_runs,
+                               processor_factory,
+                               processor_timeout,
+                               signal_conn,
+                               async_mode):
 
-            processor_manager.start()
+        # Make this process start as a new process group - that makes it easy
+        # to kill all sub-process of this at the OS-level, rather than having
+        # to iterate the child processes
+        os.setpgid(0, 0)
 
-        p = multiprocessing.Process(target=helper,
-                                    args=(),
-                                    name="DagFileProcessorManager")
-        p.start()
-        return p
+        setproctitle("airflow scheduler -- DagFileProcessorManager")
+        # Reload configurations and settings to avoid collision with parent process.
+        # Because this process may need custom configurations that cannot be shared,
+        # e.g. RotatingFileHandler. And it can cause connection corruption if we
+        # do not recreate the SQLA connection pool.
+        os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
+        # Replicating the behavior of how logging module was loaded
+        # in logging_config.py
+        reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
+        reload_module(airflow.settings)
+        airflow.settings.initialize()
+        del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
+        processor_manager = DagFileProcessorManager(dag_directory,
+                                                    file_paths,
+                                                    max_runs,
+                                                    processor_factory,
+                                                    processor_timeout,
+                                                    signal_conn,
+                                                    async_mode)
+
+        processor_manager.start()
 
     def harvest_simple_dags(self):
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
+
         :return: List of parsing result in SimpleDag format.
         """
-        # Metadata and results to be harvested can be inconsistent,
-        # but it should not be a big problem.
-        self._sync_metadata()
-        # Heartbeating after syncing metadata so we do not restart manager
-        # if it processed all files for max_run times and exit normally.
-        self._heartbeat_manager()
-        simple_dags = []
-        while True:
+        # Receive any pending messages before checking if the process has exited.
+        while self._parent_signal_conn.poll():
             try:
-                result = self._result_queue.get_nowait()
-                try:
-                    simple_dags.append(result)
-                finally:
-                    self._result_queue.task_done()
-            except Empty:
+                result = self._parent_signal_conn.recv()
+            except (EOFError, ConnectionError):
                 break
+            self._process_message(result)
+        simple_dags = self._collected_dag_buffer
+        self._collected_dag_buffer = []
 
-        self._result_count = 0
+        # If it died unexpectedly restart the manager process
+        self._heartbeat_manager()
 
         return simple_dags
 
+    def _process_message(self, message):
+        self.log.debug("Received message of type %s", type(message).__name__)
+        if isinstance(message, DagParsingStat):
+            self._sync_metadata(message)
+        else:
+            self._collected_dag_buffer.append(message)
+
     def _heartbeat_manager(self):
         """
-        Heartbeat DAG file processor and start it if it is not alive.
-        :return:
+        Heartbeat DAG file processor and restart it if we are not done.
         """
-        if self._process and not self._process.is_alive() and not self.done:
-            self.start()
+        if self._process and not self._process.is_alive():
+            self._process.join(timeout=0)
+            if not self.done:
+                self.log.warning(
+                    "DagFileProcessorManager (PID=%d) exited with exit code %d - re-launching",
+                    self._process.pid, self._process.exitcode
+                )
+                self.start()
 
-    def _sync_metadata(self):
+    def _sync_metadata(self, stat):
         """
         Sync metadata from stat queue and only keep the latest stat.
-        :return:
         """
-        while not self._stat_queue.empty():
-            stat = self._stat_queue.get()
-            self._file_paths = stat.file_paths
-            self._all_pids = stat.all_pids
-            self._done = stat.done
-            self._all_files_processed = stat.all_files_processed
-            self._result_count += stat.result_count
+        self._file_paths = stat.file_paths
+        self._done = stat.done
+        self._all_files_processed = stat.all_files_processed
 
     @property
     def file_paths(self):
@@ -650,8 +665,9 @@ class DagFileProcessorAgent(LoggingMixin):
         Send termination signal to DAG parsing processor manager
         and expect it to terminate all DAG file processors.
         """
-        self.log.info("Sending termination message to manager.")
-        self._child_signal_conn.send(DagParsingSignal.TERMINATE_MANAGER)
+        if self._process and self._process.is_alive():
+            self.log.info("Sending termination message to manager.")
+            self._parent_signal_conn.send(DagParsingSignal.TERMINATE_MANAGER)
 
     def end(self):
         """
@@ -661,37 +677,8 @@ class DagFileProcessorAgent(LoggingMixin):
         if not self._process:
             self.log.warn('Ending without manager process.')
             return
-        this_process = psutil.Process(os.getpid())
-        try:
-            manager_process = psutil.Process(self._process.pid)
-        except psutil.NoSuchProcess:
-            self.log.info("Manager process not running.")
-            return
-
-        # First try SIGTERM
-        if manager_process.is_running() \
-                and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info("Terminating manager process: %s", manager_process.pid)
-            manager_process.terminate()
-            # TODO: Remove magic number
-            timeout = 5
-            self.log.info("Waiting up to %ss for manager process to exit...", timeout)
-            try:
-                psutil.wait_procs({manager_process}, timeout)
-            except psutil.TimeoutExpired:
-                self.log.debug("Ran out of time while waiting for "
-                               "processes to exit")
-
-        # Then SIGKILL
-        if manager_process.is_running() \
-                and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info("Killing manager process: %s", manager_process.pid)
-            manager_process.kill()
-            manager_process.wait()
-        # TODO: bring it back once we replace process termination above with multiprocess-friendly
-        #       way (https://issues.apache.org/jira/browse/AIRFLOW-4440)
-        # self._result_queue.join()
-        self._manager.shutdown()
+        reap_process_group(self._process.pid, log=self.log)
+        self._parent_signal_conn.close()
 
 
 class DagFileProcessorManager(LoggingMixin):
@@ -715,8 +702,6 @@ class DagFileProcessorManager(LoggingMixin):
                  processor_factory,
                  processor_timeout,
                  signal_conn,
-                 stat_queue,
-                 result_queue,
                  async_mode=True):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -734,10 +719,6 @@ class DagFileProcessorManager(LoggingMixin):
         :type processor_timeout: timedelta
         :param signal_conn: connection to communicate signal with processor agent.
         :type signal_conn: airflow.models.connection.Connection
-        :param stat_queue: the queue to use for passing back parsing stat to agent.
-        :type stat_queue: multiprocessing.Queue
-        :param result_queue: the queue to use for passing back the result to agent.
-        :type result_queue: multiprocessing.Queue
         :param async_mode: whether to start the manager in async mode
         :type async_mode: bool
         """
@@ -747,8 +728,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
-        self._stat_queue = stat_queue
-        self._result_queue = result_queue
         self._async_mode = async_mode
 
         self._parallelism = conf.getint('scheduler', 'max_threads')
@@ -817,34 +796,55 @@ class DagFileProcessorManager(LoggingMixin):
             "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
         )
 
+        # In sync mode we want timeout=None -- wait forever until a message is received
+        poll_time = None  # type: Optional[float]
         if self._async_mode:
+            poll_time = 0.0
             self.log.debug("Starting DagFileProcessorManager in async mode")
-            self.start_in_async()
         else:
+            poll_time = None
             self.log.debug("Starting DagFileProcessorManager in sync mode")
-            self.start_in_sync()
 
-    def start_in_async(self):
-        """
-        Parse DAG files repeatedly in a standalone loop.
-        """
         while True:
             loop_start_time = time.time()
 
-            if self._signal_conn.poll():
+            if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
+                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
                 elif agent_signal == DagParsingSignal.END_MANAGER:
                     self.end()
                     sys.exit(os.EX_OK)
+                elif agent_signal == DagParsingSignal.AGENT_HEARTBEAT:
+                    # continue the loop to parse dags
+                    pass
+            elif not self._async_mode:
+                # In "sync" mode we don't want to parse the DAGs until we
+                # are told to (as that would open another connection to the
+                # SQLite DB which isn't a good practice
+                continue
 
             self._refresh_dag_dir()
 
             simple_dags = self.heartbeat()
             for simple_dag in simple_dags:
-                self._result_queue.put(simple_dag)
+                self._signal_conn.send(simple_dag)
+
+            if not self._async_mode:
+                self.log.debug(
+                    "Waiting for processors to finish since we're using sqlite")
+                # Wait until the running DAG processors are finished before
+                # sending a DagParsingStat message back. This means the Agent
+                # can tell we've got to the end of this iteration when it sees
+                # this type of message
+                self.wait_until_finished()
+
+                # Collect anything else that has finished, but don't kick off any more processors
+                simple_dags = self.collect_results()
+                for simple_dag in simple_dags:
+                    self._signal_conn.send(simple_dag)
 
             self._print_stat()
 
@@ -853,66 +853,22 @@ class DagFileProcessorManager(LoggingMixin):
             max_runs_reached = self.max_runs_reached()
 
             dag_parsing_stat = DagParsingStat(self._file_paths,
-                                              self.get_all_pids(),
                                               max_runs_reached,
                                               all_files_processed,
-                                              len(simple_dags))
-            self._stat_queue.put(dag_parsing_stat)
+                                              )
+            self._signal_conn.send(dag_parsing_stat)
 
             if max_runs_reached:
                 self.log.info("Exiting dag parsing loop as all files "
                               "have been processed %s times", self._max_runs)
                 break
 
-            loop_duration = time.time() - loop_start_time
-            if loop_duration < 1:
-                sleep_length = 1 - loop_duration
-                self.log.debug("Sleeping for %.2f seconds to prevent excessive logging", sleep_length)
-                time.sleep(sleep_length)
-
-    def start_in_sync(self):
-        """
-        Parse DAG files in a loop controlled by DagParsingSignal.
-        Actual DAG parsing loop will run once upon receiving one
-        agent heartbeat message and will report done when finished the loop.
-        """
-        while True:
-            agent_signal = self._signal_conn.recv()
-            if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
-                self.terminate()
-                break
-            elif agent_signal == DagParsingSignal.END_MANAGER:
-                self.end()
-                sys.exit(os.EX_OK)
-            elif agent_signal == DagParsingSignal.AGENT_HEARTBEAT:
-
-                self._refresh_dag_dir()
-
-                simple_dags = self.heartbeat()
-                for simple_dag in simple_dags:
-                    self._result_queue.put(simple_dag)
-
-                self._print_stat()
-
-                all_files_processed = all(self.get_last_finish_time(x) is not None
-                                          for x in self.file_paths)
-                max_runs_reached = self.max_runs_reached()
-
-                dag_parsing_stat = DagParsingStat(self._file_paths,
-                                                  self.get_all_pids(),
-                                                  self.max_runs_reached(),
-                                                  all_files_processed,
-                                                  len(simple_dags))
-                self._stat_queue.put(dag_parsing_stat)
-
-                self.wait_until_finished()
-                self._signal_conn.send(DagParsingSignal.MANAGER_DONE)
-
-                if max_runs_reached:
-                    self.log.info("Exiting dag parsing loop as all files "
-                                  "have been processed %s times", self._max_runs)
-                    self._signal_conn.send(DagParsingSignal.MANAGER_DONE)
-                    break
+            if self._async_mode:
+                loop_duration = time.time() - loop_start_time
+                if loop_duration < 1:
+                    poll_time = 1 - loop_duration
+                else:
+                    poll_time = 0.0
 
     def _refresh_dag_dir(self):
         """
@@ -1125,13 +1081,6 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.terminate()
         self._processors = filtered_processors
 
-    def processing_count(self):
-        """
-        :return: the number of files currently being processed
-        :rtype: int
-        """
-        return len(self._processors)
-
     def wait_until_finished(self):
         """
         Sleeps until all the processors are done.
@@ -1140,11 +1089,9 @@ class DagFileProcessorManager(LoggingMixin):
             while not processor.done:
                 time.sleep(0.1)
 
-    def heartbeat(self):
+    def collect_results(self):
         """
-        This should be periodically called by the manager loop. This method will
-        kick off new processes to process DAG definition files and read the
-        results from the finished processors.
+        Collect the result from any finished DAG processors
 
         :return: a list of SimpleDags that were produced by processors that
             have finished since the last time this was called
@@ -1187,6 +1134,20 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 for simple_dag in processor.result:
                     simple_dags.append(simple_dag)
+
+        return simple_dags
+
+    def heartbeat(self):
+        """
+        This should be periodically called by the manager loop. This method will
+        kick off new processes to process DAG definition files and read the
+        results from the finished processors.
+
+        :return: a list of SimpleDags that were produced by processors that
+            have finished since the last time this was called
+        :rtype: list[airflow.utils.dag_processing.SimpleDag]
+        """
+        simple_dags = self.collect_results()
 
         # Generate more file paths to process if we processed all the files
         # already.
