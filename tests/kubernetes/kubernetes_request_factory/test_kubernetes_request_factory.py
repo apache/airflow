@@ -253,7 +253,7 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         resources_string = str(Resources('1Gi', 1))
         self.assertEqual(
             resources_string,
-            "{'limit': {'cpu': None, 'gpu': None, 'memory': None}, 'request': {'cpu': 1, 'memory': '1Gi'}}")
+            "Request: [cpu: 1, memory: 1Gi], Limit: [cpu: None, memory: None, gpu: None]")
 
     def test_extract_limits(self):
         # Test when resources is not empty

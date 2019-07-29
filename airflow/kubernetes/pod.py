@@ -40,8 +40,9 @@ class Resources:
         return self.request_cpu is not None or self.request_memory is not None
 
     def __str__(self):
-        return str({'limit': {'cpu': self.limit_cpu, 'gpu': self.limit_gpu, 'memory': self.limit_memory},
-                    'request': {'cpu': self.request_cpu, 'memory': self.request_memory, }})
+        return "Request: [cpu: {}, memory: {}], Limit: [cpu: {}, memory: {}, gpu: {}]".format(
+            self.request_cpu, self.request_memory, self.limit_cpu, self.limit_memory, self.limit_gpu
+        )
 
 
 class Port:
