@@ -20,6 +20,7 @@
 import os
 import unittest
 
+import six
 import tenacity
 from parameterized import parameterized
 from google.api_core.exceptions import RetryError, AlreadyExists
@@ -98,7 +99,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
             self.assertFalse(False)  # pylint: disable=redundant-unittest-assert
 
     def test_raise_exception_on_non_quota_exception(self):
-        with self.assertRaisesRegex(Forbidden, "Daily Limit Exceeded"):
+        with six.assertRaisesRegex(self, Forbidden, "Daily Limit Exceeded"):
             message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
             errors = [
                 {'message': 'Daily Limit Exceeded', 'domain': 'usageLimits', 'reason': 'dailyLimitExceeded'}
