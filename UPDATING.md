@@ -23,6 +23,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to SqlSensor
+
+`'None'` is included in success criteria along with `0`, `'0'` and `''`. To preserve 
+previous behaviour `allow_true` boolean parameter is introduced. It will exclude `'None'`
+from success criteria if set to `True`.
+
 ### Changes to `SubDagOperator`
 
 `SubDagOperator` is changed to use Airflow scheduler instead of backfill
