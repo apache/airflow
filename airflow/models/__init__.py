@@ -3292,6 +3292,43 @@ class DAG(BaseDag, LoggingMixin):
 
         return run_dates
 
+    def get_next_run_date(self, after_date):
+        """
+        Returns the next run date after the given date, using the start date as the starting point.
+
+        :param after_date: the utc date right before the next run
+        :type after_date: utc datetime
+        :return: the next utc date following the dag's schedule
+        :rtype: utc datetime
+        """
+        if not self._schedule_interval:
+            return None
+        if isinstance(self._schedule_interval, six.string_types):
+            # six.string_types is for compatibility with python 2 and 3, XXX do we need compatibility?
+            return self.following_schedule(after_date)
+        else:
+            """
+            In the case of a timedelta, we would like to start counting forwards from the start time. A naive
+            implementation would iterate on (start_date, start_date + schedule_interval, start_date + 2*schedule_interval, ...)
+            until we hit a late-enough date. This is a speedup of that implementation by the following simplification:
+            next_date = start_date + k * schedule_interval, after_date > start_date + (k - 1) * schedule_interval, next_date >= after_date
+            (because if after_date was not greater, we could push next_date one schedule interval back)
+            so start_date + k * schedule_interval >= after_date > start_date + (k - 1) * schedule_interval
+            this can be simplified to say k is the integer such that
+            (after_date - start_date) / schedule_interval + 1 > k >= (after_date - start_date) / schedule_interval
+            There is only and always exactly one possible k that can fit these restrictions, given by
+            ceil((after_date - start_date) / schedule_interval). Then 
+            next_date = start_date + floor((after_date - start_date) / schedule_interval + 1) * schedule_interval. We avoid
+            float arithmetic by calculating floor as floor(a/b) = (a - a % b) / b, which allows us to simplify our equation:
+            next_date = start_date + (a_d - s_d + int - (a_d - s_d + int) % int) / int * int
+            next_date = start_date + a_d - start_date + int - (a_d - s_d) % int
+            next_date = after_date + schedule_interval - (after_date - start_date) % schedule_interval 
+            """
+            start_date = min(t.start_date for t in self.tasks)
+            return after_date \
+                   - timedelta(seconds=((after_date - start_date).total_seconds() % self._schedule_interval.total_seconds())) \
+                   + self._schedule_interval
+
     def normalize_schedule(self, dttm):
         """
         Returns dttm + interval unless dttm is first interval then it returns dttm

@@ -86,6 +86,7 @@ from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
+CLIENT_TIMEZONE = pendulum.timezone('America/New_York')
 
 UTF8_READER = codecs.getreader('utf-8')
 
@@ -2176,6 +2177,9 @@ class HomeView(AdminIndexView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
+        max_dt = pendulum.timezone('UTC').convert(dt.datetime(9999, 12, 31))
+        dags = list(sorted(dags, key=lambda dag: dagbag.get_dag(dag.dag_id).get_next_run_date(pendulum.now('UTC')) or max_dt))
+
         return self.render(
             'airflow/dags.html',
             dags=dags,
@@ -2190,9 +2194,37 @@ class HomeView(AdminIndexView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=arg_search_query,
                                            showPaused=not hide_paused),
-            auto_complete_data=auto_complete_data,
+            now_utc=lambda: pendulum.now('UTC'),
+            airflow_timezone=settings.TIMEZONE,
+            client_timezone=CLIENT_TIMEZONE,
+            stringify_timedelta=stringify_timedelta,
             get_human_readable_cron=cron.get_human_readable_cron,
-            airflow_timezone=settings.TIMEZONE)
+            dagbag=dagbag,
+            auto_complete_data=auto_complete_data)
+
+
+def stringify_timedelta(delta: dt.timedelta) -> str:
+    seconds = int(round(delta.total_seconds()))
+    # the index here is equivalent to 1 + signum(seconds), signum is not standard in Python
+    sign_word = ['ago', 'now', 'from now'][1 + (seconds > 0) - (seconds < 0)]
+    seconds = abs(int(seconds))
+
+    # 7 days in a week, 24 hours in a day, ... We use repeated divmods to get the different units of time, from the
+    # most granular (weeks) to the least (seconds).
+    t = 7 * 24 * 60 * 60
+    weeks, seconds = divmod(seconds, t)
+    t /= 7
+    days, seconds = divmod(seconds, t)
+    t /= 24
+    hours, seconds = divmod(seconds, t)
+    t /= 60
+    minutes, seconds = divmod(seconds, t)
+
+    # form a descriptive string from these numbers.
+    display = [(weeks, 'w'), (days, 'd'), (hours, 'h'), (minutes, 'm'), (seconds, 's')]
+    display = itertools.dropwhile(lambda t: not t[0], display)
+    words = map(lambda t: '%d%s' % t, display)
+    return ' '.join(itertools.chain(words, [sign_word]))
 
 
 class QueryView(wwwutils.DataProfilingMixin, BaseView):
