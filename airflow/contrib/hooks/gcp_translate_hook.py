@@ -42,7 +42,7 @@ class CloudTranslateHook(GoogleCloudBaseHook):
             self._client = Client(credentials=self._get_credentials())
         return self._client
 
-    @GoogleCloudBaseHook.quota_retry
+    @GoogleCloudBaseHook.quota_retry()
     def translate(
         self, values, target_language, format_=None, source_language=None, model=None
     ):
