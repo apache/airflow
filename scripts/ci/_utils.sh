@@ -363,13 +363,6 @@ function rebuild_image_if_needed_for_tests() {
     PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
         'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
     export PYTHON_VERSION
-    if [[ ${PYTHON_VERSION} == 2.* ]]; then
-        echo 2>&1
-        echo 2>&1 " Warning! You have python 2.7 on your path"
-        echo 2>&1 " Switching to python 3.6"
-        echo 2>&1
-        export PYTHON_VERSION=3.6
-    fi
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
