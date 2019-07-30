@@ -31,7 +31,7 @@ from airflow.utils.decorators import apply_defaults
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
 #   MultipartInvariantViolationDefect()], unparsed data: ''
-logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
 
 
 class WinRMOperator(BaseOperator):
