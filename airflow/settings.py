@@ -182,6 +182,16 @@ def configure_orm(disable_connection_pool=False):
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
+    try:
+        # Allow the user to specify an encoding for their DB otherwise default
+        # to utf-8 so jobs & users with non-latin1 characters can still use
+        # us.
+        engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING')
+    except conf.AirflowConfigException:
+        engine_args['encoding'] = 'utf-8'
+    # For Python2 we get back a newstr and need a str
+    engine_args['encoding'] = engine_args['encoding'].__str__()
+
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
     reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
     setup_event_handlers(engine, reconnect_timeout)
@@ -228,6 +238,26 @@ def configure_adapters():
 
 def validate_session():
     worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    if not worker_precheck:
+        return True
+    else:
+        check_session = sessionmaker(bind=engine)
+        session = check_session()
+        try:
+            session.execute("select 1")
+            conn_status = True
+        except exc.DBAPIError as err:
+            log.error(err)
+            conn_status = False
+        session.close()
+        return conn_status
+
+
+def validate_session():
+    try:
+        worker_precheck = conf.getboolean('core', 'worker_precheck')
+    except conf.AirflowConfigException:
+        worker_precheck = False
     if not worker_precheck:
         return True
     else:

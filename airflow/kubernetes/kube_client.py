@@ -27,6 +27,17 @@ except ImportError as e:
     has_kubernetes = False
     _import_err = e
 
+try:
+    from kubernetes import config, client
+    from kubernetes.client.rest import ApiException
+    has_kubernetes = True
+except ImportError as e:
+    # We need an exception class to be able to use it in ``except`` elsewhere
+    # in the code base
+    ApiException = BaseException
+    has_kubernetes = False
+    _import_err = e
+
 
 def _load_kube_config(in_cluster, cluster_context, config_file):
     if not has_kubernetes:

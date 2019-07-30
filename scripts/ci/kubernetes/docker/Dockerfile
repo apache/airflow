@@ -17,6 +17,8 @@
 
 FROM python:3.6-slim
 
+ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
+
 # install deps
 RUN apt-get update -y && apt-get install -y \
         wget \

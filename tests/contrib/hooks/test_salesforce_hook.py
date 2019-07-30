@@ -70,6 +70,11 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.return_value.query_all.assert_called_once_with(query)
         self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
 
+        query_results = self.salesforce_hook.make_query(query, include_deleted=True)
+
+        mock_salesforce.return_value.query_all.assert_called_once_with(query)
+        self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
+
     @patch('airflow.contrib.hooks.salesforce_hook.Salesforce')
     def test_describe_object(self, mock_salesforce):
         obj = 'obj_name'

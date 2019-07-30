@@ -249,6 +249,73 @@ class DataFlowHookTest(unittest.TestCase):
             job_name='df^jo', append_job_name=False
         )
 
+    def test_valid_dataflow_job_name(self):
+        job_name = self.dataflow_hook._build_dataflow_job_name(
+            task_id=TASK_ID, append_job_name=False
+        )
+
+        self.assertEquals(job_name, TASK_ID)
+
+    def test_fix_underscore_in_task_id(self):
+        task_id_with_underscore = 'test_example'
+        fixed_job_name = task_id_with_underscore.replace(
+            '_', '-'
+        )
+        job_name = self.dataflow_hook._build_dataflow_job_name(
+            task_id=task_id_with_underscore, append_job_name=False
+        )
+
+        self.assertEquals(job_name, fixed_job_name)
+
+    def test_invalid_dataflow_job_name(self):
+        invalid_job_name = '9test_invalid_name'
+        fixed_name = invalid_job_name.replace(
+            '_', '-')
+
+        with self.assertRaises(ValueError) as e:
+            self.dataflow_hook._build_dataflow_job_name(
+                task_id=invalid_job_name, append_job_name=False
+            )
+        #   Test whether the job_name is present in the Error msg
+        self.assertIn('Invalid job_name ({})'.format(fixed_name),
+                      str(e.exception))
+
+    def test_dataflow_job_regex_check(self):
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='df-job-1', append_job_name=False
+        ), 'df-job-1')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='df-job', append_job_name=False
+        ), 'df-job')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='dfjob', append_job_name=False
+        ), 'dfjob')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='dfjob1', append_job_name=False
+        ), 'dfjob1')
+
+        self.assertRaises(
+            ValueError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='1dfjob', append_job_name=False
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='dfjob@', append_job_name=False
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='df^jo', append_job_name=False
+        )
+
 
 class DataFlowTemplateHookTest(unittest.TestCase):
 

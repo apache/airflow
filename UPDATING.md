@@ -542,6 +542,27 @@ If you want to use LDAP auth backend without TLS then you will have to create a
 custom-auth backend based on
 https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
 
+### EMRHook now passes all of connection's extra to CreateJobFlow API
+
+EMRHook.create_job_flow has been changed to pass all keys to the create_job_flow API, rather than
+just specific known keys for greater flexibility.
+
+However prior to this release the "emr_default" sample connection that was created had invalid
+configuration, so creating EMR clusters might fail until your connection is updated. (Ec2KeyName,
+Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
+should be inside the "Instances" dict)
+
+### LDAP Auth Backend now requires TLS
+
+Connecting to an LDAP serever over plain text is not supported anymore. The
+certificate presented by the LDAP server must be signed by a trusted
+certificiate, or you must provide the `cacert` option under `[ldap]` in the
+config file.
+
+If you want to use LDAP auth backend without TLS then you will habe to create a
+custom-auth backend based on
+https://github.com/apache/incubator-airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
@@ -646,11 +667,11 @@ With Airflow 1.9 or lower, `FILENAME_TEMPLATE`, `PROCESSOR_FILENAME_TEMPLATE`, `
 ```
 [core]
 fab_logging_level = WARN
-log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log
-log_processor_filename_template = {{{{ filename }}}}.log
+log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log
+log_processor_filename_template = {{ filename }}.log
 
 [elasticsearch]
-elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+elasticsearch_log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
