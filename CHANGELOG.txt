@@ -1,8 +1,12 @@
-Airflow 1.10.4, - 2019-07-18
+Airflow 1.10.4, - 2019-08-03
 ----------------------------
 
 New Features
 """"""""""""
+- [AIRFLOW-4811] Implement GCP Data Loss Prevention Hook and Operators (#5539)
+- [AIRFLOW-5035] Replace multiprocessing.Manager with a golang-"channel" style (#5615)
+- [AIRFLOW-4883] Kill hung file process managers (#5605)
+- [AIRFLOW-4929] Pretty print JSON Variables in UI (#5573)
 - [AIRFLOW-4884] Roll up import_errors in RBAC UI (#5516)
 - [AIRFLOW-4871] Allow creating DagRuns via RBAC UI (#5507)
 - [AIRFLOW-4591] Make default_pool a real pool (#5349)
@@ -47,6 +51,17 @@ New Features
 
 Improvement
 """""""""""
+- [AIRFLOW-5022] Fix DockerHook for registries with port numbers (#5644)
+- [AIRFLOW-4961] Insert TaskFail.duration as int match DB schema column type (#5593)
+- [AIRFLOW-5038] skip pod deleted log message when pod deletion is disabled (#5656)
+- [AIRFLOW-5067] Update pagination symbols (#5682)
+- [AIRFLOW-4981][AIRFLOW-4788] Always use pendulum DateTimes in task instance context (#5654)
+- [AIRFLOW-4880] Add success, failure and fail_on_empty params to SqlSensor (#5488)
+- [AIRFLOW-3617] Add gpu limits option in configurations for Kube executor and pod (#5643)
+- [AIRFLOW-4998] Run multiple queries in BigQueryOperator (#5619)
+- [AIRFLOW-4929] Improve display of JSON Variables in UI (#5641)
+- [AIRFLOW-4959] Add .hql support for the DataProcHiveOperator (#5591)
+- [AIRFLOW-4962] Fix Werkzeug v0.15 deprecation notice for DispatcherMiddleware import (#5595)
 - [AIRFLOW-4797] Improve performance and behaviour of zombie detection (#5511)
 - [AIRFLOW-4911] Silence the FORBIDDEN errors from the KubernetesExecutor (#5547)
 - [AIRFLOW-3495] Validate one of query and query_uri passed to DataProcSparkSqlOperator (#5510)
@@ -146,6 +161,16 @@ Improvement
 
 Bug fixes
 """""""""
+- [AIRFLOW-4289] fix spark_binary argument being ignored in SparkSubmitHook (#5564)
+- [AIRFLOW-5075] Let HttpHook handle connections with empty host fields (#5686)
+- [AIRFLOW-4822] Fix bug where parent-dag task instances are wrongly cleared when using subdags (#5444)
+- [AIRFLOW-5050] Correctly delete FAB permission m2m objects in ``airflow sync_perms`` (#5679)
+- [AIRFLOW-5030] fix env var expansion for config key contains __ (#5650)
+- [AIRFLOW-4590] changing log level to be proper library to suppress warning in WinRM (#5337)
+- [AIRFLOW-4451] Allow named tuples to be templated (#5673)
+- [AIRFLOW-XXX] Fix bug where Kube pod limts were not applied (requests were, but not limits) (#5657)
+- [AIRFLOW-4775] Fix incorrect parameter order in GceHook (#5613)
+- [AIRFLOW-4995] Fix DB initialisation on MySQL >=8.0.16 (#5614)
 - [AIRFLOW-4934] Fix ProxyFix due to Werkzeug upgrade (#5563) (#5571)
 - [AIRFLOW-4136] fix key_file of hook is overwritten by SSHHook connection (#5558)
 - [AIRFLOW-4587] Replace self.conn with self.get_conn() in AWSAthenaHook (#5545)
@@ -229,6 +254,14 @@ Bug fixes
 
 Misc/Internal
 """""""""""""
+- [AIRFLOW-4338] Change k8s pod_request_factory to use yaml safe_load (#5120)
+- [AIRFLOW-4869] Reorganize sql to gcs operators. (#5504)
+- [AIRFLOW-5021] move gitpython into setup_requires (#5640)
+- [AIRFLOW-4583] Fixes type error in GKEPodOperator (#5612)
+- [AIRFLOW-4116] Dockerfile now supports CI image build on DockerHub (#4937)
+- [AIRFLOW-4115] Multi-staging Aiflow Docker image (#4936)
+- [AIRFLOW-4963] Avoid recreating task context (#5596)
+- [AIRFLOW-4865] Add context manager to set temporary config values in tests. (#5569)
 - [AIRFLOW-4937] Fix lodash security issue with version below 4.17.13 (#5572) (used only in build-pipeline, not runtime)
 - [AIRFLOW-4868] Fix typo in kubernetes/docker/build.sh (#5505)
 - [AIRFLOW-4211] Add tests for WebHDFSHook (#5015)
@@ -258,6 +291,8 @@ Misc/Internal
 
 Doc-only changes
 """"""""""""""""
+- [AIRFLOW-XXX] Add missing doc for annotations param of KubernetesPodOperator (#5666)
+- [AIRFLOW-XXX] Fix typos in CONTRIBUTING.md (#5626)
 - [AIRFLOW-XXX] Correct BaseSensorOperator docs (#5562)
 - [AIRFLOW-4926] Fix example dags where its start_date is datetime.utcnow() (#5553)
 - [AIRFLOW-4860] Remove Redundant Information in Example Dags (#5497)
