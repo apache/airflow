@@ -34,6 +34,10 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
 
+    If a filename is supplied, it writes the file to the specified location, alternatively one can
+    set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
+    exceeds the maximum size for xcom it is recommended to write to a file.
+
     :param bucket: The Google cloud storage bucket where the object is. (templated)
     :type bucket: str
     :param object: The name of the object to download in the Google cloud
@@ -81,6 +85,9 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             else:
                 TypeError("__init__() missing 1 required positional argument: 'object_name'")
 
+        if filename is not None and store_to_xcom_key is not None:
+            raise ValueError("Either filename or store_to_xcom_key can be set")
+
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
@@ -102,13 +109,17 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
-        file_bytes = hook.download(bucket_name=self.bucket,
-                                   object_name=self.object,
-                                   filename=self.filename)
+
         if self.store_to_xcom_key:
+            file_bytes = hook.download(bucket_name=self.bucket,
+                                       object_name=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise AirflowException(
                     'The size of the downloaded file is too large to push to XCom!'
                 )
+        else:
+            hook.download(bucket_name=self.bucket,
+                          object_name=self.object,
+                          filename=self.filename)
