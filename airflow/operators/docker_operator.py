@@ -57,8 +57,8 @@ class DockerOperator(BaseOperator):
     :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
-    :param container_name: Name of the container.
-    :type container_name: str
+    :param container_name: Name of the container. Optional (templated)
+    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
@@ -121,7 +121,7 @@ class DockerOperator(BaseOperator):
         greater than 0. If omitted uses system default.
     :type shm_size: int
     """
-    template_fields = ('command', 'environment',)
+    template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
