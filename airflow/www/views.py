@@ -2109,6 +2109,8 @@ class HomeView(AdminIndexView):
 
         arg_current_page = request.args.get('page', '0')
         arg_search_query = request.args.get('search', None)
+        arg_include_owners = request.args.get('owners', None)
+        include_owners = arg_include_owners.split(',') if arg_include_owners is not None else None
 
         dags_per_page = PAGE_SIZE
         current_page = get_int_arg(arg_current_page, default=0)
@@ -2200,6 +2202,7 @@ class HomeView(AdminIndexView):
             stringify_timedelta=stringify_timedelta,
             get_human_readable_cron=cron.get_human_readable_cron,
             dagbag=dagbag,
+            include_owners=include_owners,
             auto_complete_data=auto_complete_data)
 
 

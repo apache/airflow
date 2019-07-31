@@ -45,8 +45,9 @@
 
     <div id="owner-boxes">
       {% for owner in dags | map(attribute='owners') | unique(case_sensitive=True) | sort %}
+        {% set show_owner = include_owners is none or owner in include_owners %}
         <div id="owner-box">
-          <input type="checkbox" class="owner-checkbox" name="owner-checkbox-{{ owner }}" owner="{{ owner }}" checked>
+          <input type="checkbox" class="owner-checkbox" name="owner-checkbox-{{ owner }}" owner="{{ owner }}" {{ 'checked' if show_owner else '' }}>
           <label for="owner-checkbox-{{ owner }}">{{ owner }}</label>
         </div>
       {% endfor %}
@@ -88,7 +89,7 @@
             <tr>
             -->
             <!-- de-indented for compat -->
-            <tr class="dag-row" owner="{{ dag.owners }}">
+            <tr class="dag-row" owner="{{ dag.owners }}" {{ '' if include_owners is none or dag.owners in include_owners else 'hidden' }}>
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                   <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag.dag_id }}" title="Info">
@@ -312,14 +313,28 @@
   <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
       // Make clicking a group name toggle display of group elems
+      var ownerSet = new Set();
       $('.owner-checkbox').change(function() {
-        const dag_group = '.dag-row[owner="' + $(this).attr("owner") + '"]';
+        const owner = $(this).attr("owner");
+        const dag_group = '.dag-row[owner="' + owner + '"]';
         if(this.checked) {
           $(dag_group).show();
+          ownerSet.add(owner);
         } else {
           $(dag_group).hide();
+          if (ownerSet.has(owner)) {
+            ownerSet.delete(owner);
+          }
         }
+        updateLink();
       });
+
+      function updateLink() {
+        window.history.replaceState({}, "", location.pathname + '?owners=' + Array.from(ownerSet).join(','));
+      }
+
+      // propagate changes caused by owners in URL
+      $('.owner-checkbox').change();
 
       const DAGS_INDEX = "{{ url_for('admin.index') }}";
       const ENTER_KEY_CODE = 13;
