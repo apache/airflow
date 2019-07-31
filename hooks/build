@@ -294,6 +294,10 @@ echo "Skip slim image: ${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}"
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_CI_IMAGE:="false"}
 echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
 
+# Skips downloading and building the checklicence image - one used for checking the licences
+export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE=${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE:="false"}
+echo "Skip CHECKLICENCE image: ${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}"
+
 # Skips pulling the airflow images - this will use cache but will build it all from scratch
 export AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES=${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES:="false"}
 echo "Skip pulling Airflow images: ${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}"
@@ -322,12 +326,15 @@ if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_LATEST="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-python${PYTHON_VERSION}-${TAG_PREFIX}-ci"
     export AIRFLOW_CI_IMAGE_LATEST_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-${TAG_PREFIX}-ci"
+
+    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 else
     export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-python${PYTHON_VERSION}-ci-slim"
     export AIRFLOW_SLIM_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-ci-slim"
 
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-python${PYTHON_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-ci"
+    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 fi
 # In the future we can enable buildkit.
 # It's experimental now and cache does not work out of the box with buildkit in Docker 18.09.2, buildkit 0.3.3
@@ -350,6 +357,7 @@ if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     docker rmi "${PYTHON_BASE_IMAGE}" || true
     docker rmi "${AIRFLOW_SLIM_CI_IMAGE}" || true
     docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    docker rmi "${AIRFLOW_CHECKLICENCE_IMAGE}" || true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_VERSION}."
@@ -393,6 +401,11 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         echo "Skip downloading the slim Airflow image"
     else
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_SLIM_CI_IMAGE}"
+    fi
+    if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
+        echo "Skip downloading the CHECKLICENCE Airflow image"
+    else
+        IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
     DOCKER_CACHE_DIRECTIVE_CI=()
@@ -439,6 +452,8 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
         elif [[ "${IMAGE}" == "${AIRFLOW_SLIM_CI_IMAGE}" ]]; then
             DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--cache-from" "${IMAGE}")
+        elif [[ "${IMAGE}" == "${AIRFLOW_CHECKLICENCE_IMAGE}" ]]; then
+            DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--cache-from" "${IMAGE}")
         else
             echo
             echo "Don't know how to set cache directive for ${IMAGE}. Exiting"
@@ -594,6 +609,17 @@ else
         fi
     fi
 fi
+
+if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
+    echo "Skip building the CHECKLICENCE image"
+else
+    start_step "Build Airflow CHECKLICENCE image"
+    docker build . -f Dockerfile-checklicence -t ${AIRFLOW_CHECKLICENCE_IMAGE}
+    add_image_to_push "${AIRFLOW_CHECKLICENCE_IMAGE}"
+
+    save_to_file AIRFLOW_CHECKLICENCE_IMAGE
+fi
+
 
 start_step "Pushing images"
 
