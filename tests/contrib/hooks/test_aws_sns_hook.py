@@ -42,9 +42,10 @@ class TestAwsLambdaHook(unittest.TestCase):
 
         message = "Hello world"
         topic_name = "test-topic"
+        subject = "test-subject"
         target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
 
-        response = hook.publish_to_target(target, message)
+        response = hook.publish_to_target(target, message, subject)
 
         self.assertTrue('MessageId' in response)
 
