@@ -60,14 +60,14 @@ class TestSalesforceHook(unittest.TestCase):
         )
 
     @patch('airflow.contrib.hooks.salesforce_hook.Salesforce')
-    def test_make_query(self, mock_salesforce, included_deleted=False, **kwargs):
+    def test_make_query(self, mock_salesforce, included_deleted=False):
         mock_salesforce.return_value.query_all.return_value = dict(totalSize=123, done=True)
         self.salesforce_hook.conn = mock_salesforce.return_value
         query = 'SELECT * FROM table'
 
         query_results = self.salesforce_hook.make_query(query)
 
-        mock_salesforce.return_value.query_all.assert_called_once_with(query, included_deleted=included_deleted)
+        mock_salesforce.return_value.query_all.assert_called_once_with(query)
         self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
 
         query_results = self.salesforce_hook.make_query(query, include_deleted=True)
