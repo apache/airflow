@@ -73,7 +73,7 @@ class SalesforceHook(BaseHook):
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, **kwargs ):
+    def make_query(self, query, include_deleted=False, **kwargs):
         """
         Make a query to Salesforce.
 
