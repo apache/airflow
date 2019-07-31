@@ -51,6 +51,8 @@ class DockerOperator(BaseOperator):
     :type api_version: str
     :param command: Command to be run in the container. (templated)
     :type command: str or list
+    :param container_name: Name of the container.
+    :type container_name: str
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
@@ -123,6 +125,7 @@ class DockerOperator(BaseOperator):
             image: str,
             api_version: str = None,
             command: Union[str, List[str]] = None,
+            container_name: str = None,
             cpus: float = 1.0,
             docker_url: str = 'unix://var/run/docker.sock',
             environment: Dict = None,
@@ -152,6 +155,7 @@ class DockerOperator(BaseOperator):
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
+        self.container_name = container_name
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
@@ -215,6 +219,7 @@ class DockerOperator(BaseOperator):
 
             self.container = self.cli.create_container(
                 command=self.get_command(),
+                name=self.container_name,
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
                     auto_remove=self.auto_remove,
