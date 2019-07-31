@@ -54,10 +54,11 @@ class AwsSnsHook(AwsHook):
         """
 
         conn = self.get_conn()
+
         messages = {
             'default': message
         }
-        
+
         if subject is None:
             return conn.publish(
                 TargetArn=target_arn,
