@@ -298,6 +298,7 @@ function force_python_3_5() {
 function rebuild_image_if_needed_for_static_checks() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
     export AIRFLOW_CONTAINER_BUILD_NPM="false"  # Skip NPM builds to make them faster !
 
@@ -359,6 +360,7 @@ EOF
 
 function rebuild_image_if_needed_for_tests() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
     PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
         'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
@@ -417,6 +419,25 @@ EOF
     export AIRFLOW_CI_IMAGE
 }
 
+function rebuild_image_for_checklicence() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
+
+    export THE_IMAGE="CHECKLICENCE"
+    echo
+    echo "Rebuilding image"
+    echo
+    # shellcheck source=../../hooks/build
+    ./hooks/build | tee -a "${OUTPUT_LOG}"
+    update_all_md5_files
+    echo
+    echo "Image rebuilt"
+    echo
+    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE")
+    export AIRFLOW_CHECKLICENCE_IMAGE
+}
 #
 # Starts the script/ If VERBOSE variable is set to true, it enables verbose output of commands executed
 # Also prints some useful diagnostics information at start of the script

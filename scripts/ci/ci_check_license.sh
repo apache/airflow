@@ -29,15 +29,12 @@ force_python_3_5
 
 script_start
 
-rebuild_image_if_needed_for_tests
+rebuild_image_for_checklicence
 
 docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-       --entrypoint /opt/airflow/scripts/ci/in_container/run_check_licence.sh \
-       --env PYTHONDONTWRITEBYTECODE="true" \
-       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
-       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
+       --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
        --env HOST_USER_ID="$(id -ur)" \
        --env HOST_GROUP_ID="$(id -gr)" \
-       "${AIRFLOW_CI_IMAGE}" \
+       "${AIRFLOW_CHECKLICENCE_IMAGE}"
 
 script_end
