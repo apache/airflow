@@ -70,5 +70,5 @@ class AwsSnsHook(AwsHook):
             TargetArn=target_arn,
             Message=json.dumps(messages),
             MessageStructure='json',
-            Subject = subject
+            Subject=subject
         )
