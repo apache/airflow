@@ -18,7 +18,7 @@
 
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory
-AIRFLOW_SOURCES=$(cd ${MY_DIR}/../../ && pwd)
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../" && pwd)
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -32,16 +32,17 @@ Dockerfile \
 airflow/version.py
 "
 
-mkdir -p ${AIRFLOW_SOURCES}/.mypy_cache
-mkdir -p ${AIRFLOW_SOURCES}/logs
-mkdir -p ${AIRFLOW_SOURCES}/tmp
+mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
+mkdir -p "${AIRFLOW_SOURCES}/logs"
+mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
 # Disable writing .pyc files - slightly slower imports but not messing around when switching
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE="true"
 
 # Read default branch name
-. ${AIRFLOW_SOURCES}/hooks/_default_branch.sh
+# shellcheck source=../../hooks/_default_branch.sh
+. "${AIRFLOW_SOURCES}/hooks/_default_branch.sh"
 
 # Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
@@ -328,11 +329,10 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        SKIP_REBUILD="false"
+        local SKIP_REBUILD="false"
         if [[ ${CI:=} != "true" ]]; then
             set +e
-            ${MY_DIR}/../../confirm "The image might need to be rebuild. This will take short time"
-            if [[ $? != "0" ]]; then
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
                SKIP_REBUILD="true"
             fi
             set -e
@@ -393,15 +393,25 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"

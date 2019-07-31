@@ -31,6 +31,8 @@ basic_sanity_checks
 
 script_start
 
+export ASSUME_YES="true"
+
 rebuild_image_if_needed_for_tests
 
 rebuild_image_if_needed_for_static_checks
