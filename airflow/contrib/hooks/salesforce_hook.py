@@ -90,16 +90,17 @@ class SalesforceHook(BaseHook):
         self.sf = sf
         return sf
 
-    def make_query(self, query):
+    def make_query(self, query, include_deleted=False, **kwargs):
         """
         Make a query to Salesforce.  Returns result in dictionary
 
         :param query:    The query to make to Salesforce
+        :param include_deleted: True if the query should include deleted records.
         """
         self.sign_in()
 
         self.log.info("Querying for all objects")
-        query = self.sf.query_all(query)
+        query = self.sf.query_all(query, include_deleted=include_deleted, **kwargs)
 
         self.log.info(
             "Received results: Total size: %s; Done: %s",
