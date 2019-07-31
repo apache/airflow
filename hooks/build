@@ -156,6 +156,7 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 export PYTHON_VERSION=\
 ${PYTHON_VERSION:=$(python -c 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
 
+# shellcheck source=./_default_branch.sh
 . ${MY_DIR}/_default_branch.sh
 
 # Source brnnch will be set in DockerHub
@@ -254,7 +255,7 @@ export AIRFLOW_VERSION
 # Check if we are running in the CI environment
 CI=${CI:="false"}
 
-if [[ "${CI}" == "true" ]]; then
+if [[ ${CI} == "true" ]]; then
     NON_CI="false"
 else
     NON_CI="true"
@@ -279,6 +280,9 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:=${NON_CI}}
 
 # Whether to force pull images to populate cache
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:="false"}
+
+# In CI environment (and local force) we skip pulling latest python image
+export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL=${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL:=${CI}}
 
 # Skips downloading and building the slim image of airflow
 # This is set to true by default in CI test environment (we only need full CI image then)
@@ -365,12 +369,19 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
     echo
     if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
-        echo "Force-pull base python image. This forces to get the most recent versions from the repository."
-        echo
-        set -x
-        docker pull "${PYTHON_BASE_IMAGE}"
-        set +x
-        echo
+        if [[ ${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL} == "true" ]]; then
+            echo
+            echo "Skip force-pulling the base python image."
+            echo
+        else
+            echo
+            echo "Force-pull base python image. This forces to get the most recent versions from DockerHub."
+            echo
+            set -x
+            docker pull "${PYTHON_BASE_IMAGE}"
+            set +x
+            echo
+        fi
     fi
     IMAGES_TO_PULL=""
     if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
