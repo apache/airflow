@@ -412,6 +412,13 @@ class BaseOperator(LoggingMixin):
         if outlets:
             self._outlets.update(outlets)
 
+        # A stringified BaseOperator can only be used in the scope of scheduler and
+        # webserver.
+        self.is_stringified = False
+        # task_type is used by UI to display the correct class type, because UI only
+        # receives BaseOperator from deserialized DAGs.
+        self._task_type = None
+
     def __eq__(self, other):
         if (type(self) == type(other) and
                 self.task_id == other.task_id):
@@ -693,7 +700,7 @@ class BaseOperator(LoggingMixin):
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
-            content = getattr(self, attr)
+            content = getattr(self, attr, None)
             if content is None:
                 continue
             elif isinstance(content, str) and \
@@ -865,7 +872,14 @@ class BaseOperator(LoggingMixin):
 
     @property
     def task_type(self):
-        return self.__class__.__name__
+        if self.is_stringified and self._task_type is not None:
+            return self._task_type
+        else:
+            return self.__class__.__name__
+
+    @task_type.setter
+    def task_type(self, task_type):
+        self._task_type = task_type
 
     def add_only_new(self, item_set, item):
         if item in item_set:
