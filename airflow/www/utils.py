@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
 import json
 import time
@@ -343,7 +344,9 @@ def get_attr_renderer():
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
         'python_callable': lambda x: render(
-            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
+            None if x is None else (
+                x if isinstance(x, str) else inspect.getsource(x)
+            ), lexers.PythonLexer),
     }
 
 
@@ -372,6 +375,30 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_python_source(x):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+    source_code = None
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+    return source_code
 
 
 class UtcAwareFilterMixin:

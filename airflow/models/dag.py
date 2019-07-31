@@ -290,6 +290,9 @@ class DAG(BaseDag, LoggingMixin):
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
 
+        # A stringified DAG can only be used in the scope of scheduler and webserver.
+        self.is_stringified = False
+
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 

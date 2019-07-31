@@ -60,6 +60,7 @@ from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
 from airflow._vendor import nvd3
+from airflow.www import async_dag_loaders
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
@@ -70,8 +71,13 @@ from airflow.www.widgets import AirflowModelListWidget
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
+
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER)
+    if conf.getboolean('webserver', 'async_dagbag_loader', fallback=False):
+        dagbag = async_dag_loaders.create_async_dagbag(settings.DAGS_FOLDER)
+    else:
+        dagbag = models.DagBag(settings.DAGS_FOLDER)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
