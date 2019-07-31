@@ -22,14 +22,7 @@ import copy
 import unittest
 
 from airflow.contrib.utils.sendgrid import send_email
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class SendEmailSendGridTest(unittest.TestCase):

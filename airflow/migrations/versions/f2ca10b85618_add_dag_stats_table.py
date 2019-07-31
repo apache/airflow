@@ -23,15 +23,14 @@ Revises: 64de9cddf6c9
 Create Date: 2016-07-20 15:08:28.247537
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'f2ca10b85618'
 down_revision = '64de9cddf6c9'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

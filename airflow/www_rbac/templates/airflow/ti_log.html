@@ -29,13 +29,20 @@ limitations under the License.
     </a>
   </li>
   {% endfor %}
+  <li class="active" style="float: right">
+    <a onclick='scrollBottom()'>Jump to end</a>
+  </li>
+  <li class="active" style="float: right">
+    <a onclick='toggleWrap()'>Toggle wrap</a>
+  </li>
+
 </ul>
 <div class="tab-content">
   {% for log in logs %}
   <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
     <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
          alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-    <pre><code id="try-{{ loop.index }}">{{ log }}</code></pre>
+    <pre><code id="try-{{ loop.index }}" class="{{ 'wrap' if wrapped else '' }}">{{ log }}</code></pre>
   </div>
   {% endfor %}
   </div>
@@ -69,6 +76,15 @@ limitations under the License.
       return $(window).scrollTop() != 0
              && ($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET);
     }
+
+    function toggleWrap() {
+      $("pre code").toggleClass("wrap")
+    }
+
+    function scrollBottom() {
+      $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+    }
+
 
     // Streaming log with auto-tailing.
     function autoTailingLog(try_number, metadata=null, auto_tailing=false) {
@@ -110,7 +126,7 @@ limitations under the License.
             document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
-              $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+              scrollBottom();
             }
           }
 

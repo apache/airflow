@@ -29,10 +29,8 @@ import analytics
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-
-class SegmentHook(BaseHook, LoggingMixin):
+class SegmentHook(BaseHook):
     def __init__(
             self,
             segment_conn_id='segment_default',
@@ -54,7 +52,7 @@ class SegmentHook(BaseHook, LoggingMixin):
         :type segment_conn_id: str
         :param segment_debug_mode: Determines whether Segment should run in debug mode.
         Defaults to False
-        :type segment_debug_mode: boolean
+        :type segment_debug_mode: bool
         .. note::
             You must include a JSON structure in the `Extras` field.
             We need a user's security token to connect to Segment.

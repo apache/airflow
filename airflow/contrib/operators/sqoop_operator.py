@@ -34,7 +34,7 @@ class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
     Documentation for Apache Sqoop can be found here:
-        https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html.
+    https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html
     """
     template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir',
                        'file_type', 'columns', 'split_by',

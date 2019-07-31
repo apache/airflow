@@ -13,6 +13,7 @@ unittests.db
 # Airflow temporary artifacts
 airflow/git_version
 airflow/www/static/coverage/
+airflow/www_rbac/static/coverage/
 logs/
 airflow-webserver.pid
 
@@ -83,6 +84,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/_api/
 
 # PyBuilder
 target/
@@ -138,3 +140,26 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
+
+# Node & Webpack Stuff
+*.entry.js
+node_modules
+npm-debug.log*
+static/dist
+derby.log
+metastore_db
+
+# Airflow log files when airflow is run locally
+airflow-*.err
+airflow-*.out
+airflow-*.log
+airflow-*.pid
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Needed for CI Dockerfile build system
+.build
+/tmp

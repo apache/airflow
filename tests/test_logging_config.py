@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,11 +20,12 @@ import os
 import six
 import sys
 import tempfile
-from mock import patch, mock
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p
 from airflow.exceptions import AirflowConfigException
+from tests.compat import mock, patch
+from tests.test_utils.config import conf_vars
 
 
 if six.PY2:
@@ -148,7 +149,7 @@ class settings_context(object):
         return self.settings_file
 
     def __exit__(self, *exc_info):
-        #shutil.rmtree(self.settings_root)
+        # shutil.rmtree(self.settings_root)
         # Reset config
         conf.set('core', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
@@ -243,13 +244,28 @@ class TestLoggingSettings(unittest.TestCase):
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
-        conf.set('core', 'task_log_reader', 'file.task')
-        try:
+        with conf_vars({('core', 'task_log_reader'): 'file.task'}):
             with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
                 configure_logging()
-                self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
-        finally:
-            conf.remove_option('core', 'task_log_reader', remove_default=False)
+            self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
+
+    def test_loading_remote_logging_with_wasb_handler(self):
+        """Test if logging can be configured successfully for Azure Blob Storage"""
+        import logging
+        from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
+        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+
+        with conf_vars({
+            ('core', 'remote_logging'): 'True',
+            ('core', 'remote_log_conn_id'): 'some_wasb',
+            ('core', 'remote_base_log_folder'): 'wasb://some-folder',
+        }):
+            six.moves.reload_module(airflow_local_settings)
+            configure_logging()
+
+        logger = logging.getLogger('airflow.task')
+        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
 
 
 if __name__ == '__main__':

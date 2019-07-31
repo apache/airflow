@@ -48,13 +48,15 @@ class HiveToDruidTransfer(BaseOperator):
     :type metastore_conn_id: str
     :param hadoop_dependency_coordinates: list of coordinates to squeeze
         int the ingest json
-    :type hadoop_dependency_coordinates: list of str
+    :type hadoop_dependency_coordinates: list[str]
     :param intervals: list of time intervals that defines segments,
         this is passed as is to the json object. (templated)
     :type intervals: list
     :param hive_tblproperties: additional properties for tblproperties in
         hive for the staging table
     :type hive_tblproperties: dict
+    :param job_properties: additional properties for job
+    :type job_properties: dict
     """
 
     template_fields = ('sql', 'intervals')
@@ -77,6 +79,7 @@ class HiveToDruidTransfer(BaseOperator):
             query_granularity="NONE",
             segment_granularity="DAY",
             hive_tblproperties=None,
+            job_properties=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -94,7 +97,8 @@ class HiveToDruidTransfer(BaseOperator):
         self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
-        self.hive_tblproperties = hive_tblproperties
+        self.hive_tblproperties = hive_tblproperties or {}
+        self.job_properties = job_properties
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
@@ -109,12 +113,12 @@ class HiveToDruidTransfer(BaseOperator):
         SET hive.exec.compress.output=false;
         DROP TABLE IF EXISTS {hive_table};
         CREATE TABLE {hive_table}
-        ROW FORMAT DELIMITED FIELDS TERMINATED BY  '\t'
+        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
         STORED AS TEXTFILE
         TBLPROPERTIES ('serialization.null.format' = ''{tblproperties})
         AS
         {sql}
-        """.format(**locals())
+        """.format(hive_table=hive_table, tblproperties=tblproperties, sql=sql)
         self.log.info("Running command:\n %s", hql)
         hive.run_cli(hql)
 
@@ -162,7 +166,7 @@ class HiveToDruidTransfer(BaseOperator):
         :type columns: list
         """
 
-        # backward compatibilty for num_shards,
+        # backward compatibility for num_shards,
         # but target_partition_size is the default setting
         # and overwrites the num_shards
         num_shards = self.num_shards
@@ -230,6 +234,10 @@ class HiveToDruidTransfer(BaseOperator):
                 }
             }
         }
+
+        if self.job_properties:
+            ingest_query_dict['spec']['tuningConfig']['jobProperties'] \
+                .update(self.job_properties)
 
         if self.hadoop_dependency_coordinates:
             ingest_query_dict['hadoopDependencyCoordinates'] \

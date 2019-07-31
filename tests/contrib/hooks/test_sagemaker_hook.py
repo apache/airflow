@@ -23,19 +23,12 @@ import time
 from datetime import datetime
 from tzlocal import get_localzone
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
                                                   secondary_training_status_message, LogState)
 from airflow.hooks.S3_hook import S3Hook
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 role = 'arn:aws:iam:role/test-role'
@@ -255,6 +248,14 @@ class TestSageMakerHook(unittest.TestCase):
 
     def setUp(self):
         configuration.load_test_config()
+
+    @mock.patch.object(SageMakerHook, 'log_stream')
+    def test_multi_stream_iter(self, mock_log_stream):
+        event = {'timestamp': 1}
+        mock_log_stream.side_effect = [iter([event]), iter([]), None]
+        hook = SageMakerHook()
+        event_iter = hook.multi_stream_iter('log', [None, None, None])
+        self.assertEqual(next(event_iter), (0, event))
 
     @mock.patch.object(S3Hook, 'create_bucket')
     @mock.patch.object(S3Hook, 'load_file')

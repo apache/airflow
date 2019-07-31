@@ -35,7 +35,8 @@ _host = conf.get("atlas", "host")
 
 
 class AtlasBackend(LineageBackend):
-    def send_lineage(self, operator, inlets, outlets, context):
+    @staticmethod
+    def send_lineage(operator, inlets, outlets, context):
         client = Atlas(_host, port=_port, username=_username, password=_password)
         try:
             client.typedefs.create(data=operator_typedef)

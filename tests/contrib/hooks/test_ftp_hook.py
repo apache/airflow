@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -83,19 +83,19 @@ class TestFTPHook(unittest.TestCase):
 
         self.conn_mock.rename.assert_called_once_with(from_path, to_path)
         self.conn_mock.quit.assert_called_once_with()
-        
+
     def test_mod_time(self):
         self.conn_mock.sendcmd.return_value = '213 20170428010138'
-        
+
         path = '/path/file'
         with fh.FTPHook() as ftp_hook:
             ftp_hook.get_mod_time(path)
 
         self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
-        
+
     def test_mod_time_micro(self):
         self.conn_mock.sendcmd.return_value = '213 20170428010138.003'
-        
+
         path = '/path/file'
         with fh.FTPHook() as ftp_hook:
             ftp_hook.get_mod_time(path)
@@ -123,6 +123,51 @@ class TestFTPHook(unittest.TestCase):
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
+
+
+class TestIntegrationFTPHook(unittest.TestCase):
+
+    def setUp(self):
+        super(TestIntegrationFTPHook, self).setUp()
+        from airflow import configuration
+        from airflow.utils import db
+        from airflow.models import Connection
+
+        configuration.load_test_config()
+        db.merge_conn(
+            Connection(
+                conn_id='ftp_passive', conn_type='ftp',
+                host='localhost', extra='{"passive": true}'))
+
+        db.merge_conn(
+            Connection(
+                conn_id='ftp_active', conn_type='ftp',
+                host='localhost', extra='{"passive": false}'))
+
+    def _test_mode(self, hook_type, connection_id, expected_mode):
+        hook = hook_type(connection_id)
+        conn = hook.get_conn()
+        conn.set_pasv.assert_called_with(expected_mode)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_passive_mode(self, ftp_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPHook
+        self._test_mode(FTPHook, "ftp_passive", True)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_active_mode(self, ftp_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPHook
+        self._test_mode(FTPHook, "ftp_active", False)
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_passive_mode(self, ftps_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPSHook
+        self._test_mode(FTPSHook, "ftp_passive", True)
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_active_mode(self, ftps_mock):
+        from airflow.contrib.hooks.ftp_hook import FTPSHook
+        self._test_mode(FTPSHook, "ftp_active", False)
 
 
 if __name__ == '__main__':

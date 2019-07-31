@@ -24,8 +24,8 @@ import unittest
 
 import MySQLdb.cursors
 
-from airflow import models
 from airflow.hooks.mysql_hook import MySqlHook
+from airflow.models import Connection
 
 SSL_DICT = {
     'cert': '/tmp/client-cert.pem',
@@ -39,7 +39,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def setUp(self):
         super(TestMySqlHookConn, self).setUp()
 
-        self.connection = models.Connection(
+        self.connection = Connection(
             login='login',
             password='password',
             host='host',
@@ -53,7 +53,7 @@ class TestMySqlHookConn(unittest.TestCase):
     @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['user'], 'login')
@@ -65,7 +65,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_port(self, mock_connect):
         self.connection.port = 3307
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['port'], 3307)
@@ -74,7 +74,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_charset(self, mock_connect):
         self.connection.extra = json.dumps({'charset': 'utf-8'})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['charset'], 'utf-8')
@@ -84,7 +84,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = json.dumps({'cursor': 'sscursor'})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['cursorclass'], MySQLdb.cursors.SSCursor)
@@ -93,7 +93,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_local_infile(self, mock_connect):
         self.connection.extra = json.dumps({'local_infile': True})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['local_infile'], 1)
@@ -102,7 +102,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_con_unix_socket(self, mock_connect):
         self.connection.extra = json.dumps({'unix_socket': "/tmp/socket"})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['unix_socket'], '/tmp/socket')
@@ -111,7 +111,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_ssl_as_dictionary(self, mock_connect):
         self.connection.extra = json.dumps({'ssl': SSL_DICT})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['ssl'], SSL_DICT)
@@ -120,10 +120,20 @@ class TestMySqlHookConn(unittest.TestCase):
     def test_get_conn_ssl_as_string(self, mock_connect):
         self.connection.extra = json.dumps({'ssl': json.dumps(SSL_DICT)})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['ssl'], SSL_DICT)
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    def test_get_conn_rds_iam(self, mock_client, mock_connect):
+        self.connection.extra = '{"iam":true}'
+        mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', passwd='aws_token', host='host',
+                                             db='schema', port=3306,
+                                             read_default_group='enable-cleartext-plugin')
 
 
 class TestMySqlHook(unittest.TestCase):
@@ -159,7 +169,7 @@ class TestMySqlHook(unittest.TestCase):
         self.db_hook.run(sql, autocommit=False)
         self.conn.autocommit.assert_called_once_with(False)
         self.cur.execute.assert_called_once_with(sql)
-        self.conn.commit.assert_called_once()
+        assert self.conn.commit.call_count == 1
 
     def test_run_with_autocommit(self):
         sql = 'SQL'

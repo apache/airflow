@@ -48,6 +48,10 @@ class DockerOperator(BaseOperator):
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
     :type api_version: str
+    :param auto_remove: Auto-removal of the container on daemon side when the
+        container's process exits.
+        The default is False.
+    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
     :param cpus: Number of CPUs to assign to the container.
@@ -55,9 +59,9 @@ class DockerOperator(BaseOperator):
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param dns: Docker custom DNS servers
-    :type dns: list of strings
+    :type dns: list[str]
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: list of strings
+    :type dns_search: list[str]
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -69,6 +73,9 @@ class DockerOperator(BaseOperator):
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
+    :param host_tmp_dir: Specify the location of the temporary directory on the host which will
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
+    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
     :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
@@ -93,6 +100,7 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :type volumes: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
@@ -122,6 +130,7 @@ class DockerOperator(BaseOperator):
             environment=None,
             force_pull=False,
             mem_limit=None,
+            host_tmp_dir=None,
             network_mode=None,
             tls_ca_cert=None,
             tls_client_cert=None,
@@ -137,12 +146,14 @@ class DockerOperator(BaseOperator):
             docker_conn_id=None,
             dns=None,
             dns_search=None,
+            auto_remove=False,
             shm_size=None,
             *args,
             **kwargs):
 
         super(DockerOperator, self).__init__(*args, **kwargs)
         self.api_version = api_version
+        self.auto_remove = auto_remove
         self.command = command
         self.cpus = cpus
         self.dns = dns
@@ -152,6 +163,7 @@ class DockerOperator(BaseOperator):
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
+        self.host_tmp_dir = host_tmp_dir
         self.network_mode = network_mode
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
@@ -199,7 +211,7 @@ class DockerOperator(BaseOperator):
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
-        with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
+        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
@@ -207,6 +219,7 @@ class DockerOperator(BaseOperator):
                 command=self.get_command(),
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
+                    auto_remove=self.auto_remove,
                     binds=self.volumes,
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
@@ -221,7 +234,10 @@ class DockerOperator(BaseOperator):
             self.cli.start(self.container['Id'])
 
             line = ''
-            for line in self.cli.logs(container=self.container['Id'], stream=True):
+            for line in self.cli.attach(container=self.container['Id'],
+                                        stdout=True,
+                                        stderr=True,
+                                        stream=True):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')

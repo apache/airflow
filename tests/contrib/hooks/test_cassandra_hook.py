@@ -18,8 +18,6 @@
 # under the License.
 
 import unittest
-import mock
-from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
@@ -27,18 +25,38 @@ from cassandra.cluster import Cluster
 from cassandra.policies import (
     TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
 )
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
+from tests.compat import mock, patch
 
 
 class CassandraHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='cassandra_test', conn_type='cassandra',
                 host='host-1,host-2', port='9042', schema='test_keyspace',
                 extra='{"load_balancing_policy":"TokenAwarePolicy"}'))
+        db.merge_conn(
+            Connection(
+                conn_id='cassandra_default_with_schema', conn_type='cassandra',
+                host='cassandra', port='9042', schema='s'))
+
+        hook = CassandraHook("cassandra_default")
+        session = hook.get_conn()
+        cqls = [
+            "DROP SCHEMA IF EXISTS s",
+            """
+                CREATE SCHEMA s WITH REPLICATION =
+                    { 'class' : 'SimpleStrategy', 'replication_factor' : 1 }
+            """,
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        session.shutdown()
+        hook.shutdown_cluster()
 
     def test_get_conn(self):
         with mock.patch.object(Cluster, "connect") as mock_connect, \
@@ -46,7 +64,7 @@ class CassandraHookTest(unittest.TestCase):
             mock_connect.return_value = 'session'
             hook = CassandraHook(cassandra_conn_id='cassandra_test')
             hook.get_conn()
-            mock_getaddrinfo.assert_called()
+            assert mock_getaddrinfo.called
             mock_connect.assert_called_once_with('test_keyspace')
 
             cluster = hook.get_cluster()
@@ -117,16 +135,10 @@ class CassandraHookTest(unittest.TestCase):
             thrown = True
         self.assertEqual(should_throw, thrown)
 
-    def test_record_exists(self):
-        hook = CassandraHook()
+    def test_record_exists_with_keyspace_from_cql(self):
+        hook = CassandraHook("cassandra_default")
         session = hook.get_conn()
-
         cqls = [
-            "DROP SCHEMA IF EXISTS s",
-            """
-                CREATE SCHEMA s WITH REPLICATION =
-                    { 'class' : 'SimpleStrategy', 'replication_factor' : 1 }
-            """,
             "DROP TABLE IF EXISTS s.t",
             "CREATE TABLE s.t (pk1 text, pk2 text, c text, PRIMARY KEY (pk1, pk2))",
             "INSERT INTO s.t (pk1, pk2, c) VALUES ('foo', 'bar', 'baz')",
@@ -136,6 +148,58 @@ class CassandraHookTest(unittest.TestCase):
 
         self.assertTrue(hook.record_exists("s.t", {"pk1": "foo", "pk2": "bar"}))
         self.assertFalse(hook.record_exists("s.t", {"pk1": "foo", "pk2": "baz"}))
+
+        session.shutdown()
+        hook.shutdown_cluster()
+
+    def test_record_exists_with_keyspace_from_session(self):
+        hook = CassandraHook("cassandra_default_with_schema")
+        session = hook.get_conn()
+        cqls = [
+            "DROP TABLE IF EXISTS t",
+            "CREATE TABLE t (pk1 text, pk2 text, c text, PRIMARY KEY (pk1, pk2))",
+            "INSERT INTO t (pk1, pk2, c) VALUES ('foo', 'bar', 'baz')",
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        self.assertTrue(hook.record_exists("t", {"pk1": "foo", "pk2": "bar"}))
+        self.assertFalse(hook.record_exists("t", {"pk1": "foo", "pk2": "baz"}))
+
+        session.shutdown()
+        hook.shutdown_cluster()
+
+    def test_table_exists_with_keyspace_from_cql(self):
+        hook = CassandraHook("cassandra_default")
+        session = hook.get_conn()
+        cqls = [
+            "DROP TABLE IF EXISTS s.t",
+            "CREATE TABLE s.t (pk1 text PRIMARY KEY)",
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        self.assertTrue(hook.table_exists("s.t"))
+        self.assertFalse(hook.table_exists("s.u"))
+
+        session.shutdown()
+        hook.shutdown_cluster()
+
+    def test_table_exists_with_keyspace_from_session(self):
+        hook = CassandraHook("cassandra_default_with_schema")
+        session = hook.get_conn()
+        cqls = [
+            "DROP TABLE IF EXISTS t",
+            "CREATE TABLE t (pk1 text PRIMARY KEY)",
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        self.assertTrue(hook.table_exists("t"))
+        self.assertFalse(hook.table_exists("u"))
+
+        session.shutdown()
+        hook.shutdown_cluster()
 
 
 if __name__ == '__main__':

@@ -19,10 +19,6 @@
 
 from future import standard_library
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.utils import LoginMixin
-
-
 from builtins import str
 from queue import Queue
 
@@ -49,7 +45,7 @@ def get_framework_name():
 
 # AirflowMesosScheduler, implements Mesos Scheduler interface
 # To schedule airflow jobs on mesos
-class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
+class AirflowMesosScheduler(mesos.interface.Scheduler):
     """
     Airflow Mesos scheduler implements mesos scheduler interface
     to schedule airflow tasks on mesos.
@@ -162,7 +158,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
 
                 command = mesos_pb2.CommandInfo()
                 command.shell = True
-                command.value = cmd
+                command.value = " ".join(cmd)
                 task.command.MergeFrom(command)
 
                 # If docker image for airflow is specified in config then pull that
@@ -213,7 +209,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
             self.task_queue.task_done()
 
 
-class MesosExecutor(BaseExecutor, LoginMixin):
+class MesosExecutor(BaseExecutor):
     """
     MesosExecutor allows distributing the execution of task
     instances to multiple mesos workers.

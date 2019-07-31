@@ -35,10 +35,10 @@ class FileSensor(BaseSensorOperator):
 
     :param fs_conn_id: reference to the File (path)
         connection id
-    :type fs_conn_id: string
+    :type fs_conn_id: str
     :param filepath: File or folder name (relative to
         the base path set within the connection)
-    :type fs_conn_id: string
+    :type fs_conn_id: str
     """
     template_fields = ('filepath',)
     ui_color = '#91818a'
@@ -46,7 +46,7 @@ class FileSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  filepath,
-                 fs_conn_id='fs_default2',
+                 fs_conn_id='fs_default',
                  *args,
                  **kwargs):
         super(FileSensor, self).__init__(*args, **kwargs)
@@ -56,8 +56,8 @@ class FileSensor(BaseSensorOperator):
     def poke(self, context):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
-        full_path = "/".join([basepath, self.filepath])
-        self.log.info('Poking for file {full_path}'.format(**locals()))
+        full_path = os.path.join(basepath, self.filepath)
+        self.log.info('Poking for file %s', full_path)
         try:
             if stat.S_ISDIR(os.stat(full_path).st_mode):
                 for root, dirs, files in os.walk(full_path):

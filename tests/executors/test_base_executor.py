@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+from tests.compat import mock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
@@ -43,3 +44,13 @@ class BaseExecutorTest(unittest.TestCase):
         self.assertEqual(len(executor.get_event_buffer()), 2)
         self.assertEqual(len(executor.event_buffer), 0)
 
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.sync')
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
+    @mock.patch('airflow.settings.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = BaseExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)

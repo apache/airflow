@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,6 +23,7 @@ from datetime import datetime
 from airflow.models import BaseOperator, TaskInstance
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 
 
@@ -34,7 +35,7 @@ class TriggerRuleDepTest(unittest.TestCase):
                             start_date=datetime(2015, 1, 1))
         if upstream_task_ids:
             task._upstream_task_ids.update(upstream_task_ids)
-        return TaskInstance(task=task, state=state, execution_date=None)
+        return TaskInstance(task=task, state=state, execution_date=task.start_date)
 
     def test_no_upstream_tasks(self):
         """
@@ -163,6 +164,44 @@ class TriggerRuleDepTest(unittest.TestCase):
         self.assertEqual(len(dep_statuses), 1)
         self.assertFalse(dep_statuses[0].passed)
 
+    def test_none_failed_tr_success(self):
+        """
+        All success including skip trigger rule success
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_FAILED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=0,
+            upstream_failed=0,
+            done=2,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 0)
+
+    def test_none_failed_tr_failure(self):
+        """
+        All success including skip trigger rule failure
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_FAILED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID",
+                                                        "FailedFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=1,
+            upstream_failed=0,
+            done=3,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 1)
+        self.assertFalse(dep_statuses[0].passed)
+
     def test_all_failed_tr_success(self):
         """
         All-failed trigger rule success
@@ -236,6 +275,73 @@ class TriggerRuleDepTest(unittest.TestCase):
             session="Fake Session"))
         self.assertEqual(len(dep_statuses), 1)
         self.assertFalse(dep_statuses[0].passed)
+
+    def test_none_skipped_tr_success(self):
+        """
+        None-skipped trigger rule success
+        """
+
+        ti = self._get_task_instance(TriggerRule.NONE_SKIPPED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID",
+                                                        "FailedFakeTaskID"])
+        with create_session() as session:
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=2,
+                skipped=0,
+                failed=1,
+                upstream_failed=0,
+                done=3,
+                flag_upstream_failed=False,
+                session=session))
+            self.assertEqual(len(dep_statuses), 0)
+
+            # with `flag_upstream_failed` set to True
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=3,
+                upstream_failed=0,
+                done=3,
+                flag_upstream_failed=True,
+                session=session))
+            self.assertEqual(len(dep_statuses), 0)
+
+    def test_none_skipped_tr_failure(self):
+        """
+        None-skipped trigger rule failure
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_SKIPPED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "SkippedTaskID"])
+
+        with create_session() as session:
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=1,
+                skipped=1,
+                failed=0,
+                upstream_failed=0,
+                done=2,
+                flag_upstream_failed=False,
+                session=session))
+            self.assertEqual(len(dep_statuses), 1)
+            self.assertFalse(dep_statuses[0].passed)
+
+            # with `flag_upstream_failed` set to True
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=1,
+                skipped=1,
+                failed=0,
+                upstream_failed=0,
+                done=2,
+                flag_upstream_failed=True,
+                session=session))
+            self.assertEqual(len(dep_statuses), 1)
+            self.assertFalse(dep_statuses[0].passed)
 
     def test_unknown_tr(self):
         """

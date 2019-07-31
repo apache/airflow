@@ -23,16 +23,9 @@ import json
 import unittest
 
 from airflow import configuration
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestAzureDataLakeHook(unittest.TestCase):
@@ -40,7 +33,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='adl_test_key',
                 conn_type='azure_data_lake',
                 login='client_id',

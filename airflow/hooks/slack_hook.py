@@ -34,9 +34,9 @@ class SlackHook(BaseHook):
         If both supplied, Slack API token will be used.
 
         :param token: Slack API token
-        :type token: string
+        :type token: str
         :param slack_conn_id: connection that has Slack API token in the password field
-        :type slack_conn_id: string
+        :type slack_conn_id: str
         """
         self.token = self.__get_token(token, slack_conn_id)
 

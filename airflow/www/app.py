@@ -17,19 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_admin import Admin, base
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from six.moves.urllib.parse import urlparse
-from werkzeug.wsgi import DispatcherMiddleware
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
 from airflow import configuration as conf
 from airflow import models, LoggingMixin
+from airflow.models.connection import Connection
 from airflow.settings import Session
 
 from airflow.www.blueprints import routes
@@ -45,24 +47,39 @@ csrf = CSRFProtect()
 def create_app(config=None, testing=False):
     app = Flask(__name__)
     if configuration.conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=None,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=1
+        )
     app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
         'webserver', 'AUTHENTICATE')
+
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
+    app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+
+    if config:
+        app.config.from_mapping(config)
 
     csrf.init_app(app)
 
     app.config['TESTING'] = testing
 
     airflow.load_login()
-    airflow.login.login_manager.init_app(app)
+    airflow.login.LOGIN_MANAGER.init_app(app)
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
-    cache = Cache(
-        app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    # flake8: noqa: F841
+    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     app.register_blueprint(routes)
 
@@ -104,7 +121,7 @@ def create_app(config=None, testing=False):
         av(vs.UserModelView(
             models.User, Session, name="Users", category="Admin"))
         av(vs.ConnectionModelView(
-            models.Connection, Session, name="Connections", category="Admin"))
+            Connection, Session, name="Connections", category="Admin"))
         av(vs.VariableView(
             models.Variable, Session, name="Variables", category="Admin"))
         av(vs.XComView(
@@ -112,11 +129,11 @@ def create_app(config=None, testing=False):
 
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
-            url='https://airflow.incubator.apache.org/'))
+            url='https://airflow.apache.org/'))
         admin.add_link(
             base.MenuLink(category='Docs',
-                          name='Github',
-                          url='https://github.com/apache/incubator-airflow'))
+                          name='GitHub',
+                          url='https://github.com/apache/airflow'))
 
         av(vs.VersionView(name='Version', category="About"))
 
@@ -135,8 +152,8 @@ def create_app(config=None, testing=False):
                 log.debug('Adding view %s', v.name)
                 admin.add_view(v)
             for bp in flask_blueprints:
-                log.debug('Adding blueprint %s', bp.name)
-                app.register_blueprint(bp)
+                log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
+                app.register_blueprint(bp["blueprint"])
             for ml in sorted(menu_links, key=lambda x: x.name):
                 log.debug('Adding menu link %s', ml.name)
                 admin.add_link(ml)
@@ -147,11 +164,7 @@ def create_app(config=None, testing=False):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)
-            else:
-                import importlib
-                importlib.reload(e)
+            six.moves.reload_module(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
@@ -169,11 +182,11 @@ def create_app(config=None, testing=False):
         return app
 
 
-app = None
+app = None  # type: Any
 
 
 def root_app(env, resp):
-    resp(b'404 Not Found', [(b'Content-Type', b'text/plain')])
+    resp('404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 
 

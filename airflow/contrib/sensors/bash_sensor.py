@@ -33,7 +33,7 @@ class BashSensor(BaseSensorOperator):
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
-    :type bash_command: string
+    :type bash_command: str
 
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
@@ -41,7 +41,7 @@ class BashSensor(BaseSensorOperator):
         behavior. (templated)
     :type env: dict
     :param output_encoding: output encoding of bash command.
-    :type output_encoding: string
+    :type output_encoding: str
     """
 
     template_fields = ('bash_command', 'env')
@@ -70,10 +70,7 @@ class BashSensor(BaseSensorOperator):
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
-                self.log.info(
-                    "Temporary script location: %s",
-                    script_location
-                )
+                self.log.info("Temporary script location: %s", script_location)
                 self.log.info("Running command: %s", bash_command)
                 sp = Popen(
                     ['bash', fname],
@@ -89,7 +86,6 @@ class BashSensor(BaseSensorOperator):
                     line = line.decode(self.output_encoding).strip()
                     self.log.info(line)
                 sp.wait()
-                self.log.info("Command exited with "
-                              "return code {0}".format(sp.returncode))
+                self.log.info("Command exited with return code %s", sp.returncode)
 
                 return not sp.returncode

@@ -172,15 +172,8 @@ class FakeElasticsearch(Elasticsearch):
                   'track_scores', 'version')
     def search(self, index=None, doc_type=None, body=None, params=None):
         searchable_indexes = self._normalize_index_to_list(index)
-        searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
-        matches = []
-        for searchable_index in searchable_indexes:
-            for document in self.__documents_dict[searchable_index]:
-                if searchable_doc_types\
-                   and document.get('_type') not in searchable_doc_types:
-                    continue
-                matches.append(document)
+        matches = self._find_match(index, doc_type, body, params)
 
         result = {
             'hits': {
@@ -257,6 +250,31 @@ class FakeElasticsearch(Elasticsearch):
                 }
             ]
         return result_dict
+
+    def _find_match(self, index, doc_type, body, params=None):
+        searchable_indexes = self._normalize_index_to_list(index)
+        searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
+
+        must = body['query']['bool']['must'][0]  # only support one must
+
+        matches = []
+        for searchable_index in searchable_indexes:
+            for document in self.__documents_dict[searchable_index]:
+                if searchable_doc_types\
+                   and document.get('_type') not in searchable_doc_types:
+                    continue
+
+                if 'match_phrase' in must:
+                    for query_id in must['match_phrase']:
+                        query_val = must['match_phrase'][query_id]
+                        if query_id in document['_source']:
+                            if query_val in document['_source'][query_id]:
+                                # use in as a proxy for match_phrase
+                                matches.append(document)
+                else:
+                    matches.append(document)
+
+        return matches
 
     def _normalize_index_to_list(self, index):
         # Ensure to have a list of index

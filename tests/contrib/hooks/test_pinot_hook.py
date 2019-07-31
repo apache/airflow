@@ -51,7 +51,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         Test on getting a pinot connection uri
         """
         db_hook = self.db_hook()
-        self.assertEquals(db_hook.get_uri(), 'http://host:1000/pql')
+        self.assertEqual(db_hook.get_uri(), 'http://host:1000/pql')
 
     def test_get_conn(self):
         """

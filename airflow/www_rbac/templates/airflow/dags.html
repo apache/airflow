@@ -21,14 +21,14 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
-<link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
+<link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
   <h2>DAGs</h2>
 
-  <div id="main_content" style="display:none;">
+  <div id="main_content">
     <div class="row">
       <div class="col-sm-2">
       </div>
@@ -36,7 +36,7 @@
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
               <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
             </div>
         </form>
       </div>
@@ -63,53 +63,37 @@
             </tr>
         </thead>
         <tbody>
-        {% for dag_id in dag_ids_in_page %}
-            {% set dag = webserver_dags[dag_id] if dag_id in webserver_dags else None %}
+        {% for dag in dags %}
             <tr>
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
-                    {% if dag_id in orm_dags %}
-                    <a href="{{ url_for('DagModelView.show', pk=dag_id) }}" title="Info">
+                    <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
-                    {% endif %}
                 </td>
 
                 <!-- Column 2: Turn dag on/off -->
                 <td>
-                  {% if dag_id in orm_dags %}
-                    {% set disabled = 'disabled' if view_only else None %}
-                    <input id="toggle-{{ dag_id }}" {{ disabled }} dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-                  {% endif %}
+                    <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                 </td>
 
                 <!-- Column 3: Name -->
                 <td>
-                    {% if dag_id in webserver_dags %}
-                    <a href="{{ url_for('Airflow.'+dag.default_view, dag_id=dag.dag_id) }}" title="{{ dag.description }}">
-                        {{ dag_id }}
+                    <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                        {{ dag.dag_id }}
                     </a>
-                    {% else %}
-                        {{ dag_id }}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
-                    {% endif %}
-                    {% if dag_id not in orm_dags %}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
-                    {% endif %}
                 </td>
 
                 <!-- Column 4: Dag Schedule -->
                 <td>
-                    {% if dag_id in webserver_dags %}
                     <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
                         {{ dag.schedule_interval }}
                     </a>
-                    {% endif %}
                 </td>
 
                 <!-- Column 5: Dag Owners -->
                 <td>
-                  {{ dag.owner if dag else orm_dags[dag_id].owners }}
+                  {{ dag.owners }}
                 </td>
 
                 <!-- Column 6: Recent Tasks -->
@@ -119,14 +103,12 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% if dag %}
-                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                    {% if last_run and last_run.execution_date %}
-                      <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
-                        {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                      </a>
-                      <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
-                    {% endif %}
+                  {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+                  {% if last_run and last_run.execution_date %}
+                    <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
+                      {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
+                    </a>
+                    <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
                   {% endif %}
                 </td>
 
@@ -140,8 +122,8 @@
                 {% if dag %}
 
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}"
-                   onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
+                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}"
+                   onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
@@ -187,14 +169,15 @@
                 {% endif %}
 
                 <!-- Refresh -->
-                <a href="{{ url_for("Airflow.refresh", dag_id=dag_id) }}">
+                <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
                 <!-- Delete -->
+                <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-                   onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
-                  <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                  onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
+                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>
             </tr>
@@ -215,29 +198,31 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
 
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
+  <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}"
-      const ENTER_KEY_CODE = 13
+      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
+      const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
-          search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          var query = new URLSearchParams(window.location.search);
+          query.set("search", e.target.value.trim())
+          window.location = DAGS_INDEX + "?" + query.toString();
           e.preventDefault();
         }
       });
@@ -247,14 +232,22 @@
         window.location = DAGS_INDEX + "?page_size=" + p_size;
       });
 
-      function confirmDeleteDag(dag_id){
-          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          This cannot be undone.");
+      function confirmTriggerDag(link, dag_id){
+        if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
+          postAsForm(link.href, {});
+        }
+        // Never follow the link
+        return false;
       }
 
-      function confirmTriggerDag(dag_id){
-          return confirm("Are you sure you want to run '"+dag_id+"' now?");
+      function confirmDeleteDag(link, dag_id){
+        if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          EXCEPT Log.\n\
+          This cannot be undone.")) {
+          postAsForm(link.href, {});
+        }
+        return false;
       }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
@@ -272,10 +265,8 @@
 
       var $input = $(".typeahead");
       unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
+      ]);
 
       $input.typeahead({
         source: [...unique_options_search],
@@ -283,14 +274,15 @@
         afterSelect: function(value) {
           search_query = value.trim()
           if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+            var query = new URLSearchParams(window.location.search);
+            query.set("search", search_query)
+            window.location = DAGS_INDEX + "?" + query;
           }
         }
       });
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
 
       $('#dags').dataTable({
@@ -320,7 +312,7 @@
       d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#dag-run-' + dag_id)
+            g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '110px')
               .selectAll("g")
@@ -399,9 +391,9 @@
       d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#task-run-' + dag_id)
+            g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '270px')
+              .attr('width', '300px')
               .selectAll("g")
               .data(states)
               .enter()

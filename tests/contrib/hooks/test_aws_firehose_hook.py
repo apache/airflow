@@ -57,7 +57,7 @@ class TestAwsFirehoseHook(unittest.TestCase):
         )
 
         stream_arn = response['DeliveryStreamARN']
-        self.assertEquals(
+        self.assertEqual(
             stream_arn, "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow")
 
         records = [{"Data": str(uuid.uuid4())}
@@ -65,8 +65,8 @@ class TestAwsFirehoseHook(unittest.TestCase):
 
         response = hook.put_records(records)
 
-        self.assertEquals(response['FailedPutCount'], 0)
-        self.assertEquals(response['ResponseMetadata']['HTTPStatusCode'], 200)
+        self.assertEqual(response['FailedPutCount'], 0)
+        self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
 
 
 if __name__ == '__main__':

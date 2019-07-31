@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
+import inspect
 from future import standard_library
 standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
 
-from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
@@ -30,19 +31,27 @@ import json
 import os
 import re
 import time
+import wtforms
+from wtforms.compat import text_type
 import zipfile
 
-from flask import after_this_request, request, Response
+from flask import after_this_request, request, Markup, Response
 from flask_admin.model import filters
 import flask_admin.contrib.sqla.filters as sqlafilters
 from flask_login import current_user
-import wtforms
-from wtforms.compat import text_type
+from six.moves.urllib.parse import urlencode
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
+
+try:
+    # cgi.escape has been deprecated since 3.3 and removed in 3.8
+    from html import escape
+except ImportError:
+    # Use cgi.escape for Python 2
+    from cgi import escape  # type: ignore
 
 AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
 
@@ -94,17 +103,11 @@ class DataProfilingMixin(object):
 
 
 def get_params(**kwargs):
-    params = []
-    for k, v in kwargs.items():
-        if k == 'showPaused':
-            # True is default or None
-            if v or v is None:
-                continue
-            params.append('{}={}'.format(k, v))
-        elif v:
-            params.append('{}={}'.format(k, v))
-    params = sorted(params, key=lambda x: x.split('=')[0])
-    return '&'.join(params)
+    if 'showPaused' in kwargs:
+        v = kwargs['showPaused']
+        if v or v is None:
+            kwargs.pop('showPaused')
+    return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
 
 
 def generate_pages(current_page, num_of_pages,
@@ -135,27 +138,27 @@ def generate_pages(current_page, num_of_pages,
     """
 
     void_link = 'javascript:void(0)'
-    first_node = """<li class="paginate_button {disabled}" id="dags_first">
+    first_node = Markup("""<li class="paginate_button {disabled}" id="dags_first">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&laquo;</a>
-</li>"""
+</li>""")
 
-    previous_node = """<li class="paginate_button previous {disabled}" id="dags_previous">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
-</li>"""
+    previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lsaquo;</a>
+</li>""")
 
-    next_node = """<li class="paginate_button next {disabled}" id="dags_next">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
-</li>"""
+    next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&rsaquo;</a>
+</li>""")
 
-    last_node = """<li class="paginate_button {disabled}" id="dags_last">
+    last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&raquo;</a>
-</li>"""
+</li>""")
 
-    page_node = """<li class="paginate_button {is_active}">
+    page_node = Markup("""<li class="paginate_button {is_active}">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="2" tabindex="0">{page_num}</a>
-</li>"""
+</li>""")
 
-    output = ['<ul class="pagination" style="margin-top:0px;">']
+    output = [Markup('<ul class="pagination" style="margin-top:0px;">')]
 
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(first_node.format(href_link="?{}"
@@ -211,9 +214,9 @@ def generate_pages(current_page, num_of_pages,
                                                       showPaused=showPaused)),
                                    disabled=is_disabled))
 
-    output.append('</ul>')
+    output.append(Markup('</ul>'))
 
-    return wtforms.widgets.core.HTMLString('\n'.join(output))
+    return Markup('\n'.join(output))
 
 
 def limit_sql(sql, limit, conn_type):
@@ -225,21 +228,21 @@ def limit_sql(sql, limit, conn_type):
             SELECT TOP {limit} * FROM (
             {sql}
             ) qry
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
         elif conn_type in ['oracle']:
             sql = """\
             SELECT * FROM (
             {sql}
             ) qry
             WHERE ROWNUM <= {limit}
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
         else:
             sql = """\
             SELECT * FROM (
             {sql}
             ) qry
             LIMIT {limit}
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
     return sql
 
 
@@ -374,6 +377,9 @@ def gzipped(f):
     return view_func
 
 
+ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+
+
 def open_maybe_zipped(f, mode='r'):
     """
     Opens the given file. If the path contains a folder with a .zip suffix, then
@@ -382,8 +388,7 @@ def open_maybe_zipped(f, mode='r'):
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
 
-    _, archive, filename = re.search(
-        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    _, archive, filename = ZIP_REGEX.search(f).groups()
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
@@ -397,6 +402,33 @@ def make_cache_key(*args, **kwargs):
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
+
+
+def get_python_source(x):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
 
 
 class AceEditorWidget(wtforms.widgets.TextArea):
@@ -422,6 +454,8 @@ class AceEditorWidget(wtforms.widgets.TextArea):
 class UtcDateTimeFilterMixin(object):
     def clean(self, value):
         dt = super(UtcDateTimeFilterMixin, self).clean(value)
+        if isinstance(dt, list):
+            return [timezone.make_aware(d, timezone=timezone.utc) for d in dt]
         return timezone.make_aware(dt, timezone=timezone.utc)
 
 

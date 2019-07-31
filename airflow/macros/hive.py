@@ -27,14 +27,14 @@ def max_partition(
     Gets the max partition for a table.
 
     :param schema: The hive schema the table lives in
-    :type schema: string
+    :type schema: str
     :param table: The hive table you are interested in, supports the dot
         notation as in "my_database.my_table", if a dot is found,
         the schema param is disregarded
-    :type table: string
+    :type table: str
     :param metastore_conn_id: The hive connection you are interested in.
         If your default is set you don't need to use this parameter.
-    :type metastore_conn_id: string
+    :type metastore_conn_id: str
     :param filter_map: partition_key:partition_value map used for partition filtering,
                        e.g. {'key1': 'value1', 'key2': 'value2'}.
                        Only partitions matching all partition_key:partition_value
@@ -63,7 +63,7 @@ def _closest_date(target_dt, date_list, before_target=None):
     :param target_dt: The target date
     :type target_dt: datetime.date
     :param date_list: The list of dates to search
-    :type date_list: datetime.date list
+    :type date_list: list[datetime.date]
     :param before_target: closest before or after the target
     :type before_target: bool or None
     :returns: The closest date
@@ -90,7 +90,7 @@ def closest_ds_partition(
     :param table: A hive table name
     :type table: str
     :param ds: A datestamp ``%Y-%m-%d`` e.g. ``yyyy-mm-dd``
-    :type ds: datetime.date list
+    :type ds: list[datetime.date]
     :param before: closest before (True), after (False) or either side of ds
     :type before: bool or None
     :returns: The closest date

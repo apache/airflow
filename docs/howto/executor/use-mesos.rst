@@ -26,7 +26,7 @@ There are two ways you can run airflow as a mesos framework:
 Tasks executed directly on mesos slaves
 ---------------------------------------
 
-``MesosExecutor`` allows you to schedule airflow tasks on a Mesos cluster.
+:class:`airflow.contrib.executors.mesos_executor.MesosExecutor` allows you to schedule airflow tasks on a Mesos cluster.
 For this to work, you need a running mesos cluster and you must perform the following
 steps -
 
@@ -57,7 +57,7 @@ You can now see the airflow framework and corresponding tasks in mesos UI.
 The logs for airflow tasks can be seen in airflow UI as usual.
 
 For more information about mesos, refer to `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
-For any queries/bugs on `MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
+For any queries/bugs on :class:`airflow.contrib.executors.mesos_executor.MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
 
 Tasks executed in containers on mesos slaves
 --------------------------------------------

@@ -147,10 +147,21 @@ simple dictionary.
 
 .. code:: python
 
+    def create_dag(dag_id):
+        """
+        A function returning a DAG object.
+        """
+
+        return DAG(dag_id)
+
+
     for i in range(10):
-        dag_id = 'foo_{}'.format(i)
+        dag_id = f'foo_{i}'
         globals()[dag_id] = DAG(dag_id)
+
         # or better, call a function that returns a DAG object!
+        other_dag_id = f'bar_{i}'
+        globals()[other_dag_id] = create_dag(other_dag_id)
 
 What are all the ``airflow run`` commands in my process list?
 ---------------------------------------------------------------

@@ -21,7 +21,7 @@
 from airflow.hooks.base_hook import BaseHook
 
 import jenkins
-import distutils
+from distutils.util import strtobool
 
 
 class JenkinsHook(BaseHook):
@@ -38,7 +38,7 @@ class JenkinsHook(BaseHook):
             connection.extra = 'false'
             # set a default value to connection.extra
             # to avoid rising ValueError in strtobool
-        if distutils.util.strtobool(connection.extra):
+        if strtobool(connection.extra):
             connectionPrefix = 'https'
         url = '%s://%s:%d' % (connectionPrefix, connection.host, connection.port)
         self.log.info('Trying to connect to %s', url)

@@ -25,19 +25,19 @@ the new module will override this one.
 """
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 
 from flask import url_for, redirect
 
-from airflow import settings
+from airflow import settings  # noqa: F401
 from airflow import models
 from airflow.utils.db import provide_session
 
 DEFAULT_USERNAME = 'airflow'
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 
 class DefaultUser(object):
@@ -67,11 +67,8 @@ class DefaultUser(object):
         """Access all the things"""
         return True
 
-# models.User = User  # hack!
-# del User
 
-
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == userid).first()

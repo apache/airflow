@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import BaseOperator, Pool
@@ -25,8 +26,19 @@ from airflow.utils.db import provide_session
 
 
 class SubDagOperator(BaseOperator):
+    """
+    This runs a sub dag. By convention, a sub dag's dag_id
+    should be prefixed by its parent and a dot. As in `parent.child`.
 
-    template_fields = tuple()
+    :param subdag: the DAG object to run as a subdag of the current DAG.
+    :type subdag: airflow.models.DAG
+    :param dag: the parent DAG for the subdag.
+    :type dag: airflow.models.DAG
+    :param executor: the executor for this subdag. Default to use SequentialExecutor.
+        Please find AIRFLOW-74 for more details.
+    :type executor: airflow.executors.base_executor.BaseExecutor
+    """
+
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
@@ -37,20 +49,7 @@ class SubDagOperator(BaseOperator):
             subdag,
             executor=SequentialExecutor(),
             *args, **kwargs):
-        """
-        This runs a sub dag. By convention, a sub dag's dag_id
-        should be prefixed by its parent and a dot. As in `parent.child`.
-
-        :param subdag: the DAG object to run as a subdag of the current DAG.
-        :type subdag: airflow.DAG.
-        :param dag: the parent DAG for the subdag.
-        :type dag: airflow.DAG.
-        :param executor: the executor for this subdag. Default to use SequentialExecutor.
-                         Please find AIRFLOW-74 for more details.
-        :type executor: airflow.executors.
-        """
-        import airflow.models
-        dag = kwargs.get('dag') or airflow.models._CONTEXT_MANAGER_DAG
+        dag = kwargs.get('dag') or settings.CONTEXT_MANAGER_DAG
         if not dag:
             raise AirflowException('Please pass in the `dag` param or call '
                                    'within a DAG context manager')

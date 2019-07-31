@@ -41,6 +41,35 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     Copy data from Cassandra to Google cloud storage in JSON format
 
     Note: Arrays of arrays are not supported.
+
+    :param cql: The CQL to execute on the Cassandra table.
+    :type cql: str
+    :param bucket: The bucket to upload to.
+    :type bucket: str
+    :param filename: The filename to use as the object name when uploading
+        to Google cloud storage. A {} should be specified in the filename
+        to allow the operator to inject file numbers in cases where the
+        file is split due to size.
+    :type filename: str
+    :param schema_filename: If set, the filename to use as the object name
+        when uploading a .json file containing the BigQuery schema fields
+        for the table that was dumped from MySQL.
+    :type schema_filename: str
+    :param approx_max_file_size_bytes: This operator supports the ability
+        to split large table dumps into multiple files (see notes in the
+        filename param docs above). This param allows developers to specify the
+        file size of the splits. Check https://cloud.google.com/storage/quotas
+        to see the maximum allowed file size for a single object.
+    :type approx_max_file_size_bytes: long
+    :param cassandra_conn_id: Reference to a specific Cassandra hook.
+    :type cassandra_conn_id: str
+    :param google_cloud_storage_conn_id: Reference to a specific Google
+        cloud storage hook.
+    :type google_cloud_storage_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to
+        work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ('cql', 'bucket', 'filename', 'schema_filename',)
     template_ext = ('.cql',)
@@ -58,36 +87,6 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        """
-        :param cql: The CQL to execute on the Cassandra table.
-        :type cql: string
-        :param bucket: The bucket to upload to.
-        :type bucket: string
-        :param filename: The filename to use as the object name when uploading
-            to Google cloud storage. A {} should be specified in the filename
-            to allow the operator to inject file numbers in cases where the
-            file is split due to size.
-        :type filename: string
-        :param schema_filename: If set, the filename to use as the object name
-            when uploading a .json file containing the BigQuery schema fields
-            for the table that was dumped from MySQL.
-        :type schema_filename: string
-        :param approx_max_file_size_bytes: This operator supports the ability
-            to split large table dumps into multiple files (see notes in the
-            filenamed param docs above). Google cloud storage allows for files
-            to be a maximum of 4GB. This param allows developers to specify the
-            file size of the splits.
-        :type approx_max_file_size_bytes: long
-        :param cassandra_conn_id: Reference to a specific Cassandra hook.
-        :type cassandra_conn_id: string
-        :param google_cloud_storage_conn_id: Reference to a specific Google
-            cloud storage hook.
-        :type google_cloud_storage_conn_id: string
-        :param delegate_to: The account to impersonate, if any. For this to
-            work, the service account making the request must have domain-wide
-            delegation enabled.
-        :type delegate_to: string
-        """
         super(CassandraToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.cql = cql
         self.bucket = bucket
@@ -266,7 +265,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         """
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
-        index is determined by the order of the tuple elments defined in cassandra.
+        index is determined by the order of the tuple elements defined in cassandra.
         """
         names = ['field_' + str(i) for i in range(len(value))]
         values = [cls.convert_value(name, value) for name, value in zip(names, value)]
@@ -276,7 +275,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     def convert_map_type(cls, name, value):
         """
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
-        each will be converted to its corresopnding data type in BQ.
+        each will be converted to its corresponding data type in BQ.
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):

@@ -27,10 +27,9 @@ from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SSHHook(BaseHook, LoggingMixin):
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -80,6 +79,7 @@ class SSHHook(BaseHook, LoggingMixin):
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
+        self.allow_host_key_change = False
         self.host_proxy = None
 
         # Placeholder for deprecated __enter__
@@ -98,7 +98,8 @@ class SSHHook(BaseHook, LoggingMixin):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                self.key_file = extra_options.get("key_file")
+                if "key_file" in extra_options and self.key_file is None:
+                    self.key_file = extra_options.get("key_file")
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
@@ -110,6 +111,10 @@ class SSHHook(BaseHook, LoggingMixin):
                         and\
                         str(extra_options["no_host_key_check"]).lower() == 'false':
                     self.no_host_key_check = False
+                if "allow_host_key_change" in extra_options\
+                        and\
+                        str(extra_options["allow_host_key_change"]).lower() == 'true':
+                    self.allow_host_key_change = True
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -141,13 +146,18 @@ class SSHHook(BaseHook, LoggingMixin):
         """
         Opens a ssh connection to the remote host.
 
-        :return paramiko.SSHClient object
+        :rtype: paramiko.client.SSHClient
         """
 
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
-        client.load_system_host_keys()
+        if not self.allow_host_key_change:
+            self.log.warning('Remote Identification Change is not verified. '
+                             'This wont protect against Man-In-The-Middle attacks')
+            client.load_system_host_keys()
         if self.no_host_key_check:
+            self.log.warning('No Host Key Verification. This wont protect '
+                             'against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
