@@ -99,6 +99,12 @@
                 <!-- Column 2: Turn dag on/off -->
                 <td>
                   <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+                  <h2 style="text-align: center; margin-top: 5px;">
+                    <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}"
+                      onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+                      <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
+                    </a>
+                  </h2>
                 </td>
 
                 <!-- Column 3: Name -->
