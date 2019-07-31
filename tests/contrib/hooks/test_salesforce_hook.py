@@ -67,11 +67,10 @@ class TestSalesforceHook(unittest.TestCase):
 
         query_results = self.salesforce_hook.make_query(query)
 
-        mock_salesforce.return_value.query_all.assert_called_once_with(query, included_deleted=included_deleted,
-                                                                       **kwargs)
+        mock_salesforce.return_value.query_all.assert_called_once_with(query, included_deleted=included_deleted)
         self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
 
-        query_results = self.salesforce_hook.make_query(query, include_deleted=True, **kwargs)
+        query_results = self.salesforce_hook.make_query(query, include_deleted=True)
 
         mock_salesforce.return_value.query_all.assert_called_once_with(query)
         self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
