@@ -20,7 +20,7 @@
 
 import unittest
 
-from unittest.mock import patch, Mock
+from tests.compat import patch, mock
 from simple_salesforce import Salesforce
 
 from airflow.contrib.hooks.salesforce_hook import SalesforceHook
@@ -33,7 +33,7 @@ class TestSalesforceHook(unittest.TestCase):
         self.salesforce_hook = SalesforceHook(conn_id='conn_id')
 
     def test_get_conn_exists(self):
-        self.salesforce_hook.conn = Mock(spec=Salesforce)
+        self.salesforce_hook.conn = mock.Mock(spec=Salesforce)
 
         self.salesforce_hook.get_conn()
 
