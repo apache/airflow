@@ -172,6 +172,33 @@
                         </td>
                       </tr>
                     </table>
+                    <!-- no list comprehensions in jinja -->
+                    {% set log_tasks = [] %}
+                    {% for task in dag_obj.tasks %}
+                      {% if task.task_id.startswith(log_prefix) %}
+                        {{ log_tasks.append(task) or "" }}
+                      {% endif %}
+                    {% endfor %}
+
+                    {% if log_tasks|length == 1 %}
+                      {% set xcom_dict = get_xcom(dag.dag_id, log_tasks[0].task_id, last_run.execution_date) %}
+                      {% if xcom_log_urls_key in xcom_dict %}
+                        External Logs: <br>
+                        {% for name, url in xcom_dict[xcom_log_urls_key] %}
+                          <a href="{{ url }}">{{ name }}</a> <br>
+                        {% endfor %}
+                      {% endif %}
+                    {% elif log_tasks %}
+                      {% for log_task in log_tasks %}
+                        {% set xcom_dict = get_xcom(dag.dag_id, log_task.task_id, last_run.execution_date) %}
+                        {% if xcom_log_urls_key in xcom_dict %}
+                          <br>External Logs ({{ log_task.task_id }}): <br>
+                          {% for name, url in xcom_dict[xcom_log_urls_key] %}
+                            <a href="{{ url }}">{{ name }}</a> <br>
+                          {% endfor %}
+                        {% endif %}
+                      {% endfor %}
+                    {% endif %}
                     <!--
                     </a>
                     <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>

@@ -22,6 +22,7 @@ import ast
 import codecs
 import copy
 import datetime as dt
+import functools
 from io import BytesIO
 import itertools
 import json
@@ -2207,8 +2208,27 @@ class HomeView(AdminIndexView):
             stringify_timedelta=stringify_timedelta,
             get_human_readable_cron=cron.get_human_readable_cron,
             dagbag=dagbag,
+            log_prefix=conf.get('core', 'log_task_prefix'),
+            xcom_log_urls_key=conf.get('core', 'xcom_log_urls_key'),
+            get_xcom=functools.partial(get_xcom, session),
             include_owners=include_owners,
             auto_complete_data=auto_complete_data)
+
+def get_xcom(session, dag_id, task_id, dttm):
+    """
+    Given a specific run of a specific task, pulls all the XCom data from that run and returns a dict of the data.
+
+    :param session: Session to query
+    :param dag_id: DAG ID
+    :param task_id: Task ID
+    :param dttm: Execution datetime of run
+    :return: Dict of key-value pairs from XCom
+    """
+    XCom = models.XCom
+    xcomlist = session.query(XCom).filter(
+        XCom.dag_id == dag_id, XCom.task_id == task_id,
+        XCom.execution_date == dttm).all()
+    return {xcom.key: xcom.value for xcom in xcomlist}
 
 
 def stringify_timedelta(delta: dt.timedelta) -> str:
