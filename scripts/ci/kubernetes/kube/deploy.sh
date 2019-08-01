@@ -32,7 +32,7 @@ usage() {
     -d Use PersistentVolume or GitSync for dags_folder. Available options are "persistent_mode" or "git_mode"
   optional arguments:
     -n Set Namespace. Default namespace is "default"
-    -i Set K8S_HOSTNAME if you use Ingress. This option enable to use Ingress.
+    -i Set K8S_HOSTNAME if you use Ingress. This option enables to use Ingress.
 EOF
     exit 1;
 }

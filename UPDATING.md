@@ -23,6 +23,19 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Ingress Implementation
+Some new manifests were added to use ingress and be able to define Namespace for kubernetes.  
+Few options were added in scripts/ci/kubernetes/kube/deploy.sh.
+
+```
+  usage: ./scripts/ci/kubernetes/kube/deploy.sh options
+  required arguments:
+    -d Use PersistentVolume or GitSync for dags_folder. Available options are "persistent_mode" or "git_mode"
+  optional arguments:
+    -n Set Namespace. Default namespace is "default"
+    -i Set K8S_HOSTNAME if you use Ingress. This option enables to use Ingress.
+```
+
 ### Changes to S3Hook
 
 Note: The order of arguments has changed for `check_for_prefix`. 
