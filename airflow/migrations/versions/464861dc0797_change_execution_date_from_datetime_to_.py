@@ -114,6 +114,62 @@ def upgrade():
                         'xcom',
                         ['dag_id', 'task_id', 'execution_date'], unique=False)
 
+        op.alter_column(table_name='dag', column_name='last_scheduler_run',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='dag', column_name='last_pickled',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='dag', column_name='last_expired',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='dag_pickle', column_name='created_dttm',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='dag_run', column_name='start_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='dag_run', column_name='end_date',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='import_error', column_name='timestamp',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='job', column_name='start_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='job', column_name='end_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.drop_index('job_type_heart', table_name='job')
+        op.drop_index('idx_job_state_heartbeat', table_name='job')
+        op.alter_column(
+            table_name="job",
+            column_name="latest_heartbeat",
+            type_=mssql.DATETIME2(precision=6))
+        op.create_index('job_type_heart',
+                        'job',
+                        ['job_type', 'latest_heartbeat'], unique=False)
+        op.create_index('idx_job_state_heartbeat',
+                        'job',
+                        ['state', 'latest_heartbeat'], unique=False)
+
+        op.alter_column(table_name='log', column_name='dttm',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='sla_miss', column_name='timestamp',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='task_fail', column_name='start_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='task_fail', column_name='end_date',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='task_instance', column_name='start_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='task_instance', column_name='end_date',
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='task_instance', column_name='queued_dttm',
+                        type_=mssql.DATETIME2(precision=6))
+
+        op.alter_column(table_name='xcom', column_name='timestamp',
+                        type_=mssql.DATETIME2(precision=6))
+
 
 def downgrade():
     conn = op.get_bind()
@@ -193,6 +249,62 @@ def downgrade():
         op.create_index('idx_xcom_dag_task_date',
                         'xcom',
                         ['dag_id', 'task_id', 'execution_date'], unique=False)
+
+        op.alter_column(table_name='dag', column_name='last_scheduler_run',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='dag', column_name='last_pickled',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='dag', column_name='last_expired',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='dag_pickle', column_name='created_dttm',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='dag_run', column_name='start_date',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='dag_run', column_name='end_date',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='import_error', column_name='timestamp',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='job', column_name='start_date',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='job', column_name='end_date',
+                        type_=mssql.DATETIME)
+        op.drop_index('job_type_heart', table_name='job')
+        op.drop_index('idx_job_state_heartbeat', table_name='job')
+        op.alter_column(
+            table_name="job",
+            column_name="latest_heartbeat",
+            type_=mssql.DATETIME)
+        op.create_index('job_type_heart',
+                        'job',
+                        ['job_type', 'latest_heartbeat'], unique=False)
+        op.create_index('idx_job_state_heartbeat',
+                        'job',
+                        ['state', 'latest_heartbeat'], unique=False)
+
+        op.alter_column(table_name='log', column_name='dttm',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='sla_miss', column_name='timestamp',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='task_fail', column_name='start_date',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='task_fail', column_name='end_date',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='task_instance', column_name='start_date',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='task_instance', column_name='end_date',
+                        type_=mssql.DATETIME)
+        op.alter_column(table_name='task_instance', column_name='queued_dttm',
+                        type_=mssql.DATETIME)
+
+        op.alter_column(table_name='xcom', column_name='timestamp',
+                        type_=mssql.DATETIME)
 
 
 def get_table_constraints(conn, table_name):
