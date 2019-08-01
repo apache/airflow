@@ -1,0 +1,15 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: airflow-ingress
+  namespace: {{NAMESPACE}}
+spec:
+  rules:
+  - host: {{K8S_HOSTNAME}}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: airflow
+          servicePort: 8080

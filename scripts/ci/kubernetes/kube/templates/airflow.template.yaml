@@ -22,12 +22,13 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   name: admin-rbac
+  namespace: {{NAMESPACE}}
 subjects:
   - kind: ServiceAccount
     # Reference to upper's `metadata.name`
     name: default
     # Reference to upper's `metadata.namespace`
-    namespace: default
+    namespace: {{NAMESPACE}}
 roleRef:
   kind: ClusterRole
   name: cluster-admin
@@ -37,6 +38,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: airflow
+  namespace: {{NAMESPACE}}
 spec:
   replicas: 1
   template:
@@ -138,6 +140,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: airflow
+  namespace: {{NAMESPACE}}
 spec:
   type: NodePort
   ports:
