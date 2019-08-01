@@ -169,7 +169,7 @@ if [[ "${TRAVIS}" == true ]]; then
 fi
 
 if [ "${NAMESPACE}" != 'default' ]; then
-  kubectl apply -f $BUILD_DIRNAME/namespace.yaml
+  kubectl apply -f ${BUILD_DIRNAME}/namespace.yaml
 fi
 kubectl config set-context $(kubectl config current-context) --namespace=${NAMESPACE}
 
