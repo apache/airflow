@@ -284,7 +284,7 @@ class SalesforceHook(BaseHook):
                 i['name'].lower()
                 for i in schema['fields']
                 if i['type'] in ["date", "datetime"] and
-                   i['name'].lower() in df.columns
+                i['name'].lower() in df.columns
             ]
             df[possible_timestamp_cols] = df[possible_timestamp_cols].apply(
                 lambda x: self._to_timestamp(x)
