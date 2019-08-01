@@ -303,10 +303,9 @@ RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
 ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master -
-# in case of CI optimized builds (next step). Our build scripts will change the EPOCH every month normally
-# But it can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH=""
+# By changing the CI build epoch we can force reinstalling Arflow from the current master
+# It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
+ARG AIRFLOW_CI_BUILD_EPOCH="1"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 # In case of CI-optimised builds we want to pre-install master version of airflow dependencies so that
