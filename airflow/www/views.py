@@ -2208,7 +2208,10 @@ class HomeView(AirflowViewMixin, AdminIndexView):
             query = query.filter(~DM.is_paused)
 
         if arg_search_query:
-            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
+            query = query.filter(
+                DM.dag_id.ilike('%' + arg_search_query + '%') |
+                DM.owners.ilike('%' + arg_search_query + '%')
+            )
 
         query = query.order_by(DM.dag_id)
 
