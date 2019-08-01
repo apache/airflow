@@ -18,7 +18,7 @@
 
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory
-AIRFLOW_SOURCES=$(cd ${MY_DIR}/../../ && pwd)
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../" && pwd)
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -28,19 +28,21 @@ FILES_FOR_REBUILD_CHECK="\
 setup.py \
 setup.cfg \
 Dockerfile \
+.dockerignore \
 airflow/version.py
 "
 
-mkdir -p ${AIRFLOW_SOURCES}/.mypy_cache
-mkdir -p ${AIRFLOW_SOURCES}/logs
-mkdir -p ${AIRFLOW_SOURCES}/tmp
+mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
+mkdir -p "${AIRFLOW_SOURCES}/logs"
+mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
 # Disable writing .pyc files - slightly slower imports but not messing around when switching
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE="true"
 
 # Read default branch name
-. ${AIRFLOW_SOURCES}/hooks/_default_branch.sh
+# shellcheck source=../../hooks/_default_branch.sh
+. "${AIRFLOW_SOURCES}/hooks/_default_branch.sh"
 
 # Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
@@ -68,6 +70,7 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
+      "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
@@ -282,11 +285,11 @@ function assert_not_in_container() {
 }
 
 #
-# Forces Python version to 3.6 (for static checks)
+# Forces Python version to 3.5 (for static checks)
 #
-function force_python_3_6() {
+function force_python_3_5() {
     # Set python version variable to force it in the container scripts
-    PYTHON_VERSION=3.6
+    PYTHON_VERSION=3.5
     export PYTHON_VERSION
 }
 
@@ -296,10 +299,11 @@ function force_python_3_6() {
 function rebuild_image_if_needed_for_static_checks() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
     export AIRFLOW_CONTAINER_BUILD_NPM="false"  # Skip NPM builds to make them faster !
 
-    export PYTHON_VERSION=3.6  # Always use python version 3.6 for static checks
+    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
@@ -325,15 +329,25 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
@@ -346,6 +360,7 @@ EOF
 
 function rebuild_image_if_needed_for_tests() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
     PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
         'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
@@ -385,15 +400,25 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
@@ -404,6 +429,25 @@ EOF
     export AIRFLOW_CI_IMAGE
 }
 
+function rebuild_image_for_checklicence() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
+
+    export THE_IMAGE="CHECKLICENCE"
+    echo
+    echo "Rebuilding image"
+    echo
+    # shellcheck source=../../hooks/build
+    ./hooks/build | tee -a "${OUTPUT_LOG}"
+    update_all_md5_files
+    echo
+    echo "Image rebuilt"
+    echo
+    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE")
+    export AIRFLOW_CHECKLICENCE_IMAGE
+}
 #
 # Starts the script/ If VERBOSE variable is set to true, it enables verbose output of commands executed
 # Also prints some useful diagnostics information at start of the script

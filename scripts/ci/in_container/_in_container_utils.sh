@@ -54,6 +54,7 @@ function in_container_cleanup_pyc() {
     set +o pipefail
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
+        -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -74,6 +75,7 @@ function in_container_cleanup_pycache() {
     set +o pipefail
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
+        -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \

@@ -20,6 +20,8 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
+from typing import Dict, List
+
 import requests
 from googleapiclient.discovery import build
 
@@ -40,19 +42,21 @@ class GcfHook(GoogleCloudBaseHook):
     """
     _conn = None
 
-    def __init__(self,
-                 api_version,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+    def __init__(
+        self,
+        api_version: str,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: str = None
+    ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
+        self.num_retries = self._get_field('num_retries', 5)  # type: int
 
     @staticmethod
-    def _full_location(project_id, location):
+    def _full_location(project_id: str, location: str) -> str:
         """
         Retrieve full location of the function in the form of
-        projects/<GCP_PROJECT_ID>/locations/<GCP_LOCATION>
+        ``projects/<GCP_PROJECT_ID>/locations/<GCP_LOCATION>``
 
         :param project_id: The Google Cloud Project project_id where the function belongs.
         :type project_id: str
@@ -75,7 +79,7 @@ class GcfHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def get_function(self, name):
+    def get_function(self, name: str) -> Dict:
         """
         Returns the Cloud Function with the given name.
 
@@ -88,7 +92,7 @@ class GcfHook(GoogleCloudBaseHook):
             name=name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location, body, project_id=None):
+    def create_new_function(self, location: str, body: Dict, project_id: str = None) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -101,6 +105,7 @@ class GcfHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
@@ -108,7 +113,7 @@ class GcfHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def update_function(self, name, body, update_mask):
+    def update_function(self, name: str, body: Dict, update_mask: List[str]) -> None:
         """
         Updates Cloud Functions according to the specified update mask.
 
@@ -129,7 +134,7 @@ class GcfHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location, zip_path, project_id=None):
+    def upload_function_zip(self, location: str, zip_path: str, project_id: str = None) -> str:
         """
         Uploads zip file with sources.
 
@@ -141,7 +146,9 @@ class GcfHook(GoogleCloudBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         :return: The upload URL that was returned by generateUploadUrl method.
+        :rtype: str
         """
+        assert project_id is not None
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)
@@ -162,7 +169,7 @@ class GcfHook(GoogleCloudBaseHook):
             )
         return upload_url
 
-    def delete_function(self, name):
+    def delete_function(self, name: str) -> None:
         """
         Deletes the specified Cloud Function.
 
@@ -175,7 +182,7 @@ class GcfHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def _wait_for_operation_to_complete(self, operation_name):
+    def _wait_for_operation_to_complete(self, operation_name: str) -> Dict:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.

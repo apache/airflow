@@ -46,6 +46,7 @@ docker run -ti --rm -v "${AIRFLOW_ROOT}:/airflow" \
     -w /airflow "${PYTHON_DOCKER_IMAGE}" ./scripts/ci/kubernetes/docker/compile.sh
 
 sudo rm -rf "${AIRFLOW_ROOT}/airflow/www/node_modules"
+sudo rm -rf "${AIRFLOW_ROOT}/airflow/www_rbac/node_modules"
 
 echo "Copy distro ${AIRFLOW_ROOT}/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
 cp ${AIRFLOW_ROOT}/dist/*.tar.gz "${DIRNAME}/airflow.tar.gz"

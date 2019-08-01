@@ -25,6 +25,9 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 TEMPLATE_DIRNAME="${DIRNAME}/templates"
 BUILD_DIRNAME="${DIRNAME}/build"
 
+# shellcheck source=../../../../hooks/_default_branch.sh
+. "${DIRNAME}/../../../../hooks/_default_branch.sh"
+
 usage() {
     cat << EOF
   usage: $0 options
@@ -82,7 +85,7 @@ else
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
-CONFIGMAP_BRANCH=${TRAVIS_BRANCH:-master}
+CONFIGMAP_BRANCH=${DEFAULT_BRANCH:=master}
 
 _UNAME_OUT=$(uname -s)
 case "${_UNAME_OUT}" in

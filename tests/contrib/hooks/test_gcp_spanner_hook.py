@@ -288,7 +288,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_method.assert_called_with(database_id='database-name')
         database_exists_method.assert_called_with()
         database_drop_method.assert_called_with()
-        self.assertIsNone(res)
+        self.assertTrue(res)
 
     @mock.patch('airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook._get_client')
     def test_delete_database_overridden_project_id(self, get_client):
@@ -308,7 +308,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_method.assert_called_with(database_id='database-name')
         database_exists_method.assert_called_with()
         database_drop_method.assert_called_with()
-        self.assertIsNone(res)
+        self.assertTrue(res)
 
     @mock.patch('airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook._get_client')
     def test_execute_dml(self, get_client):
@@ -664,7 +664,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         database_method.assert_called_with(database_id='database-name')
         database_exists_method.assert_called_with()
         database_drop_method.assert_called_with()
-        self.assertIsNone(res)
+        self.assertTrue(res)
 
     @mock.patch('airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook._get_client')
     def test_delete_database_missing_database(self, get_client):

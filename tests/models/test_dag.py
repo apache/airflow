@@ -22,13 +22,13 @@ import logging
 import os
 import re
 import unittest
+from collections import namedtuple
 from unittest.mock import patch
 import uuid
 from tempfile import NamedTemporaryFile
 
 import jinja2
 import pendulum
-import six
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException
@@ -261,7 +261,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -287,7 +287,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -313,7 +313,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -447,10 +447,37 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        # tuple is replaced by a list
-        self.assertListEqual(
+        # tuple is returned
+        self.assertTupleEqual(
             task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
-            ['bar_1', 'bar_2']
+            ('bar_1', 'bar_2')
+        )
+
+    def test_render_template_named_tuple_field(self):
+        """Tests if render_template from a named tuple field works"""
+
+        Named = namedtuple('Named', ['var1', 'var2'])
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        expected = Named('bar_1', 'bar_2')
+        actual = task.render_template('', Named('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'})
+
+        # Named tuple's field access is preserved but are still rendered
+        self.assertTupleEqual(expected, actual)
+        self.assertEqual(
+            expected.var1,
+            actual.var1,
+            msg="Named tuples may not have been preserved in rendering"
+        )
+        self.assertEqual(
+            expected.var2,
+            actual.var2,
+            msg="Named tuples may not have been preserved in rendering"
         )
 
     def test_render_template_dict_field(self):

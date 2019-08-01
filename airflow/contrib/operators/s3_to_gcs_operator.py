@@ -202,6 +202,6 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     # airflow/contrib/hooks/gcs_hook.py
     @staticmethod
     def _gcs_object_is_directory(object):
-        bucket, blob = _parse_gcs_url(object)
+        _, blob = _parse_gcs_url(object)
 
         return len(blob) == 0 or blob.endswith('/')

@@ -18,6 +18,8 @@
 # under the License.
 
 from collections import OrderedDict
+from typing import Dict
+
 import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 import MySQLdb
@@ -81,19 +83,19 @@ class MySqlToHiveTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            sql,
-            hive_table,
-            create=True,
-            recreate=False,
-            partition=None,
-            delimiter=chr(1),
-            quoting=None,
-            quotechar='"',
-            escapechar=None,
-            mysql_conn_id='mysql_default',
-            hive_cli_conn_id='hive_cli_default',
-            tblproperties=None,
-            *args, **kwargs):
+            sql: str,
+            hive_table: str,
+            create: bool = True,
+            recreate: bool = False,
+            partition: Dict = None,
+            delimiter: str = chr(1),
+            quoting: str = None,
+            quotechar: str = '"',
+            escapechar: str = None,
+            mysql_conn_id: str = 'mysql_default',
+            hive_cli_conn_id: str = 'hive_cli_default',
+            tblproperties: Dict = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table

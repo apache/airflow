@@ -46,7 +46,8 @@ class DockerHookTest(unittest.TestCase):
             Connection(
                 conn_id='docker_with_extras',
                 conn_type='docker',
-                host='some.docker.registry.com',
+                host='another.docker.registry.com',
+                port=9876,
                 login='some_user',
                 password='some_p4$$w0rd',
                 extra='{"email": "some@example.com", "reauth": "no"}'
@@ -132,7 +133,7 @@ class DockerHookTest(unittest.TestCase):
         client.login.assert_called_with(
             username='some_user',
             password='some_p4$$w0rd',
-            registry='some.docker.registry.com',
+            registry='another.docker.registry.com:9876',
             reauth=False,
             email='some@example.com'
         )

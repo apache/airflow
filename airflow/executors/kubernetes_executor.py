@@ -304,7 +304,7 @@ class KubeConfig:
                 'through ssh key, but not both')
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
+class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace
@@ -452,16 +452,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def delete_pod(self, pod_id):
-        if self.kube_config.delete_worker_pods:
-            try:
-                self.kube_client.delete_namespaced_pod(
-                    pod_id, self.namespace, body=client.V1DeleteOptions(),
-                    **self.kube_config.kube_client_request_args)
-            except ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+    def delete_pod(self, pod_id: str) -> None:
+        try:
+            self.kube_client.delete_namespaced_pod(
+                pod_id, self.namespace, body=client.V1DeleteOptions(),
+                **self.kube_config.kube_client_request_args)
+        except ApiException as e:
+            # If the pod is already deleted
+            if e.status != 404:
+                raise
 
     def sync(self):
         """
@@ -805,11 +804,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             except Empty:
                 break
 
-    def _change_state(self, key, state, pod_id):
+    def _change_state(self, key, state, pod_id: str) -> None:
         if state != State.RUNNING:
-            self.kube_scheduler.delete_pod(pod_id)
-            try:
+            if self.kube_config.delete_worker_pods:
+                self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
+            try:
                 self.running.pop(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))

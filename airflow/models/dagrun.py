@@ -18,7 +18,6 @@
 # under the License.
 from typing import Optional, cast
 
-import six
 from sqlalchemy import (
     Column, Integer, String, Boolean, PickleType, Index, UniqueConstraint, func, DateTime, or_,
     and_
@@ -383,7 +382,7 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
 
         # check for missing tasks
-        for task in six.itervalues(dag.task_dict):
+        for task in dag.task_dict.values():
             if task.start_date > self.execution_date and not self.is_backfill:
                 continue
 

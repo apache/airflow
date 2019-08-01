@@ -294,7 +294,11 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     if pid == os.getpid():
         raise RuntimeError("I refuse to kill myself")
 
-    parent = psutil.Process(pid)
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        # Race condition - the process already exited
+        return
 
     children = parent.children(recursive=True)
     children.append(parent)
@@ -310,7 +314,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     log.info("Sending %s to GPID %s", sig, pg)
     os.killpg(os.getpgid(pid), sig)
 
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:

@@ -19,6 +19,8 @@ This module contains a Google ML Engine Hook.
 
 import random
 import time
+from typing import Dict, Callable, List, Optional
+
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 
@@ -58,7 +60,7 @@ class MLEngineHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._mlengine = self.get_conn()
 
@@ -69,7 +71,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    def create_job(self, project_id, job, use_existing_job_fn=None):
+    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Callable = None) -> Dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -129,7 +131,7 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         return self._wait_for_job_done(project_id, job_id)
 
-    def _get_job(self, project_id, job_id):
+    def _get_job(self, project_id: str, job_id: str) -> Dict:
         """
         Gets a MLEngine job based on the job name.
 
@@ -150,7 +152,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                     self.log.error('Failed to get MLEngine job: {}'.format(e))
                     raise
 
-    def _wait_for_job_done(self, project_id, job_id, interval=30):
+    def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
         """
         Waits for the Job to reach a terminal state.
 
@@ -166,7 +168,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                 return job
             time.sleep(interval)
 
-    def create_version(self, project_id, model_name, version_spec):
+    def create_version(self, project_id: str, model_name: str, version_spec: Dict) -> Dict:
         """
         Creates the Version on Google Cloud ML Engine.
 
@@ -186,7 +188,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    def set_default_version(self, project_id, model_name, version_name):
+    def set_default_version(self, project_id: str, model_name: str, version_name: str) -> Dict:
         """
         Sets a version to be the default. Blocks until finished.
         """
@@ -203,11 +205,11 @@ class MLEngineHook(GoogleCloudBaseHook):
             self.log.error('Something went wrong: %s', e)
             raise
 
-    def list_versions(self, project_id, model_name):
+    def list_versions(self, project_id: str, model_name: str) -> List[Dict]:
         """
         Lists all available versions of a model. Blocks until finished.
         """
-        result = []
+        result = []  # type: List[Dict]
         full_parent_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
         request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
@@ -227,7 +229,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             time.sleep(5)
         return result
 
-    def delete_version(self, project_id, model_name, version_name):
+    def delete_version(self, project_id: str, model_name: str, version_name: str):
         """
         Deletes the given version of a model. Blocks until finished.
         """
@@ -245,7 +247,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    def create_model(self, project_id, model):
+    def create_model(self, project_id: str, model: Dict) -> Dict:
         """
         Create a Model. Blocks until finished.
         """
@@ -258,7 +260,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             parent=project, body=model)
         return request.execute()
 
-    def get_model(self, project_id, model_name):
+    def get_model(self, project_id: str, model_name: str) -> Optional[Dict]:
         """
         Gets a Model. Blocks until finished.
         """

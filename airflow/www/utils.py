@@ -103,11 +103,11 @@ def generate_pages(current_page, num_of_pages,
 </li>""")
 
     previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lsaquo;</a>
 </li>""")
 
     next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&rsaquo;</a>
 </li>""")
 
     last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">

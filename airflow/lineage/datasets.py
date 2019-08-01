@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import six
 
 from typing import List
 from jinja2 import Environment
@@ -38,15 +37,13 @@ class DataSet:
         self.context = None
         self._data = dict()
 
-        self._data.update(dict((key, value) for key, value in six.iteritems(kwargs)
-                               if key in set(self.attributes)))
+        self._data.update({key: value for key, value in kwargs.items() if key in set(self.attributes)})
 
         if data:
             if "qualifiedName" in data:
                 self._qualified_name = data.pop("qualifiedName")
 
-            self._data = dict((key, value) for key, value in six.iteritems(data)
-                              if key in set(self.attributes))
+            self._data = {key: value for key, value in data.items() if key in set(self.attributes)}
 
     def set_context(self, context):
         self.context = context
@@ -85,7 +82,7 @@ class DataSet:
 
         env = Environment()
         if self.context:
-            for key, value in six.iteritems(attributes):
+            for key, value in attributes.items():
                 attributes[key] = json.loads(
                     env.from_string(json.dumps(value)).render(**self.context)
                 )
