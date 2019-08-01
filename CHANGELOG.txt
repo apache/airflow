@@ -1,4 +1,4 @@
-Airflow 1.10.4, - 2019-08-03
+Airflow 1.10.4, - 2019-08-04
 ----------------------------
 
 New Features
@@ -161,6 +161,7 @@ Improvement
 
 Bug fixes
 """""""""
+- [AIRFLOW-5089] Change version requirement on google-cloudp-spanner to work around version incompatibility (#5703)
 - [AIRFLOW-4289] fix spark_binary argument being ignored in SparkSubmitHook (#5564)
 - [AIRFLOW-5075] Let HttpHook handle connections with empty host fields (#5686)
 - [AIRFLOW-4822] Fix bug where parent-dag task instances are wrongly cleared when using subdags (#5444)
