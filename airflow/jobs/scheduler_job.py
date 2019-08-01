@@ -185,7 +185,6 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         # The queue will likely get corrupted, so remove the reference
         self._result_queue = None
         self._kill_process()
-        self._manager.shutdown()
 
     def terminate(self, sigkill=False):
         """
