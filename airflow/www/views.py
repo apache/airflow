@@ -2185,8 +2185,16 @@ class HomeView(AdminIndexView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
+        # we want DAGs with no DAGModel to always appear at the bottom, even below those with no next run date
+        no_obj_dags, obj_dags = [], []
+        # split DAGModels into those with and without associated DAG object
+        for dag in dags:
+            (no_obj_dags, obj_dags)[bool(dagbag.get_dag(dag.dag_id))].append(dag)
+
         max_dt = pendulum.timezone('UTC').convert(dt.datetime(9999, 12, 31))
-        dags = list(sorted(dags, key=lambda dag: dagbag.get_dag(dag.dag_id).get_next_run_date(pendulum.now('UTC')) or max_dt))
+        dags = list(sorted(obj_dags, key=lambda dag: dagbag.get_dag(dag.dag_id).get_next_run_date(pendulum.now('UTC')) or max_dt))
+        # tack on DAGModels with no DAG object
+        dags += no_obj_dags
 
         return self.render(
             'airflow/dags.html',

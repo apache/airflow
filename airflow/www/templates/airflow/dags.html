@@ -66,6 +66,8 @@
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
+                <th style="padding-left: 5px;">Original Config <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Configuration Options of DAG."></span>
+                </th>
                 <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
                 </th>
                 <th style="padding-left: 5px;">Next Scheduled Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Time of Next Scheduled DAG Run."></span>
@@ -90,6 +92,7 @@
             -->
             <!-- de-indented for compat -->
             <tr class="dag-row" owner="{{ dag.owners }}" {{ '' if include_owners is none or dag.owners in include_owners else 'hidden' }}>
+                {% if dag_obj %}
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                   <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag.dag_id }}" title="Info">
@@ -133,6 +136,24 @@
                 <!-- Column 6: Recent Tasks -->
                 <td style="padding:0px; width:200px; height:10px;">
                     <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                </td>
+
+                <!-- Column 6.5: Config -->
+                <td>
+                  <table class="table table-striped table-bordered">
+                    <tr>
+                      <td>Start Date</td>
+                      {% set start_date = client_timezone.convert(dag_obj.tasks|map(attribute="start_date")|min) %}
+                      <td>
+                        {{ start_date.strftime(time_fmt_str) if dag_obj.tasks else "" }}
+                        <span aria-hidden="true" id="statuses_info" title="{{ stringify_timedelta(start_date - now_time) }}" class="glyphicon glyphicon-info-sign"></span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Catchup</td>
+                      <td>{{ "Enabled" if dag_obj.catchup else "Disabled" }}</td>
+                    </tr>
+                  </table>
                 </td>
 
                 <!-- Column 7: Last Run -->
@@ -307,6 +328,11 @@
                 </a>
                 </td>
                 -->
+                {% else %}
+                <td align="center" colspan="1000" class="alert alert-warning">
+                  <h2>DAG {{ dag.dag_id }} not in DagBag! Was it deleted from disk?</h2>
+                </td>
+                {% endif %}
             </tr>
         {% endfor %}
         </tbody>
