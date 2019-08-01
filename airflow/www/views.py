@@ -105,6 +105,11 @@ if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
 
 
+@current_app.context_processor
+def navbar_vars():
+    return {'git_hash': os.environ['AIRFLOW_GIT_HASH']}
+
+
 def dag_link(v, c, m, p):
     if m.dag_id is None:
         return Markup()

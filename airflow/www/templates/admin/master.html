@@ -99,7 +99,10 @@ function postAsForm(url, parameters) {
           <span class="icon-bar"></span>
           <span class="icon-bar"></span>
         </button>
+          <!--
           <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer;">
+          -->
+          <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer; padding-right: 0px;">
               <img style="float: left; width:35px; margin-top: -7px;"
                    src="{{ url_for("static", filename="pin_100.png") }}"
                    {% if current_user.user is defined %}
@@ -107,7 +110,17 @@ function postAsForm(url, parameters) {
                    {% else %}
                       title="{{ current_user.username }}"
                    {% endif %}>
+              <!--
               <span>Airflow</span>
+              -->
+              <span style="margin-right: 0px; padding-right: 0px;">Airflow (Coatue fork version</span>
+          </a>
+          <span style="margin-left: 0px;">
+            <a class="navbar-brand" style="cursor: pointer; padding-right: 0px;" href="https://github.com/coatue/airflow/tree/{{ git_hash }}">
+              &nbsp;<span style="text-decoration: underline; color: #0091a1;">{{ git_hash }}</span>
+            </a>
+            <div style="padding-left: 0px; margin-left: 0px; display: inline-block; color: #ffffff" class="navbar-brand">)</div>
+          </span>
           </a>
       </div>
       <!-- navbar content -->
