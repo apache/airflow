@@ -21,6 +21,7 @@ from unittest import TestCase, mock
 
 import pendulum
 
+from airflow.exceptions import AirflowSensorTimeout
 from airflow import DAG
 from airflow.contrib.sensors.gcs_sensor import GoogleCloudStorageObjectSensor, \
     GoogleCloudStorageObjectUpdatedSensor, ts_function, GoogleCloudStoragePrefixSensor
@@ -142,3 +143,38 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         result = task.poke(mock.MagicMock)
 
         self.assertEqual(False, result)
+
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook')
+    def test_execute(self, mock_hook):
+        task = GoogleCloudStoragePrefixSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            prefix=TEST_PREFIX,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            poke_interval=0)
+        generated_messages = ['test-prefix/obj%s' % i for i in range(5)]
+        mock_hook.return_value.list.return_value = generated_messages
+
+        response = task.execute(None)
+
+        mock_hook.assert_called_with(
+            delegate_to=TEST_DELEGATE_TO,
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+        )
+        mock_hook.return_value.list.assert_called_with(TEST_BUCKET, prefix=TEST_PREFIX)
+        self.assertEqual(response, generated_messages)
+
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook')
+    def test_execute_timeout(self, mock_hook):
+        task = GoogleCloudStoragePrefixSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            prefix=TEST_PREFIX,
+            poke_interval=0,
+            timeout=1)
+        mock_hook.return_value.list.return_value = []
+        with self.assertRaises(AirflowSensorTimeout):
+            task.execute(mock.MagicMock)
+            mock_hook.return_value.list.assert_called_with(
+                TEST_BUCKET, prefix=TEST_PREFIX)
