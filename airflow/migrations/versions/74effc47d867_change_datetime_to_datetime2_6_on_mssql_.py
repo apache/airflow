@@ -151,7 +151,6 @@ def downgrade():
             task_reschedule_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME)
             task_reschedule_batch_op.alter_column(column_name='reschedule_date', type_=mssql.DATETIME)
 
-
         with op.batch_alter_table('task_instance') as task_instance_batch_op:
             task_instance_batch_op.drop_index('ti_state_lkp')
             task_instance_batch_op.drop_index('ti_dag_date')
