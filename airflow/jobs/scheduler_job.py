@@ -1397,8 +1397,9 @@ class SchedulerJob(BaseJob):
                                          last_self_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > self.heartrate:
                 self.log.debug("Heartbeating the scheduler")
-                self.heartbeat()
-                last_self_heartbeat_time = timezone.utcnow()
+                heartbeat_time = self.heartbeat()
+                if heartbeat_time is not None:
+                    last_self_heartbeat_time = heartbeat_time
 
             is_unit_test = conf.getboolean('core', 'unit_test_mode')
             loop_end_time = time.time()

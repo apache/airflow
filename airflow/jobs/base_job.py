@@ -160,6 +160,11 @@ class BaseJob(Base, LoggingMixin):
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
+
+        Returns the timestamp for the latest_heartbeat, or None if the
+        heartbeat failed.
+
+        :rtype: datetime.datetime or None
         """
         try:
             with create_session() as session:
@@ -185,14 +190,18 @@ class BaseJob(Base, LoggingMixin):
             # Update last heartbeat time
             with create_session() as session:
                 job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-                job.latest_heartbeat = timezone.utcnow()
+                latest_heartbeat = timezone.utcnow()
+                job.latest_heartbeat = latest_heartbeat
                 session.merge(job)
                 session.commit()
 
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
+
+            return latest_heartbeat
         except OperationalError as e:
-            self.log.error("Scheduler heartbeat got an exception: %s", str(e))
+            self.log.error("Heartbeat got an exception: %s", str(e))
+            return None
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)

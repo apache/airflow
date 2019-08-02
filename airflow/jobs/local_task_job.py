@@ -22,8 +22,6 @@ import os
 import signal
 import time
 
-from sqlalchemy.exc import OperationalError
-
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.stats import Stats
@@ -103,13 +101,13 @@ class LocalTaskJob(BaseJob):
 
                 # Periodically heartbeat so that the scheduler doesn't think this
                 # is a zombie
-                try:
-                    self.heartbeat()
-                    last_heartbeat_time = time.time()
-                except OperationalError:
+                heartbeat_time = self.heartbeat()
+                if heartbeat_time is not None:
+                    last_heartbeat_time = heartbeat_time.timestamp()
+                else:
                     Stats.incr('local_task_job_heartbeat_failure', 1, 1)
-                    self.log.exception(
-                        "Exception while trying to heartbeat! Sleeping for %s seconds",
+                    self.log.error(
+                        "Failed to heartbeat! Sleeping for %s seconds",
                         self.heartrate
                     )
                     time.sleep(self.heartrate)
