@@ -51,32 +51,34 @@ def upgrade():
 
         with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
             task_reschedule_batch_op.drop_index('idx_task_reschedule_dag_task_date')
-
-            task_reschedule_batch_op.drop_constraint(
-                'task_reschedule_dag_task_date_fkey',
-                type_='foreignkey'
-            )
-            task_reschedule_batch_op.alter_column(
-                column_name="execution_date",
-                type_=mssql.DATETIME2(precision=6),
-                nullable=False,
-            )
+            task_reschedule_batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
+            task_reschedule_batch_op.alter_column(column_name="execution_date",
+                                                  type_=mssql.DATETIME2(precision=6), nullable=False, )
+            task_reschedule_batch_op.alter_column(column_name='start_date',
+                                                  type_=mssql.DATETIME2(precision=6))
+            task_reschedule_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME2(precision=6))
+            task_reschedule_batch_op.alter_column(column_name='reschedule_date',
+                                                  type_=mssql.DATETIME2(precision=6))
 
         with op.batch_alter_table('task_instance') as task_instance_batch_op:
             task_instance_batch_op.drop_index('ti_state_lkp')
             task_instance_batch_op.drop_index('ti_dag_date')
-
             modify_execution_date_with_constraint(conn, task_instance_batch_op, 'task_instance',
                                                   mssql.DATETIME2(precision=6), False)
-
             task_instance_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME2(precision=6))
             task_instance_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME2(precision=6))
             task_instance_batch_op.alter_column(column_name='queued_dttm', type_=mssql.DATETIME2(precision=6))
+            task_instance_batch_op.create_index('ti_state_lkp', ['dag_id', 'task_id', 'execution_date'],
+                                                unique=False)
+            task_instance_batch_op.create_index('ti_dag_date', ['dag_id', 'execution_date'], unique=False)
 
-            task_instance_batch_op.create_index('ti_state_lkp',
-                                                ['dag_id', 'task_id', 'execution_date'], unique=False)
-            task_instance_batch_op.create_index('ti_dag_date',
-                                                ['dag_id', 'execution_date'], unique=False)
+        with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
+            task_reschedule_batch_op.create_foreign_key('task_reschedule_dag_task_date_fkey', 'task_instance',
+                                                        ['task_id', 'dag_id', 'execution_date'],
+                                                        ['task_id', 'dag_id', 'execution_date'],
+                                                        ondelete='CASCADE')
+            task_reschedule_batch_op.create_index('idx_task_reschedule_dag_task_date',
+                                                  ['dag_id', 'task_id', 'execution_date'], unique=False)
 
         with op.batch_alter_table('dag_run') as dag_run_batch_op:
             modify_execution_date_with_constraint(conn, dag_run_batch_op, 'dag_run',
@@ -84,21 +86,7 @@ def upgrade():
             dag_run_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME2(precision=6))
             dag_run_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME2(precision=6))
 
-        with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
-            task_reschedule_batch_op.create_foreign_key(
-                'task_reschedule_dag_task_date_fkey',
-                'task_instance',
-                ['task_id', 'dag_id', 'execution_date'],
-                ['task_id', 'dag_id', 'execution_date'],
-                ondelete='CASCADE'
-            )
-            task_reschedule_batch_op.create_index('idx_task_reschedule_dag_task_date',
-                                                  ['dag_id', 'task_id', 'execution_date'], unique=False)
-
-        op.alter_column(
-            table_name="log", column_name="execution_date", type_=mssql.DATETIME2(precision=6)
-        )
-
+        op.alter_column(table_name="log", column_name="execution_date", type_=mssql.DATETIME2(precision=6))
         op.alter_column(table_name='log', column_name='dttm', type_=mssql.DATETIME2(precision=6))
 
         with op.batch_alter_table('sla_miss') as sla_miss_batch_op:
@@ -107,25 +95,18 @@ def upgrade():
             sla_miss_batch_op.alter_column(column_name='timestamp', type_=mssql.DATETIME2(precision=6))
 
         op.drop_index('idx_task_fail_dag_task_date', table_name='task_fail')
-        op.alter_column(
-            table_name="task_fail",
-            column_name="execution_date",
-            type_=mssql.DATETIME2(precision=6),
-        )
-        op.create_index('idx_task_fail_dag_task_date',
-                        'task_fail',
-                        ['dag_id', 'task_id', 'execution_date'], unique=False)
+        op.alter_column(table_name="task_fail", column_name="execution_date",
+                        type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='task_fail', column_name='start_date', type_=mssql.DATETIME2(precision=6))
+        op.alter_column(table_name='task_fail', column_name='end_date', type_=mssql.DATETIME2(precision=6))
+        op.create_index('idx_task_fail_dag_task_date', 'task_fail', ['dag_id', 'task_id', 'execution_date'],
+                        unique=False)
 
         op.drop_index('idx_xcom_dag_task_date', table_name='xcom')
-        op.alter_column(
-            table_name="xcom",
-            column_name="execution_date",
-            type_=mssql.DATETIME2(precision=6),
-        )
+        op.alter_column(table_name="xcom", column_name="execution_date", type_=mssql.DATETIME2(precision=6))
         op.alter_column(table_name='xcom', column_name='timestamp', type_=mssql.DATETIME2(precision=6))
-        op.create_index('idx_xcom_dag_task_date',
-                        'xcom',
-                        ['dag_id', 'task_id', 'execution_date'], unique=False)
+        op.create_index('idx_xcom_dag_task_date', 'xcom', ['dag_id', 'task_id', 'execution_date'],
+                        unique=False)
 
         op.alter_column(table_name='dag', column_name='last_scheduler_run',
                         type_=mssql.DATETIME2(precision=6))
@@ -163,83 +144,59 @@ def downgrade():
 
         with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
             task_reschedule_batch_op.drop_index('idx_task_reschedule_dag_task_date')
+            task_reschedule_batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', type_='foreignkey')
+            task_reschedule_batch_op.alter_column(column_name="execution_date", type_=mssql.DATETIME,
+                                                  nullable=False)
+            task_reschedule_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME)
+            task_reschedule_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME)
+            task_reschedule_batch_op.alter_column(column_name='reschedule_date', type_=mssql.DATETIME)
 
-            task_reschedule_batch_op.drop_constraint(
-                'task_reschedule_dag_task_date_fkey',
-                type_='foreignkey'
-            )
-            task_reschedule_batch_op.alter_column(
-                column_name="execution_date",
-                type_=mssql.DATETIME,
-                nullable=False,
-            )
 
         with op.batch_alter_table('task_instance') as task_instance_batch_op:
             task_instance_batch_op.drop_index('ti_state_lkp')
             task_instance_batch_op.drop_index('ti_dag_date')
-
             modify_execution_date_with_constraint(conn, task_instance_batch_op, 'task_instance',
                                                   mssql.DATETIME, False)
-
             task_instance_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME)
             task_instance_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME)
             task_instance_batch_op.alter_column(column_name='queued_dttm', type_=mssql.DATETIME)
-
             task_instance_batch_op.create_index('ti_state_lkp',
                                                 ['dag_id', 'task_id', 'execution_date'], unique=False)
             task_instance_batch_op.create_index('ti_dag_date',
                                                 ['dag_id', 'execution_date'], unique=False)
 
-        with op.batch_alter_table('dag_run') as dag_run_batch_op:
-            modify_execution_date_with_constraint(conn, dag_run_batch_op, 'dag_run',
-                                                  mssql.DATETIME, None)
-            dag_run_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME)
-            dag_run_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME)
-
         with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
-            task_reschedule_batch_op.create_foreign_key(
-                'task_reschedule_dag_task_date_fkey',
-                'task_instance',
-                ['task_id', 'dag_id', 'execution_date'],
-                ['task_id', 'dag_id', 'execution_date'],
-                ondelete='CASCADE'
-            )
+            task_reschedule_batch_op.create_foreign_key('task_reschedule_dag_task_date_fkey', 'task_instance',
+                                                        ['task_id', 'dag_id', 'execution_date'],
+                                                        ['task_id', 'dag_id', 'execution_date'],
+                                                        ondelete='CASCADE')
             task_reschedule_batch_op.create_index('idx_task_reschedule_dag_task_date',
                                                   ['dag_id', 'task_id', 'execution_date'], unique=False)
 
-        op.alter_column(
-            table_name="log", column_name="execution_date", type_=mssql.DATETIME
-        )
+        with op.batch_alter_table('dag_run') as dag_run_batch_op:
+            modify_execution_date_with_constraint(conn, dag_run_batch_op, 'dag_run', mssql.DATETIME, None)
+            dag_run_batch_op.alter_column(column_name='start_date', type_=mssql.DATETIME)
+            dag_run_batch_op.alter_column(column_name='end_date', type_=mssql.DATETIME)
 
+        op.alter_column(table_name="log", column_name="execution_date", type_=mssql.DATETIME)
         op.alter_column(table_name='log', column_name='dttm', type_=mssql.DATETIME)
 
         with op.batch_alter_table('sla_miss') as sla_miss_batch_op:
-            modify_execution_date_with_constraint(conn, sla_miss_batch_op, 'sla_miss',
-                                                  mssql.DATETIME, False)
+            modify_execution_date_with_constraint(conn, sla_miss_batch_op, 'sla_miss', mssql.DATETIME, False)
             sla_miss_batch_op.alter_column(column_name='timestamp', type_=mssql.DATETIME)
 
         op.drop_index('idx_task_fail_dag_task_date', table_name='task_fail')
-        op.alter_column(
-            table_name="task_fail",
-            column_name="execution_date",
-            type_=mssql.DATETIME,
-        )
-        op.alter_column(table_name='task_fail', column_name='start_date', type_=mssql.DATETIME2(precision=6))
-        op.alter_column(table_name='task_fail', column_name='end_date', type_=mssql.DATETIME2(precision=6))
-        op.create_index('idx_task_fail_dag_task_date',
-                        'task_fail',
-                        ['dag_id', 'task_id', 'execution_date'], unique=False)
+        op.alter_column(table_name="task_fail", column_name="execution_date", type_=mssql.DATETIME)
+        op.alter_column(table_name='task_fail', column_name='start_date', type_=mssql.DATETIME)
+        op.alter_column(table_name='task_fail', column_name='end_date', type_=mssql.DATETIME)
+        op.create_index('idx_task_fail_dag_task_date', 'task_fail', ['dag_id', 'task_id', 'execution_date'],
+                        unique=False)
 
         op.drop_index('idx_xcom_dag_task_date', table_name='xcom')
-        op.alter_column(
-            table_name="xcom",
-            column_name="execution_date",
-            type_=mssql.DATETIME,
-        )
+        op.alter_column(table_name="xcom", column_name="execution_date", type_=mssql.DATETIME)
         op.alter_column(table_name='xcom', column_name='timestamp', type_=mssql.DATETIME)
-        op.create_index('idx_xcom_dag_task_date',
-                        'xcom',
-                        ['dag_id', 'task_ild', 'execution_date'], unique=False)
+        op.create_index('idx_xcom_dag_task_date', 'xcom', ['dag_id', 'task_ild', 'execution_date'],
+                        unique=False)
 
         op.alter_column(table_name='dag', column_name='last_scheduler_run', type_=mssql.DATETIME)
         op.alter_column(table_name='dag', column_name='last_pickled', type_=mssql.DATETIME)
