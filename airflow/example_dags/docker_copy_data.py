@@ -35,7 +35,7 @@ TODO: Review the workflow, change it accordingly to
 # from airflow.operators.docker_operator import DockerOperator
 #
 # default_args = {
-#     'owner': 'airflow',
+#     'owner': 'Airflow',
 #     'depends_on_past': False,
 #     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],

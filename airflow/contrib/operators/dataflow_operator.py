@@ -53,7 +53,7 @@ class DataFlowJavaOperator(BaseOperator):
     **Example**: ::
 
         default_args = {
-            'owner': 'airflow',
+            'owner': 'Airflow',
             'depends_on_past': False,
             'start_date':
                 (2016, 8, 1),

@@ -40,7 +40,7 @@ complicated, a line by line explanation follows below.
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -131,7 +131,7 @@ of default parameters that we can use when creating tasks.
     from datetime import datetime, timedelta
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -316,7 +316,7 @@ something like this:
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],

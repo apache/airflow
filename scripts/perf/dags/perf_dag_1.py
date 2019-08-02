@@ -22,7 +22,7 @@ from airflow.models import DAG
 from datetime import timedelta
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(3),
 }
 

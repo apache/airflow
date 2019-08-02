@@ -121,7 +121,7 @@ interval series.
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 12, 1),
         'email': ['airflow@example.com'],
