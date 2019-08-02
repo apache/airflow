@@ -102,6 +102,11 @@ dags_folder = {AIRFLOW_HOME}/dags
 # This path must be absolute
 base_log_folder = {AIRFLOW_HOME}/logs
 
+# Connections in Airflow can be created through environment variable.
+# The environment variable need to start with a prefix of conn_env_prefix
+# so that Airflow can pick it up.
+conn_env_prefix = AIRFLOW_CONN_
+
 # Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
 # must supply a remote location URL (starting with either 's3://...' or
 # 'gs://...') and an Airflow connection id that provides access to the storage
@@ -466,6 +471,7 @@ dag_concurrency = 16
 dags_are_paused_at_creation = False
 fernet_key = {FERNET_KEY}
 non_pooled_task_slot_count = 128
+conn_env_prefix = AIRFLOW_CONN_
 
 [cli]
 api_client = airflow.api.client.local_client

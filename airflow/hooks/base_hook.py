@@ -22,11 +22,18 @@ import logging
 import os
 import random
 
+from airflow import configuration
 from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 
-CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
+try:
+    CONN_ENV_PREFIX = configuration.get(
+        section='core',
+        key='conn_env_prefix',
+    )
+except Exception:
+    CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
 class BaseHook(object):
