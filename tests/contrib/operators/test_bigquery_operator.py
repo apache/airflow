@@ -32,6 +32,7 @@ from airflow.contrib.operators.bigquery_table_delete_operator import \
 from airflow.contrib.operators.bigquery_to_bigquery import \
     BigQueryToBigQueryOperator
 from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+from airflow.contrib.operators.bigquery_to_mysql_operator import BigQueryToMySqlOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance
 from airflow.settings import Session
@@ -513,4 +514,30 @@ class BigQueryToCloudStorageOperatorTest(unittest.TestCase):
                 field_delimiter=field_delimiter,
                 print_header=print_header,
                 labels=labels
+            )
+
+
+class BigQueryToMySqlOperatorTest(unittest.TestCase):
+    @mock.patch('airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryHook')
+    def test_execute_good_request_to_bq(self, mock_hook):
+        destination_table = 'table'
+        operator = BigQueryToMySqlOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            mysql_table=destination_table,
+            replace=False,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .get_tabledata \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                table_id=TEST_TABLE_ID,
+                max_results=1000,
+                selected_fields=None,
+                start_index=0
             )
