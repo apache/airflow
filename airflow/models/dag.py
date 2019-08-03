@@ -279,6 +279,7 @@ class DAG(BaseDag, LoggingMixin):
         self.template_undefined = template_undefined
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
+        self.file_last_changed_on_disk = os.path.getmtime(full_filepath) if full_filepath else None
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
@@ -494,6 +495,8 @@ class DAG(BaseDag, LoggingMixin):
 
     @full_filepath.setter
     def full_filepath(self, value):
+        if value:
+            self.file_last_changed_on_disk = os.path.getmtime(value)
         self._full_filepath = value
 
     @property
@@ -1071,12 +1074,17 @@ class DAG(BaseDag, LoggingMixin):
         if dag and dag.pickle_id:
             dp = session.query(DagPickle).filter(
                 DagPickle.id == dag.pickle_id).first()
-        if not dp or dp.pickle != self:
+        if not dp or dp.pickle.file_last_changed_on_disk != self.file_last_changed_on_disk:
             dp = DagPickle(dag=self)
             session.add(dp)
             self.last_pickled = timezone.utcnow()
             session.commit()
             self.pickle_id = dp.id
+            if dag:
+                dag.last_pickled = self.last_pickled
+                dag.pickle_id = self.pickle_id
+                session.add(dag)
+                session.commit()
 
         return dp
 
