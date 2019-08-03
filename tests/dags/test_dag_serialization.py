@@ -30,6 +30,7 @@ from airflow.contrib import example_dags as contrib_example_dags
 from airflow.dag.serialization import Encoding
 from airflow.dag.serialization import Serialization
 from airflow.dag.serialization import SerializedOperator
+from airflow.dag.serialization_schema import SerializationValidator
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.models import Connection
@@ -137,9 +138,9 @@ serialized_simple_dag_ground_truth = (
     '"_dag": {"__type": "dag", "__var": "simple_dag"}, '
     '"ui_color": "#fff", '
     '"ui_fgcolor": "#000", '
-    '"template_fields": []}, '
-    '"__type": "operator", '
-    '"__class": "BaseOperator"}}, '
+    '"template_fields": [], '
+    '"_task_type": "BaseOperator"}, '
+    '"__type": "operator"}}, '
     '"__type": "dict"}, '
     '"timezone": {"__var": "UTC", "__type": "timezone"}, '
     '"schedule_interval": {"__var": 86400.0, "__type": "timedelta"}, '
@@ -241,9 +242,18 @@ class TestStringifiedDAGs(unittest.TestCase):
             dag = Serialization.to_json(v)
             serialized_dags[v.dag_id] = dag
 
+        simple_dag_json_str = serialized_dags['simple_dag']
+        simple_dag_json = json.loads(simple_dag_json_str)
+
+        # Verify JSON schema.
+        SerializationValidator.validate_operator(
+            simple_dag_json['__var']['task_dict']['__var']['simple_task'])
+
+        SerializationValidator.validate_dag(simple_dag_json)
+
         # Verify serialized DAGs.
         self.validate_serialized_dag(
-            serialized_dags['simple_dag'],
+            simple_dag_json_str,
             serialized_simple_dag_ground_truth)
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
@@ -289,7 +299,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         """Verify non-airflow operators are casted to BaseOperator."""
         self.assertTrue(isinstance(task, SerializedOperator))
         # Verify the original operator class is recorded for UI.
-        self.assertTrue(task.is_stringified)
         self.assertTrue(task.task_type == task_type)
         self.assertTrue(task.ui_color == ui_color)
         self.assertTrue(task.ui_fgcolor == ui_fgcolor)

@@ -865,7 +865,7 @@ class BaseOperator(LoggingMixin):
 
     @property
     def task_type(self):
-            return self.__class__.__name__
+        return self.__class__.__name__
 
     def add_only_new(self, item_set, item):
         if item in item_set:

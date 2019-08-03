@@ -33,8 +33,6 @@ from airflow.models.connection import Connection
 from airflow.www.utils import get_python_source
 
 
-# Constants.
-BASE_OPERATOR_CLASS = 'BaseOperator'
 # Serialization failure returns 'failed'.
 FAILED = 'serialization_failed'
 
@@ -42,14 +40,15 @@ FAILED = 'serialization_failed'
 # Fields of an encoded object in serialization.
 @unique
 class Encoding(str, Enum):
+    """Enum of encoding constants."""
     TYPE = '__type'
-    CLASS = '__class'
     VAR = '__var'
 
 
 # Supported types for encoding. primitives and list are not encoded.
 @unique
 class DagTypes(str, Enum):
+    """Enum of supported attribute types of DAG."""
     DAG = 'dag'
     OP = 'operator'
     DATETIME = 'datetime'
@@ -60,7 +59,7 @@ class DagTypes(str, Enum):
     TUPLE = 'tuple'
 
 
-class Serialization(object):
+class Serialization():
     """Serialization provides utils for serialization."""
 
     # JSON primitive types.
@@ -82,10 +81,9 @@ class Serialization(object):
         return cls._deserialize(json.loads(encoded_x), {})
 
     @classmethod
-    def encode(cls, x, type_, class_=None):
+    def encode(cls, x, type_):
         """Encode data by a JSON dict."""
-        return ({Encoding.VAR: x, Encoding.TYPE: type_} if class_ is None
-                else {Encoding.VAR: x, Encoding.TYPE: type_, Encoding.CLASS: class_})
+        return {Encoding.VAR: x, Encoding.TYPE: type_}
 
     @classmethod
     def serialize_object(cls, x, visited_dags, included_fields):
@@ -101,7 +99,7 @@ class Serialization(object):
     @classmethod
     def deserialize_object(cls, x, new_x, included_fields, visited_dags):
         """Deserialize and copy the attributes of dict x to a new object new_x.
-        
+
         It does not create new_x because if x is a DAG, new_x should be added into visited_dag
         ahead of calling this function.
         """
@@ -194,20 +192,13 @@ class Serialization(object):
             elif type_ == DagTypes.DAG:
                 if isinstance(var, dict):
                     return SerializedDAG.deserialize_dag(var, visited_dags)
-                elif isinstance(var, str):
+                elif isinstance(var, str) and var in visited_dags:
                     # dag_id is stored in the serailized form for a visited DAGs.
-                    if var in visited_dags:
-                        return visited_dags[var]
-                    logging.warning('DAG %s not found in serialization.', var)
-                else:
-                    logging.warning('Invalid type %s for decoded DAG.', type(var))
+                    return visited_dags[var]
+                logging.warning('Invalid DAG %s in deserialization.', var)
                 return None
             elif type_ == DagTypes.OP:
-                return SerializedOperator.deserialize_operator(
-                    var,
-                    (encoded_x[Encoding.CLASS] if Encoding.CLASS in encoded_x
-                        else BASE_OPERATOR_CLASS),
-                    visited_dags)
+                return SerializedOperator.deserialize_operator(var, visited_dags)
             elif type_ == DagTypes.DATETIME:
                 return dateutil.parser.parse(var)
             elif type_ == DagTypes.TIMEDELTA:
@@ -242,7 +233,7 @@ class SerializedDAG(DAG, Serialization):
     _dag_included_fields = list(vars(DAG(dag_id='test')).keys())
 
     @classmethod
-    def serialize_dag(cls, dag, visited_dags={}):
+    def serialize_dag(cls, dag, visited_dags):
         """Returns a serialized DAG.
 
         :param dag: a DAG.
@@ -258,7 +249,7 @@ class SerializedDAG(DAG, Serialization):
         return new_dag
 
     @classmethod
-    def deserialize_dag(cls, encoded_dag, visited_dags={}):
+    def deserialize_dag(cls, encoded_dag, visited_dags):
         """Returns a deserialized DAG.
 
         :param encoded_dag: a JSON dict of serialized DAG.
@@ -267,7 +258,6 @@ class SerializedDAG(DAG, Serialization):
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
         visited_dags[dag.dag_id] = dag
         cls.deserialize_object(encoded_dag, dag, cls._dag_included_fields, visited_dags)
-        dag.is_stringified = True
         return dag
 
 
@@ -278,12 +268,13 @@ class SerializedOperator(BaseOperator, Serialization):
     Class specific attributes used by UI are move to object attributes.
     """
     _op_included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
-        '_dag', 'ui_color', 'ui_fgcolor', 'template_fields']
+        '_dag', '_task_type', 'ui_color', 'ui_fgcolor', 'template_fields']
 
     def __init__(self, *args, **kwargs):
+        BaseOperator.__init__(*args, **kwargs)
         # task_type is used by UI to display the correct class type, because UI only
         # receives BaseOperator from deserialized DAGs.
-        self._task_type = BASE_OPERATOR_CLASS
+        self._task_type = 'BaseOperator'
         # Move class attributes into object attributes.
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
@@ -300,29 +291,26 @@ class SerializedOperator(BaseOperator, Serialization):
         self._task_type = task_type
 
     @classmethod
-    def serialize_operator(cls, op, visited_dags={}):
+    def serialize_operator(cls, op, visited_dags):
         """Returns a serializeed operator.
-        
+
         :param op: an operator.
         :type op: subclasses of airflow.models.BaseOperator
         """
-        return cls.encode(
-            cls.serialize_object(
-                op, visited_dags, included_fields=SerializedOperator._op_included_fields),
-            type_=DagTypes.OP,
-            class_=op.__class__.__name__
-        )
+        serialize_op = cls.serialize_object(op, visited_dags,
+            included_fields=SerializedOperator._op_included_fields)
+        # Adds a new task_type field to record the original operator class.
+        serialize_op['_task_type'] = op.__class__.__name__
+        return cls.encode(serialize_op, type_=DagTypes.OP)
 
     @classmethod
-    def deserialize_operator(cls, encoded_op, operator_class, visited_dags={}):
+    def deserialize_operator(cls, encoded_op, visited_dags):
         """Returns a deserialized operator.
-        
+
         :param encoded_op: a JSON dict of serialized operator.
         :type encoded_op: dict
         """
         op = object.__new__(SerializedOperator)
         cls.deserialize_object(
             encoded_op, op, SerializedOperator._op_included_fields, visited_dags)
-        op.task_type = operator_class
-        op.is_stringified = True
         return op
