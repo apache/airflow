@@ -32,7 +32,11 @@ basic_sanity_checks
 script_start
 
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL="false"
+export ASSUME_YES="true"
 
 rebuild_image_if_needed_for_tests
+
+rebuild_image_if_needed_for_static_checks
 
 script_end

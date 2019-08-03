@@ -23,8 +23,18 @@ This module contains a Google Cloud Vision operator.
 # pylint: disable=too-many-lines
 
 from copy import deepcopy
+from typing import Union, List, Dict, Any, Sequence, Tuple, Optional
 
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.retry import Retry
+from google.cloud.vision_v1.types import (
+    ProductSet,
+    FieldMask,
+    Image,
+    Product,
+    AnnotateImageRequest,
+    ReferenceImage
+)
 
 from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook
 from airflow.models import BaseOperator
@@ -72,14 +82,14 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        product_set,
-        location,
-        project_id=None,
-        product_set_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        product_set: Union[dict, ProductSet],
+        location: str,
+        project_id: str = None,
+        product_set_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -148,13 +158,13 @@ class CloudVisionProductSetGetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        product_set_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        location: str,
+        product_set_id: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -225,7 +235,6 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-
     """
     # [START vision_productset_update_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
@@ -234,15 +243,15 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        product_set,
-        location=None,
-        product_set_id=None,
-        project_id=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        product_set: Union[Dict, ProductSet],
+        location: str = None,
+        product_set_id: str = None,
+        project_id: str = None,
+        update_mask: Union[Dict, FieldMask] = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -300,7 +309,6 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-
     """
     # [START vision_productset_delete_template_fields]
     template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
@@ -309,13 +317,13 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        product_set_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        location: str,
+        product_set_id: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -379,7 +387,6 @@ class CloudVisionProductCreateOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-
     """
     # [START vision_product_create_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
@@ -388,14 +395,14 @@ class CloudVisionProductCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        product,
-        project_id=None,
-        product_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        location: str,
+        product: str,
+        project_id: str = None,
+        product_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -459,7 +466,6 @@ class CloudVisionProductGetOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-
     """
     # [START vision_product_get_template_fields]
     template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id')
@@ -468,13 +474,13 @@ class CloudVisionProductGetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        product_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        product_id: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -564,15 +570,15 @@ class CloudVisionProductUpdateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        product,
-        location=None,
-        product_id=None,
-        project_id=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        product: Union[Dict, Product],
+        location: str = None,
+        product_id: str = None,
+        project_id: str = None,
+        update_mask: Union[Dict, FieldMask] = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -643,13 +649,13 @@ class CloudVisionProductDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        product_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        location: str,
+        product_id: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -703,7 +709,13 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, request, retry=None, timeout=None, gcp_conn_id='google_cloud_default', *args, **kwargs
+        self,
+        request: Union[Dict, AnnotateImageRequest],
+        retry: Retry = None,
+        timeout: float = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        *args,
+        **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.request = request
@@ -778,15 +790,15 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        reference_image,
-        product_id,
-        reference_image_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id='google_cloud_default',
+        location: str,
+        reference_image: Union[Dict, ReferenceImage],
+        product_id: str,
+        reference_image_id: str = None,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: str = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ):
@@ -865,14 +877,14 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        product_set_id,
-        product_id,
-        location,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        product_set_id: str,
+        product_id: str,
+        location: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -936,14 +948,14 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        product_set_id,
-        product_id,
-        location,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        product_set_id: str,
+        product_id: str,
+        location: str,
+        project_id: str = None,
+        retry: Retry = None,
+        timeout: float = None,
+        metadata: Sequence[Tuple[str, str]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -991,9 +1003,9 @@ class CloudVisionDetectTextOperator(BaseOperator):
     :param language_hints: List of languages to use for TEXT_DETECTION.
         In most cases, an empty value yields the best results since it enables automatic language detection.
         For languages based on the Latin alphabet, setting language_hints is not needed.
-    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :type language_hints: str or list[str]
     :param web_detection_params: Parameters for web detection.
-    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :type web_detection_params: dict
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         :class:`google.cloud.vision_v1.types.AnnotateImageRequest`
     :type additional_properties: dict
@@ -1004,14 +1016,14 @@ class CloudVisionDetectTextOperator(BaseOperator):
 
     def __init__(
         self,
-        image,
-        max_results=None,
-        retry=None,
-        timeout=None,
-        language_hints=None,
-        web_detection_params=None,
-        additional_properties=None,
-        gcp_conn_id="google_cloud_default",
+        image: Union[Dict, Image],
+        max_results: int = None,
+        retry: Retry = None,
+        timeout: float = None,
+        language_hints: Union[str, List[str]] = None,
+        web_detection_params: Dict = None,
+        additional_properties: Dict = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1060,9 +1072,9 @@ class CloudVisionDetectDocumentTextOperator(BaseOperator):
     :param language_hints: List of languages to use for TEXT_DETECTION.
         In most cases, an empty value yields the best results since it enables automatic language detection.
         For languages based on the Latin alphabet, setting language_hints is not needed.
-    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :type language_hints: str or list[str]
     :param web_detection_params: Parameters for web detection.
-    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :type web_detection_params: dict
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
@@ -1073,14 +1085,14 @@ class CloudVisionDetectDocumentTextOperator(BaseOperator):
 
     def __init__(
         self,
-        image,
-        max_results=None,
-        retry=None,
-        timeout=None,
-        language_hints=None,
-        web_detection_params=None,
-        additional_properties=None,
-        gcp_conn_id="google_cloud_default",
+        image: Union[Dict, Image],
+        max_results: int = None,
+        retry: Retry = None,
+        timeout: float = None,
+        language_hints: Union[str, List[str]] = None,
+        web_detection_params: Dict = None,
+        additional_properties: Dict = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1135,12 +1147,12 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
 
     def __init__(
         self,
-        image,
-        max_results=None,
-        retry=None,
-        timeout=None,
-        additional_properties=None,
-        gcp_conn_id="google_cloud_default",
+        image: Union[Dict, Image],
+        max_results: int = None,
+        retry: Retry = None,
+        timeout: float = None,
+        additional_properties: Dict = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1191,12 +1203,12 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
 
     def __init__(
         self,
-        image,
-        max_results=None,
-        retry=None,
-        timeout=None,
-        additional_properties=None,
-        gcp_conn_id="google_cloud_default",
+        image: Union[Dict, Image],
+        max_results: int = None,
+        retry: Retry = None,
+        timeout: float = None,
+        additional_properties: Dict = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1219,7 +1231,11 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         )
 
 
-def prepare_additional_parameters(additional_properties, language_hints, web_detection_params):
+def prepare_additional_parameters(
+    additional_properties: Optional[Dict],
+    language_hints: Any,
+    web_detection_params: Any
+) -> Optional[Dict]:
     """
     Creates additional_properties parameter based on language_hints, web_detection_params and
     additional_properties parameters specified by the user

@@ -25,7 +25,7 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 basic_sanity_checks
 
-force_python_3_6
+force_python_3_5
 
 script_start
 

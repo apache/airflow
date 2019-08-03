@@ -21,6 +21,8 @@ This module contains a Google Compute Engine Hook.
 """
 
 import time
+from typing import Dict, Any
+
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
@@ -49,13 +51,15 @@ class GceHook(GoogleCloudBaseHook):
     """
     _conn = None
 
-    def __init__(self,
-                 api_version='v1',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+    def __init__(
+        self,
+        api_version: str = 'v1',
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: str = None
+    ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
+        self.num_retries = self._get_field('num_retries', 5)  # type: int
 
     def get_conn(self):
         """
@@ -71,7 +75,7 @@ class GceHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def start_instance(self, zone, resource_id, project_id=None):
+    def start_instance(self, zone: str, resource_id: str, project_id: str = None) -> None:
         """
         Starts an existing instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -86,6 +90,7 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self.get_conn().instances().start(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -102,7 +107,7 @@ class GceHook(GoogleCloudBaseHook):
                                              zone=zone)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def stop_instance(self, zone, resource_id, project_id=None):
+    def stop_instance(self, zone: str, resource_id: str, project_id: str = None) -> None:
         """
         Stops an instance defined by project_id, zone and resource_id
         Must be called with keyword arguments rather than positional.
@@ -117,6 +122,7 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self.get_conn().instances().stop(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -133,7 +139,7 @@ class GceHook(GoogleCloudBaseHook):
                                              zone=zone)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def set_machine_type(self, zone, resource_id, body, project_id=None):
+    def set_machine_type(self, zone: str, resource_id: str, body: Dict, project_id: str = None) -> None:
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -152,6 +158,7 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self._execute_set_machine_type(zone, resource_id, body, project_id)
         try:
             operation_name = response["name"]
@@ -163,13 +170,19 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    def _execute_set_machine_type(self, zone, resource_id, body, project_id):
+    def _execute_set_machine_type(
+        self,
+        zone: str,
+        resource_id: str,
+        body: Dict,
+        project_id: str
+    ) -> Dict:
         return self.get_conn().instances().setMachineType(  # pylint: disable=no-member
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id, project_id=None):
+    def get_instance_template(self, resource_id: str, project_id: str = None) -> Dict:
         """
         Retrieves instance template by project_id and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -184,6 +197,7 @@ class GceHook(GoogleCloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
+        assert project_id is not None
         response = self.get_conn().instanceTemplates().get(  # pylint: disable=no-member
             project=project_id,
             instanceTemplate=resource_id
@@ -191,7 +205,7 @@ class GceHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def insert_instance_template(self, body, request_id=None, project_id=None):
+    def insert_instance_template(self, body: Dict, request_id: str = None, project_id: str = None) -> None:
         """
         Inserts instance template using body specified
         Must be called with keyword arguments rather than positional.
@@ -210,6 +224,7 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self.get_conn().instanceTemplates().insert(  # pylint: disable=no-member
             project=project_id,
             body=body,
@@ -225,7 +240,7 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def get_instance_group_manager(self, zone, resource_id, project_id=None):
+    def get_instance_group_manager(self, zone: str, resource_id: str, project_id: str = None) -> Dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -242,6 +257,7 @@ class GceHook(GoogleCloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
+        assert project_id is not None
         response = self.get_conn().instanceGroupManagers().get(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -250,8 +266,14 @@ class GceHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def patch_instance_group_manager(self, zone, resource_id,
-                                     body, request_id=None, project_id=None):
+    def patch_instance_group_manager(
+        self,
+        zone: str,
+        resource_id: str,
+        body: Dict,
+        request_id: str = None,
+        project_id: str = None
+    ) -> None:
         """
         Patches Instance Group Manager with the specified body.
         Must be called with keyword arguments rather than positional.
@@ -275,6 +297,7 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
+        assert project_id is not None
         response = self.get_conn().instanceGroupManagers().patch(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -292,7 +315,7 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    def _wait_for_operation_to_complete(self, project_id, operation_name, zone=None):
+    def _wait_for_operation_to_complete(self, project_id: str, operation_name: str, zone: str = None) -> None:
         """
         Waits for the named operation to complete - checks status of the async call.
 
@@ -328,13 +351,24 @@ class GceHook(GoogleCloudBaseHook):
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
     @staticmethod
-    def _check_zone_operation_status(service, operation_name, project_id, zone, num_retries):
+    def _check_zone_operation_status(
+        service: Any,
+        operation_name: str,
+        project_id: str,
+        zone: str,
+        num_retries: int
+    ) -> Dict:
         return service.zoneOperations().get(
             project=project_id, zone=zone, operation=operation_name).execute(
             num_retries=num_retries)
 
     @staticmethod
-    def _check_global_operation_status(service, operation_name, project_id, num_retries):
+    def _check_global_operation_status(
+        service: Any,
+        operation_name: str,
+        project_id: str,
+        num_retries: int
+    ) -> Dict:
         return service.globalOperations().get(
             project=project_id, operation=operation_name).execute(
             num_retries=num_retries)

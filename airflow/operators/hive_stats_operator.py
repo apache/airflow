@@ -19,6 +19,7 @@
 
 import json
 from collections import OrderedDict
+from typing import Callable, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveMetastoreHook
@@ -64,20 +65,20 @@ class HiveStatsCollectionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 table,
-                 partition,
-                 extra_exprs=None,
-                 col_blacklist=None,
-                 assignment_func=None,
-                 metastore_conn_id='metastore_default',
-                 presto_conn_id='presto_default',
-                 mysql_conn_id='airflow_db',
-                 *args, **kwargs):
+                 table: str,
+                 partition: str,
+                 extra_exprs: Dict = None,
+                 col_blacklist: List = None,
+                 assignment_func: Callable[[str, str], Optional[Dict]] = None,
+                 metastore_conn_id: str = 'metastore_default',
+                 presto_conn_id: str = 'presto_default',
+                 mysql_conn_id: str = 'airflow_db',
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.col_blacklist = col_blacklist or {}
+        self.col_blacklist = col_blacklist or []  # type: List
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id

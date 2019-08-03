@@ -80,8 +80,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     api.load_auth()
     api.API_AUTH.api_auth.init_app(app)
 
-    # flake8: noqa: F841
-    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     from airflow.www.blueprints import routes
     app.register_blueprint(routes)
@@ -203,14 +202,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
         @app.context_processor
-        def jinja_globals():
+        def jinja_globals():  # pylint: disable=unused-variable
             return {
                 'hostname': socket.getfqdn(),
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
         @app.teardown_appcontext
-        def shutdown_session(exception=None):
+        def shutdown_session(exception=None):  # pylint: disable=unused-variable
             settings.Session.remove()
 
     return app, appbuilder

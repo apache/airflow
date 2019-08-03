@@ -344,7 +344,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
-        deleted_count = pvms.delete()
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for pvm in pvms:
+            sesh.delete(pvm)
+            deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)

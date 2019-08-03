@@ -23,10 +23,12 @@ This module contains a Google Kubernetes Engine Hook.
 
 import json
 import time
+from typing import Dict, Union, Optional
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.api_core.retry import Retry
 
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
@@ -47,20 +49,22 @@ class GKEClusterHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(self,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 location=None):
+    def __init__(
+        self,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: str = None,
+        location: str = None
+    ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self._client = None
         self.location = location
 
-    def get_client(self):
+    def get_client(self) -> container_v1.ClusterManagerClient:
         """
         Returns ClusterManagerCLinet object.
 
-        :rtype: google.cloud.container_v1.ClusterManagerCLinet
+        :rtype: google.cloud.container_v1.ClusterManagerClient
         """
         if self._client is None:
             credentials = self._get_credentials()
@@ -70,7 +74,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         return self._client
 
     @staticmethod
-    def _dict_to_proto(py_dict, proto):
+    def _dict_to_proto(py_dict: Dict, proto):
         """
         Converts a python dictionary to the proto supplied
 
@@ -85,7 +89,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         dict_json_str = json.dumps(py_dict)
         return json_format.Parse(dict_json_str, proto)
 
-    def wait_for_operation(self, operation, project_id=None):
+    def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
@@ -109,7 +113,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name, project_id=None):
+    def get_operation(self, operation_name: str, project_id: str = None) -> Operation:
         """
         Fetches the operation from Google Cloud
 
@@ -124,7 +128,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
                                                operation_id=operation_name)
 
     @staticmethod
-    def _append_label(cluster_proto, key, val):
+    def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
         """
         Append labels to provided Cluster Protobuf
 
@@ -144,7 +148,13 @@ class GKEClusterHook(GoogleCloudBaseHook):
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
-    def delete_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
+    def delete_cluster(
+        self,
+        name: str,
+        project_id: str = None,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT
+    ) -> Optional[str]:
         """
         Deletes the cluster, including the Kubernetes endpoint and all
         worker nodes. Firewalls and routes that were configured during
@@ -182,8 +192,15 @@ class GKEClusterHook(GoogleCloudBaseHook):
             return resource.self_link
         except NotFound as error:
             self.log.info('Assuming Success: %s', error.message)
+            return None
 
-    def create_cluster(self, cluster, project_id=None, retry=DEFAULT, timeout=DEFAULT):
+    def create_cluster(
+        self,
+        cluster: Union[Dict, Cluster],
+        project_id: str = None,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT
+    ) -> str:
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
         Engine instances.
@@ -234,7 +251,13 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name).self_link
 
-    def get_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
+    def get_cluster(
+        self,
+        name: str,
+        project_id: str = None,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT
+    ) -> Cluster:
         """
         Gets details of specified cluster
 

@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
-                 request_cpu=None, limit_memory=None, limit_cpu=None,
+                 request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
                  annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels=None):
         self.image = image
@@ -52,6 +52,7 @@ class KubernetesExecutorConfig:
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
+        self.limit_gpu = limit_gpu
         self.gcp_service_account_key = gcp_service_account_key
         self.node_selectors = node_selectors
         self.affinity = affinity
@@ -63,12 +64,12 @@ class KubernetesExecutorConfig:
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
-               "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
+               "limit_memory={}, limit_cpu={}, limit_gpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
                "volume_mounts={}, tolerations={}, labels={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
-                    self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
+                    self.limit_cpu, self.limit_gpu, self.gcp_service_account_key, self.node_selectors,
                     self.affinity, self.annotations, self.volumes, self.volume_mounts,
                     self.tolerations, self.labels)
 
@@ -90,6 +91,7 @@ class KubernetesExecutorConfig:
             request_cpu=namespaced.get('request_cpu', None),
             limit_memory=namespaced.get('limit_memory', None),
             limit_cpu=namespaced.get('limit_cpu', None),
+            limit_gpu=namespaced.get('limit_gpu', None),
             gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
             node_selectors=namespaced.get('node_selectors', None),
             affinity=namespaced.get('affinity', None),
@@ -108,6 +110,7 @@ class KubernetesExecutorConfig:
             'request_cpu': self.request_cpu,
             'limit_memory': self.limit_memory,
             'limit_cpu': self.limit_cpu,
+            'limit_gpu': self.limit_gpu,
             'gcp_service_account_key': self.gcp_service_account_key,
             'node_selectors': self.node_selectors,
             'affinity': self.affinity,
@@ -134,7 +137,7 @@ class KubeConfig:
                                                      'env_from_secret_ref')
         self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
-        self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
+        self.parallelism = configuration.getint(self.core_section, 'parallelism')
         self.worker_container_repository = configuration.get(
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
@@ -240,6 +243,8 @@ class KubeConfig:
         self.git_sync_init_container_name = conf.get(
             self.kubernetes_section, 'git_sync_init_container_name')
 
+        self.git_sync_run_as_user = self._get_security_context_val('git_sync_run_as_user')
+
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
@@ -299,7 +304,7 @@ class KubeConfig:
                 'through ssh key, but not both')
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
+class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace
@@ -447,16 +452,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def delete_pod(self, pod_id):
-        if self.kube_config.delete_worker_pods:
-            try:
-                self.kube_client.delete_namespaced_pod(
-                    pod_id, self.namespace, body=client.V1DeleteOptions(),
-                    **self.kube_config.kube_client_request_args)
-            except ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+    def delete_pod(self, pod_id: str) -> None:
+        try:
+            self.kube_client.delete_namespaced_pod(
+                pod_id, self.namespace, body=client.V1DeleteOptions(),
+                **self.kube_config.kube_client_request_args)
+        except ApiException as e:
+            # If the pod is already deleted
+            if e.status != 404:
+                raise
 
     def sync(self):
         """
@@ -800,11 +804,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             except Empty:
                 break
 
-    def _change_state(self, key, state, pod_id):
+    def _change_state(self, key, state, pod_id: str) -> None:
         if state != State.RUNNING:
-            self.kube_scheduler.delete_pod(pod_id)
-            try:
+            if self.kube_config.delete_worker_pods:
+                self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
+            try:
                 self.running.pop(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))

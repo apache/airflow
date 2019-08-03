@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import settings
+from airflow import settings, DAG
 from airflow.exceptions import AirflowException
+from airflow.executors import BaseExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import BaseOperator, Pool
 from airflow.utils.decorators import apply_defaults
@@ -46,9 +47,9 @@ class SubDagOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            subdag,
-            executor=SequentialExecutor(),
-            *args, **kwargs):
+            subdag: DAG,
+            executor: BaseExecutor = SequentialExecutor(),
+            *args, **kwargs) -> None:
         dag = kwargs.get('dag') or settings.CONTEXT_MANAGER_DAG
         if not dag:
             raise AirflowException('Please pass in the `dag` param or call '

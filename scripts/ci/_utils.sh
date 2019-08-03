@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
+# Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
+# and MY_DIR variable is set to this directory
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../" && pwd)
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -26,16 +28,24 @@ FILES_FOR_REBUILD_CHECK="\
 setup.py \
 setup.cfg \
 Dockerfile \
+.dockerignore \
 airflow/version.py
 "
 
-mkdir -p ${AIRFLOW_SOURCES}/.mypy_cache
-mkdir -p ${AIRFLOW_SOURCES}/logs
-mkdir -p ${AIRFLOW_SOURCES}/tmp
+mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
+mkdir -p "${AIRFLOW_SOURCES}/logs"
+mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
 # Disable writing .pyc files - slightly slower imports but not messing around when switching
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE="true"
+
+# Read default branch name
+# shellcheck source=../../hooks/_default_branch.sh
+. "${AIRFLOW_SOURCES}/hooks/_default_branch.sh"
+
+# Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
+export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
 
 #
 # Sets mounting of host volumes to container for static checks
@@ -44,6 +54,7 @@ export PYTHONDONTWRITEBYTECODE="true"
 # Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
+
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
@@ -59,6 +70,7 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
+      "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
@@ -219,21 +231,34 @@ function check_if_coreutils_installed() {
 
     set -e
 
+    CMDNAME="$(basename -- "$0")"
+
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
         echo
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo >&2 "You are running ${CMDNAME} in OSX environment"
             echo >&2 "And you need to install gnu commands"
-            echo
+            echo >&2
             echo >&2 "Run 'brew install gnu-getopt coreutils'"
-            echo
-            echo >&2 "Then link the gnu-getopt to become default as suggested by brew by typing:"
+            echo >&2
+            echo >&2 "Then link the gnu-getopt to become default as suggested by brew."
+            echo >&2
+            echo >&2 "If you use bash, you should run this command:"
+            echo >&2
             echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile"
             echo >&2 ". ~/.bash_profile"
-            echo
-            echo >&2 "Login and logout afterwards"
-            echo
+            echo >&2
+            echo >&2 "If you use zsh, you should run this command:"
+            echo >&2
+            echo >&2 "echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile"
+            echo >&2 ". ~/.zprofile"
+            echo >&2
+            echo >&2 "Login and logout afterwards !!"
+            echo >&2
+            echo >&2 "After re-login, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\""
+            echo >&2 "Your current path is ${PATH}"
+            echo >&2
         else
             echo >&2 "You do not have necessary tools in your path (getopt, stat, md5sum)."
             echo >&2 "Please install latest/GNU version of getopt and coreutils."
@@ -260,23 +285,11 @@ function assert_not_in_container() {
 }
 
 #
-# Forces Python version to 3.6 (for static checks)
+# Forces Python version to 3.5 (for static checks)
 #
-function force_python_3_6() {
-    export PYTHON_BINARY=python3.6
-
-    # And fail in case it is not available
-    if [[ ! -x "$(command -v "${PYTHON_BINARY}")" ]]; then
-        echo >&2
-        echo >&2 "${PYTHON_BINARY} is missing in your \$PATH"
-        echo >&2
-        echo >&2 "Please install Python 3.6 and make it available in your path"
-        echo >&2
-        exit 1
-    fi
-
-    # Set python version variable to force it in the scripts as well
-    PYTHON_VERSION=3.6
+function force_python_3_5() {
+    # Set python version variable to force it in the container scripts
+    PYTHON_VERSION=3.5
     export PYTHON_VERSION
 }
 
@@ -286,10 +299,11 @@ function force_python_3_6() {
 function rebuild_image_if_needed_for_static_checks() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
     export AIRFLOW_CONTAINER_BUILD_NPM="false"  # Skip NPM builds to make them faster !
 
-    export PYTHON_VERSION=3.6  # Always use python version 3.6 for static checks
+    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
@@ -298,9 +312,11 @@ EOF
 
     export THE_IMAGE="SLIM_CI"
     if [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}_${PYTHON_VERSION}" ]]; then
-        echo
-        echo "Image built locally - skip force-pulling them"
-        echo
+        if [[ ${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:=""} != "true" ]]; then
+            echo
+            echo "Image built locally - skip force-pulling them"
+            echo
+        fi
     else
         echo
         echo "Image not built locally - force pulling them first"
@@ -313,15 +329,25 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
@@ -334,6 +360,7 @@ EOF
 
 function rebuild_image_if_needed_for_tests() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
     PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
         'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
@@ -373,15 +400,25 @@ EOF
     check_if_docker_build_is_needed
 
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
-        echo
-        echo "Rebuilding image"
-        echo
-        # shellcheck source=../../hooks/build
-        ./hooks/build | tee -a "${OUTPUT_LOG}"
-        update_all_md5_files
-        echo
-        echo "Image rebuilt"
-        echo
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
     else
         echo
         echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
@@ -392,6 +429,25 @@ EOF
     export AIRFLOW_CI_IMAGE
 }
 
+function rebuild_image_for_checklicence() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
+
+    export THE_IMAGE="CHECKLICENCE"
+    echo
+    echo "Rebuilding image"
+    echo
+    # shellcheck source=../../hooks/build
+    ./hooks/build | tee -a "${OUTPUT_LOG}"
+    update_all_md5_files
+    echo
+    echo "Image rebuilt"
+    echo
+    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE")
+    export AIRFLOW_CHECKLICENCE_IMAGE
+}
 #
 # Starts the script/ If VERBOSE variable is set to true, it enables verbose output of commands executed
 # Also prints some useful diagnostics information at start of the script

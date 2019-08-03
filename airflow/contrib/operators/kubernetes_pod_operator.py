@@ -69,6 +69,10 @@ class KubernetesPodOperator(BaseOperator):
     :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param annotations: non-identifying metadata you can attach to the Pod.
+                        Can be a large range of data, and can include characters
+                        that are not permitted by labels.
+    :type annotations: dict
     :param resources: A dict containing a group of resources requests and limits
     :type resources: dict
     :param affinity: A dict containing a group of affinity scheduling rules

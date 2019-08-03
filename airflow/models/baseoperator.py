@@ -137,7 +137,7 @@ class BaseOperator(LoggingMixin):
         complete for all runs before each dag can continue processing
         downstream tasks. When set to ``upstream`` the effective weight is the
         aggregate sum of all upstream ancestors. This is the opposite where
-        downtream tasks have higher weight and will be scheduled more
+        downstream tasks have higher weight and will be scheduled more
         aggressively when using positive weight values. This is useful when you
         have multiple dag run instances and prefer to have each dag complete
         before starting upstream tasks of other dags.  When set to
@@ -646,7 +646,13 @@ class BaseOperator(LoggingMixin):
         rt = self.render_template
         if isinstance(content, str):
             result = jinja_env.from_string(content).render(**context)
-        elif isinstance(content, (list, tuple)):
+        elif isinstance(content, tuple):
+            if type(content) is not tuple:
+                # Special case for named tuples
+                result = content.__class__(*(rt(attr, e, context) for e in content))
+            else:
+                result = tuple(rt(attr, e, context) for e in content)
+        elif isinstance(content, list):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
             result = {

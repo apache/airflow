@@ -856,7 +856,7 @@ class DAG(BaseDag, LoggingMixin):
         if include_parentdag and self.is_subdag:
 
             p_dag = self.parent_dag.sub_dag(
-                task_regex=self.dag_id.split('.')[1],
+                task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
                 include_downstream=True)
 

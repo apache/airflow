@@ -376,6 +376,23 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                         'value': '/etc/git-secret/known_hosts'} in env)
         self.assertFalse({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
 
+    def test_init_environment_using_git_sync_run_as_user_empty(self):
+        # Tests if git_syn_run_as_user is none, then no securityContext created in init container
+
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_sync_run_as_user = ''
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        init_containers = worker_config._get_init_containers()
+        self.assertTrue(init_containers)  # check not empty
+
+        self.assertNotIn(
+            'securityContext', init_containers[0],
+            "securityContext shouldn't be defined"
+        )
+
     def test_make_pod_run_as_user_0(self):
         # Tests the pod created with run-as-user 0 actually gets that in it's config
         self.kube_config.worker_run_as_user = 0
@@ -531,6 +548,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_sync_init_container_name = 'git-sync-clone'
         self.kube_config.git_subpath = 'dags_folder'
         self.kube_config.git_sync_root = '/git'
+        self.kube_config.git_sync_run_as_user = 65533
         self.kube_config.git_dags_folder_mount_point = '/usr/local/airflow/dags/repo/dags_folder'
 
         worker_config = WorkerConfiguration(self.kube_config)
@@ -551,6 +569,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual('gcr.io/google-containers/git-sync-amd64:v2.0.5', init_container['image'])
         self.assertEqual(1, len(init_container_volume_mount))
         self.assertFalse(init_container_volume_mount[0]['readOnly'])
+        self.assertEqual(65533, init_container['securityContext']['runAsUser'])
 
     def test_worker_container_dags(self):
         # Tests that the 'airflow-dags' persistence volume is NOT created when `dags_in_image` is set
@@ -736,6 +755,20 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
         mock_delete_pod.assert_called_with('pod_id')
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod')
+    def test_change_state_skip_pod_deletion(self, mock_delete_pod, mock_get_kube_client,
+                                            mock_kubernetes_job_watcher, mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.kube_config.delete_worker_pods = False
+        executor.start()
+        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
+        executor._change_state(key, State.SUCCESS, 'pod_id')
+        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        mock_delete_pod.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
+from typing import Dict
 
 from googleapiclient.discovery import build
 
@@ -49,7 +50,12 @@ class CloudBuildHook(GoogleCloudBaseHook):
 
     _conn = None
 
-    def __init__(self, api_version="v1", gcp_conn_id="google_cloud_default", delegate_to=None):
+    def __init__(
+        self,
+        api_version: str = "v1",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str = None
+    ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
         self.num_retries = self._get_field("num_retries", 5)
@@ -66,7 +72,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_build(self, body, project_id=None):
+    def create_build(self, body: Dict, project_id: str = None) -> Dict:
         """
         Starts a build with the specified configuration.
 
@@ -76,8 +82,9 @@ class CloudBuildHook(GoogleCloudBaseHook):
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
-        :return: None
+        :return: Dict
         """
+        assert project_id is not None
         service = self.get_conn()
 
         # Create build
@@ -104,7 +111,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
 
         return result
 
-    def _wait_for_operation_to_complete(self, operation_name):
+    def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.

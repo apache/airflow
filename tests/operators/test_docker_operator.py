@@ -53,13 +53,14 @@ class DockerOperatorTestCase(unittest.TestCase):
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,
-                                  host_tmp_dir='/host/airflow')
+                                  host_tmp_dir='/host/airflow', container_name='test_container')
         operator.execute(None)
 
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
                                              version='1.19')
 
         client_mock.create_container.assert_called_with(command='env',
+                                                        name='test_container',
                                                         environment={
                                                             'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                             'UNIT': 'TEST'

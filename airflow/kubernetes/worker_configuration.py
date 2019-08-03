@@ -16,7 +16,6 @@
 # under the License.
 
 import os
-import six
 
 from airflow.configuration import conf
 from airflow.kubernetes.pod import Pod, Resources
@@ -122,19 +121,25 @@ class WorkerConfiguration(LoggingMixin):
                 'value': 'false'
             })
 
-        return [{
+        init_containers = [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
-            'securityContext': {'runAsUser': 65533},  # git-sync user
             'env': init_environment,
             'volumeMounts': volume_mounts
         }]
+
+        if self.kube_config.git_sync_run_as_user != "":
+            init_containers[0]['securityContext'] = {
+                'runAsUser': self.kube_config.git_sync_run_as_user  # git-sync user
+            }
+
+        return init_containers
 
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
         env = {}
 
-        for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
+        for env_var_name, env_var_val in self.kube_config.kube_env_vars.items():
             env[env_var_name] = env_var_val
 
         env["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
@@ -165,7 +170,7 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary secrets for the pod executor"""
         worker_secrets = []
 
-        for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
+        for env_var_name, obj_key_pair in self.kube_config.kube_secrets.items():
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
                 Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key)
@@ -318,7 +323,8 @@ class WorkerConfiguration(LoggingMixin):
             request_memory=kube_executor_config.request_memory,
             request_cpu=kube_executor_config.request_cpu,
             limit_memory=kube_executor_config.limit_memory,
-            limit_cpu=kube_executor_config.limit_cpu
+            limit_cpu=kube_executor_config.limit_cpu,
+            limit_gpu=kube_executor_config.limit_gpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
         annotations = dict(kube_executor_config.annotations) or self.kube_config.kube_annotations

@@ -16,7 +16,6 @@
 # under the License.
 
 from abc import ABCMeta, abstractmethod
-import six
 
 
 class KubernetesRequestFactory(metaclass=ABCMeta):
@@ -69,25 +68,25 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
     @staticmethod
     def extract_labels(pod, req):
         req['metadata']['labels'] = req['metadata'].get('labels', {})
-        for k, v in six.iteritems(pod.labels):
+        for k, v in pod.labels.items():
             req['metadata']['labels'][k] = v
 
     @staticmethod
     def extract_annotations(pod, req):
         req['metadata']['annotations'] = req['metadata'].get('annotations', {})
-        for k, v in six.iteritems(pod.annotations):
+        for k, v in pod.annotations.items():
             req['metadata']['annotations'][k] = v
 
     @staticmethod
     def extract_affinity(pod, req):
         req['spec']['affinity'] = req['spec'].get('affinity', {})
-        for k, v in six.iteritems(pod.affinity):
+        for k, v in pod.affinity.items():
             req['spec']['affinity'][k] = v
 
     @staticmethod
     def extract_node_selector(pod, req):
         req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
-        for k, v in six.iteritems(pod.node_selectors):
+        for k, v in pod.node_selectors.items():
             req['spec']['nodeSelector'][k] = v
 
     @staticmethod
@@ -182,12 +181,15 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
-            if pod.resources.request_memory:
+            if pod.resources.limit_memory:
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
+            if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
+            if pod.resources.limit_gpu:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'nvidia.com/gpu'] = pod.resources.limit_gpu
 
     @staticmethod
     def extract_init_containers(pod, req):
