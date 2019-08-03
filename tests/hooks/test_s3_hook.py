@@ -255,6 +255,21 @@ class TestS3Hook(unittest.TestCase):
         self.assertIsNone(hook.get_wildcard_key('s3://bucket/b'))
 
     @mock_s3
+    def test_load_file(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b'Content')
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", "mybucket")
+            body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+            self.assertEqual(body, b'Content')
+
+    @mock_s3
     def test_load_string(self):
         hook = S3Hook(aws_conn_id=None)
         conn = hook.get_conn()
@@ -281,7 +296,7 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(body, b'Content')
 
     @mock_s3
-    def test_load_fileobj(self):
+    def test_load_file_obj(self):
         hook = S3Hook(aws_conn_id=None)
         conn = hook.get_conn()
         # We need to create the bucket since this is all in Moto's 'virtual'
