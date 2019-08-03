@@ -23,7 +23,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
     'provide_context': True,
 }

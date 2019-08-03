@@ -45,7 +45,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 args = {
     'start_date': airflow.utils.dates.days_ago(2),
-    'owner': 'airflow',
+    'owner': 'Airflow',
 }
 
 dag = DAG(

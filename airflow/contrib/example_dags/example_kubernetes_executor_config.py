@@ -24,7 +24,7 @@ from airflow.models import DAG
 import os
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 

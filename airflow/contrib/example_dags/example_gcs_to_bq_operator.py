@@ -32,7 +32,7 @@ except ImportError:
 
 if gcs_to_bq is not None:
     args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'start_date': airflow.utils.dates.days_ago(2)
     }
 

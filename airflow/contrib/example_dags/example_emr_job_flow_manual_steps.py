@@ -30,7 +30,7 @@ from airflow.contrib.operators.emr_terminate_job_flow_operator \
     import EmrTerminateJobFlowOperator
 
 DEFAULT_ARGS = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@example.com'],
