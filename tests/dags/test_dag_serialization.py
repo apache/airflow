@@ -27,13 +27,14 @@ from datetime import datetime
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
+from airflow.dag.serialization import Encoding
+from airflow.dag.serialization import Serialization
+from airflow.dag.serialization import SerializedOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.models import Connection
 from airflow.models import DAG
 from airflow.models import DagBag
-from airflow.dag.serialization import deserialize
-from airflow.dag.serialization import serialize
 from airflow.operators.bash_operator import BashOperator
 
 
@@ -106,7 +107,7 @@ serialized_simple_dag_ground_truth = (
     '"_full_filepath": "", '
     '"_concurrency": 16, '
     '"_description": "", '
-    '"fileloc": "/airflow/tests/dags/test_dag_serialization.py", '
+    '"fileloc": null, '
     '"task_dict": {"__var": '
     '{"simple_task": {"__var": {"'
     'task_id": "simple_task", '
@@ -133,7 +134,6 @@ serialized_simple_dag_ground_truth = (
     '"outlets": [], '
     '"_inlets": {"__var": {"auto": false, "task_ids": [], "datasets": []}, "__type": "dict"}, '
     '"_outlets": {"__var": {"datasets": []}, "__type": "dict"}, '
-    '"is_stringified": false, '
     '"_dag": {"__type": "dag", "__var": "simple_dag"}, '
     '"ui_color": "#fff", '
     '"ui_fgcolor": "#000", '
@@ -151,8 +151,7 @@ serialized_simple_dag_ground_truth = (
     '"catchup": true, '
     '"is_subdag": false, '
     '"partial": false, '
-    '"_old_context_manager_dags": [], '
-    '"is_stringified": false}}')
+    '"_old_context_manager_dags": []}}')
 
 
 def make_example_dags(module, dag_ids):
@@ -214,7 +213,7 @@ def serialize_subprocess(queue):
     """Validate pickle in a subprocess."""
     dags = collect_dags()
     for dag in dags.values():
-        queue.put(serialize(dag))
+        queue.put(Serialization.to_json(dag))
     queue.put(None)
 
 
@@ -239,7 +238,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         dags = collect_dags()
         serialized_dags = {}
         for _, v in dags.items():
-            dag = serialize(v)
+            dag = Serialization.to_json(v)
             serialized_dags[v.dag_id] = dag
 
         # Verify serialized DAGs.
@@ -250,9 +249,12 @@ class TestStringifiedDAGs(unittest.TestCase):
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
         """Verify serialized DAGs match the ground truth."""
         json_dag = json.loads(json_dag)
-        self.assertTrue(json_dag['__var']
-                        ['last_loaded']['__type'] == 'datetime')
-        json_dag['__var']['last_loaded'] = None
+        self.assertTrue(
+            json_dag[Encoding.VAR]['last_loaded'][Encoding.TYPE] == 'datetime')
+        json_dag[Encoding.VAR]['last_loaded'] = None
+        self.assertTrue(
+            json_dag[Encoding.VAR]['fileloc'].split('/')[-1] == 'test_dag_serialization.py')
+        json_dag[Encoding.VAR]['fileloc'] = None
         self.assertTrue(json.dumps(json_dag) == ground_truth_dag)
 
     def test_deserialization(self):
@@ -268,7 +270,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             v = queue.get()
             if v is None:
                 break
-            dag = deserialize(v)
+            dag = Serialization.from_json(v)
             self.assertTrue(isinstance(dag, DAG))
             stringified_dags[dag.dag_id] = dag
         self.assertTrue(
@@ -280,13 +282,12 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Verify deserialized DAGs.
         example_skip_dag = stringified_dags['example_skip_dag']
         skip_operator_1_task = example_skip_dag.task_dict['skip_operator_1']
-        self.validate_stringified_task(
+        self.validate_deserialized_task(
             skip_operator_1_task, 'DummySkipOperator', '#e8b7e4', '#000')
 
-    def validate_stringified_task(self, task, task_type, ui_color, ui_fgcolor):
+    def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
-        # The stringified operator is casted to BaseOperator.
-        self.assertTrue(isinstance(task, BaseOperator))
+        self.assertTrue(isinstance(task, SerializedOperator))
         # Verify the original operator class is recorded for UI.
         self.assertTrue(task.is_stringified)
         self.assertTrue(task.task_type == task_type)
