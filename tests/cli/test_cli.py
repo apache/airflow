@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from six import StringIO
+import io
 import sys
 import unittest
 from unittest.mock import patch, Mock, MagicMock
@@ -201,7 +199,7 @@ class TestCLI(unittest.TestCase):
 
         saved_stdout = sys.stdout
         try:
-            sys.stdout = out = StringIO()
+            sys.stdout = out = io.StringIO()
             cli.test(args)
 
             output = out.getvalue()
@@ -301,7 +299,7 @@ class TestCLI(unittest.TestCase):
         mock_run.reset_mock()
         dag = self.dagbag.get_dag('example_bash_operator')
 
-        with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.backfill(self.parser.parse_args([
                 'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)

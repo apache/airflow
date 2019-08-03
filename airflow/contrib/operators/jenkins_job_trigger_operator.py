@@ -20,6 +20,8 @@
 import time
 import socket
 import json
+from urllib.error import HTTPError, URLError
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -27,7 +29,6 @@ from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
-from six.moves.urllib.error import HTTPError, URLError
 
 
 def jenkins_request_with_headers(jenkins_server, req):
@@ -52,17 +53,10 @@ def jenkins_request_with_headers(jenkins_server, req):
                 "empty response" % jenkins_server.server)
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
-        # Jenkins's funky authentication means its nigh impossible to
-        # distinguish errors.
+        # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
-            # six.moves.urllib.error.HTTPError provides a 'reason'
-            # attribute for all python version except for ver 2.6
-            # Falling back to HTTPError.msg since it contains the
-            # same info as reason
             raise JenkinsException(
-                'Error in request. ' +
-                'Possibly authentication failed [%s]: %s' % (
-                    e.code, e.msg)
+                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.msg)
             )
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
@@ -71,10 +65,6 @@ def jenkins_request_with_headers(jenkins_server, req):
     except socket.timeout as e:
         raise jenkins.TimeoutException('Error in request: %s' % e)
     except URLError as e:
-        # python 2.6 compatibility to ensure same exception raised
-        # since URLError wraps a socket timeout on python 2.6.
-        if str(e.reason) == "timed out":
-            raise jenkins.TimeoutException('Error in request: %s' % e.reason)
         raise JenkinsException('Error in request: %s' % e.reason)
 
 

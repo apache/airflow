@@ -16,10 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
+import io
 from unittest import mock
-import six
 import unittest
 
 from airflow.contrib.hooks import ftp_hook as fh
@@ -112,14 +111,14 @@ class TestFTPHook(unittest.TestCase):
         self.conn_mock.size.assert_called_once_with(path)
 
     def test_retrieve_file(self):
-        _buffer = six.StringIO('buffer')
+        _buffer = io.StringIO('buffer')
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
 
     def test_retrieve_file_with_callback(self):
         func = mock.Mock()
-        _buffer = six.StringIO('buffer')
+        _buffer = io.StringIO('buffer')
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
