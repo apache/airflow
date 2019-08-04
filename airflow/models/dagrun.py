@@ -384,6 +384,10 @@ class DagRun(Base, LoggingMixin):
         # check for missing tasks
         for task in dag.task_dict.values():
             if task.start_date > self.execution_date and not self.is_backfill:
+                self.log.debug("Task instance skipped for '{task}' in '{self}' "
+                               "because its start date ({task.start_date}) is "
+                               "after DAG execution date "
+                               "({self.execution_date})".format(**locals()))
                 continue
 
             if task.task_id not in task_ids:
