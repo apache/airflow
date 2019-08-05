@@ -23,6 +23,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Variables removed from the task instance context
+
+The following variables were removed from the task instance context:
+- end_date
+- latest_date
+- tables
+
 ### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
 
 To simplify the code, the decorator has been moved from the inner-class.

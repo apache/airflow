@@ -57,8 +57,6 @@ Variable                                Description
 ``{{ task }}``                          the Task object
 ``{{ macros }}``                        a reference to the macros package, described below
 ``{{ task_instance }}``                 the task_instance object
-``{{ end_date }}``                      same as ``{{ ds }}``
-``{{ latest_date }}``                   same as ``{{ ds }}``
 ``{{ ti }}``                            same as ``{{ task_instance }}``
 ``{{ params }}``                        a reference to the user-defined params dictionary which can be overridden by
                                         the dictionary passed through ``trigger_dag -c`` if you enabled
