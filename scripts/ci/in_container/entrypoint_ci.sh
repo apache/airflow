@@ -150,10 +150,32 @@ if [[ "${ENV}" == "docker" ]]; then
 
     sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
 
+    set +e
     echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" >/dev/null 2>&1
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" >/dev/null 2>&1
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" >/dev/null 2>&1
+        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
+    RES_1=$?
+
+    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
+    RES_2=$?
+
+    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_3.log" >/dev/null
+    RES_3=$?
+    set -e
+
+    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+        echo
+        echo "ERROR! There was a problem communicating with kerberos"
+        echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
+        echo
+        echo "Action! Please restart the environment!"
+        echo "Run './scripts/ci/local_ci_stop_environment.sh' and re-enter the environment"
+        echo
+        exit 1
+    fi
+
     sudo chmod 0644 "${KRB5_KTNAME}"
 fi
 

@@ -28,5 +28,10 @@ export MOUNT_LOCAL_SOURCES="true"
 export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
 export VERBOSE=${VERBOSE:="false"}
 
+echo
+echo "Note! The environment is quite memory-and-cpu heavy. You might stop the environment by running:"
+echo
+echo "${MY_DIR}/local_ci_stop_environment.sh"
+echo
 # shellcheck source=./ci_run_airflow_testing.sh
 exec "${MY_DIR}/ci_run_airflow_testing.sh"
