@@ -77,7 +77,7 @@ def ts_function(context):
     behaviour is check for the object being updated after execution_date +
     schedule_interval.
     """
-    return context['execution_date'] + context['dag'].schedule_interval
+    return context['dag'].following_schedule(context['execution_date'])
 
 
 class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
