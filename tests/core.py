@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import io
 import json
 import multiprocessing
 import os
@@ -35,7 +36,6 @@ from tempfile import NamedTemporaryFile
 from time import sleep
 from unittest import mock
 
-import six
 import sqlalchemy
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
@@ -1162,8 +1162,7 @@ class CliTests(unittest.TestCase):
                 '--use_random_password'
             ])
             cli.users_create(args)
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.users_list(self.parser.parse_args(['users', 'list']))
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
@@ -1388,8 +1387,7 @@ class CliTests(unittest.TestCase):
         self.appbuilder.sm.add_role('FakeTeamA')
         self.appbuilder.sm.add_role('FakeTeamB')
 
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.roles_list(self.parser.parse_args(['roles', 'list']))
             stdout = mock_stdout.getvalue()
 
@@ -1429,8 +1427,7 @@ class CliTests(unittest.TestCase):
         resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_list(self.parser.parse_args(['connections', 'list']))
             stdout = mock_stdout.getvalue()
         conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
@@ -1459,8 +1456,7 @@ class CliTests(unittest.TestCase):
     def test_cli_connections_add_delete(self):
         # Add connections:
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
@@ -1501,8 +1497,7 @@ class CliTests(unittest.TestCase):
         ])
 
         # Attempt to add duplicate
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
@@ -1551,8 +1546,7 @@ class CliTests(unittest.TestCase):
                                           None, None, "{'extra': 'yes'}"))
 
         # Delete connections
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'new1']))
             cli.connections_delete(self.parser.parse_args(
@@ -1588,8 +1582,7 @@ class CliTests(unittest.TestCase):
             self.assertTrue(result is None)
 
         # Attempt to delete a non-existing connection
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'fake']))
             stdout = mock_stdout.getvalue()

@@ -27,7 +27,6 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
-from six.moves import zip
 
 from airflow import configuration
 from airflow.exceptions import AirflowException

@@ -24,7 +24,6 @@ from os import path
 
 from docutils import nodes
 from docutils.parsers.rst import directives
-from six import text_type
 from sphinx import addnodes
 from sphinx.directives.code import LiteralIncludeReader
 from sphinx.locale import _

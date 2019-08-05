@@ -22,12 +22,12 @@
 Interact with AWS S3, using the boto3 library.
 """
 import fnmatch
+import io
 import re
 from functools import wraps
 from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
-from six import BytesIO
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
@@ -497,7 +497,7 @@ class S3Hook(AwsHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
 
-        filelike_buffer = BytesIO(bytes_data)
+        filelike_buffer = io.BytesIO(bytes_data)
 
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
