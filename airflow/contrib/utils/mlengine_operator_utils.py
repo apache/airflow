@@ -238,7 +238,6 @@ def create_evaluate_ops(task_prefix,
     evaluate_validation = PythonOperator(
         task_id=(task_prefix + "-validation"),
         python_callable=apply_validate_fn,
-        provide_context=True,
         templates_dict={"prediction_path": prediction_path},
         dag=dag)
     evaluate_validation.set_upstream(evaluate_summary)

@@ -25,6 +25,7 @@ import sys
 import types
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
+from inspect import signature
 
 import dill
 
@@ -51,12 +52,6 @@ class PythonOperator(BaseOperator):
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
     :type op_args: list (templated)
-    :param provide_context: if set to true, Airflow will pass a set of
-        keyword arguments that can be used in your function. This set of
-        kwargs correspond exactly to what you can use in your jinja
-        templates. For this to work, you need to define `**kwargs` in your
-        function header.
-    :type provide_context: bool
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
@@ -79,7 +74,6 @@ class PythonOperator(BaseOperator):
         python_callable: Callable,
         op_args: Optional[Iterable] = None,
         op_kwargs: Optional[Dict] = None,
-        provide_context: bool = False,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[Iterable[str]] = None,
         *args,
@@ -91,7 +85,6 @@ class PythonOperator(BaseOperator):
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
-        self.provide_context = provide_context
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
@@ -104,10 +97,21 @@ class PythonOperator(BaseOperator):
                                  for k, v in airflow_context_vars.items()]))
         os.environ.update(airflow_context_vars)
 
-        if self.provide_context:
-            context.update(self.op_kwargs)
-            context['templates_dict'] = self.templates_dict
+        context.update(self.op_kwargs)
+        context['templates_dict'] = self.templates_dict
+
+        if {parameter for name, parameter
+           in signature(self.python_callable).parameters.items()
+           if str(parameter).startswith("**")}:
+            # If there is a **kwargs, **context or **_ then just pass everything.
             self.op_kwargs = context
+        else:
+            # If there is only for example, an execution_date, then pass only these in :-)
+            self.op_kwargs = {
+                name: context[name] for name, parameter
+                in signature(self.python_callable).parameters.items()
+                if name in context  # If it isn't available on the context, then ignore
+            }
 
         return_value = self.execute_callable()
         self.log.info("Done. Returned value was: %s", return_value)
@@ -130,6 +134,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
     """
+
     def execute(self, context):
         branch = super().execute(context)
         self.skip_all_except(context['ti'], branch)
@@ -147,6 +152,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     The condition is determined by the result of `python_callable`.
     """
+
     def execute(self, context):
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
@@ -200,12 +206,6 @@ class PythonVirtualenvOperator(PythonOperator):
     :type op_kwargs: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :type op_kwargs: dict
-    :param provide_context: if set to true, Airflow will pass a set of
-        keyword arguments that can be used in your function. This set of
-        kwargs correspond exactly to what you can use in your jinja
-        templates. For this to work, you need to define `**kwargs` in your
-        function header.
-    :type provide_context: bool
     :param string_args: Strings that are present in the global var virtualenv_string_args,
         available to python_callable at runtime as a list[str]. Note that args are split
         by newline.
@@ -219,6 +219,7 @@ class PythonVirtualenvOperator(PythonOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
     """
+
     @apply_defaults
     def __init__(
         self,
@@ -229,7 +230,6 @@ class PythonVirtualenvOperator(PythonOperator):
         system_site_packages: bool = True,
         op_args: Iterable = None,
         op_kwargs: Dict = None,
-        provide_context: bool = False,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[Iterable[str]] = None,
@@ -242,7 +242,6 @@ class PythonVirtualenvOperator(PythonOperator):
             op_kwargs=op_kwargs,
             templates_dict=templates_dict,
             templates_exts=templates_exts,
-            provide_context=provide_context,
             *args,
             **kwargs)
         self.requirements = requirements or []
@@ -383,7 +382,7 @@ class PythonVirtualenvOperator(PythonOperator):
         fn = self.python_callable
         # dont try to read pickle if we didnt pass anything
         if self._pass_op_args():
-            load_args_line = 'with open(sys.argv[1], "rb") as file: arg_dict = {}.load(file)'\
+            load_args_line = 'with open(sys.argv[1], "rb") as file: arg_dict = {}.load(file)' \
                 .format(pickling_library)
         else:
             load_args_line = 'arg_dict = {"args": [], "kwargs": {}}'
