@@ -23,6 +23,7 @@ import json
 import time
 import markdown
 import re
+from typing import Callable, Union
 import zipfile
 import os
 import io
@@ -375,7 +376,7 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-def get_python_source(x):
+def get_python_source(x: Union[Callable, str]) -> str:
     """
     Helper function to get Python source (or not), preventing exceptions
     """

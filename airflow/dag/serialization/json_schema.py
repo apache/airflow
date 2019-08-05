@@ -19,13 +19,13 @@
 
 """jsonschema for validating serialized DAG and operator."""
 
-import jsonschema
+from typing import Optional
 
-from airflow.dag.serialization import DagTypes
-from airflow.dag.serialization import Encoding
+from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 
 
-def make_object_schema(var_schema=None, type_enum=None):
+def make_object_schema(
+        var_schema: Optional[dict] = None, type_enum: Optional[list] = None) -> dict:
     """jsonschema of an encoded object."""
     schema = {
         'type': 'object',
@@ -46,7 +46,7 @@ def make_object_schema(var_schema=None, type_enum=None):
     return schema
 
 
-def make_operator_schema():
+def make_operator_schema() -> dict:
     """jsonschema of a serialized operator."""
     return make_object_schema(
         var_schema={
@@ -56,7 +56,7 @@ def make_operator_schema():
                 'owner': {'type': 'string'},
                 'start_date': make_object_schema(
                     var_schema={'type': 'string'},
-                    type_enum=[DagTypes.DATETIME.value]),
+                    type_enum=[DAT.DATETIME.value]),
                 'trigger_rule': {'type': 'string'},
                 'depends_on_past': {'type': 'boolean'},
                 'wait_for_downstream': {'type': 'boolean'},
@@ -65,21 +65,21 @@ def make_operator_schema():
                 'pool': {'type': 'string'},
                 'retry_delay': make_object_schema(
                     var_schema={'type': 'number'},
-                    type_enum=[DagTypes.TIMEDELTA.value]),
+                    type_enum=[DAT.TIMEDELTA.value]),
                 'retry_exponential_backoff': {'type': 'boolean'},
                 'params': make_object_schema(
                     var_schema={'type': 'object'},
-                    type_enum=[DagTypes.DICT.value]),
+                    type_enum=[DAT.DICT.value]),
                 'priority_weight': {'type': 'number'},
                 'weight_rule': {'type': 'string'},
                 'executor_config': make_object_schema(
                     var_schema={'type': 'object'},
-                    type_enum=[DagTypes.DICT.value]),
+                    type_enum=[DAT.DICT.value]),
                 'do_xcom_push': {'type': 'boolean'},
                 # _dag field must be a dag_id.
                 '_dag': make_object_schema(
                     var_schema={'type': 'string'},
-                    type_enum=[DagTypes.DAG.value]),
+                    type_enum=[DAT.DAG.value]),
                 'ui_color': {'type': 'string'},
                 'ui_fgcolor': {'type': 'string'},
                 'template_fields': {
@@ -90,10 +90,10 @@ def make_operator_schema():
                 'task_id', 'owner', 'start_date', '_dag',
                 'ui_color', 'ui_fgcolor', 'template_fields']
         },
-        type_enum=[DagTypes.OP.value])
+        type_enum=[DAT.OP.value])
 
 
-def make_dag_schema():
+def make_dag_schema() -> dict:
     """jsonschema of a serialized DAG."""
     return make_object_schema(
         var_schema={
@@ -107,13 +107,13 @@ def make_dag_schema():
                         'type': 'object',
                         'additionalProperties': make_operator_schema()
                     },
-                    type_enum=[DagTypes.DICT.value]),
+                    type_enum=[DAT.DICT.value]),
                 'timezone': make_object_schema(
                     var_schema={'type': 'string'},
-                    type_enum=[DagTypes.TIMEZONE.value]),
+                    type_enum=[DAT.TIMEZONE.value]),
                 'schedule_interval': make_object_schema(
                     var_schema={'type': 'number'},
-                    type_enum=[DagTypes.TIMEDELTA.value]),
+                    type_enum=[DAT.TIMEDELTA.value]),
                 'catchup': {'type': 'boolean'},
                 'is_subdag': {'type': 'boolean'}
             },
@@ -121,25 +121,5 @@ def make_dag_schema():
                 'default_args', 'params',
                 '_dag_id', 'fileloc', 'task_dict']
         },
-        type_enum=[DagTypes.DAG.value]
+        type_enum=[DAT.DAG.value]
     )
-
-
-class SerializationValidator():
-    """Validates serialized DAGs and operators.
-
-    TODO(coufon): jsonschema validation is only used in unit tests now. To do
-    validation at the end of serialization and the beginning of deserialization method.
-    """
-    _operator_schema = make_operator_schema()
-    _dag_schema = make_dag_schema()
-
-    @classmethod
-    def validate_operator(cls, json_object):
-        """Validates a serialized DAG."""
-        return jsonschema.validate(json_object, cls._operator_schema)
-
-    @classmethod
-    def validate_dag(cls, json_object):
-        """Validates a serialized DAG."""
-        return jsonschema.validate(json_object, cls._dag_schema)

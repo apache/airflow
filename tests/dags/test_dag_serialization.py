@@ -27,10 +27,8 @@ from datetime import datetime
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
-from airflow.dag.serialization import Encoding
-from airflow.dag.serialization import Serialization
-from airflow.dag.serialization import SerializedOperator
-from airflow.dag.serialization_schema import SerializationValidator
+from airflow.dag.serialization import Serialization, SerializedBaseOperator, SerializedDAG
+from airflow.dag.serialization.enum import Encoding
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.models import Connection
@@ -246,10 +244,10 @@ class TestStringifiedDAGs(unittest.TestCase):
         simple_dag_json = json.loads(simple_dag_json_str)
 
         # Verify JSON schema.
-        SerializationValidator.validate_operator(
+        SerializedBaseOperator.validate_json(
             simple_dag_json['__var']['task_dict']['__var']['simple_task'])
 
-        SerializationValidator.validate_dag(simple_dag_json)
+        SerializedDAG.validate_json(simple_dag_json)
 
         # Verify serialized DAGs.
         self.validate_serialized_dag(
@@ -297,7 +295,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
-        self.assertTrue(isinstance(task, SerializedOperator))
+        self.assertTrue(isinstance(task, SerializedBaseOperator))
         # Verify the original operator class is recorded for UI.
         self.assertTrue(task.task_type == task_type)
         self.assertTrue(task.ui_color == ui_color)
