@@ -93,6 +93,8 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER".
     :type role: str
+    :param generation: Optional. If present, selects a specific revision of this object.
+    :type generation: long
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :type user_project: str
@@ -101,8 +103,7 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     :type google_cloud_storage_conn_id: str
     """
     # [START gcs_object_create_acl_template_fields]
-    template_fields = ('bucket', 'object_name', 'entity', 'role', 'generation',
-                       'user_project')
+    template_fields = ('bucket', 'object_name', 'entity', 'generation', 'role', 'user_project')
     # [END gcs_object_create_acl_template_fields]
 
     @apply_defaults
@@ -111,6 +112,7 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
                  object_name,
                  entity,
                  role,
+                 generation=None,
                  user_project=None,
                  google_cloud_storage_conn_id='google_cloud_default',
                  *args, **kwargs):
@@ -120,6 +122,7 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         self.object_name = object_name
         self.entity = entity
         self.role = role
+        self.generation = generation
         self.user_project = user_project
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
 
@@ -127,5 +130,9 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
         )
-        hook.insert_object_acl(bucket_name=self.bucket, object_name=self.object_name,
-                               entity=self.entity, role=self.role, user_project=self.user_project)
+        hook.insert_object_acl(bucket_name=self.bucket,
+                               object_name=self.object_name,
+                               entity=self.entity,
+                               role=self.role,
+                               generation=self.generation,
+                               user_project=self.user_project)
