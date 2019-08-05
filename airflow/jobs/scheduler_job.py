@@ -65,8 +65,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type file_path: unicode
         :param pickle_dags: whether to serialize the DAG objects to the DB
         :type pickle_dags: bool
-        :param dag_id_whitelist: If specified, only look at these DAG ID's
-        :type dag_id_whitelist: list[unicode]
+        :param dag_id_white_list: If specified, only look at these DAG ID's
+        :type dag_id_white_list: list[unicode]
         """
         self._file_path = file_path
 
