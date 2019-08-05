@@ -66,9 +66,11 @@ class TransferJobPreprocessor:
     """
     Helper class for preprocess of transfer job body.
     """
-    def __init__(self, body, aws_conn_id='aws_default'):
+
+    def __init__(self, body, aws_conn_id='aws_default', default_schedule=False):
         self.body = body
         self.aws_conn_id = aws_conn_id
+        self.default_schedule = default_schedule
 
     def _inject_aws_credentials(self):
         if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
@@ -97,7 +99,13 @@ class TransferJobPreprocessor:
 
     def _reformat_schedule(self):
         if SCHEDULE not in self.body:
-            return
+            if self.default_schedule:
+                self.body[SCHEDULE] = {
+                    SCHEDULE_START_DATE: date.today(),
+                    SCHEDULE_END_DATE: date.today()
+                }
+            else:
+                return
         self._reformat_date(SCHEDULE_START_DATE)
         self._reformat_date(SCHEDULE_END_DATE)
         self._reformat_time(START_TIME_OF_DAY)
@@ -650,7 +658,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         body = self._create_body()
 
-        TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id).process_body()
+        TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id, default_schedule=True).process_body()
 
         job = hook.create_transfer_job(body=body)
 
@@ -788,7 +796,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
 
         body = self._create_body()
 
-        TransferJobPreprocessor(body=body).process_body()
+        TransferJobPreprocessor(body=body, default_schedule=True).process_body()
 
         job = hook.create_transfer_job(body=body)
 
