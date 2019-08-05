@@ -1102,9 +1102,6 @@ class TaskInstance(Base, LoggingMixin):
     def get_template_context(self, session=None):
         task = self.task
         from airflow import macros
-        tables = None
-        if 'tables' in task.params:
-            tables = task.params['tables']
 
         params = {}
         run_id = ''
@@ -1222,7 +1219,6 @@ class TaskInstance(Base, LoggingMixin):
                 lambda: self.previous_execution_date_success),
             'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
             'run_id': run_id,
-            'tables': tables,
             'task': task,
             'task_instance': self,
             'task_instance_key_str': ti_key_str,
