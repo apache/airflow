@@ -73,6 +73,8 @@ class BigQueryToMySqlOperator(BaseOperator):
     :type database: string
     :param replace: Whether to replace instead of insert
     :type replace: bool
+    :param batch_size: The number of rows to take in each batch
+    :type batch_size: int
     """
     template_fields = ('dataset_id', 'table_id', 'mysql_table')
 
@@ -87,6 +89,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                  database=None,
                  delegate_to=None,
                  replace=False,
+                 batch_size=1000,
                  *args,
                  **kwargs):
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
@@ -99,6 +102,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         self.mysql_table = mysql_table
         self.replace = replace
         self.delegate_to = delegate_to
+        self.batch_size = batch_size
 
     def _bq_get_data(self):
         self.log.info('Fetching Data from:')
@@ -112,12 +116,11 @@ class BigQueryToMySqlOperator(BaseOperator):
         cursor = conn.cursor()
         i = 0
         while True:
-            # Max results is set to 1000 because bq job has an hardcoded limit to 1300.
             response = cursor.get_tabledata(dataset_id=self.dataset_id,
                                             table_id=self.table_id,
-                                            max_results=1000,
+                                            max_results=self.batch_size,
                                             selected_fields=self.selected_fields,
-                                            start_index=i * 1000)
+                                            start_index=i * self.batch_size)
 
             if 'rows' in response:
                 rows = response['rows']
@@ -125,7 +128,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                 self.log.info('Job Finished')
                 return
 
-            self.log.info('Total Extracted rows: %s', len(rows) + i * 1000)
+            self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
 
             table_data = []
             for dict_row in rows:
