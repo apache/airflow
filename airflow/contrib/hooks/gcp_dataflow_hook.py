@@ -149,6 +149,7 @@ class _DataflowJob(LoggingMixin):
         """
         Helper method to check the state of all jobs in dataflow for this task
         if job failed raise exception
+
         :return: True if job is done.
         :rtype: bool
         :raise: Exception

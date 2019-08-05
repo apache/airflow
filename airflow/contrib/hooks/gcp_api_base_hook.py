@@ -31,11 +31,13 @@ import httplib2
 
 import google.auth
 import google.oauth2.service_account
+from google.api_core.client_info import ClientInfo
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
 
 import google_auth_httplib2
 from googleapiclient.errors import HttpError
 
+from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
@@ -174,6 +176,20 @@ class GoogleCloudBaseHook(BaseHook):
         :rtype: str
         """
         return self._get_field('project')
+
+    @property
+    def client_info(self) -> ClientInfo:
+        """
+        Return client information used to generate a user-agent for API calls.
+
+        It allows for better errors tracking.
+
+        This object is only used by the google-cloud-* libraries that are built specifically for
+        the Google Cloud Platform. It is not supported by The Google APIs Python Client that use Discovery
+        based APIs.
+        """
+        client_info = ClientInfo(client_library_version='airflow_v' + version.version)
+        return client_info
 
     @staticmethod
     def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:

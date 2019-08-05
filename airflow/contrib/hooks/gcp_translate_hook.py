@@ -45,7 +45,7 @@ class CloudTranslateHook(GoogleCloudBaseHook):
         :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
-            self._client = Client(credentials=self._get_credentials())
+            self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     def translate(

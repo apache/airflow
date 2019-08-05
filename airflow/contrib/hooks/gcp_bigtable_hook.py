@@ -45,8 +45,12 @@ class BigtableHook(GoogleCloudBaseHook):
 
     def _get_client(self, project_id: str):
         if not self._client:
-            self._client = Client(project=project_id, credentials=self._get_credentials(),
-                                  admin=True)
+            self._client = Client(
+                project=project_id,
+                credentials=self._get_credentials(),
+                client_info=self.client_info,
+                admin=True
+            )
         return self._client
 
     @GoogleCloudBaseHook.fallback_to_default_project_id

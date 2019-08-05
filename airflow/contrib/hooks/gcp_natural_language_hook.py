@@ -63,7 +63,10 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         :rtype: google.cloud.language_v1.LanguageServiceClient
         """
         if not self._conn:
-            self._conn = LanguageServiceClient(credentials=self._get_credentials())
+            self._conn = LanguageServiceClient(
+                credentials=self._get_credentials(),
+                client_info=self.client_info
+            )
         return self._conn
 
     @GoogleCloudBaseHook.catch_http_exception
