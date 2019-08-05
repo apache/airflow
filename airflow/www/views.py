@@ -23,6 +23,7 @@ import codecs
 import copy
 import datetime as dt
 import functools
+import re
 from io import BytesIO
 import itertools
 import json
@@ -2196,6 +2197,8 @@ class HomeView(AdminIndexView):
         # tack on DAGModels with no DAG object
         dags += no_obj_dags
 
+        log_regex = re.compile(conf.get('core', 'log_task_regex'))
+
         return self.render(
             'airflow/dags.html',
             dags=dags,
@@ -2216,7 +2219,7 @@ class HomeView(AdminIndexView):
             stringify_timedelta=stringify_timedelta,
             get_human_readable_cron=cron.get_human_readable_cron,
             dagbag=dagbag,
-            log_prefix=conf.get('core', 'log_task_prefix'),
+            log_regex=log_regex,
             xcom_log_urls_key=conf.get('core', 'xcom_log_urls_key'),
             get_xcom=functools.partial(get_xcom, session),
             include_owners=include_owners,

@@ -196,7 +196,7 @@
                     <!-- no list comprehensions in jinja -->
                     {% set log_tasks = [] %}
                     {% for task in dag_obj.tasks %}
-                      {% if task.task_id.startswith(log_prefix) %}
+                      {% if log_regex.search(task.task_id) %}
                         {{ log_tasks.append(task) or "" }}
                       {% endif %}
                     {% endfor %}
