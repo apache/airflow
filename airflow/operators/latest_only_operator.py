@@ -29,6 +29,9 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
 
     If the task is run outside of the latest schedule interval, all
     directly downstream tasks will be skipped.
+
+    Note that downstream tasks are never skipped if the given DAG_Run is
+    marked as externally triggered.
     """
 
     ui_color = '#e9ffdb'  # nyanza
