@@ -22,7 +22,7 @@
 import datetime
 import json
 import logging
-from typing import Any, Union
+from typing import Any, Union, Dict, Optional
 
 import dateutil.parser
 import jsonschema
@@ -54,7 +54,7 @@ class Serialization:
     # TODO(coufon): not needed if _dag_included_fields and _op_included_fields are customized.
     _excluded_types = (logging.Logger, Connection, type)
 
-    _json_schema = None
+    _json_schema = None     # type: Optional[Dict]
 
     @classmethod
     def to_json(cls, var: Union[DAG, BaseOperator, dict, list, set, tuple]) -> str:
