@@ -28,26 +28,6 @@ assists users migrating to a new version.
 Note: The order of arguments has changed for `check_for_prefix`. 
 The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
 
-### `pool` config option in Celery section to support different Celery pool implementation
-
-The new `pool` config option allows users to choose different pool
-implementation. Default value is "prefork", while choices include "prefork" (default),
-"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
-in different scenarios.
-
-For more details about Celery pool implementation, please refer to:
-- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
-- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
-
-### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
-
-`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
-are removed in favor of a real pool, e.g. `default_pool`.
-
-By default tasks are running in `default_pool`.
-`default_pool` is initialized with 128 slots and user can change the
-number of slots through UI/CLI. `default_pool` cannot be removed.
-
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
 has been renamed to `request_filter`.
@@ -55,14 +35,6 @@ has been renamed to `request_filter`.
 ### Changes in  Google Cloud Transfer Hook
  To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and 
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
-
-### Changes in writing Logs to Elasticsearch
-
-The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
-
-### Changes to the Google Cloud Storage Hook
-
-Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
 
 ### Export MySQL timestamps as UTC
 
@@ -101,13 +73,6 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 
 ### Changes to GoogleCloudStorageHook
 
-* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
-* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
-  
-  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
-
-* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
-
 * The following parameters have been replaced in all the methods in GCSHook:
   * `bucket` is changed to `bucket_name`
   * `object` is changed to `object_name` 
@@ -129,11 +94,6 @@ with CloudantHook().get_conn() as cloudant_session:
 ```
 
 See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
-
-### Changes to DatastoreHook
-
-* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
-* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
 
 ### Unify default conn_id for Google Cloud Platform
 
@@ -252,6 +212,54 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
 and `dataproc_jars`respectively. 
 Arguments for dataproc_properties dataproc_jars 
+
+## Airflow 1.10.4
+
+### Python 2 support is going away
+
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
+
+If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
+
+### Changes to DatastoreHook
+
+* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
+* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
+
+### Changes to GoogleCloudStorageHook
+
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
+
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
+
+* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
+
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
+### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+
+`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+are removed in favor of a real pool, e.g. `default_pool`.
+
+By default tasks are running in `default_pool`.
+`default_pool` is initialized with 128 slots and user can change the
+number of slots through UI/CLI. `default_pool` cannot be removed.
+
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
 
 ## Airflow 1.10.3
 
