@@ -226,7 +226,6 @@ if [[ -z "${KUBERNETES_VERSION}" ]]; then
     echo "Running CI tests with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
-    codecov -e "py${PYTHON_VERSION}-backend_${BACKEND}-env_${ENV}"
 else
     export KUBERNETES_VERSION
     export MINIKUBE_IP
@@ -241,8 +240,6 @@ else
     echo "Running CI tests with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" tests.minikube "${ARGS[@]}"
-    codecov -e \
-    "py${PYTHON_VERSION}-backend_${BACKEND}-env_${ENV}-mode_${KUBERNETES_MODE}-version_${KUBERNETES_VERSION}"
 fi
 
 in_container_script_end
