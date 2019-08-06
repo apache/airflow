@@ -557,13 +557,33 @@ class DAG(BaseDag, LoggingMixin):
         return ", ".join({t.owner for t in self.tasks})
 
     @provide_session
-    def _get_concurrency_reached(self, session=None):
+    def running_tasks_count(self, session=None):
+        """
+        Returns a boolean indicating whether the concurrency limit for this DAG
+        has been reached
+        Returns the running tasks count for the dag
+        """
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
             TI.state == State.RUNNING,
         )
-        return qry.scalar() >= self.concurrency
+        return qry.scalar()
+
+    @provide_session
+    def running_dag_runs_count(self, session=None):
+        """
+        Returns the running tasks count for the dag
+        """
+        qry = session.query(func.count(DagRun.dag_id)).filter(
+            DagRun.dag_id == self.dag_id,
+            DagRun.state == State.RUNNING,
+        )
+        return qry.scalar()
+
+    @provide_session
+    def _get_concurrency_reached(self, session=None):
+        return self.running_tasks_count(session) >= self.concurrency
 
     @property
     def concurrency_reached(self):

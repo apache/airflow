@@ -1293,14 +1293,26 @@ class Airflow(AirflowBaseView):
                     tid["duration"] = d.total_seconds()
                 return tid
 
+            def create_instances(dates):
+                instances = []
+                for d in dates:
+                    tid = task_instances.get((task.task_id, d))
+                    if tid is not None:
+                        set_duration(tid)
+                    else:
+                        tid = {
+                            'execution_date': d.isoformat(),
+                            'task_id': task.task_id,
+                        }
+
+                    tid['depends_on_past'] = task.depends_on_past
+                    tid['wait_for_downstream'] = task.wait_for_downstream
+                    instances.append(tid)
+                return instances
+
             return {
                 'name': task.task_id,
-                'instances': [
-                    set_duration(task_instances.get((task.task_id, d))) or {
-                        'execution_date': d.isoformat(),
-                        'task_id': task.task_id
-                    }
-                    for d in dates],
+                'instances': create_instances(dates),
                 children_key: children,
                 'num_dep': len(task.upstream_list),
                 'operator': task.task_type,
@@ -1399,9 +1411,6 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {
-            ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(dttm, dttm)}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -1411,6 +1420,19 @@ class Airflow(AirflowBaseView):
             for t in dag.tasks}
         if not tasks:
             flash("No tasks found", "error")
+
+        task_id_to_ti = {t.task_id: t for t in dag.tasks}
+
+        def create_instance(ti):
+            tid = alchemy_to_dict(ti)
+            tid['depends_on_past'] = task_id_to_ti[ti.task_id].depends_on_past
+            tid['wait_for_downstream'] = task_id_to_ti[ti.task_id].wait_for_downstream
+            return tid
+
+        task_instances = {
+            ti.task_id: create_instance(ti)
+            for ti in dag.get_task_instances(dttm, dttm)}
+
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''

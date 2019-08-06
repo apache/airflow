@@ -115,6 +115,23 @@
         </a>
       </li>
     </ul>
+    {% if dag.running_dag_runs_count is defined %}
+      <hr>
+      <ul class="nav nav-pills">
+        <li><div style="margin-right:20px; color: {{ 'red' if dag.running_dag_runs_count() >= dag.max_active_runs else 'black' }}">
+            <span data-original-title="Show current running dag runs count and max running dag runs limit. No new dag runs will be scheduled if it reaches the limit.">
+              Running DagRuns: {{ dag.running_dag_runs_count() }} / {{ dag.max_active_runs }} (max dag runs)
+            </span>
+          </div>
+        </li>
+        <li><div style="margin-right:20px; color: {{ 'red' if dag.running_tasks_count() >= dag.concurrency else 'black' }}">
+            <span data-original-title="Show current running tasks count and max running tasks limit. No new tasks will be scheduled if it reaches the limit.">
+              Running Tasks: {{ dag.running_tasks_count() }} / {{ dag.concurrency }} (max running tasks)
+            </span>
+          </div>
+        </li>
+      </ul>
+    {% endif %}
   </div>
   <hr>
   <!-- Modal -->

@@ -44,7 +44,13 @@ function update_nodes_states(task_instances) {
         tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
         tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
         tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
+        if (!ti.state) {
+          tt += "DependsOnPast: " + ti.depends_on_past + "<br>";
+          tt += "WaitForDownstream: " + ti.wait_for_downstream + "<br>";
+        }
+
         tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
+
         return tt;
       });
   });

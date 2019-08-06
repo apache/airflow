@@ -267,6 +267,9 @@ function update(source) {
             s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";
           }
           s += "State: " + escapeHtml(d.state) + "<br>";
+        } else {
+          s += "DependsOnPast: " + d.depends_on_past + "<br>";
+          s += "WaitForDownstream: " + d.wait_for_downstream + "<br>";
         }
         return s;
       })
