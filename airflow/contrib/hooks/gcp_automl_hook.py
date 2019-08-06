@@ -20,11 +20,10 @@
 """
 This module contains a Google AutoML hook.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union, List
+from typing import Dict, Sequence, Tuple, Union, List
 from cached_property import cached_property
 
 from google.api_core.retry import Retry
-from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.automl_v1beta1 import PredictionServiceClient, AutoMlClient
 from google.cloud.automl_v1beta1.types import (
     BatchPredictInputConfig,
@@ -42,14 +41,6 @@ from google.cloud.automl_v1beta1.types import (
 )
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.version import version
-
-
-def get_object_id(obj: dict) -> str:
-    """
-    Returns unique id of the object.
-    """
-    return obj["name"].rpartition("/")[-1]
 
 
 class AutoMLHook(GoogleCloudBaseHook):
@@ -62,8 +53,14 @@ class AutoMLHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
-        self._client_info = ClientInfo(client_library_version="airflow_v" + version)
         self._client = None
+
+    @staticmethod
+    def extract_object_id(obj: dict) -> str:
+        """
+        Returns unique id of the object.
+        """
+        return obj["name"].rpartition("/")[-1]
 
     def get_conn(self) -> AutoMlClient:
         """
@@ -74,7 +71,8 @@ class AutoMLHook(GoogleCloudBaseHook):
         """
         if self._client is None:
             self._client = AutoMlClient(
-                credentials=self._get_credentials(), client_info=self._client_info
+                credentials=self._get_credentials(),
+                client_info=self.client_info
             )
         return self._client
 
@@ -87,7 +85,8 @@ class AutoMLHook(GoogleCloudBaseHook):
         :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
         """
         return PredictionServiceClient(
-            credentials=self._get_credentials(), client_info=self._client_info
+            credentials=self._get_credentials(),
+            client_info=self.client_info
         )
 
     @GoogleCloudBaseHook.catch_http_exception

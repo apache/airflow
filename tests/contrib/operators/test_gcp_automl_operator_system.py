@@ -40,7 +40,9 @@ class AutoMLDatasetOperationsSystemTest(DagGcpSystemTestCase):
         self._run_dag()
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_long_test(GCP_AUTOML_KEY), SKIP_LONG_TEST_WARNING)
+@unittest.skipIf(
+    DagGcpSystemTestCase.skip_long_test(GCP_AUTOML_KEY), SKIP_LONG_TEST_WARNING
+)
 class AutoMLModelOperationsSystemTest(DagGcpSystemTestCase):
     def __init__(self, method_name="runTest"):
         super().__init__(

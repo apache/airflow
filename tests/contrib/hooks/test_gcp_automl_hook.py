@@ -21,11 +21,13 @@ import unittest
 
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
-from airflow import version
 from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook
+from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 from tests.compat import mock
 
+
 CREDENTIALS = "test-creds"
+CLIENT_INFO = "client-info"
 TASK_ID = "test-automl-hook"
 GCP_PROJECT_ID = "test-project"
 GCP_LOCATION = "test-location"
@@ -51,44 +53,51 @@ MASK = {"field": "mask"}
 
 class TestAuoMLHook(unittest.TestCase):
     def setUp(self) -> None:
-        self.hook = AutoMLHook()
-        self.hook._get_credentials = mock.MagicMock(  # type: ignore
-            return_value=CREDENTIALS
-        )
+        with mock.patch(
+            "airflow.contrib.hooks.gcp_automl_hook.GoogleCloudBaseHook.__init__",
+            new=mock_base_gcp_hook_no_default_project_id,
+        ):
+            self.hook = AutoMLHook()
+            self.hook._get_credentials = mock.MagicMock(  # type: ignore
+                return_value=CREDENTIALS
+            )
 
-    def test_version_information(self):
-        expected_version = "airflow_v" + version.version
-        self.assertEqual(
-            expected_version, self.hook._client_info.client_library_version
-        )
-
-    @mock.patch("airflow.contrib.hooks.gcp_automl_hook.PredictionServiceClient")
+    @mock.patch(
+        "airflow.contrib.hooks.gcp_automl_hook.GoogleCloudBaseHook.client_info",
+        new_callable=lambda: CLIENT_INFO,
+    )
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient")
-    def test_get_conn(self, mock_automl_client, mock_prediction_client):
+    def test_get_conn(self, mock_automl_client, mock_client_info):
         self.hook.get_conn()
         mock_automl_client.assert_called_with(
-            credentials=CREDENTIALS, client_info=self.hook._client_info
+            credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
 
+    @mock.patch(
+        "airflow.contrib.hooks.gcp_automl_hook.GoogleCloudBaseHook.client_info",
+        new_callable=lambda: CLIENT_INFO,
+    )
+    @mock.patch("airflow.contrib.hooks.gcp_automl_hook.PredictionServiceClient")
+    def test_prediction_client(self, mock_prediction_client, mock_client_info):
         client = self.hook.prediction_client  # pylint:disable=unused-variable  # noqa
         mock_prediction_client.assert_called_with(
-            credentials=CREDENTIALS, client_info=self.hook._client_info
+            credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.create_model")
-    def test_create_model(self, service_mock):
+    def test_create_model(self, mock_create_model):
         self.hook.create_model(
             model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_create_model.assert_called_with(
             parent=LOCATION_PATH, model=MODEL, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch(
         "airflow.contrib.hooks.gcp_automl_hook.PredictionServiceClient.batch_predict"
     )
-    def test_batch_predict(self, service_mock):
+    def test_batch_predict(self, mock_batch_predict):
         self.hook.batch_predict(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -97,7 +106,7 @@ class TestAuoMLHook(unittest.TestCase):
             output_config=OUTPUT_CONFIG,
         )
 
-        service_mock.assert_called_with(
+        mock_batch_predict.assert_called_with(
             name=MODEL_PATH,
             input_config=INPUT_CONFIG,
             output_config=OUTPUT_CONFIG,
@@ -108,7 +117,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.PredictionServiceClient.predict")
-    def test_predict(self, service_mock):
+    def test_predict(self, mock_predict):
         self.hook.predict(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -116,7 +125,7 @@ class TestAuoMLHook(unittest.TestCase):
             payload=PAYLOAD,
         )
 
-        service_mock.assert_called_with(
+        mock_predict.assert_called_with(
             name=MODEL_PATH,
             payload=PAYLOAD,
             params=None,
@@ -126,12 +135,12 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.create_dataset")
-    def test_create_dataset(self, service_mock):
+    def test_create_dataset(self, mock_create_dataset):
         self.hook.create_dataset(
             dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_create_dataset.assert_called_with(
             parent=LOCATION_PATH,
             dataset=DATASET,
             retry=None,
@@ -140,7 +149,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.import_data")
-    def test_import_dataset(self, service_mock):
+    def test_import_dataset(self, mock_import_data):
         self.hook.import_data(
             dataset_id=DATASET_ID,
             location=GCP_LOCATION,
@@ -148,7 +157,7 @@ class TestAuoMLHook(unittest.TestCase):
             input_config=INPUT_CONFIG,
         )
 
-        service_mock.assert_called_with(
+        mock_import_data.assert_called_with(
             name=DATASET_PATH,
             input_config=INPUT_CONFIG,
             retry=None,
@@ -157,7 +166,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.list_column_specs")
-    def test_list_column_specs(self, service_mock):
+    def test_list_column_specs(self, mock_list_column_specs):
         table_spec = "table_spec_id"
         filter_ = "filter"
         page_size = 42
@@ -175,7 +184,7 @@ class TestAuoMLHook(unittest.TestCase):
         parent = AutoMlClient.table_spec_path(
             GCP_PROJECT_ID, GCP_LOCATION, DATASET_ID, table_spec
         )
-        service_mock.assert_called_with(
+        mock_list_column_specs.assert_called_with(
             parent=parent,
             field_mask=MASK,
             filter_=filter_,
@@ -186,37 +195,37 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.get_model")
-    def test_get_model(self, service_mock):
+    def test_get_model(self, mock_get_model):
         self.hook.get_model(
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_get_model.assert_called_with(
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.delete_model")
-    def test_delete_model(self, service_mock):
+    def test_delete_model(self, mock_delete_model):
         self.hook.delete_model(
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_delete_model.assert_called_with(
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.update_dataset")
-    def test_update_dataset(self, service_mock):
+    def test_update_dataset(self, mock_update_dataset):
         self.hook.update_dataset(
             dataset=DATASET, update_mask=MASK, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_update_dataset.assert_called_with(
             dataset=DATASET, update_mask=MASK, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.deploy_model")
-    def test_deploy_model(self, service_mock):
+    def test_deploy_model(self, mock_deploy_model):
         image_detection_metadata = {}
 
         self.hook.deploy_model(
@@ -226,7 +235,7 @@ class TestAuoMLHook(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
         )
 
-        service_mock.assert_called_with(
+        mock_deploy_model.assert_called_with(
             name=MODEL_PATH,
             retry=None,
             timeout=None,
@@ -235,7 +244,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.list_table_specs")
-    def test_list_table_specs(self, service_mock):
+    def test_list_table_specs(self, mock_list_table_specs):
         filter_ = "filter"
         page_size = 42
 
@@ -247,7 +256,7 @@ class TestAuoMLHook(unittest.TestCase):
             page_size=page_size,
         )
 
-        service_mock.assert_called_with(
+        mock_list_table_specs.assert_called_with(
             parent=DATASET_PATH,
             filter_=filter_,
             page_size=page_size,
@@ -257,19 +266,19 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.list_datasets")
-    def test_list_datasets(self, service_mock):
+    def test_list_datasets(self, mock_list_datasets):
         self.hook.list_datasets(location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
-        service_mock.assert_called_with(
+        mock_list_datasets.assert_called_with(
             parent=LOCATION_PATH, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.delete_dataset")
-    def test_delete_dataset(self, service_mock):
+    def test_delete_dataset(self, mock_delete_dataset):
         self.hook.delete_dataset(
             dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        service_mock.assert_called_with(
+        mock_delete_dataset.assert_called_with(
             name=DATASET_PATH, retry=None, timeout=None, metadata=None
         )

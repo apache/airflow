@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# pylint:disable=too-many-lines
 """
 This module contains Google AutoML operators.
 """
@@ -28,12 +29,16 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook, get_object_id
+from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook
 
 
 class AutoMLTrainModelOperator(BaseOperator):
     """
     Creates Google Cloud AutoML model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLTrainModelOperator`
 
     :param model: Model definition.
     :type model: dict
@@ -93,13 +98,17 @@ class AutoMLTrainModelOperator(BaseOperator):
         result = MessageToDict(operation.result())
         self.log.info("Model created.")
 
-        self.xcom_push(context, key="model_id", value=get_object_id(result))
+        self.xcom_push(context, key="model_id", value=hook.extract_object_id(result))
         return result
 
 
 class AutoMLPredictOperator(BaseOperator):
     """
     Runs prediction operation on Google Cloud AutoML.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLPredictOperator`
 
     :param model_id: Name of the model requested to serve the batch prediction.
     :type model_id: str
@@ -171,6 +180,10 @@ class AutoMLPredictOperator(BaseOperator):
 class AutoMLBatchPredictOperator(BaseOperator):
     """
     Perform a batch prediction on Google Cloud AutoML.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLBatchPredictOperator`
 
     :param project_id: ID of the Google Cloud project where model will be created if None then
         default project_id is used.
@@ -267,6 +280,10 @@ class AutoMLCreateDatasetOperator(BaseOperator):
     """
     Creates a Google Cloud AutoML dataset.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLCreateDatasetOperator`
+
     :param dataset: The dataset to create. If a dict is provided, it must be of the
         same form as the protobuf message Dataset.
     :type dataset: Union[dict, Dataset]
@@ -328,13 +345,17 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         result = MessageToDict(result)
         self.log.info("Creating completed.")
 
-        self.xcom_push(context, key="dataset_id", value=get_object_id(result))
+        self.xcom_push(context, key="dataset_id", value=hook.extract_object_id(result))
         return result
 
 
 class AutoMLImportDataOperator(BaseOperator):
     """
     Imports data to a Google Cloud AutoML dataset.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLImportDataOperator`
 
     :param dataset_id: ID of dataset to be updated.
     :type dataset_id: str
@@ -407,6 +428,10 @@ class AutoMLImportDataOperator(BaseOperator):
 class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     """
     Lists column specs in a table.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLTablesListColumnSpecsOperator`
 
     :param dataset_id: Name of the dataset.
     :type dataset_id: str
@@ -504,6 +529,10 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     """
     Updates a dataset.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLTablesUpdateDatasetOperator`
+
     :param dataset: The dataset which replaces the resource on the server.
         If a dict is provided, it must be of the same form as the protobuf message Dataset.
     :type dataset: Union[dict, Dataset]
@@ -575,6 +604,10 @@ class AutoMLGetModelOperator(BaseOperator):
     """
     Get Google Cloud AutoML model.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLGetModelOperator`
+
     :param model_id: Name of the model requested to serve the prediction.
     :type model_id: str
     :param project_id: ID of the Google Cloud project where model is located if None then
@@ -637,6 +670,10 @@ class AutoMLGetModelOperator(BaseOperator):
 class AutoMLDeleteModelOperator(BaseOperator):
     """
     Delete Google Cloud AutoML model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLDeleteModelOperator`
 
     :param model_id: Name of the model requested to serve the prediction.
     :type model_id: str
@@ -706,6 +743,10 @@ class AutoMLDeployModelOperator(BaseOperator):
 
     Only applicable for Text Classification, Image Object Detection and Tables; all other
     domains manage deployment automatically.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLDeployModelOperator`
 
     :param model_id: Name of the model to be deployed.
     :type model_id: str
@@ -780,6 +821,10 @@ class AutoMLDeployModelOperator(BaseOperator):
 class AutoMLTablesListTableSpecsOperator(BaseOperator):
     """
     Lists table specs in a dataset.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLTablesListTableSpecsOperator`
 
     :param dataset_id: Name of the dataset.
     :type dataset_id: str
@@ -859,6 +904,10 @@ class AutoMLListDatasetOperator(BaseOperator):
     """
     Lists AutoML Datasets in project.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLListDatasetOperator`
+
     :param project_id: ID of the Google Cloud project where datasets are located if None then
         default project_id is used.
     :type project_id: str
@@ -912,7 +961,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.log.info("Datasets obtained.")
 
         self.xcom_push(
-            context, key="dataset_id_list", value=[get_object_id(d) for d in result]
+            context, key="dataset_id_list", value=[hook.extract_object_id(d) for d in result]
         )
         return result
 
@@ -920,6 +969,10 @@ class AutoMLListDatasetOperator(BaseOperator):
 class AutoMLDeleteDatasetOperator(BaseOperator):
     """
     Deletes a dataset and all of its contents.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AutoMLDeleteDatasetOperator`
 
     :param dataset_id: Name of the dataset_id, list of dataset_id or string of dataset_id
         coma separated to be deleted.

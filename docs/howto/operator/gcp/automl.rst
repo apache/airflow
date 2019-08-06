@@ -36,6 +36,11 @@ Prerequisite Tasks
 
 .. _howto/operator:CloudAutoMLDocuments:
 
+
+.. _howto/operator:AutoMLCreateDatasetOperator:
+.. _howto/operator:AutoMLImportDataOperator:
+.. _howto/operator:AutoMLTablesUpdateDatasetOperator:
+
 Creating Datasets
 ^^^^^^^^^^^^^^^^^
 
@@ -67,6 +72,9 @@ To update dataset you can use
     :start-after: [START howto_operator_automl_update_dataset]
     :end-before: [END howto_operator_automl_update_dataset]
 
+.. _howto/operator:AutoMLTablesListTableSpecsOperator:
+.. _howto/operator:AutoMLTablesListColumnSpecsOperator:
+
 Listing Table And Columns Specs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -87,6 +95,11 @@ To list column specs you can use
     :dedent: 4
     :start-after: [START howto_operator_automl_column_specs]
     :end-before: [END howto_operator_automl_column_specs]
+
+.. _howto/operator:AutoMLTrainModelOperator:
+.. _howto/operator:AutoMLGetModelOperator:
+.. _howto/operator:AutoMLDeployModelOperator:
+.. _howto/operator:AutoMLDeleteModelOperator:
 
 Operations On Models
 ^^^^^^^^^^^^^^^^^^^^
@@ -129,6 +142,9 @@ If you wish to delete a model you can use
     :start-after: [START howto_operator_automl_delete_model]
     :end-before: [END howto_operator_automl_delete_model]
 
+.. _howto/operator:AutoMLPredictOperator:
+.. _howto/operator:AutoMLBatchPredictOperator:
+
 Making Predictions
 ^^^^^^^^^^^^^^^^^^
 
@@ -149,11 +165,14 @@ the model must be deployed.
     :start-after: [START howto_operator_batch_prediction]
     :end-before: [END howto_operator_batch_prediction]
 
+.. _howto/operator:AutoMLListDatasetOperator:
+.. _howto/operator:AutoMLDeleteDatasetOperator:
+
 Listing And Deleting Datasets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can get a list of AutoML models using
-:class:`~airflow.contrib.operators.gcp_automl_operator.AutoMLDatasetListOperator`. The operator returns list
+:class:`~airflow.contrib.operators.gcp_automl_operator.AutoMLListDatasetOperator`. The operator returns list
 of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
 
 .. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_automl_operators.py
@@ -162,7 +181,7 @@ of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
     :start-after: [START howto_operator_list_dataset]
     :end-before: [END howto_operator_list_dataset]
 
-To delete a model you can use :class:`~airflow.contrib.operators.gcp_automl_operator.AutoMLDatasetDeleteOperator`.
+To delete a model you can use :class:`~airflow.contrib.operators.gcp_automl_operator.AutoMLDeleteDatasetOperator`.
 The delete operator allows also to pass list or coma separated string of datasets ids to be deleted.
 
 .. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_automl_operators.py
@@ -170,3 +189,11 @@ The delete operator allows also to pass list or coma separated string of dataset
     :dedent: 4
     :start-after: [START howto_operator_delete_dataset]
     :end-before: [END howto_operator_delete_dataset]
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/automl/index.html>`__
+* `Product Documentation <https://cloud.google.com/automl/docs/>`__

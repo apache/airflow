@@ -26,7 +26,7 @@ from copy import deepcopy
 
 import airflow
 from airflow import models
-from airflow.contrib.hooks.gcp_automl_hook import get_object_id
+from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook
 from airflow.contrib.operators.gcp_automl_operator import (
     AutoMLTrainModelOperator,
     AutoMLTablesListColumnSpecsOperator,
@@ -71,6 +71,7 @@ DATASET = {
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}}
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+extract_object_id = AutoMLHook.extract_object_id
 
 
 def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
@@ -79,7 +80,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
     """
     for column in columns_specs:
         if column["displayName"] == column_name:
-            return get_object_id(column)
+            return extract_object_id(column)
     return ""
 
 
@@ -91,7 +92,7 @@ with models.DAG(
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
         "target": TARGET,
-        "get_object_id": get_object_id,
+        "extract_object_id": extract_object_id,
     },
 ) as create_deploy_dag:
     # [START howto_operator_automl_create_dataset]
@@ -131,7 +132,7 @@ with models.DAG(
     list_columns_spec_task = AutoMLTablesListColumnSpecsOperator(
         task_id="list_columns_spec_task",
         dataset_id=dataset_id,
-        table_spec_id="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
+        table_spec_id="{{ extract_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
@@ -196,7 +197,7 @@ with models.DAG(
     "example_automl_dataset",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    user_defined_macros={"get_object_id": get_object_id},
+    user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task",
@@ -226,7 +227,7 @@ with models.DAG(
     list_columns_spec_task = AutoMLTablesListColumnSpecsOperator(
         task_id="list_columns_spec_task",
         dataset_id=dataset_id,
-        table_spec_id="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
+        table_spec_id="{{ extract_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
