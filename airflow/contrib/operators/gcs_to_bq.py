@@ -104,7 +104,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
     :type max_id_key: str
-    :param bigquery_conn_id: Reference to a specific BigQuery hook.
+    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type bigquery_conn_id: str
     :param google_cloud_storage_conn_id: Reference to a specific Google
         cloud storage hook.

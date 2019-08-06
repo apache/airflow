@@ -83,7 +83,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             storage_class='MULTI_REGIONAL',
             location='EU',
             labels={'env': 'dev', 'team': 'airflow'},
-            google_cloud_storage_conn_id='airflow-service-account'
+            google_cloud_storage_conn_id='airflow-conn-id'
         )
 
     """
