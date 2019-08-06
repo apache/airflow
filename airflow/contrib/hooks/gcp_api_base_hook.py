@@ -232,30 +232,25 @@ class GoogleCloudBaseHook(BaseHook):
             return func(self, *args, **kwargs)
         return inner_wrapper
 
-    class _Decorators:
-        """A private inner class for keeping all decorator methods."""
-
-        @staticmethod
-        def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
-            """
-            Function decorator that provides a GOOGLE_APPLICATION_CREDENTIALS
-            environment variable, pointing to file path of a JSON file of service
-            account key.
-            """
-            @functools.wraps(func)
-            def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
-                with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                    key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-                    keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, '
-                                'use a JSON key file.')
-                        os.environ[_G_APP_CRED_ENV_VAR] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
-                    return func(self, *args, **kwargs)
-            return wrapper
+    @staticmethod
+    def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
+        """
+        Function decorator that provides a ``GOOGLE_APPLICATION_CREDENTIALS``
+        environment variable, pointing to file path of a JSON file of service
+        account key.
+        """
+        @functools.wraps(func)
+        def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+                keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+                if key_path:
+                    if key_path.endswith('.p12'):
+                        raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+                    os.environ[_G_APP_CRED_ENV_VAR] = key_path
+                elif keyfile_dict:
+                    conf_file.write(keyfile_dict)
+                    conf_file.flush()
+                    os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
+                return func(self, *args, **kwargs)
+        return wrapper

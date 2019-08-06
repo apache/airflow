@@ -134,7 +134,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
-        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              key_path)
@@ -153,7 +153,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         mock_file_handler.name = file_name
         mock_file_handler.write = string_file.write
 
-        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
             self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
                              file_name)

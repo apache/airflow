@@ -23,6 +23,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
+
+To simplify the code, the decorator has been moved from the inner-class.
+
+Instead of `@GoogleCloudBaseHook._Decorators.provide_gcp_credential_file`,
+you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
+
 ### Changes to S3Hook
 
 Note: The order of arguments has changed for `check_for_prefix`. 

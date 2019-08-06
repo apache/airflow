@@ -311,7 +311,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+    @GoogleCloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,
