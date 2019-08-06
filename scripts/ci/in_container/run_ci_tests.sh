@@ -70,6 +70,7 @@ if [[ "${RES}" != "0" ]]; then
     fi
 else
     echo "All tests successful"
+    bash <(curl -s https://codecov.io/bash)
 fi
 
 in_container_script_end
