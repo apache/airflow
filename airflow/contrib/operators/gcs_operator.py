@@ -19,6 +19,7 @@
 """
 This module contains a Google Cloud Storage Bucket operator.
 """
+import warnings
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -64,8 +65,10 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
     :type project_id: str
     :param labels: User-provided labels, in key/value pairs.
     :type labels: dict
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
@@ -83,7 +86,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             storage_class='MULTI_REGIONAL',
             location='EU',
             labels={'env': 'dev', 'team': 'airflow'},
-            google_cloud_storage_conn_id='airflow-conn-id'
+            gcp_conn_id='airflow-conn-id'
         )
 
     """
@@ -99,19 +102,26 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                  location='US',
                  project_id=None,
                  labels=None,
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.bucket_name = bucket_name
         self.resource = resource
         self.storage_class = storage_class
         self.location = location
         self.project_id = project_id
         self.labels = labels
-
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
     def execute(self, context):
@@ -121,7 +131,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             )
 
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
 

@@ -42,14 +42,14 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
             dest_gcs=GCS_PATH,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
-            google_cloud_storage_conn_id=GCS_CONN_ID
+            gcp_conn_id=GCS_CONN_ID
         )
 
         self.assertEqual(operator.task_id, TASK_ID)
         self.assertEqual(operator.src_adls, ADLS_PATH_1)
         self.assertEqual(operator.dest_gcs, GCS_PATH)
         self.assertEqual(operator.replace, False)
-        self.assertEqual(operator.google_cloud_storage_conn_id, GCS_CONN_ID)
+        self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
         self.assertEqual(operator.azure_data_lake_conn_id, AZURE_CONN_ID)
 
     @mock.patch('airflow.contrib.operators.adls_to_gcs.AzureDataLakeHook')

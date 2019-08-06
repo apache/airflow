@@ -19,6 +19,7 @@
 """
 This module contains Google Cloud Storage ACL entry operator.
 """
+import warnings
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -45,8 +46,10 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :type user_project: str
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google Cloud Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     """
     # [START gcs_bucket_create_acl_template_fields]
@@ -54,19 +57,35 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     # [END gcs_bucket_create_acl_template_fields]
 
     @apply_defaults
-    def __init__(self, bucket, entity, role, user_project=None,
-                 google_cloud_storage_conn_id='google_cloud_default', *args, **kwargs):
+    def __init__(
+        self,
+        bucket,
+        entity,
+        role,
+        user_project=None,
+        gcp_conn_id='google_cloud_default',
+        google_cloud_storage_conn_id=None,
+        *args,
+        **kwargs
+    ):
         super().__init__(*args,
                          **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.bucket = bucket
         self.entity = entity
         self.role = role
         self.user_project = user_project
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
+            google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
                                user_project=self.user_project)
@@ -98,8 +117,10 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :type user_project: str
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google Cloud Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     """
     # [START gcs_object_create_acl_template_fields]
@@ -114,21 +135,29 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
                  role,
                  generation=None,
                  user_project=None,
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  *args, **kwargs):
         super().__init__(*args,
                          **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.bucket = bucket
         self.object_name = object_name
         self.entity = entity
         self.role = role
         self.generation = generation
         self.user_project = user_project
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
+            google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_object_acl(bucket_name=self.bucket,
                                object_name=self.object_name,

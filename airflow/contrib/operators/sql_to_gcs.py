@@ -22,6 +22,7 @@ Base operator for SQL to GCS operators.
 
 import abc
 import json
+import warnings
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
@@ -62,8 +63,10 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         dict. Examples could be seen: https://cloud.google.com/bigquery/docs
         /schemas#specifying_a_json_schema_file
     :type schema: str or list
-    :param google_cloud_storage_conn_id: Reference to a specific Google
-        cloud storage hook.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
@@ -86,11 +89,19 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
                  gzip=False,
                  schema=None,
                  parameters=None,
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  *args,
                  **kwargs):
         super(BaseSQLToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.sql = sql
         self.bucket = bucket
         self.filename = filename
@@ -101,7 +112,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         self.gzip = gzip
         self.schema = schema
         self.parameters = parameters
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.parameters = parameters
 
@@ -256,7 +267,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         Google cloud storage.
         """
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for tmp_file in files_to_upload:
             hook.upload(self.bucket, tmp_file.get('file_name'),
