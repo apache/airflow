@@ -45,24 +45,21 @@ class BigQueryToMySqlOperator(BaseOperator):
 
        transfer_data = BigQueryToMySqlOperator(
             task_id='task_id',
-            dataset_id='dataset_id',
-            table_id='table_name',
+            dataset_table='origin_bq_table',
             mysql_table='dest_table_name',
             replace=True,
         )
 
-    :param dataset_id: The dataset ID of the requested table. (templated)
-    :type dataset_id: string
-    :param table_id: The table ID of the requested table. (templated)
-    :type table_id: string
+    :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
+    :type dataset_table: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :type max_results: string
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: string
-    :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :param gcp_conn_id: reference to a specific GCP hook.
+    :type gcp_conn_id: string
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
@@ -80,11 +77,10 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
+                 dataset_table,
                  mysql_table,
                  selected_fields=None,
-                 bigquery_conn_id='bigquery_default',
+                 gcp_conn_id='google_cloud_default',
                  mysql_conn_id='mysql_default',
                  database=None,
                  delegate_to=None,
@@ -93,23 +89,26 @@ class BigQueryToMySqlOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
-        self.dataset_id = dataset_id
-        self.table_id = table_id
         self.selected_fields = selected_fields
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.mysql_conn_id = mysql_conn_id
         self.database = database
         self.mysql_table = mysql_table
         self.replace = replace
         self.delegate_to = delegate_to
         self.batch_size = batch_size
+        try:
+            self.dataset_id, self.table_id = dataset_table.split('.')
+        except ValueError:
+            raise ValueError('Could not parse {} as <dataset>.<table>'
+                             .format(dataset_table))
 
     def _bq_get_data(self):
         self.log.info('Fetching Data from:')
         self.log.info('Dataset: %s ; Table: %s',
                       self.dataset_id, self.table_id)
 
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
 
         conn = hook.get_conn()
