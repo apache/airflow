@@ -227,9 +227,28 @@ echo
 echo "Image tag prefix: ${TAG_PREFIX}"
 echo
 
+echo
+echo "Travis event type: ${TRAVIS_EVENT_TYPE:=}"
+echo
+
 # In case of CRON jobs on Travis we run builds without cache
 if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+    echo
+    echo "Disabling cache for CRON jobs"
+    echo
     AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="true"}
+fi
+
+# You can set AIRFLOW_CONTAINER_USE_NO_CACHE to true if you want to use standard Docker cache during build
+# This way you can test building everything from the scratch
+AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="false"}
+
+# If cache is not used, there is no point in pulling images for cache
+if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE:=}" == "true" ]]; then
+    echo
+    echo "Pulling images is disabled becaue cache is not used"
+    echo
+    AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE="false"
 fi
 
 
@@ -237,10 +256,6 @@ fi
 # as cache during build
 # This way you can test building from the scratch
 AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE:="true"}
-
-# You can set AIRFLOW_CONTAINER_USE_NO_CACHE to true if you want to use standard Docker cache during build
-# This way you can test building everything from the scratch
-AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="false"}
 
 pwd
 # Determine version of the Airflow from version.py
@@ -367,11 +382,15 @@ if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     exit 0
 fi
 
-start_step "Pulling images to populate cache"
+start_step "Populating cache"
+
+DOCKER_CACHE_DIRECTIVE_CI=()
+DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
+DOCKER_CACHE_DIRECTIVE_CI_CHECKLICENCE=()
 
 if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
-    echo "Pulling images"
+    echo "Pulling images to populate cache"
     echo
     echo
     if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
@@ -406,8 +425,6 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
-    DOCKER_CACHE_DIRECTIVE_CI=()
-    DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
     for IMAGE in ${IMAGES_TO_PULL}
     do
         echo
@@ -459,26 +476,36 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             exit 1
         fi
     done
+fi
 
-    echo
-    echo "This build uses Docker cache"
-    echo "Cache directives used: "
-    set +u
-    echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
-    set -u
-    echo
-elif [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
+start_step "Setting cache options"
+
+if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
     DOCKER_CACHE_DIRECTIVE_CI+=("--no-cache")
     DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--no-cache")
+    DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--no-cache")
     echo
     echo "Skip cache for builds. Everything will be rebuilt from scratch."
     echo
     echo "Cache directives used: "
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
     echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
+    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
+    echo
+elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
+    echo
+    echo "This build uses Docker cache from pulled images"
+    echo "Cache directives used: "
+    set +u
+    echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
+    echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
+    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
+    set -u
     echo
 else
+    DOCKER_CACHE_DIRECTIVE_CI=()
+    DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
+    DOCKER_CACHE_DIRECTIVE_CI_CHECKLICENCE=()
     echo
     echo "Use default cache from locally built images."
     echo
@@ -486,9 +513,12 @@ else
     set +u
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
     echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
+    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     set -u
     echo
 fi
+
+start_step "Creating deployment directory"
 
 STAT_BIN=stat
 if [[ "${OSTYPE}" == "darwin"* ]]; then
