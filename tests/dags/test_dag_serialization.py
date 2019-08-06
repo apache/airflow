@@ -22,20 +22,16 @@
 import json
 import multiprocessing
 import unittest
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
 from airflow.dag.serialization import Serialization, SerializedBaseOperator, SerializedDAG
 from airflow.dag.serialization.enum import Encoding
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
-from airflow.models import Connection
-from airflow.models import DAG
-from airflow.models import DagBag
+from airflow.models import BaseOperator, Connection, DAG, DagBag
 from airflow.operators.bash_operator import BashOperator
-
 
 # airflow/example_dags/
 EXAMPLE_DAGS = [

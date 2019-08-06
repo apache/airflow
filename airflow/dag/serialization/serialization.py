@@ -19,21 +19,21 @@
 
 """Utils for DAG serialization with JSON."""
 
+import datetime
 import json
 import logging
-import datetime
 from typing import Any, Union
+
 import dateutil.parser
 import jsonschema
 import pendulum
 
 import airflow
+from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 from airflow.models import BaseOperator, DAG
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
-
 
 LOG = LoggingMixin().log
 
@@ -41,7 +41,7 @@ LOG = LoggingMixin().log
 FAILED = 'serialization_failed'
 
 
-class Serialization():
+class Serialization:
     """Serialization provides utils for serialization."""
 
     # JSON primitive types.
@@ -58,7 +58,7 @@ class Serialization():
 
     @classmethod
     def to_json(cls, var: Union[DAG, BaseOperator, dict, list, set, tuple]) -> str:
-        """Stringifies DAGs and operators contained by var and returns a JSON string of x.
+        """Stringifies DAGs and operators contained by var and returns a JSON string of var.
         """
         return json.dumps(cls._serialize(var, {}), ensure_ascii=True)
 
@@ -95,7 +95,7 @@ class Serialization():
     def _deserialize_object(cls, var, new_var, included_fields, visited_dags):
         """Deserialize and copy the attributes of dict var to a new object new_var.
 
-        It does not create new_x because if var is a DAG, new_x should be added into visited_dag
+        It does not create new_var because if var is a DAG, new_var should be added into visited_dag
         ahead of calling this function.
         """
         for k in included_fields:
@@ -121,14 +121,14 @@ class Serialization():
     def _serialize(cls, var, visited_dags):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for serialization.
 
-        visited_dags stores DAGs that are being serialized for have been serialized,
+        visited_dags stores DAGs that are being serialized or have been serialized,
         for:
         (1) preventing deadlock loop caused by task.dag, task._dag, and dag.parent_dag;
         (2) replacing the fields in (1) with serialized counterparts.
 
         The serialization protocol is:
         (1) keeping JSON supported types: primitives, dict, list;
-        (2) encoding other types as {TYPE, 'foo', VAR, 'bar'}, the deserialization
+        (2) encoding other types as {TYPE: 'foo', VAR: 'bar'}, the deserialization
             step decode VAR according to TYPE;
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.

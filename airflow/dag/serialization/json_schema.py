@@ -26,7 +26,10 @@ from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 
 def make_object_schema(
         var_schema: Optional[dict] = None, type_enum: Optional[list] = None) -> dict:
-    """jsonschema of an encoded object."""
+    """jsonschema of an encoded object.
+    :param var_schema: Json Schema for variable
+    :param type_enum: Used to restrict a value to a fixed set of values.
+    """
     schema = {
         'type': 'object',
         'properties': {
