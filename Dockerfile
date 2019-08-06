@@ -359,13 +359,6 @@ RUN \
         gosu ${AIRFLOW_USER} npm run prod; \
     fi
 
-# Always apt-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Cache for this line will be automatically invalidated if any
 # of airflow sources change
 COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
@@ -374,13 +367,6 @@ WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
 RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
-
-# Always add-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
