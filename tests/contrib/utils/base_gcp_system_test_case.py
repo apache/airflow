@@ -117,10 +117,10 @@ class TestBaseGcpSystem(unittest.TestCase, LoggingMixin):
         return GcpAuthenticator(key_name).full_key_path is None
 
     @staticmethod
-    def skip_long_test(key_name):
+    def skip_long(key_name):
         if os.environ.get('GCP_ENABLE_LONG_TESTS') == 'True':
             return GcpAuthenticator(key_name).full_key_path is None
-        return False
+        return True
 
     def setUp(self):
         self.gcp_authenticator.gcp_store_authentication()

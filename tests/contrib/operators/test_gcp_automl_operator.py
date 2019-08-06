@@ -79,7 +79,7 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_create_model.assert_called_with(
+        mock_create_model.assert_called_once_with(
             model=MODEL,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -87,7 +87,7 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        mock_xcom.assert_called_with(None, key="model_id", value=MODEL_ID)
+        mock_xcom.assert_called_once_with(None, key="model_id", value=MODEL_ID)
 
 
 class TestAutoMLBatchPredictOperator(unittest.TestCase):
@@ -104,7 +104,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_batch_predict.assert_called_with(
+        mock_batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
             metadata=None,
@@ -128,7 +128,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_predict.assert_called_with(
+        mock_predict.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -159,7 +159,7 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_create_dataset.assert_called_with(
+        mock_create_dataset.assert_called_once_with(
             dataset=DATASET,
             location=GCP_LOCATION,
             metadata=None,
@@ -167,7 +167,7 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             retry=None,
             timeout=None,
         )
-        mock_xcom.assert_called_with(None, key="dataset_id", value=DATASET_ID)
+        mock_xcom.assert_called_once_with(None, key="dataset_id", value=DATASET_ID)
 
 
 class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
@@ -190,7 +190,7 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_list_column_specs.assert_called_with(
+        mock_list_column_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             field_mask=MASK,
             filter_=filter_,
@@ -220,7 +220,7 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_update_dataset.assert_called_with(
+        mock_update_dataset.assert_called_once_with(
             dataset=dataset,
             metadata=None,
             project_id=GCP_PROJECT_ID,
@@ -240,7 +240,7 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_get_model.assert_called_with(
+        mock_get_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -260,7 +260,7 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_delete_model.assert_called_with(
+        mock_delete_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -282,7 +282,7 @@ class TestAutoMLDeployModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_deploy_model.assert_called_with(
+        mock_deploy_model.assert_called_once_with(
             image_detection_metadata={},
             location=GCP_LOCATION,
             metadata=None,
@@ -304,7 +304,7 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_import_data.assert_called_with(
+        mock_import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
             metadata=None,
@@ -332,7 +332,7 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_list_table_specs.assert_called_with(
+        mock_list_table_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             filter_=filter_,
             location=GCP_LOCATION,
@@ -359,14 +359,14 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
             location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
         )
         op.execute(context=None)
-        mock_list_databases.assert_called_with(
+        mock_list_databases.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             project_id=GCP_PROJECT_ID,
             retry=None,
             timeout=None,
         )
-        mock_xcom.assert_called_with(None, key="dataset_id_list", value=[])
+        mock_xcom.assert_called_once_with(None, key="dataset_id_list", value=[])
 
 
 class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
@@ -381,7 +381,7 @@ class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_delete_dataset.assert_called_with(
+        mock_delete_dataset.assert_called_once_with(
             location=GCP_LOCATION,
             dataset_id=DATASET_ID,
             metadata=None,

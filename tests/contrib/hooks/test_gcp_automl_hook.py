@@ -69,7 +69,7 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient")
     def test_get_conn(self, mock_automl_client, mock_client_info):
         self.hook.get_conn()
-        mock_automl_client.assert_called_with(
+        mock_automl_client.assert_called_once_with(
             credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
 
@@ -80,7 +80,7 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client, mock_client_info):
         client = self.hook.prediction_client  # pylint:disable=unused-variable  # noqa
-        mock_prediction_client.assert_called_with(
+        mock_prediction_client.assert_called_once_with(
             credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
 
@@ -90,7 +90,7 @@ class TestAuoMLHook(unittest.TestCase):
             model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_create_model.assert_called_with(
+        mock_create_model.assert_called_once_with(
             parent=LOCATION_PATH, model=MODEL, retry=None, timeout=None, metadata=None
         )
 
@@ -106,7 +106,7 @@ class TestAuoMLHook(unittest.TestCase):
             output_config=OUTPUT_CONFIG,
         )
 
-        mock_batch_predict.assert_called_with(
+        mock_batch_predict.assert_called_once_with(
             name=MODEL_PATH,
             input_config=INPUT_CONFIG,
             output_config=OUTPUT_CONFIG,
@@ -125,7 +125,7 @@ class TestAuoMLHook(unittest.TestCase):
             payload=PAYLOAD,
         )
 
-        mock_predict.assert_called_with(
+        mock_predict.assert_called_once_with(
             name=MODEL_PATH,
             payload=PAYLOAD,
             params=None,
@@ -140,7 +140,7 @@ class TestAuoMLHook(unittest.TestCase):
             dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_create_dataset.assert_called_with(
+        mock_create_dataset.assert_called_once_with(
             parent=LOCATION_PATH,
             dataset=DATASET,
             retry=None,
@@ -157,7 +157,7 @@ class TestAuoMLHook(unittest.TestCase):
             input_config=INPUT_CONFIG,
         )
 
-        mock_import_data.assert_called_with(
+        mock_import_data.assert_called_once_with(
             name=DATASET_PATH,
             input_config=INPUT_CONFIG,
             retry=None,
@@ -184,7 +184,7 @@ class TestAuoMLHook(unittest.TestCase):
         parent = AutoMlClient.table_spec_path(
             GCP_PROJECT_ID, GCP_LOCATION, DATASET_ID, table_spec
         )
-        mock_list_column_specs.assert_called_with(
+        mock_list_column_specs.assert_called_once_with(
             parent=parent,
             field_mask=MASK,
             filter_=filter_,
@@ -200,7 +200,7 @@ class TestAuoMLHook(unittest.TestCase):
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_get_model.assert_called_with(
+        mock_get_model.assert_called_once_with(
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
@@ -210,7 +210,7 @@ class TestAuoMLHook(unittest.TestCase):
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_delete_model.assert_called_with(
+        mock_delete_model.assert_called_once_with(
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
@@ -220,7 +220,7 @@ class TestAuoMLHook(unittest.TestCase):
             dataset=DATASET, update_mask=MASK, project_id=GCP_PROJECT_ID
         )
 
-        mock_update_dataset.assert_called_with(
+        mock_update_dataset.assert_called_once_with(
             dataset=DATASET, update_mask=MASK, retry=None, timeout=None, metadata=None
         )
 
@@ -235,7 +235,7 @@ class TestAuoMLHook(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
         )
 
-        mock_deploy_model.assert_called_with(
+        mock_deploy_model.assert_called_once_with(
             name=MODEL_PATH,
             retry=None,
             timeout=None,
@@ -256,7 +256,7 @@ class TestAuoMLHook(unittest.TestCase):
             page_size=page_size,
         )
 
-        mock_list_table_specs.assert_called_with(
+        mock_list_table_specs.assert_called_once_with(
             parent=DATASET_PATH,
             filter_=filter_,
             page_size=page_size,
@@ -269,7 +269,7 @@ class TestAuoMLHook(unittest.TestCase):
     def test_list_datasets(self, mock_list_datasets):
         self.hook.list_datasets(location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
-        mock_list_datasets.assert_called_with(
+        mock_list_datasets.assert_called_once_with(
             parent=LOCATION_PATH, retry=None, timeout=None, metadata=None
         )
 
@@ -279,6 +279,6 @@ class TestAuoMLHook(unittest.TestCase):
             dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_delete_dataset.assert_called_with(
+        mock_delete_dataset.assert_called_once_with(
             name=DATASET_PATH, retry=None, timeout=None, metadata=None
         )
