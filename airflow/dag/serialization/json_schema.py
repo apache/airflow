@@ -19,7 +19,7 @@
 
 """jsonschema for validating serialized DAG and operator."""
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 
@@ -36,7 +36,7 @@ def make_object_schema(
             Encoding.TYPE.value,
             Encoding.VAR.value
         ]
-    }
+    }   # type: Dict[str, Any]
     if var_schema is not None:
         schema['properties'][Encoding.VAR.value] = var_schema
 
