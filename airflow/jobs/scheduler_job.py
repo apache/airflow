@@ -54,20 +54,20 @@ from airflow.utils.state import State
 
 
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
-    """Helps call SchedulerJob.process_file() in a separate process."""
+    """Helps call SchedulerJob.process_file() in a separate process.
+
+    :param file_path: a Python file containing Airflow DAG definitions
+    :type file_path: unicode
+    :param pickle_dags: whether to serialize the DAG objects to the DB
+    :type pickle_dags: bool
+    :param dag_id_white_list: If specified, only look at these DAG ID's
+    :type dag_id_white_list: list[unicode]
+    """
 
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
     def __init__(self, file_path, pickle_dags, dag_id_white_list):
-        """
-        :param file_path: a Python file containing Airflow DAG definitions
-        :type file_path: unicode
-        :param pickle_dags: whether to serialize the DAG objects to the DB
-        :type pickle_dags: bool
-        :param dag_id_whitelist: If specified, only look at these DAG ID's
-        :type dag_id_whitelist: list[unicode]
-        """
         self._file_path = file_path
 
         # The process that was launched to process the given .
@@ -292,6 +292,23 @@ class SchedulerJob(BaseJob):
     task and sees if the dependencies for the next schedules are met.
     If so, it creates appropriate TaskInstances and sends run commands to the
     executor. It does this for each task in each DAG and repeats.
+
+    :param dag_id: if specified, only schedule tasks with this DAG ID
+    :type dag_id: unicode
+    :param dag_ids: if specified, only schedule tasks with these DAG IDs
+    :type dag_ids: list[unicode]
+    :param subdir: directory containing Python files with Airflow DAG
+        definitions, or a specific path to a file
+    :type subdir: unicode
+    :param num_runs: The number of times to try to schedule each DAG file.
+        -1 for unlimited times.
+    :type num_runs: int
+    :param processor_poll_interval: The number of seconds to wait between
+        polls of running processors
+    :type processor_poll_interval: int
+    :param do_pickle: once a DAG object is obtained by executing the Python
+        file, whether to serialize the DAG object to the DB
+    :type do_pickle: bool
     """
 
     __mapper_args__ = {
@@ -309,24 +326,6 @@ class SchedulerJob(BaseJob):
             do_pickle=False,
             log=None,
             *args, **kwargs):
-        """
-        :param dag_id: if specified, only schedule tasks with this DAG ID
-        :type dag_id: unicode
-        :param dag_ids: if specified, only schedule tasks with these DAG IDs
-        :type dag_ids: list[unicode]
-        :param subdir: directory containing Python files with Airflow DAG
-            definitions, or a specific path to a file
-        :type subdir: unicode
-        :param num_runs: The number of times to try to schedule each DAG file.
-            -1 for unlimited times.
-        :type num_runs: int
-        :param processor_poll_interval: The number of seconds to wait between
-            polls of running processors
-        :type processor_poll_interval: int
-        :param do_pickle: once a DAG object is obtained by executing the Python
-            file, whether to serialize the DAG object to the DB
-        :type do_pickle: bool
-        """
         # for BaseJob compatibility
         self.dag_id = dag_id
         self.dag_ids = [dag_id] if dag_id else []
