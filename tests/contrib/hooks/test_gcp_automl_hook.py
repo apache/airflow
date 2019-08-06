@@ -70,7 +70,7 @@ class TestAuoMLHook(unittest.TestCase):
             credentials=CREDENTIALS, client_info=self.hook._client_info
         )
 
-        self.hook.get_conn(client_type="predict")
+        client = self.hook.prediction_client  # pylint:disable=unused-variable  # noqa
         mock_prediction_client.assert_called_with(
             credentials=CREDENTIALS, client_info=self.hook._client_info
         )
@@ -158,13 +158,13 @@ class TestAuoMLHook(unittest.TestCase):
 
     @mock.patch("airflow.contrib.hooks.gcp_automl_hook.AutoMlClient.list_column_specs")
     def test_list_column_specs(self, service_mock):
-        table_spec = "table_spec"
+        table_spec = "table_spec_id"
         filter_ = "filter"
         page_size = 42
 
         self.hook.list_column_specs(
             dataset_id=DATASET_ID,
-            table_spec=table_spec,
+            table_spec_id=table_spec,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
             field_mask=MASK,

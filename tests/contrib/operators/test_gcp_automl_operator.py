@@ -33,7 +33,7 @@ from airflow.contrib.operators.gcp_automl_operator import (
     AutoMLDeployModelOperator,
     AutoMLTablesUpdateDatasetOperator,
     AutoMLTablesListTableSpecsOperator,
-    AutoMLDatasetListOperator,
+    AutoMLListDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator,
 )
@@ -170,13 +170,13 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
         "airflow.contrib.operators.gcp_automl_operator.AutoMLHook.list_column_specs"
     )
     def test_execute(self, mock_service):
-        table_spec = "table_spec"
+        table_spec = "table_spec_id"
         filter_ = "filter"
         page_size = 42
 
         op = AutoMLTablesListColumnSpecsOperator(
             dataset_id=DATASET_ID,
-            table_spec=table_spec,
+            table_spec_id=table_spec,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
             field_mask=MASK,
@@ -194,7 +194,7 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             page_size=page_size,
             project_id=GCP_PROJECT_ID,
             retry=None,
-            table_spec=table_spec,
+            table_spec_id=table_spec,
             timeout=None,
         )
 
@@ -346,7 +346,7 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
     @mock.patch("airflow.contrib.operators.gcp_automl_operator.get_object_id")
     def test_execute(self, mock_name, mock_service):
         mock_xcom = mock.MagicMock()
-        op = AutoMLDatasetListOperator(
+        op = AutoMLListDatasetOperator(
             location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
         )
         op.xcom_push = mock_xcom

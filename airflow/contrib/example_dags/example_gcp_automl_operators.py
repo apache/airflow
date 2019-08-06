@@ -37,7 +37,7 @@ from airflow.contrib.operators.gcp_automl_operator import (
     AutoMLTablesListTableSpecsOperator,
     AutoMLImportDataOperator,
     AutoMLDeleteDatasetOperator,
-    AutoMLDatasetListOperator,
+    AutoMLListDatasetOperator,
     AutoMLDeployModelOperator,
     AutoMLGetModelOperator,
     AutoMLDeleteModelOperator,
@@ -46,7 +46,9 @@ from airflow.contrib.operators.gcp_automl_operator import (
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 # For now only this location is supported
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_DATASET_BUCKET = os.environ.get("GCP_AUTOML_DATASET_BUCKET", "gs_source")
+GCP_AUTOML_DATASET_BUCKET = os.environ.get(
+    "GCP_AUTOML_DATASET_BUCKET", "gs://cloud-ml-tables-data/bank-marketing.csv"
+)
 TARGET = os.environ.get("GCP_AUTOML_TARGET", "Class")
 
 # Example values
@@ -129,7 +131,7 @@ with models.DAG(
     list_columns_spec_task = AutoMLTablesListColumnSpecsOperator(
         task_id="list_columns_spec_task",
         dataset_id=dataset_id,
-        table_spec="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
+        table_spec_id="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
@@ -224,13 +226,13 @@ with models.DAG(
     list_columns_spec_task = AutoMLTablesListColumnSpecsOperator(
         task_id="list_columns_spec_task",
         dataset_id=dataset_id,
-        table_spec="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
+        table_spec_id="{{ get_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
 
     # [START howto_operator_list_dataset]
-    list_datasets_task = AutoMLDatasetListOperator(
+    list_datasets_task = AutoMLListDatasetOperator(
         task_id="list_datasets_task",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,

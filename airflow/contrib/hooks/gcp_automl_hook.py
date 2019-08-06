@@ -21,6 +21,7 @@
 This module contains a Google AutoML hook.
 """
 from typing import Dict, Optional, Sequence, Tuple, Union, List
+from cached_property import cached_property
 
 from google.api_core.retry import Retry
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -62,26 +63,32 @@ class AutoMLHook(GoogleCloudBaseHook):
     def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to=None):
         super().__init__(gcp_conn_id, delegate_to)
         self._client_info = ClientInfo(client_library_version="airflow_v" + version)
+        self._client = None
 
-    def get_conn(
-        self, client_type: Optional[str] = None
-    ) -> Union[PredictionServiceClient, AutoMlClient]:
+    def get_conn(self) -> AutoMlClient:
         """
-        Returns PredictionServiceClient if client_type is 'predict'
-        otherwise returns AutoMlClient.
+        Retrieves connection to AutoML.
 
-        :param client_type: None or 'predict'
-        :type client_type:  Optional[str]
-        :return:  `google.cloud.automl_v1beta1.PredictionServiceClient` if client_type is 'predict'
-            otherwise returns google.cloud.automl_v1beta1.AutoMlClient.
+        :return: Google Cloud AutoML client object.
+        :rtype: google.cloud.automl_v1beta1.AutoMlClient
         """
-        kwargs = dict(
+        if self._client is None:
+            self._client = AutoMlClient(
+                credentials=self._get_credentials(), client_info=self._client_info
+            )
+        return self._client
+
+    @cached_property
+    def prediction_client(self) -> PredictionServiceClient:
+        """
+        Creates PredictionServiceClient.
+
+        :return: Google Cloud AutoML PredictionServiceClient client object.
+        :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
+        """
+        return PredictionServiceClient(
             credentials=self._get_credentials(), client_info=self._client_info
         )
-        if client_type == "predict":
-            return PredictionServiceClient(**kwargs)
-        else:
-            return AutoMlClient(**kwargs)
 
     @GoogleCloudBaseHook.catch_http_exception
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -110,7 +117,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -175,7 +182,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
         assert project_id is not None
-        client = self.get_conn(client_type="predict")
+        client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.batch_predict(
             name=name,
@@ -220,7 +227,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -230,7 +237,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :return: `google.cloud.automl_v1beta1.types.PredictResponse` instance
         """
         assert project_id is not None
-        client = self.get_conn(client_type="predict")
+        client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.predict(
             name=name,
@@ -266,7 +273,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -314,7 +321,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -342,7 +349,7 @@ class AutoMLHook(GoogleCloudBaseHook):
     def list_column_specs(  # pylint:disable=too-many-arguments
         self,
         dataset_id: str,
-        table_spec: str,
+        table_spec_id: str,
         location: str,
         field_mask: Union[dict, FieldMask] = None,
         filter_: str = None,
@@ -357,8 +364,8 @@ class AutoMLHook(GoogleCloudBaseHook):
 
         :param dataset_id: Name of the AutoML dataset.
         :type dataset_id: str
-        :param table_spec: table_spec for path builder.
-        :type table_spec: str
+        :param table_spec_id: table_spec_id for path builder.
+        :type table_spec_id: str
         :param field_mask: Mask specifying which fields to read. If a dict is provided, it must be of the same
             form as the protobuf message `google.cloud.automl_v1beta1.types.FieldMask`
         :type field_mask: Union[dict, google.cloud.automl_v1beta1.types.FieldMask]
@@ -377,7 +384,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -392,7 +399,7 @@ class AutoMLHook(GoogleCloudBaseHook):
             project=project_id,
             location=location,
             dataset=dataset_id,
-            table_spec=table_spec,
+            table_spec=table_spec_id,
         )
         result = client.list_column_specs(
             parent=parent,
@@ -428,7 +435,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -468,7 +475,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -510,7 +517,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -565,7 +572,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -617,7 +624,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -664,7 +671,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
@@ -707,7 +714,7 @@ class AutoMLHook(GoogleCloudBaseHook):
         :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[Retry]
+        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]

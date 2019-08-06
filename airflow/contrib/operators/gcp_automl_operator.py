@@ -33,7 +33,7 @@ from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook, get_object_id
 
 class AutoMLTrainModelOperator(BaseOperator):
     """
-    Creates model on Google Cloud AutoML Natural Language service.
+    Creates Google Cloud AutoML model.
 
     :param model: Model definition.
     :type model: dict
@@ -99,7 +99,7 @@ class AutoMLTrainModelOperator(BaseOperator):
 
 class AutoMLPredictOperator(BaseOperator):
     """
-    Runs prediction operation on Google Cloud AutoML service.
+    Runs prediction operation on Google Cloud AutoML.
 
     :param model_id: Name of the model requested to serve the batch prediction.
     :type model_id: str
@@ -265,7 +265,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
 
 class AutoMLCreateDatasetOperator(BaseOperator):
     """
-    Creates a Google Cloud AutoML dataset_id.
+    Creates a Google Cloud AutoML dataset.
 
     :param dataset: The dataset to create. If a dict is provided, it must be of the
         same form as the protobuf message Dataset.
@@ -334,7 +334,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
 
 class AutoMLImportDataOperator(BaseOperator):
     """
-    Imports data to a Google Cloud AutoML dataset_id.
+    Imports data to a Google Cloud AutoML dataset.
 
     :param dataset_id: ID of dataset to be updated.
     :type dataset_id: str
@@ -406,12 +406,12 @@ class AutoMLImportDataOperator(BaseOperator):
 
 class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     """
-    Lists column specs in a table spec.
+    Lists column specs in a table.
 
     :param dataset_id: Name of the dataset.
     :type dataset_id: str
-    :param table_spec: table_spec for path builder.
-    :type table_spec: str
+    :param table_spec_id: table_spec_id for path builder.
+    :type table_spec_id: str
     :param field_mask: Mask specifying which fields to read. If a dict is provided, it must be of the same
         form as the protobuf message `google.cloud.automl_v1beta1.types.FieldMask`
     :type field_mask: Union[dict, google.cloud.automl_v1beta1.types.FieldMask]
@@ -430,7 +430,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     :type location: str
     :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
         retried.
-    :type retry: Optional[Retry]
+    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         `retry` is specified, the timeout applies to each individual attempt.
     :type timeout: Optional[float]
@@ -442,7 +442,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
 
     template_fields = (
         "dataset_id",
-        "table_spec",
+        "table_spec_id",
         "field_mask",
         "filter_",
         "location",
@@ -453,7 +453,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     def __init__(  # pylint:disable=too-many-arguments
         self,
         dataset_id: str,
-        table_spec: str,
+        table_spec_id: str,
         location: str,
         field_mask: dict = None,
         filter_: str = None,
@@ -468,7 +468,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     ):
         super().__init__(*args, **kwargs)
         self.dataset_id = dataset_id
-        self.table_spec = table_spec
+        self.table_spec_id = table_spec_id
         self.field_mask = field_mask
         self.filter_ = filter_
         self.page_size = page_size
@@ -481,11 +481,10 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
 
     def execute(self, context):
         hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
-        self.log.info(self.table_spec)
         self.log.info("Requesting column specs.")
         page_iterator = hook.list_column_specs(
             dataset_id=self.dataset_id,
-            table_spec=self.table_spec,
+            table_spec_id=self.table_spec_id,
             field_mask=self.field_mask,
             filter_=self.filter_,
             page_size=self.page_size,
@@ -701,7 +700,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
 
 class AutoMLDeployModelOperator(BaseOperator):
     """
-    Deploys a model_id. If a model is already deployed, deploying it with the same parameters
+    Deploys a model. If a model is already deployed, deploying it with the same parameters
     has no effect. Deploying with different parametrs (as e.g. changing node_number) will
     reset the deployment state without pausing the model_id’s availability.
 
@@ -799,7 +798,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
     :type location: str
     :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
         retried.
-    :type retry: Optional[Retry]
+    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         `retry` is specified, the timeout applies to each individual attempt.
     :type timeout: Optional[float]
@@ -856,9 +855,9 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         return result
 
 
-class AutoMLDatasetListOperator(BaseOperator):
+class AutoMLListDatasetOperator(BaseOperator):
     """
-    Lists table specs in a dataset.
+    Lists AutoML Datasets in project.
 
     :param project_id: ID of the Google Cloud project where datasets are located if None then
         default project_id is used.
@@ -867,7 +866,7 @@ class AutoMLDatasetListOperator(BaseOperator):
     :type location: str
     :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
         retried.
-    :type retry: Optional[Retry]
+    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         `retry` is specified, the timeout applies to each individual attempt.
     :type timeout: Optional[float]
@@ -932,7 +931,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
     :type location: str
     :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
         retried.
-    :type retry: Optional[Retry]
+    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         `retry` is specified, the timeout applies to each individual attempt.
     :type timeout: Optional[float]
