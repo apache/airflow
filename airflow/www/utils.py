@@ -23,7 +23,7 @@ import json
 import time
 import markdown
 import re
-from typing import Callable, Union
+from typing import Any
 import zipfile
 import os
 import io
@@ -376,25 +376,29 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-def get_python_source(x: Union[Callable, str]) -> str:
+def get_python_source(x: Any) -> str:
     """
     Helper function to get Python source (or not), preventing exceptions
     """
     if isinstance(x, str):
         return x
     source_code = None
+
     if isinstance(x, functools.partial):
         source_code = inspect.getsource(x.func)
+
     if source_code is None:
         try:
             source_code = inspect.getsource(x)
         except TypeError:
             pass
+
     if source_code is None:
         try:
             source_code = inspect.getsource(x.__call__)
         except (TypeError, AttributeError):
             pass
+
     if source_code is None:
         source_code = 'No source code available for {}'.format(type(x))
     return source_code
