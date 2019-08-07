@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.models import DAG
 from datetime import timedelta
 
+import airflow
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 
 args = {
     'owner': 'airflow',
