@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Command Line Interface
-======================
+Command Line Interface Reference
+================================
 
 Airflow has a very rich command line interface that allows for
 many types of operation on a DAG, starting services, and supporting

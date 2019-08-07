@@ -80,7 +80,6 @@ Content
     howto/index
     ui
     concepts
-    cli
     scheduler
     plugins
     security
@@ -92,5 +91,6 @@ Content
     lineage
     changelog
     faq
+    cli
     macros
     _api/index
