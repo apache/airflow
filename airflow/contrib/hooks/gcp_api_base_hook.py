@@ -92,21 +92,18 @@ class GoogleCloudBaseHook(BaseHook):
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-        scope_value = self._get_field('scope', None)  # type: Optional[str]
-        scopes = [s.strip() for s in scope_value.split(',')] \
-            if scope_value else _DEFAULT_SCOPES  # type: Sequence[str]
 
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
-            credentials, _ = google.auth.default(scopes=scopes)
+            credentials, _ = google.auth.default(scopes=self.scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
                 self.log.debug('Getting connection using JSON key file %s' % key_path)
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_file(
-                        key_path, scopes=scopes)
+                        key_path, scopes=self.scopes)
                 )
             elif key_path.endswith('.p12'):
                 raise AirflowException('Legacy P12 key file are not supported, '
@@ -126,7 +123,7 @@ class GoogleCloudBaseHook(BaseHook):
 
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_info(
-                        keyfile_dict_json, scopes=scopes)
+                        keyfile_dict_json, scopes=self.scopes)
                 )
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
@@ -187,6 +184,19 @@ class GoogleCloudBaseHook(BaseHook):
         """
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
         return client_info
+
+    @property
+    def scopes(self) -> Sequence[str]:
+        """
+        Return OAuth 2.0 scopes.
+
+        :return: Returns the scope defined in the connection configuration, or the default scope
+        :rtype: Sequence[str]
+        """
+        scope_value = self._get_field('scope', None)  # type: Optional[str]
+
+        return [s.strip() for s in scope_value.split(',')] \
+            if scope_value else _DEFAULT_SCOPES
 
     @staticmethod
     def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:

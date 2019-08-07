@@ -210,3 +210,29 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
             self.assertEqual(file_content, string_file.getvalue())
 
         assert_gcp_credential_file_in_env(self.instance)
+
+    def test_provided_scopes(self):
+        self.instance.extras = {
+            'extra__google_cloud_platform__project': default_project,
+            'extra__google_cloud_platform__scope': (
+                ','.join(
+                    (
+                        'https://www.googleapis.com/auth/bigquery',
+                        'https://www.googleapis.com/auth/devstorage.read_only',
+                    )
+                )
+            ),
+        }
+
+        self.assertEqual(
+            self.instance.scopes,
+            [
+                'https://www.googleapis.com/auth/bigquery',
+                'https://www.googleapis.com/auth/devstorage.read_only',
+            ],
+        )
+
+    def test_default_scopes(self):
+        self.instance.extras = {'extra__google_cloud_platform__project': default_project}
+
+        self.assertEqual(self.instance.scopes, ('https://www.googleapis.com/auth/cloud-platform',))
