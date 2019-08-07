@@ -40,6 +40,10 @@ class ExternalTaskSensor(BaseSensorOperator):
     :type external_task_id: str
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
+    :param unallowed_states: list of unallowed states, default is ``None``. When
+        the external task or dag is found to be in an unallowed state, the sensor
+        will immediately fail instead of continuing to poke
+    :type unallowed_states: list
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same execution_date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
@@ -64,6 +68,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                  external_dag_id,
                  external_task_id,
                  allowed_states=None,
+                 unallowed_states=None,
                  execution_delta=None,
                  execution_date_fn=None,
                  check_existence=False,
@@ -77,11 +82,31 @@ class ExternalTaskSensor(BaseSensorOperator):
                     'Valid values for `allowed_states` '
                     'when `external_task_id` is not `None`: {}'.format(State.task_states)
                 )
+
+            if unallowed_states and not set(unallowed_states) <= set(State.task_states):
+                raise ValueError(
+                    'Valid values for `unallowed_states` '
+                    'when `external_task_id` is not `None`: {}'.format(State.task_states)
+                )
         else:
             if not set(self.allowed_states) <= set(State.dag_states):
                 raise ValueError(
                     'Valid values for `allowed_states` '
                     'when `external_task_id` is `None`: {}'.format(State.dag_states)
+                )
+
+            if unallowed_states and not set(unallowed_states) <= set(State.dag_states):
+                raise ValueError(
+                    'Valid values for `unallowed_states` '
+                    'when `external_task_id` is `None`: {}'.format(State.dag_states)
+                )
+
+        if unallowed_states:
+            common = set(self.allowed_states).intersection(unallowed_states)
+            if common:
+                raise ValueError(
+                    'Found states in both `allowed_states` and '
+                    '`unallowed_states` : {}'.format(common)
                 )
 
         if execution_delta is not None and execution_date_fn is not None:
@@ -96,6 +121,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.check_existence = check_existence
         # we only check the existence for the first time.
         self.has_checked_existence = False
+        self.unallowed_states = unallowed_states
 
     @provide_session
     def poke(self, context, session=None):
@@ -141,19 +167,52 @@ class ExternalTaskSensor(BaseSensorOperator):
                                                                                  self.external_dag_id))
             self.has_checked_existence = True
 
+        allowed_count = self._query_external_count(
+            session, self.allowed_states, dttm_filter)
+
+        if self.unallowed_states:
+            unallowed_count = self._query_external_count(
+                session, self.unallowed_states, dttm_filter)
+
+            if unallowed_count == len(dttm_filter):
+                if self.external_task_id:
+                    instances = session.query(TI).filter(
+                        TI.dag_id == self.dag_id,
+                        TI.task_id == self.task_id,
+                        TI.execution_date == context['execution_date'],
+                    ).all()
+                else:
+                    instances = session.query(DR).filter(
+                        DR.dag_id == self.dag_id,
+                        TI.task_id == self.task_id,
+                        DR.execution_date == context['execution_date'],
+                    ).all()
+
+                for instance in instances:
+                    instance.state == State.FAILED
+
+                session.commit()
+                raise AirflowException(
+                    'Found {} task in {} dag to be in unallowed state.'.format(
+                        self.external_dag_id, self.external_task_id))
+
+        session.commit()
+        return allowed_count == len(dttm_filter)
+
+    def _query_external_count(self, session, states, dttm_filter):
+        TI = TaskInstance
+        DR = DagRun
+
         if self.external_task_id:
-            count = session.query(TI).filter(
+            return session.query(TI).filter(
                 TI.dag_id == self.external_dag_id,
                 TI.task_id == self.external_task_id,
-                TI.state.in_(self.allowed_states),
+                TI.state.in_(states),
                 TI.execution_date.in_(dttm_filter),
             ).count()
         else:
-            count = session.query(DR).filter(
+            return session.query(DR).filter(
                 DR.dag_id == self.external_dag_id,
-                DR.state.in_(self.allowed_states),
+                DR.state.in_(states),
                 DR.execution_date.in_(dttm_filter),
             ).count()
-
-        session.commit()
-        return count == len(dttm_filter)
