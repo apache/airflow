@@ -54,20 +54,20 @@ class BigQueryToMySqlOperator(BaseOperator):
     :type dataset_table: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
-    :type max_results: string
+    :type max_results: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: string
+    :type selected_fields: str
     :param gcp_conn_id: reference to a specific GCP hook.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param mysql_conn_id: reference to a specific mysql hook
-    :type mysql_conn_id: string
+    :type mysql_conn_id: str
     :param database: name of database which overwrite defined one in connection
-    :type database: string
+    :type database: str
     :param replace: Whether to replace instead of insert
     :type replace: bool
     :param batch_size: The number of rows to take in each batch
