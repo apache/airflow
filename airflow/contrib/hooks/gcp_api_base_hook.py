@@ -31,7 +31,7 @@ import httplib2
 
 import google.auth
 import google.oauth2.service_account
-from google.api_core.client_info import ClientInfo
+from google.api_core.gapic_v1.client_info import ClientInfo
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
 
