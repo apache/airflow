@@ -37,6 +37,8 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
     :type dest_gcs: str
     :param replace: If true, replaces same-named files in GCS
     :type replace: bool
+    :param gzip: Option to compress file for upload
+    :type gzip: bool
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
     :type azure_data_lake_conn_id: str
@@ -97,6 +99,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                  google_cloud_storage_conn_id,
                  delegate_to=None,
                  replace=False,
+                 gzip=False,
                  *args,
                  **kwargs):
 
@@ -111,6 +114,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
         self.replace = replace
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.gzip = gzip
 
     def execute(self, context):
         # use the super to list all files in an Azure Data Lake path
@@ -140,7 +144,12 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                     dest_path = os.path.join(dest_gcs_prefix, obj)
                     self.log.info("Saving file to %s", dest_path)
 
-                    g_hook.upload(bucket=dest_gcs_bucket, object=dest_path, filename=f.name)
+                    g_hook.upload(
+                        bucket=dest_gcs_bucket,
+                        object=dest_path,
+                        filename=f.name,
+                        gzip=self.gzip
+                    )
 
             self.log.info("All done, uploaded %d files to GCS", len(files))
         else:

@@ -19,7 +19,6 @@
 
 import unittest
 
-from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.adls_to_gcs import \
     AdlsToGoogleCloudStorageOperator
 from tests.compat import mock
@@ -72,20 +71,76 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
         adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
         adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
 
-        def _assert_upload(bucket, object, filename):
-            gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH)
-
-            self.assertEqual(gcs_bucket, 'test')
-            self.assertIn(object[len(gcs_object_path):], MOCK_FILES)
-
-        gcs_mock_hook.return_value.upload.side_effect = _assert_upload
-
         uploaded_files = operator.execute(None)
+        gcs_mock_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call(
+                    bucket='test',
+                    filename=mock.ANY,
+                    object='test/path/PARQUET.parquet',
+                    gzip=False
+                ),
+                mock.call(
+                    bucket='test',
+                    filename=mock.ANY,
+                    object='test/path/TEST3.csv',
+                    gzip=False
+                ),
+                mock.call(bucket='test', filename=mock.ANY, object='test/path/PIC.png', gzip=False),
+                mock.call(bucket='test', filename=mock.ANY, object='test/TEST1.csv', gzip=False),
+                mock.call(bucket='test', filename=mock.ANY, object='test/TEST2.csv', gzip=False)
+            ], any_order=True
+        )
 
         adls_one_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         adls_two_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         gcs_mock_hook.assert_called_once_with(
             google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None)
+
+        # we expect MOCK_FILES to be uploaded
+        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+
+    @mock.patch('airflow.contrib.operators.adls_to_gcs.AzureDataLakeHook')
+    @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
+    @mock.patch(
+        'airflow.contrib.operators.adls_to_gcs.GoogleCloudStorageHook')
+    def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
+        """Test the execute function when the run is successful."""
+
+        operator = AdlsToGoogleCloudStorageOperator(
+            task_id=TASK_ID,
+            src_adls=ADLS_PATH_1,
+            dest_gcs=GCS_PATH,
+            replace=False,
+            azure_data_lake_conn_id=AZURE_CONN_ID,
+            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gzip=True
+        )
+
+        adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
+        adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
+
+        # gcs_mock_hook.return_value.upload.side_effect = _assert_upload
+        uploaded_files = operator.execute(None)
+        gcs_mock_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call(
+                    bucket='test',
+                    filename=mock.ANY,
+                    object='test/path/PARQUET.parquet',
+                    gzip=True
+                ),
+                mock.call(
+                    bucket='test',
+                    filename=mock.ANY,
+                    object='test/path/TEST3.csv',
+                    gzip=True
+                ),
+                mock.call(bucket='test', filename=mock.ANY, object='test/path/PIC.png', gzip=True),
+                mock.call(bucket='test', filename=mock.ANY, object='test/TEST1.csv', gzip=True),
+                mock.call(bucket='test', filename=mock.ANY, object='test/TEST2.csv', gzip=True)
+            ], any_order=True
+        )
 
         # we expect MOCK_FILES to be uploaded
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
