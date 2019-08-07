@@ -22,7 +22,7 @@
 import datetime
 import json
 import logging
-from typing import Any, Union, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING, Union
 
 import dateutil.parser
 import jsonschema
@@ -34,6 +34,11 @@ from airflow.models import BaseOperator, DAG
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
+
+
+if TYPE_CHECKING:
+    from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
+    from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
 
 LOG = LoggingMixin().log
 
@@ -63,7 +68,8 @@ class Serialization:
         return json.dumps(cls._serialize(var, {}), ensure_ascii=True)
 
     @classmethod
-    def from_json(cls, encoded_var: str) -> Union[DAG, BaseOperator, dict, list, set, tuple]:
+    def from_json(cls, encoded_var: str) -> Union[
+            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
         """Deserializes encoded_var and reconstructs all DAGs and operators it contains."""
         return cls._deserialize(json.loads(encoded_var), {})
 
