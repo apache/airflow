@@ -20,6 +20,7 @@
 import os
 import shutil
 import unittest
+import collections
 
 import elasticsearch
 from unittest import mock
@@ -31,6 +32,8 @@ from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.configuration import conf
+
 from .elasticmock import elasticmock
 
 
@@ -82,6 +85,25 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
     def test_client(self):
         self.assertIsInstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
+
+    def test_client_with_config(self):
+        es_conf = conf.getsection("elasticsearch_configs")
+        expected_dict = collections.OrderedDict({
+            "use_ssl": False,
+            "verify_certs": False,
+        })
+        self.assertDictEqual(es_conf, expected_dict)
+        # ensure creating with configs does not fail
+        ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            self.log_id_template,
+            self.end_of_log_mark,
+            self.write_stdout,
+            self.json_format,
+            self.json_fields,
+            es_conf
+        )
 
     def test_read(self):
         ts = pendulum.now()
