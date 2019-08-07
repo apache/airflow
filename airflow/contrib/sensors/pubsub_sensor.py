@@ -39,6 +39,28 @@ class PubSubPullSensor(BaseSensorOperator):
 
     ``project`` and ``subscription`` are templated so you can use
     variables in them.
+
+    :param project: the GCP project ID for the subscription (templated)
+    :type project: str
+    :param subscription: the Pub/Sub subscription name. Do not include the
+        full subscription path.
+    :type subscription: str
+    :param max_messages: The maximum number of messages to retrieve per
+        PubSub pull request
+    :type max_messages: int
+    :param return_immediately: If True, instruct the PubSub API to return
+        immediately if no messages are available for delivery.
+    :type return_immediately: bool
+    :param ack_messages: If True, each message will be acknowledged
+        immediately rather than by any downstream tasks
+    :type ack_messages: bool
+    :param gcp_conn_id: The connection ID to use connecting to
+        Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request
+        must have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ['project', 'subscription']
     ui_color = '#ff7f50'
@@ -55,29 +77,6 @@ class PubSubPullSensor(BaseSensorOperator):
             delegate_to=None,
             *args,
             **kwargs):
-        """
-        :param project: the GCP project ID for the subscription (templated)
-        :type project: str
-        :param subscription: the Pub/Sub subscription name. Do not include the
-            full subscription path.
-        :type subscription: str
-        :param max_messages: The maximum number of messages to retrieve per
-            PubSub pull request
-        :type max_messages: int
-        :param return_immediately: If True, instruct the PubSub API to return
-            immediately if no messages are available for delivery.
-        :type return_immediately: bool
-        :param ack_messages: If True, each message will be acknowledged
-            immediately rather than by any downstream tasks
-        :type ack_messages: bool
-        :param gcp_conn_id: The connection ID to use connecting to
-            Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request
-            must have domain-wide delegation enabled.
-        :type delegate_to: str
-        """
         super().__init__(*args, **kwargs)
 
         self.gcp_conn_id = gcp_conn_id
