@@ -82,6 +82,55 @@ class TestCatchHttpException(unittest.TestCase):
         self.assertTrue(self.called)
 
 
+class FallbackToDefaultProjectIdFixtureClass:
+    def __init__(self, project_id):
+        self.mock = mock.Mock()
+        self.fixture_project_id = project_id
+
+    @hook.GoogleCloudBaseHook.fallback_to_default_project_id
+    def method(self, project_id=None):
+        self.mock(project_id=project_id)
+
+    @property
+    def project_id(self):
+        return self.fixture_project_id
+
+
+class TestFallbackToDefaultProjectId(unittest.TestCase):
+
+    def test_no_arguments(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method()
+
+        gcp_hook.mock.assert_called_once_with(project_id=321)
+
+    def test_default_project_id(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method(project_id=None)
+
+        gcp_hook.mock.assert_called_once_with(project_id=321)
+
+    def test_provided_project_id(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method(project_id=123)
+
+        gcp_hook.mock.assert_called_once_with(project_id=123)
+
+    def test_restrict_positional_arguments(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        with self.assertRaises(AirflowException) as cm:
+            gcp_hook.method(123)
+
+        self.assertEqual(
+            str(cm.exception), "You must use keyword arguments in this methods rather than positional"
+        )
+        self.assertEqual(gcp_hook.mock.call_count, 0)
+
+
 class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
