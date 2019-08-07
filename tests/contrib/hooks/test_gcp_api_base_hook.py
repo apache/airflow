@@ -24,6 +24,7 @@ import six
 import tenacity
 from parameterized import parameterized
 from google.api_core.exceptions import RetryError, AlreadyExists
+from google.auth.environment_vars import CREDENTIALS
 from google.cloud.exceptions import MovedPermanently, Forbidden
 from googleapiclient.errors import HttpError
 
@@ -225,7 +226,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              key_path)
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -244,7 +245,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              file_name)
             self.assertEqual(file_content, string_file.getvalue())
 

@@ -21,6 +21,8 @@ import os
 import subprocess
 import tempfile
 
+from google.auth.environment_vars import CREDENTIALS
+
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
@@ -179,7 +181,6 @@ class GKEClusterCreateOperator(BaseOperator):
 
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-G_APP_CRED = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 class GKEPodOperator(KubernetesPodOperator):
@@ -297,12 +298,13 @@ class GKEPodOperator(KubernetesPodOperator):
         if not key_path and not keyfile_json_str:
             self.log.info('Using gcloud with application default credentials.')
         elif key_path:
-            os.environ[G_APP_CRED] = key_path
+            os.environ[CREDENTIALS] = key_path
+            return None
         else:
             # Write service account JSON to secure file for gcloud to reference
             service_key = tempfile.NamedTemporaryFile(delete=False)
             service_key.write(keyfile_json_str.encode('utf-8'))
-            os.environ[G_APP_CRED] = service_key.name
+            os.environ[CREDENTIALS] = service_key.name
             # Return file object to have a pointer to close after use,
             # thus deleting from file system.
             return service_key

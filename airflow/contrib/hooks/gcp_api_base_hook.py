@@ -25,6 +25,8 @@ import tempfile
 import httplib2
 
 import google.auth
+from google.auth.environment_vars import CREDENTIALS
+
 import google_auth_httplib2
 import google.oauth2.service_account
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError, Forbidden, \
@@ -39,10 +41,6 @@ from airflow.hooks.base_hook import BaseHook
 logger = LoggingMixin().log
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
-# The name of the environment variable that Google Authentication library uses
-# to get service account key location. Read more:
-# https://cloud.google.com/docs/authentication/getting-started#setting_the_environment_variable
-_G_APP_CRED_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
@@ -329,12 +327,11 @@ class GoogleCloudBaseHook(BaseHook):
                     if key_path:
                         if key_path.endswith('.p12'):
                             raise AirflowException(
-                                'Legacy P12 key file are not supported, '
-                                'use a JSON key file.')
-                        os.environ[_G_APP_CRED_ENV_VAR] = key_path
+                                'Legacy P12 key file are not supported, use a JSON key file.')
+                        os.environ[CREDENTIALS] = key_path
                     elif keyfile_dict:
                         conf_file.write(keyfile_dict)
                         conf_file.flush()
-                        os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
+                        os.environ[CREDENTIALS] = conf_file.name
                     return func(self, *args, **kwargs)
             return wrapper
