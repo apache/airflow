@@ -134,6 +134,19 @@ The AzureContainerRegistryHook requires a host/login/password to be defined in t
     Interface with ACR
 
 
+Azure Data Explorer (Kusto)
+'''''''''''''''''''''''''''
+
+`AzureDataExplorerHook` communicates with Azure Data Explorer cluster via the Azure Kusto Data library.
+Make sure that a Airflow connection of type `azure_data_explorer` exists. There are multiple authorization
+methods available, for more information please refer to the documentation of `AzureDataExplorerHook`.
+
+:class:`airflow.contrib.hooks.azure_data_explorer_hook.AzureDataExplorerHook`
+    Interface with Azure Data Explorer cluster.
+
+:class:`airflow.contrib.operators.azure_data_explorer.AzureDataExplorerQueryOperator`
+    Simple operator to run KQL (Kusto Query Language) queries on Azure Data Explorer cluster.
+
 
 .. _AWS:
 

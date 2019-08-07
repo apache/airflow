@@ -43,6 +43,7 @@ autodoc_mock_imports = [
     'azure',
     'azure.cosmos',
     'azure.datalake',
+    'azure.kusto',
     'azure.mgmt',
     'boto3',
     'botocore',

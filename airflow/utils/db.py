@@ -290,6 +290,13 @@ def initdb():
             extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }'))
     merge_conn(
         Connection(
+            conn_id='azure_data_explorer_default', conn_type='azure_data_explorer',
+            host='https://<CLUSTER>.kusto.windows.net',
+            extra='''{"auth_method": "<AAD_APP | AAD_APP_CERT | AAD_CREDS | AAD_DEVICE>",
+                    "tenant": "<TENANT ID>", "certificate": "<APPLICATION PEM CERTIFICATE>",
+                    "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}'''))
+    merge_conn(
+        Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
     merge_conn(
