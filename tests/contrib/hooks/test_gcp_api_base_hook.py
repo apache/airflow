@@ -25,6 +25,7 @@ from io import StringIO
 from parameterized import parameterized
 
 import google.auth
+from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
 from google.api_core.exceptions import RetryError, AlreadyExists
 from google.cloud.exceptions import MovedPermanently
@@ -136,7 +137,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              key_path)
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -155,7 +156,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              file_name)
             self.assertEqual(file_content, string_file.getvalue())
 
