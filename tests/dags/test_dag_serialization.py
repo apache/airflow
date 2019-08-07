@@ -22,8 +22,8 @@
 import json
 import multiprocessing
 import unittest
-from datetime import datetime
 from unittest import mock
+from datetime import datetime
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
