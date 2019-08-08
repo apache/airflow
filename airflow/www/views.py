@@ -459,7 +459,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag()
+        dag = dag_orm.get_dag(DAGCACHED_ENABLED)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -492,7 +492,8 @@ class Airflow(AirflowBaseView):
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+        # Loads dag from file
+        dag = dagbag.get_dag(dag_id, from_file_only=True)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
@@ -1212,7 +1213,7 @@ class Airflow(AirflowBaseView):
         if not dag_model:
             flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
-        dag = dag_model.get_dag()
+        dag = dag_model.get_dag(DAGCACHED_ENABLED)
 
         if dag is None:
             dag = dagbag.get_dag(dag_id)

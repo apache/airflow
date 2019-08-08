@@ -111,31 +111,47 @@ class DagBag(BaseDagBag, LoggingMixin):
     def dag_ids(self):
         return self.dags.keys()
 
-    def get_dag(self, dag_id):
+    def get_dag(self, dag_id, from_file_only=False):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
+
+        :param from_file_only: alway load DAG from file.
+        :type from_file_only: bool
         """
         from airflow.models.dag import DagModel  # Avoid circular import
 
-        if self.dagcached_enabled:
+        # Only read DAGs from DB if this dagbag is dagcached_enabled.
+        # from_file_only is an exception, currently it is for renderring templates
+        # in UI only. Because functions are gone in serialized DAGs, DAGs must be
+        # imported from files.
+        # FIXME: this exception should be removed in future, then webserver can be
+        # decoupled from DAG files.
+        if self.dagcached_enabled and not from_file_only:
             return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
+        dag = None
         root_dag_id = dag_id
         if dag_id in self.dags:
             dag = self.dags[dag_id]
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
+        # Needs to load from file for a dagcached_enabled dagbag.
+        enforce_from_file = False
+        if self.dagcached_enabled and dag is not None:
+            from airflow.dag.serialization.serialized_dag import SerializedDAG
+            enforce_from_file = isinstance(dag, SerializedDAG)
+
         # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
-        if orm_dag and (
+        if (orm_dag and (
                 root_dag_id not in self.dags or
                 (
                     orm_dag.last_expired and
                     dag.last_loaded < orm_dag.last_expired
                 )
-        ):
+        )) or enforce_from_file:
             # Reprocess source file
             found_dags = self.process_file(
                 filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False)

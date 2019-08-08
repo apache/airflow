@@ -1578,7 +1578,7 @@ class DagModel(Base):
         return self.dag_id.replace('.', '__dot__')
 
     def get_dag(self, dagcached_enabled=False):
-        # Calling it from UI must set dagcached_enabled = DAGCACHED_ENABLED.
+        # Calling it from UI should set dagcached_enabled = DAGCACHED_ENABLED.
         return DagBag(
             dag_folder=self.fileloc, dagcached_enabled=dagcached_enabled).get_dag(self.dag_id)
 
