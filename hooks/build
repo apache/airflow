@@ -386,7 +386,7 @@ start_step "Populating cache"
 
 DOCKER_CACHE_DIRECTIVE_CI=()
 DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
-DOCKER_CACHE_DIRECTIVE_CI_CHECKLICENCE=()
+DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
 
 if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
@@ -505,7 +505,7 @@ elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
 else
     DOCKER_CACHE_DIRECTIVE_CI=()
     DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
-    DOCKER_CACHE_DIRECTIVE_CI_CHECKLICENCE=()
+    DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
     echo
     echo "Use default cache from locally built images."
     echo
@@ -642,7 +642,8 @@ if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
     echo "Skip building the CHECKLICENCE image"
 else
     start_step "Build Airflow CHECKLICENCE image"
-    docker build . -f Dockerfile-checklicence -t ${AIRFLOW_CHECKLICENCE_IMAGE}
+    docker build . -f Dockerfile-checklicence \
+        "${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[@]}" -t ${AIRFLOW_CHECKLICENCE_IMAGE}
     add_image_to_push "${AIRFLOW_CHECKLICENCE_IMAGE}"
 
     save_to_file AIRFLOW_CHECKLICENCE_IMAGE
