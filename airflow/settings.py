@@ -312,3 +312,12 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
 
 # Used by DAG context_managers
 CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
+
+# If dagcached is enabled, scheduler writes serialized DAGs to DB, and webserevr
+# reads DAGs from DB instead of importing from files.
+DAGCACHED_ENABLED = conf.getboolean('core', 'dagcached', fallback=True)
+
+# Updating serialized DAG can not be faster than a minimum interval to reduce database
+# write rate.
+DAGCACHED_MIN_UPDATE_INTERVAL = conf.getint(
+    'core', 'dagcached_min_update_interval', fallback=30)

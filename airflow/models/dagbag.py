@@ -34,6 +34,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped, list_py_file_paths
@@ -79,13 +80,13 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=None,
             executor=None,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+            dagcached_enabled=False):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
             executor = get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
-        self.log.info("Filling up the DagBag from %s", dag_folder)
         self.dag_folder = dag_folder
         self.dags = {}
         # the file's last modified timestamp when we last read it
@@ -93,6 +94,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.executor = executor
         self.import_errors = {}
         self.has_logged = False
+        self.dagcached_enabled = dagcached_enabled
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -114,6 +116,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         Gets the DAG out of the dictionary, and refreshes it if expired
         """
         from airflow.models.dag import DagModel  # Avoid circular import
+
+        if self.dagcached_enabled:
+            return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
         root_dag_id = dag_id
@@ -342,7 +347,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=None,
             only_if_updated=True,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+            dagcached_enabled=False):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -355,6 +361,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
+        if self.dagcached_enabled:
+            self.collect_dags_from_db()
+            return
+
+        self.log.info("Filling up the DagBag from %s", dag_folder)
+        start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
@@ -394,6 +406,19 @@ class DagBag(BaseDagBag, LoggingMixin):
             Stats.timing('dag.loading-duration.{}'.
                          format(filename),
                          file_stat.duration)
+
+    def collect_dags_from_db(self):
+        """Collects DAGs from database."""
+        start_dttm = timezone.utcnow()
+        # DAG post-pcocessing steps such as self.bag_dag and croniter are not needed as
+        # they are done by scheduler before serialization.
+        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+        # from the table by the scheduler job.
+        self.log.info("Filling up the DagBag from database")
+        self.dags = SerializedDagModel.read_all_dags()
+        Stats.gauge(
+            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+        Stats.gauge('dagbag_size', len(self.dags), 1)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
