@@ -68,7 +68,7 @@ ELASTICSEARCH_END_OF_LOG_MARK = conf.get('elasticsearch', 'END_OF_LOG_MARK')
 
 ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'WRITE_STDOUT')
 
-ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'JSON_FORMAT')
+ELASTICSEARCH_JSON_FORMAT = conf.getboolean('elasticsearch', 'JSON_FORMAT')
 
 ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'JSON_FIELDS')
 
