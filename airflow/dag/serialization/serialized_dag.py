@@ -36,8 +36,8 @@ class SerializedDAG(DAG, Serialization):
     not pickable. SerializedDAG works for all DAGs.
     """
     # Stringified DAGs and operators contain exactly these fields.
-    # TODO(coufon): to customize included fields and keep only necessary fields.
-    _dag_included_fields = list(vars(DAG(dag_id='test')).keys())
+    # FIXME: to customize included fields and keep only necessary fields.
+    _included_fields = list(vars(DAG(dag_id='test')).keys())
 
     _json_schema = make_dag_schema()
 
@@ -51,7 +51,7 @@ class SerializedDAG(DAG, Serialization):
         new_dag = {Encoding.TYPE: DAT.DAG}
         visited_dags[dag.dag_id] = new_dag
         new_dag[Encoding.VAR] = cls._serialize_object(
-            dag, visited_dags, included_fields=cls._dag_included_fields)
+            dag, visited_dags, included_fields=cls._included_fields)
         return new_dag
 
     @classmethod
@@ -60,5 +60,5 @@ class SerializedDAG(DAG, Serialization):
         """
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
         visited_dags[dag.dag_id] = dag
-        cls._deserialize_object(encoded_dag, dag, cls._dag_included_fields, visited_dags)
+        cls._deserialize_object(encoded_dag, dag, cls._included_fields, visited_dags)
         return dag

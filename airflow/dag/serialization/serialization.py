@@ -55,8 +55,8 @@ class Serialization:
     # Time types.
     _datetime_types = (datetime.datetime, datetime.date, datetime.time)
 
-    # Object types that are always excluded.
-    # TODO(coufon): not needed if _dag_included_fields and _op_included_fields are customized.
+    # Object types that are always excluded in serialization.
+    # FIXME: not needed if _included_fields of DAG and operator are customized.
     _excluded_types = (logging.Logger, Connection, type)
 
     _json_schema = None     # type: Optional[Dict]
@@ -117,10 +117,7 @@ class Serialization:
 
     @classmethod
     def _is_excluded(cls, var):
-        """Types excluded from serialization.
-
-        TODO(coufon): not needed if _dag_included_fields and _op_included_fields are customized.
-        """
+        """Types excluded from serialization."""
         return var is None or isinstance(var, cls._excluded_types)
 
     @classmethod

@@ -31,7 +31,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
     """
-    _op_included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
+    _included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
         '_dag', '_task_type', 'ui_color', 'ui_fgcolor', 'template_fields']
 
     _json_schema = make_operator_schema()
@@ -61,7 +61,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         """Serializes operator into a JSON object.
         """
         serialize_op = cls._serialize_object(
-            op, visited_dags, included_fields=SerializedBaseOperator._op_included_fields)
+            op, visited_dags, included_fields=SerializedBaseOperator._included_fields)
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
         return cls._encode(serialize_op, type_=DAT.OP)
@@ -72,5 +72,5 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         """
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
         cls._deserialize_object(
-            encoded_op, op, SerializedBaseOperator._op_included_fields, visited_dags)
+            encoded_op, op, SerializedBaseOperator._included_fields, visited_dags)
         return op

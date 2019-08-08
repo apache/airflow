@@ -92,7 +92,7 @@ CONTRIB_EXAMPLE_DAGS = [
     'POC_winrm_parallel'
 ]
 
-# TODO(coufon): to remove useless fields.
+# FIXME: to remove useless fields.
 serialized_simple_dag_ground_truth = (
     '{"__type": "dag", '
     '"__var": {'
