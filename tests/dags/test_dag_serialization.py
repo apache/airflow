@@ -241,9 +241,10 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         # Verify JSON schema.
         SerializedBaseOperator.validate_json(
-            simple_dag_json['__var']['task_dict']['__var']['simple_task'])
+            json.dumps(simple_dag_json['__var']['task_dict']['__var']['simple_task'],
+                       ensure_ascii=True))
 
-        SerializedDAG.validate_json(simple_dag_json)
+        SerializedDAG.validate_json(simple_dag_json_str)
 
         # Verify serialized DAGs.
         self.validate_serialized_dag(

@@ -22,7 +22,7 @@
 import datetime
 import json
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING, Union
+from typing import Dict, Optional, TYPE_CHECKING, Union
 
 import dateutil.parser
 import jsonschema
@@ -68,18 +68,18 @@ class Serialization:
         return json.dumps(cls._serialize(var, {}), ensure_ascii=True)
 
     @classmethod
-    def from_json(cls, encoded_var: str) -> Union[
+    def from_json(cls, json_str: str) -> Union[
             'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
-        """Deserializes encoded_var and reconstructs all DAGs and operators it contains."""
-        return cls._deserialize(json.loads(encoded_var), {})
+        """Deserializes json_str and reconstructs all DAGs and operators it contains."""
+        return cls._deserialize(json.loads(json_str), {})
 
     @classmethod
-    def validate_json(cls, json_object: Any) -> bool:
-        """Validate json_object satisfies JSON schema."""
+    def validate_json(cls, json_str: str) -> bool:
+        """Validate json_str satisfies JSON schema."""
         if cls._json_schema is None:
             LOG.warning('JSON schema of %s is not set.', cls.__name__)
             return False
-        return jsonschema.validate(json_object, cls._json_schema)
+        return jsonschema.validate(json.loads(json_str), cls._json_schema)
 
     @staticmethod
     def _encode(x, type_):
