@@ -675,7 +675,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
                   labels=None,
-                  schema_update_options=(),
+                  schema_update_options=None,
                   priority='INTERACTIVE',
                   time_partitioning=None,
                   api_resource_configs=None,
@@ -737,7 +737,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type labels: dict
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
-        :type schema_update_options: tuple
+        :type schema_update_options: Union[list, tuple, set]
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
             The default value is INTERACTIVE.
@@ -761,6 +761,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 }
         :type encryption_configuration: dict
         """
+        schema_update_options = list(schema_update_options or [])
 
         if time_partitioning is None:
             time_partitioning = {}
@@ -831,15 +832,12 @@ class BigQueryBaseCursor(LoggingMixin):
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
             (time_partitioning, 'timePartitioning', {}, dict),
-            (schema_update_options, 'schemaUpdateOptions', None, tuple),
+            (schema_update_options, 'schemaUpdateOptions', None, list),
             (destination_dataset_table, 'destinationTable', None, dict),
             (cluster_fields, 'clustering', None, dict),
         ]
 
-        for param_tuple in query_param_list:
-
-            param, param_name, param_default, param_type = param_tuple
-
+        for param, param_name, param_default, param_type in query_param_list:
             if param_name not in configuration['query'] and param in [None, {}, ()]:
                 if param_name == 'timePartitioning':
                     param_default = _cleanse_time_partitioning(
@@ -1068,7 +1066,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
-                 schema_update_options=(),
+                 schema_update_options=None,
                  src_fmt_configs=None,
                  time_partitioning=None,
                  cluster_fields=None,
@@ -1133,7 +1131,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the load job.
-        :type schema_update_options: tuple
+        :type schema_update_options: Union[list, tuple, set]
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param time_partitioning: configure optional time partitioning fields i.e.
@@ -1151,6 +1149,8 @@ class BigQueryBaseCursor(LoggingMixin):
                 }
         :type encryption_configuration: dict
         """
+        # To provide backward compatibility
+        schema_update_options = list(schema_update_options or [])
 
         # bigquery only allows certain source formats
         # we check to make sure the passed source format is valid
