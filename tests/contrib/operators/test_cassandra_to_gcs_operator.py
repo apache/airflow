@@ -19,6 +19,8 @@
 
 import unittest
 from unittest import mock
+from mock import call
+
 from airflow.contrib.operators.cassandra_to_gcs import (
     CassandraToGoogleCloudStorageOperator,
 )
@@ -49,9 +51,10 @@ class CassandraToGCSTest(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
-        mock_upload.assert_called_with(
-            test_bucket, schema, TMP_FILE_NAME, "application/json", gzip
-        )
+
+        call_schema = call(test_bucket, schema, TMP_FILE_NAME, "application/json", gzip)
+        call_data = call(test_bucket, filename, TMP_FILE_NAME, "application/json", gzip)
+        mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
         op = CassandraToGoogleCloudStorageOperator
