@@ -1621,7 +1621,7 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      dagcached_enabled = False,
+                      dagcached_enabled: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
