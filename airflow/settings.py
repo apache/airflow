@@ -28,7 +28,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
-from kubernetes.client.models.v1_pod import V1Pod
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
 
@@ -98,10 +97,11 @@ def policy(task_instance):
     """
 
 
-def pod_mutation_hook(pod: V1Pod):
+def pod_mutation_hook(pod):
     """
-    This setting allows altering ``Pod`` objects before they are passed to
-    the Kubernetes client by the ``PodLauncher`` for scheduling.
+    This setting allows altering ``kubernetes.client.models.V1Pod`` object
+    before they are passed to the Kubernetes client by the ``PodLauncher``
+    for scheduling.
 
     To define a pod mutation hook, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``pod_mutation_hook`` function.

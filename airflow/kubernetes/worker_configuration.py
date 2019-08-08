@@ -21,7 +21,9 @@ from airflow.configuration import conf
 import kubernetes.client.models as k8s
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
-from typing import List
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.k8s_model import append_to_pod
+from typing import List, Dict
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -49,7 +51,7 @@ class WorkerConfiguration(LoggingMixin):
             return []
 
         # Otherwise, define a git-sync init container
-        init_environment: List[k8s.V1EnvVar] = [k8s.V1EnvVar(
+        init_environment = [k8s.V1EnvVar(
             name='GIT_SYNC_REPO',
             value=self.kube_config.git_repo
         ), k8s.V1EnvVar(
@@ -79,7 +81,7 @@ class WorkerConfiguration(LoggingMixin):
                 value=self.kube_config.git_password
             ))
 
-        volume_mounts: List[k8s.V1VolumeMount] = [k8s.V1VolumeMount(
+        volume_mounts = [k8s.V1VolumeMount(
             mount_path=self.kube_config.git_sync_root,
             name=self.dags_volume_name,
             read_only=False
@@ -121,15 +123,21 @@ class WorkerConfiguration(LoggingMixin):
                 value='false'
             ))
 
-        return [k8s.V1Container(
+        init_containers = k8s.V1Container(
             name=self.kube_config.git_sync_init_container_name,
             image=self.kube_config.git_sync_container,
-            security_context=k8s.V1SecurityContext(run_as_user=self.kube_config.git_sync_run_as_user or 65533),  # git-sync user
             env=init_environment,
-            volume_mounts=volume_mounts,
-        )]
+            volume_mounts=volume_mounts
+        )
 
-    def _get_env(self) -> List[k8s.V1EnvVar]:
+        if self.kube_config.git_sync_run_as_user != "":
+            init_containers.security_context = k8s.V1SecurityContext(
+                run_as_user=self.kube_config.git_sync_run_as_user or 65533
+            )  # git-sync user
+
+        return [init_containers]
+
+    def _get_environment(self) -> Dict[str, str]:
         """Defines any necessary environment variables for the pod executor"""
         env = {}
 
@@ -152,15 +160,14 @@ class WorkerConfiguration(LoggingMixin):
                 self.kube_config.git_subpath     # dags
             )
             env['AIRFLOW__CORE__DAGS_FOLDER'] = dag_volume_mount_path
-
-        return list(map(lambda tup: k8s.V1EnvVar(name=tup[0], value=tup[1]), env.items()))
+        return env
 
     def _get_env_from(self) -> List[k8s.V1EnvFromSource]:
         """Extracts any configmapRefs to envFrom"""
         env_from = []
 
         if self.kube_config.env_from_configmap_ref:
-            for config_map_ref in self.kube_config.env_from_secret_ref.split(','):
+            for config_map_ref in self.kube_config.env_from_configmap_ref.split(','):
                 env_from.append(
                     k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(config_map_ref))
                 )
@@ -173,23 +180,21 @@ class WorkerConfiguration(LoggingMixin):
 
         return env_from
 
-    def _get_secret_env(self) -> List[k8s.V1EnvVar]:
+    def _get_secrets(self):
         """Defines any necessary secrets for the pod executor"""
-        worker_secrets: List[k8s.V1EnvVar] = []
+        worker_secrets = []
 
         for env_var_name, obj_key_pair in self.kube_config.kube_secrets.items():
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
-                k8s.V1EnvVar(
-                    name=env_var_name,
-                    value_from=k8s.V1EnvVarSource(
-                        secret_key_ref=k8s.V1SecretKeySelector(
-                            name=k8s_secret_obj,
-                            key=k8s_secret_key
-                        )
-                    )
-                )
+                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key)
             )
+
+        if self.kube_config.env_from_secret_ref:
+            for secret_ref in self.kube_config.env_from_secret_ref.split(','):
+                worker_secrets.append(
+                    Secret('env', None, secret_ref)
+                )
 
         return worker_secrets
 
@@ -203,19 +208,19 @@ class WorkerConfiguration(LoggingMixin):
     def _get_security_context(self) -> k8s.V1PodSecurityContext:
         """Defines the security context"""
 
-        fs_group = None
+        security_context = k8s.V1PodSecurityContext()
 
-        if self.kube_config.worker_fs_group:
-            fs_group = self.kube_config.worker_fs_group
+        if self.kube_config.worker_run_as_user != "":
+            security_context.run_as_user = self.kube_config.worker_run_as_user
+
+        if self.kube_config.worker_fs_group != "":
+            security_context.fs_group = self.kube_config.worker_fs_group
 
         # set fs_group to 65533 if not explicitly specified and using git ssh keypair auth
-        if self.kube_config.git_ssh_key_secret_name and fs_group is None:
-            fs_group = 65533
+        if self.kube_config.git_ssh_key_secret_name and security_context.fs_group is None:
+            security_context.fs_group = 65533
 
-        return k8s.V1PodSecurityContext(
-            run_as_user=self.kube_config.worker_run_as_user or None,
-            fs_group=fs_group
-        )
+        return security_context
 
     def _get_labels(self, kube_executor_labels, labels) -> k8s.V1LabelSelector:
         copy = self.kube_config.kube_labels.copy()
@@ -327,18 +332,15 @@ class WorkerConfiguration(LoggingMixin):
 
         return list(volumes.values())
 
-    def generate_dag_volume_mount_path(self):
+    def generate_dag_volume_mount_path(self) -> str:
         if self.kube_config.dags_volume_claim or self.kube_config.dags_volume_host:
-            dag_volume_mount_path = self.worker_airflow_dags
-        else:
-            dag_volume_mount_path = self.kube_config.git_dags_folder_mount_point
+            return self.worker_airflow_dags
 
-        return dag_volume_mount_path
+        return self.kube_config.git_dags_folder_mount_point
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command):
+                 try_number, airflow_command) -> k8s.V1Pod:
         pod_generator = PodGenerator(
-
             namespace=namespace,
             name=pod_id,
             image=self.kube_config.kube_image,
@@ -350,18 +352,21 @@ class WorkerConfiguration(LoggingMixin):
                 'execution_date': execution_date,
                 'try_number': str(try_number),
             },
-            cmds=[airflow_command],
+            cmds=airflow_command,
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
             annotations=self.kube_config.kube_annotations,
             affinity=self.kube_config.kube_affinity,
             tolerations=self.kube_config.kube_tolerations,
-            configmaps=self._get_env_from(),
-            security_context=self._get_security_context(),
-            envs=self._get_env() + self._get_secret_env(),
+            envs=self._get_environment(),
             node_selectors=self.kube_config.kube_node_selectors,
             service_account_name=self.kube_config.worker_service_account_name,
         )
 
-        return pod_generator.gen_pod()
+        pod = pod_generator.gen_pod()
+        pod.spec.containers[0].env_from = pod.spec.containers[0].env_from or []
+        pod.spec.containers[0].env_from.extend(self._get_env_from())
+        pod.spec.security_context = self._get_security_context()
+
+        return append_to_pod(pod, self._get_secrets())

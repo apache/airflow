@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Classes for using Kubernetes Downward API
+Classes for interacting with Kubernetes API
 """
 
-import kubernetes.client.models as k8s
-from airflow.kubernetes.models.k8s_model import K8SModel
 import copy
+import kubernetes.client.models as k8s
+from airflow.kubernetes.k8s_model import K8SModel
 
 
 class PodRuntimeInfoEnv(K8SModel):
@@ -40,6 +40,9 @@ class PodRuntimeInfoEnv(K8SModel):
         self.field_path = field_path
 
     def to_k8s_client_obj(self) -> k8s.V1EnvVar:
+        """
+        :return: kubernetes.client.models.V1EnvVar
+        """
         return k8s.V1EnvVar(
             name=self.name,
             value_from=k8s.V1EnvVarSource(

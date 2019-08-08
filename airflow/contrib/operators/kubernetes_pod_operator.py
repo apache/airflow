@@ -19,7 +19,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.kubernetes import pod_generator, kube_client, pod_launcher
-from airflow.kubernetes.models.k8s_model import append_to_pod
+from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.utils.state import State
 
 
@@ -45,11 +45,11 @@ class KubernetesPodOperator(BaseOperator):
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
     :param ports: ports for launched pod
-    :type ports: list[airflow.kubernetes.models.Port]
+    :type ports: list[airflow.kubernetes.models.port.Port]
     :param volume_mounts: volumeMounts for launched pod
-    :type volume_mounts: list[airflow.kubernetes.models.VolumeMount]
+    :type volume_mounts: list[airflow.kubernetes.models.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
-    :type volumes: list[airflow.kubernetes.models.Volume]
+    :type volumes: list[airflow.kubernetes.models.volume.Volume]
     :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
@@ -61,7 +61,7 @@ class KubernetesPodOperator(BaseOperator):
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container,
         They can be exposed as environment vars or files in a volume.
-    :type secrets: list[airflow.kubernetes.models.Secret]
+    :type secrets: list[airflow.kubernetes.models.secret.Secret]
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
@@ -99,11 +99,11 @@ class KubernetesPodOperator(BaseOperator):
     :type configmaps: list[str]
     :param pod_runtime_info_envs: environment variables about
                                   pod runtime information (ip, namespace, nodeName, podName)
-    :type pod_runtime_info_envs: list[airflow.kubernetes.models.PodRuntimeInfoEnv]
+    :type pod_runtime_info_envs: list[airflow.kubernetes.models.pod_runtime_info_env.PodRuntimeInfoEnv]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
     :param full_pod_spec: The complete podSpec
-    :type full_pod_spec: kubernetes.client.models.k8s.V1Pod
+    :type full_pod_spec: kubernetes.client.models.V1Pod
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -113,17 +113,46 @@ class KubernetesPodOperator(BaseOperator):
                                                  cluster_context=self.cluster_context,
                                                  config_file=self.config_file)
 
+            pod = pod_generator.PodGenerator(
+                image=self.image,
+                namespace=self.namespace,
+                cmds=self.cmds,
+                args=self.arguments,
+                labels=self.labels,
+                name=self.name,
+                envs=self.env_vars,
+                extract_xcom=self.do_xcom_push,
+                image_pull_policy=self.image_pull_policy,
+                node_selectors=self.node_selectors,
+                annotations=self.annotations,
+                affinity=self.affinity,
+                image_pull_secrets=self.image_pull_secrets,
+                service_account_name=self.service_account_name,
+                hostnetwork=self.hostnetwork,
+                tolerations=self.tolerations,
+                configmaps=self.configmaps,
+                security_context=self.security_context,
+                dnspolicy=self.dnspolicy,
+                pod=self.full_pod_spec,
+            ).gen_pod()
+
+            pod = append_to_pod(pod, self.ports)
+            pod = append_to_pod(pod, self.pod_runtime_info_envs)
+            pod = append_to_pod(pod, self.volumes)
+            pod = append_to_pod(pod, self.volume_mounts)
+            pod = append_to_pod(pod, self.secrets)
+
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
 
             try:
                 (final_state, result) = launcher.run_pod(
-                    self.pod,
+                    pod,
                     startup_timeout=self.startup_timeout_seconds,
                     get_logs=self.get_logs)
             finally:
                 if self.is_delete_operator_pod:
-                    launcher.delete_pod(self.pod)
+                    launcher.delete_pod(pod)
 
             if final_state != State.SUCCESS:
                 raise AirflowException(
@@ -172,45 +201,37 @@ class KubernetesPodOperator(BaseOperator):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-
-        self.do_xcom_push = do_xcom_push
+        self.image = image
+        self.namespace = namespace
+        self.cmds = cmds or []
+        self.arguments = arguments or []
+        self.labels = labels or {}
+        self.startup_timeout_seconds = startup_timeout_seconds
+        self.name = name
+        self.env_vars = env_vars or {}
+        self.ports = ports or []
+        self.volume_mounts = volume_mounts or []
+        self.volumes = volumes or []
+        self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
-        self.config_file = config_file
-        self.is_delete_operator_pod = is_delete_operator_pod
         self.get_logs = get_logs
-        self.startup_timeout_seconds = startup_timeout_seconds
-
-        pod = pod_generator.PodGenerator(
-            image=image,
-            namespace=namespace,
-            cmds=cmds or [],
-            args=arguments or [],
-            labels=labels or {},
-            name=name,
-            envs=env_vars or {},
-            extract_xcom=do_xcom_push,
-            image_pull_policy=image_pull_policy,
-            node_selectors=node_selectors or {},
-            annotations=annotations or {},
-            affinity=affinity or {},
-            resources=resources,
-            image_pull_secrets=image_pull_secrets,
-            service_account_name=service_account_name,
-            hostnetwork=hostnetwork,
-            tolerations=tolerations or [],
-            configmaps=configmaps or [],
-            security_context=security_context or {},
-            dnspolicy=dnspolicy,
-            pod=full_pod_spec
-        ).gen_pod()
-
-        pod = append_to_pod(pod, ports)
-        pod = append_to_pod(pod, pod_runtime_info_envs)
-        pod = append_to_pod(pod, volumes)
-        pod = append_to_pod(pod, volume_mounts)
-        pod = append_to_pod(pod, secrets)
-
-        self.pod = pod
+        self.image_pull_policy = image_pull_policy
+        self.node_selectors = node_selectors or {}
+        self.annotations = annotations or {}
+        self.affinity = affinity or {}
+        self.do_xcom_push = do_xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+        self.resources = resources
+        self.config_file = config_file
+        self.image_pull_secrets = image_pull_secrets
+        self.service_account_name = service_account_name
+        self.is_delete_operator_pod = is_delete_operator_pod
+        self.hostnetwork = hostnetwork
+        self.tolerations = tolerations or []
+        self.configmaps = configmaps or []
+        self.security_context = security_context or {}
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.dnspolicy = dnspolicy
+        self.full_pod_spec = full_pod_spec

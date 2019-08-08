@@ -14,10 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Classes for interacting with Kubernetes API
+"""
 
-import kubernetes.client.models as k8s
-from airflow.kubernetes.models.k8s_model import K8SModel
 import copy
+import kubernetes.client.models as k8s
+from airflow.kubernetes.k8s_model import K8SModel
 
 
 class VolumeMount(K8SModel):
@@ -52,5 +55,5 @@ class VolumeMount(K8SModel):
         cp_pod = copy.deepcopy(pod)
         volume_mount = self.to_k8s_client_obj()
         cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
-        cp_pod.spec.containers[0].volume_mounts.apppend(volume_mount)
+        cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
         return cp_pod

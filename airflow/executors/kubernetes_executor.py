@@ -685,7 +685,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             key, command, executor_config
         )
 
-        kube_executor_config = PodGenerator.from_dict(executor_config)
+        kube_executor_config = PodGenerator.from_obj(executor_config)
         self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self):

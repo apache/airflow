@@ -14,10 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Classes for interacting with Kubernetes API
+"""
 
-import kubernetes.client.models as k8s
-from airflow.kubernetes.models.k8s_model import K8SModel
 import copy
+import kubernetes.client.models as k8s
+from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Resources(K8SModel):
@@ -71,5 +74,5 @@ class Port(K8SModel):
         cp_pod = copy.deepcopy(pod)
         port = self.to_k8s_client_obj()
         cp_pod.spec.containers[0].ports = cp_pod.spec.containers[0].ports or []
-        cp_pod.spec.containers[0].env_from.append(port)
+        cp_pod.spec.containers[0].ports.append(port)
         return cp_pod

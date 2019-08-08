@@ -53,15 +53,18 @@ class PodLauncher(LoggingMixin):
     def run_pod_async(self, pod: V1Pod, **kwargs):
         pod_mutation_hook(pod)
 
-        json_pod = json.dumps(self._client.api_client.sanitize_for_serialization(pod), indent=2)
+        sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
+        json_pod = json.dumps(sanitized_pod, indent=2)
 
         self.log.debug('Pod Creation Request: \n%s', json_pod)
         try:
-            resp = self._client.create_namespaced_pod(body=pod, namespace=pod.spec.namespace, **kwargs)
+            resp = self._client.create_namespaced_pod(body=sanitized_pod,
+                                                      namespace=pod.metadata.namespace, **kwargs)
             self.log.debug('Pod Creation Response: %s', resp)
-        except ApiException:
-            self.log.exception('Exception when attempting to create Namespaced Pod.')
-            raise
+        except Exception as e:
+            self.log.exception('Exception when attempting '
+                               'to create Namespaced Pod: %s', json_pod)
+            raise e
         return resp
 
     def delete_pod(self, pod: V1Pod):
@@ -135,6 +138,8 @@ class PodLauncher(LoggingMixin):
         event = self.read_pod(pod)
         status = next(iter(filter(lambda s: s.name == 'base',
                                   event.status.container_statuses)), None)
+        if not status:
+            return False
         return status.state.running is not None
 
     @tenacity.retry(
@@ -143,12 +148,15 @@ class PodLauncher(LoggingMixin):
         reraise=True
     )
     def read_pod_logs(self, pod: V1Pod):
-
         try:
-            self.log = self._client.read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace,
-                                                            container='base', follow=True, tail_lines=10,
-                                                            _preload_content=False)
-            return self.log
+            return self._client.read_namespaced_pod_log(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+                container='base',
+                follow=True,
+                tail_lines=10,
+                _preload_content=False
+            )
         except BaseHTTPError as e:
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)

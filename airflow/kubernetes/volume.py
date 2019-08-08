@@ -14,15 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Classes for interacting with Kubernetes API
+"""
 
-import kubernetes.client.models as k8s
-from airflow.kubernetes.models.k8s_model import K8SModel
 import copy
+from typing import Dict
+import kubernetes.client.models as k8s
+from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Volume(K8SModel):
-    """Defines Kubernetes Volume"""
-
     def __init__(self, name, configs):
         """ Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
         and Persistent Volumes
@@ -36,11 +38,11 @@ class Volume(K8SModel):
         self.name = name
         self.configs = configs
 
-    def to_k8s_client_obj(self) -> k8s.V1Volume:
-        return k8s.V1Volume(
-            name=self.name,
+    def to_k8s_client_obj(self) -> Dict[str, str]:
+        return {
+            'name': self.name,
             **self.configs
-        )
+        }
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         cp_pod = copy.deepcopy(pod)

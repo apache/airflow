@@ -14,34 +14,40 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module provides an interface between the previous Pod
+API and outputs a kubernetes.client.models.V1Pod.
+The advantage being that the full Kubernetes API
+is supported and no serialization need be written.
+"""
 
+import copy
 import kubernetes.client.models as k8s
 from airflow.executors import Executors
-from typing import Dict
-import copy
+import uuid
 
 
 class PodDefaults:
+    """
+    Static defaults for the PodGenerator
+    """
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     XCOM_CMD = """import time
-    while True:
-        try:
-            time.sleep(3600)
-        except KeyboardInterrupt:
-            exit(0)
+while True:
+    try:
+        time.sleep(3600)
+    except KeyboardInterrupt:
+        exit(0)
     """
-
     VOLUME_MOUNT = k8s.V1VolumeMount(
         name='xcom',
         mount_path=XCOM_MOUNT_PATH
     )
-
     VOLUME = k8s.V1Volume(
         name='xcom',
         empty_dir=k8s.V1EmptyDirVolumeSource()
     )
-
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
         command=['python', '-c', XCOM_CMD],
@@ -51,18 +57,18 @@ class PodDefaults:
 
 
 class PodGenerator:
-    """Contains Kubernetes Airflow Worker configuration logic"""
-
     """
+    Contains Kubernetes Airflow Worker configuration logic
+
     Represents a kubernetes pod and manages execution of a single pod.
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables
-    :type envs: dict
+    :type envs: Dict[str, str]
     :param cmds: The command to be run on the pod
-    :type cmds: list[str]
+    :type cmds: List[str]
     :param secrets: Secrets to be launched to the pod
-    :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
+    :type secrets: List[airflow.kubernetes.models.secret.Secret]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
@@ -77,32 +83,29 @@ class PodGenerator:
     :type tolerations: list
     :param security_context: A dict containing the security context for the pod
     :type security_context: dict
-    :param configmaps: A list containing names of configmaps object
-        mounting env variables to the pod
-    :type configmaps: list[str]
-    :param pod_runtime_info_envs: environment variables about
-                                  pod runtime information (ip, namespace, nodeName, podName)
-    :type pod_runtime_info_envs: list[PodRuntimeEnv]
+    :param configmaps: Any configmap refs to envfrom.
+        If more than one configmap is required, provide a comma separated list
+        configmap_a,configmap_b
+    :type configmaps: str
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
     :param pod: The fully specified pod.
-    :type pod: V1Pod
-    
+    :type pod: kubernetes.client.models.V1Pod
     """
 
     def __init__(
         self,
-        image='airflow-worker:latest',
+        image,
+        name=None,
+        namespace=None,
+        volume_mounts=None,
         envs=None,
         cmds=None,
         args=None,
         labels=None,
         node_selectors=None,
-        name='base',
         ports=None,
         volumes=None,
-        volume_mounts=None,
-        namespace='default',
         image_pull_policy='IfNotPresent',
         restart_policy='Never',
         image_pull_secrets=None,
@@ -116,23 +119,54 @@ class PodGenerator:
         security_context=None,
         configmaps=None,
         dnspolicy=None,
-        pod: k8s.V1Pod = None,
+        pod=None,
         extract_xcom=False,
     ):
         self.ud_pod = pod
-        self.pod: k8s.V1Pod = k8s.V1Pod()
+        self.pod = k8s.V1Pod()
         self.pod.api_version = 'v1'
         self.pod.kind = 'Pod'
 
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
         self.metadata.labels = labels
-        self.metadata.name = name
+        self.metadata.name = name + "-" + str(uuid.uuid4())[:8] if name else None
         self.metadata.namespace = namespace
         self.metadata.annotations = annotations
 
+        # Pod Container
+        self.container = k8s.V1Container(name='base')
+        self.container.image = image
+        self.container.env = []
+
+        if envs:
+            if isinstance(envs, dict):
+                for key, val in envs.items():
+                    self.container.env.append(k8s.V1EnvVar(
+                        name=key,
+                        value=val
+                    ))
+            elif isinstance(envs, list):
+                self.container.env.extend(envs)
+
+        configmaps = configmaps or []
+        self.container.env_from = []
+        for configmap in configmaps:
+            self.container.env_from.append(k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(
+                    name=configmap
+                )
+            ))
+
+        self.container.command = cmds or []
+        self.container.args = args or []
+        self.container.image_pull_policy = image_pull_policy
+        self.container.ports = ports or []
+        self.container.resources = resources
+        self.container.volume_mounts = volume_mounts or []
+
         # Pod Spec
-        self.spec: k8s.V1PodSpec = k8s.V1PodSpec()
+        self.spec = k8s.V1PodSpec(containers=[])
         self.spec.security_context = security_context
         self.spec.tolerations = tolerations
         self.spec.dns_policy = dnspolicy
@@ -144,19 +178,13 @@ class PodGenerator:
         self.spec.node_selector = node_selectors
         self.spec.restart_policy = restart_policy
 
-        # Pod Container
-        self.container: k8s.V1Container = k8s.V1Container()
-        self.container.image = image
-        self.container.envs = envs or []
-        self.container.name = 'base'
-        self.container.env_from = configmaps or []
-        self.container.command = cmds or ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
-        self.container.args = args or []
-        self.container.image_pull_policy = image_pull_policy
-        self.container.ports = ports or []
-        self.container.resources = resources
-        self.container.volume_mounts = volume_mounts or []
-        self.spec.image_pull_secrets = image_pull_secrets or []
+        self.spec.image_pull_secrets = []
+
+        if image_pull_secrets:
+            for image_pull_secret in image_pull_secrets.split(','):
+                self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(
+                    name=image_pull_secret
+                ))
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
@@ -186,32 +214,42 @@ class PodGenerator:
         return pod_cp
 
     @staticmethod
-    def from_dict(obj) -> k8s.V1Pod:
+    def from_obj(obj) -> k8s.V1Pod:
         if obj is None:
             return k8s.V1Pod()
 
+        if isinstance(obj, PodGenerator):
+            return obj.gen_pod()
+
         if not isinstance(obj, dict):
             raise TypeError(
-                'Cannot convert a non-dictionary object into a KubernetesExecutorConfig')
+                'Cannot convert a non-dictionary or non-PodGenerator '
+                'object into a KubernetesExecutorConfig')
 
         namespaced = obj.get(Executors.KubernetesExecutor, {})
 
         resources = namespaced.get('resources')
 
         if resources is None:
-            resources = k8s.V1ResourceRequirements(
-                requests={
-                    'cpu': namespaced.get('request_cpu'),
-                    'memory': namespaced.get('request_memory')
+            requests = {
+                'cpu': namespaced.get('request_cpu'),
+                'memory': namespaced.get('request_memory')
 
-                },
-                limits={
-                    'cpu': namespaced.get('limit_cpu'),
-                    'memory': namespaced.get('limit_memory')
-                }
-            )
+            }
+            limits = {
+                'cpu': namespaced.get('limit_cpu'),
+                'memory': namespaced.get('limit_memory')
+            }
+            all_resources = list(requests.values()) + list(limits.values())
+            if all(r is None for r in all_resources):
+                resources = None
+            else:
+                resources = k8s.V1ResourceRequirements(
+                    requests=requests,
+                    limits=limits
+                )
 
-        annotations: Dict[str, str] = namespaced.get('annotations', {})
+        annotations = namespaced.get('annotations', {})
         gcp_service_account_key = namespaced.get('gcp_service_account_key', None)
 
         if annotations is not None and gcp_service_account_key is not None:
@@ -226,26 +264,26 @@ class PodGenerator:
             args=namespaced.get('args'),
             labels=namespaced.get('labels'),
             node_selectors=namespaced.get('node_selectors'),
-            name=namespaced.get('name', 'base'),
+            name=namespaced.get('name'),
             ports=namespaced.get('ports'),
             volumes=namespaced.get('volumes'),
             volume_mounts=namespaced.get('volume_mounts'),
-            namespace=namespaced.get('namespace', 'default'),
-            image_pull_policy=namespaced.get('image_pull_policy', 'IfNotPresent'),
-            restart_policy=namespaced.get('restart_policy', 'Never'),
+            namespace=namespaced.get('namespace'),
+            image_pull_policy=namespaced.get('image_pull_policy'),
+            restart_policy=namespaced.get('restart_policy'),
             image_pull_secrets=namespaced.get('image_pull_secrets'),
             init_containers=namespaced.get('init_containers'),
             service_account_name=namespaced.get('service_account_name'),
             resources=resources,
             annotations=namespaced.get('annotations'),
             affinity=namespaced.get('affinity'),
-            hostnetwork=namespaced.get('hostnetwork', False),
+            hostnetwork=namespaced.get('hostnetwork'),
             tolerations=namespaced.get('tolerations'),
             security_context=namespaced.get('security_context'),
             configmaps=namespaced.get('configmaps'),
             dnspolicy=namespaced.get('dnspolicy'),
             pod=namespaced.get('pod'),
-            extract_xcom=namespaced.get('extract_xcom', False),
+            extract_xcom=namespaced.get('extract_xcom'),
         )
 
         return pod_spec_generator.gen_pod()
@@ -261,34 +299,50 @@ class PodGenerator:
         :return: the merged pods
 
         This can't be done recursively as certain fields are preserved,
-        some overwritten, and some concatenated, e.g. the [k8s.V1PodSpec]
-        is overwritten in some spots but env should be concatenated to.
+        some overwritten, and some concatenated, e.g. The command
+        should be preserved from base, the volumes appended to and
+        the other fields overwritten.
         """
 
         client_pod_cp = copy.deepcopy(client_pod)
 
         def merge_objects(base_obj, client_obj):
-            for base_key, base_val in base_obj.to_dict().items():
-                if getattr(client_obj, base_key, None) is None and base_val is not None:
+            for base_key in base_obj.to_dict().keys():
+                base_val = getattr(base_obj, base_key, None)
+                if not getattr(client_obj, base_key, None) and base_val:
                     setattr(client_obj, base_key, base_val)
 
-        def extend_objects(base_obj, client_obj):
-            for key, key_type in base_obj.swagger_types:
-                if key_type.startswith('list'):
-                    base_obj_val = getattr(base_obj, key)
-                    client_obj_val = getattr(client_obj, key)
-                    if base_obj_val is not None and client_obj_val is None:
-                        setattr(client_obj, key, base_obj_val)
-                    elif base_obj_val is not None and client_obj_val is not None:
-                        setattr(client_obj_val, key, client_obj_val + base_obj_val)
+        def extend_object_field(base_obj, client_obj, field_name):
+            base_obj_field = getattr(base_obj, field_name, None)
+            client_obj_field = getattr(client_obj, field_name, None)
+            if not base_obj_field:
+                return
+            if not client_obj_field:
+                setattr(client_obj, field_name, base_obj_field)
+                return
+            appended_fields = base_obj_field + client_obj_field
+            setattr(client_obj, field_name, appended_fields)
 
-        def merge_and_extend_objects(base_obj, client_obj):
-            merge_objects(base_obj, client_obj)
-            extend_objects(base_obj, client_obj)
+        # Values at the pod and metadata should be overwritten where they exist,
+        # but certain values at the spec and container level must be conserved.
+        base_container = base_pod.spec.containers[0]
+        client_container = client_pod_cp.spec.containers[0]
 
-        merge_and_extend_objects(base_pod, client_pod_cp)
-        merge_and_extend_objects(base_pod.spec, client_pod_cp.spec)
-        merge_and_extend_objects(base_pod.metadata, client_pod_cp.metadata)
-        merge_and_extend_objects(base_pod.spec.containers[0], client_pod_cp.spec.containers[0])
+        extend_object_field(base_container, client_container, 'volume_mounts')
+        extend_object_field(base_container, client_container, 'env')
+        extend_object_field(base_container, client_container, 'env_from')
+        extend_object_field(base_container, client_container, 'ports')
+        extend_object_field(base_container, client_container, 'volume_devices')
+        client_container.command = base_container.command
+        client_container.args = base_container.args
+        merge_objects(base_pod.spec.containers[0], client_pod_cp.spec.containers[0])
+        # Just append any additional containers from the base pod
+        client_pod_cp.spec.containers.extend(base_pod.spec.containers[1:])
+
+        merge_objects(base_pod.metadata, client_pod_cp.metadata)
+
+        extend_object_field(base_pod.spec, client_pod_cp.spec, 'volumes')
+        merge_objects(base_pod.spec, client_pod_cp.spec)
+        merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp

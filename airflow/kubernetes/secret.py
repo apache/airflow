@@ -14,12 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.exceptions import AirflowConfigException
-import kubernetes.client.models as k8s
-from airflow.kubernetes.models.k8s_model import K8SModel
-from typing import Tuple
+"""
+Classes for interacting with Kubernetes API
+"""
+
 import uuid
 import copy
+from typing import Tuple
+import kubernetes.client.models as k8s
+from airflow.exceptions import AirflowConfigException
+from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Secret(K8SModel):
@@ -41,7 +45,7 @@ class Secret(K8SModel):
             if not provided in `deploy_type` `env` it will mount all secrets in object
         :type key: str or None
         """
-        if deploy_type != 'env' and deploy_type != 'volume':
+        if deploy_type not in ('env', 'volume'):
             raise AirflowConfigException("deploy_type must be env or volume")
 
         self.deploy_type = deploy_type
@@ -72,7 +76,7 @@ class Secret(K8SModel):
 
     def to_env_from_secret(self) -> k8s.V1EnvFromSource:
         return k8s.V1EnvFromSource(
-            secret_ref=self.secret
+            secret_ref=k8s.V1SecretEnvSource(name=self.secret)
         )
 
     def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
@@ -98,7 +102,7 @@ class Secret(K8SModel):
             cp_pod.spec.volumes = pod.spec.volumes or []
             cp_pod.spec.volumes.append(volume)
             cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
-            cp_pod.spec.containers[0].volume_mounts.apppend(volume_mount)
+            cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
         if self.deploy_type == 'env' and self.key is not None:
             env = self.to_env_secret()
             cp_pod.spec.containers[0].env = cp_pod.spec.containers[0].env or []
