@@ -27,9 +27,6 @@ implementation for BigQuery.
 import time
 from copy import deepcopy
 
-import six
-from six import iteritems
-
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas_gbq.gbq import \
@@ -226,6 +223,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.location = location
         self.num_retries = num_retries
 
+    # pylint: disable=too-many-arguments
     def create_empty_table(self,
                            project_id,
                            dataset_id,
@@ -235,6 +233,7 @@ class BigQueryBaseCursor(LoggingMixin):
                            cluster_fields=None,
                            labels=None,
                            view=None,
+                           encryption_configuration=None,
                            num_retries=None):
         """
         Creates a new, empty table in the dataset.
@@ -280,6 +279,13 @@ class BigQueryBaseCursor(LoggingMixin):
                 "useLegacySql": False
             }
 
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         :return: None
         """
 
@@ -307,6 +313,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if view:
             table_resource['view'] = view
+
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
 
         num_retries = num_retries if num_retries else self.num_retries
 
@@ -342,7 +351,8 @@ class BigQueryBaseCursor(LoggingMixin):
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
                               src_fmt_configs=None,
-                              labels=None
+                              labels=None,
+                              encryption_configuration=None
                               ):
         """
         Creates a new external table in the dataset with the data in Google
@@ -405,6 +415,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :type src_fmt_configs: dict
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :type labels: dict
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
 
         if src_fmt_configs is None:
@@ -508,6 +525,9 @@ class BigQueryBaseCursor(LoggingMixin):
         if labels:
             table_resource['labels'] = labels
 
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
+
         try:
             self.service.tables().insert(
                 projectId=project_id,
@@ -535,7 +555,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     schema=None,
                     time_partitioning=None,
                     view=None,
-                    require_partition_filter=None):
+                    require_partition_filter=None,
+                    encryption_configuration=None):
         """
         Patch information in an existing table.
         It only updates fileds that are provided in the request object.
@@ -587,6 +608,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param require_partition_filter: [Optional] If true, queries over the this table require a
             partition filter. If false, queries over the table
         :type require_partition_filter: bool
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
 
         """
 
@@ -612,6 +640,8 @@ class BigQueryBaseCursor(LoggingMixin):
             table_resource['view'] = view
         if require_partition_filter is not None:
             table_resource['requirePartitionFilter'] = require_partition_filter
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
 
         self.log.info('Patching Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -631,7 +661,8 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def run_query(self,  # pylint: disable=too-many-locals,too-many-arguments
+    # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
+    def run_query(self,
                   sql,
                   destination_dataset_table=None,
                   write_disposition='WRITE_EMPTY',
@@ -649,7 +680,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   time_partitioning=None,
                   api_resource_configs=None,
                   cluster_fields=None,
-                  location=None):
+                  location=None,
+                  encryption_configuration=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -721,6 +753,13 @@ class BigQueryBaseCursor(LoggingMixin):
             US and EU. See details at
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
         :type location: str
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
 
         if time_partitioning is None:
@@ -784,8 +823,8 @@ class BigQueryBaseCursor(LoggingMixin):
             cluster_fields = {'fields': cluster_fields}
 
         query_param_list = [
-            (sql, 'query', None, six.string_types),
-            (priority, 'priority', 'INTERACTIVE', six.string_types),
+            (sql, 'query', None, (str,)),
+            (priority, 'priority', 'INTERACTIVE', (str,)),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
             (query_params, 'queryParameters', None, list),
             (udf_config, 'userDefinedFunctionResources', None, list),
@@ -853,6 +892,11 @@ class BigQueryBaseCursor(LoggingMixin):
             _api_resource_configs_duplication_check(
                 'labels', labels, configuration)
             configuration['labels'] = labels
+
+        if encryption_configuration:
+            configuration["query"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
 
         return self.run_with_configuration(configuration)
 
@@ -929,7 +973,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
                  create_disposition='CREATE_IF_NEEDED',
-                 labels=None):
+                 labels=None,
+                 encryption_configuration=None):
         """
         Executes a BigQuery copy command to copy data from one BigQuery table
         to another. See here:
@@ -955,6 +1000,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
         source_project_dataset_tables = ([
             source_project_dataset_tables
@@ -995,6 +1047,11 @@ class BigQueryBaseCursor(LoggingMixin):
         if labels:
             configuration['labels'] = labels
 
+        if encryption_configuration:
+            configuration["copy"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
+
         return self.run_with_configuration(configuration)
 
     def run_load(self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
@@ -1015,7 +1072,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  src_fmt_configs=None,
                  time_partitioning=None,
                  cluster_fields=None,
-                 autodetect=False):
+                 autodetect=False,
+                 encryption_configuration=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -1085,6 +1143,13 @@ class BigQueryBaseCursor(LoggingMixin):
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list[str]
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
 
         # bigquery only allows certain source formats
@@ -1175,6 +1240,11 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if max_bad_records:
             configuration['load']['maxBadRecords'] = max_bad_records
+
+        if encryption_configuration:
+            configuration["load"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
@@ -1962,7 +2032,7 @@ def _bind_parameters(operation, parameters):
     """ Helper method that binds parameters to a SQL query. """
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}
-    for (name, value) in iteritems(parameters):
+    for (name, value) in parameters.items():
         if value is None:
             string_parameters[name] = 'NULL'
         elif isinstance(value, str):

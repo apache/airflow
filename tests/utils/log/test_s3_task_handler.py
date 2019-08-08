@@ -21,7 +21,6 @@ from unittest import mock
 import unittest
 import os
 
-from airflow import configuration
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -55,7 +54,6 @@ class TestS3TaskHandler(unittest.TestCase):
             self.filename_template
         )
 
-        configuration.load_test_config()
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
         task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=self.dag)

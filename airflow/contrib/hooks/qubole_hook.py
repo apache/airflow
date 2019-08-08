@@ -22,7 +22,6 @@ import os
 import pathlib
 import time
 import datetime
-import six
 import re
 
 from airflow.exceptions import AirflowException
@@ -243,7 +242,7 @@ class QuboleHook(BaseHook):
                 elif k in positional_args_list:
                     inplace_args = v
                 elif k == 'tags':
-                    if isinstance(v, six.string_types):
+                    if isinstance(v, str):
                         tags.add(v)
                     elif isinstance(v, (list, tuple)):
                         for val in v:

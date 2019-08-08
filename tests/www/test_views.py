@@ -50,12 +50,12 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
 
 
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        conf.load_test_config()
         cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
@@ -85,10 +85,10 @@ class TestBase(unittest.TestCase):
     def logout(self):
         return self.client.get('/logout/')
 
-    def clear_table(self, model):
-        self.session.query(model).delete()
-        self.session.commit()
-        self.session.close()
+    @classmethod
+    def clear_table(cls, model):
+        with create_session() as session:
+            session.query(model).delete()
 
     def check_content_in_response(self, text, resp, resp_code=200):
         resp_html = resp.data.decode('utf-8')
@@ -286,7 +286,6 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        conf.load_test_config()
         conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
@@ -318,7 +317,7 @@ class TestAirflowBaseViews(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestAirflowBaseViews, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -627,8 +626,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "False")
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'False'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
                                       'most likely for security reasons.'], resp)
@@ -636,8 +635,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "True")
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'True'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
 
@@ -654,8 +653,6 @@ class TestLogView(TestBase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
-
-        conf.load_test_config()
 
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
@@ -1009,7 +1006,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGraphView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1023,7 +1020,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGraphView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1048,7 +1045,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGanttView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1062,7 +1059,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGanttView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1089,7 +1086,7 @@ class TestDagACLView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestDagACLView, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -1260,7 +1257,7 @@ class TestDagACLView(TestBase):
         self.login(username='test',
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        perms = set([str(perm) for perm in test_role.permissions])
+        perms = {str(perm) for perm in test_role.permissions}
         self.assertIn('can dag edit on example_bash_operator', perms)
         self.assertNotIn('can dag read on example_bash_operator', perms)
 
@@ -1856,6 +1853,33 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': None,
             'error': 'No URL found for no_response'})
+
+
+class TestDagRunModelView(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.clear_table(models.DagRun)
+
+    def tearDown(self):
+        self.clear_table(models.DagRun)
+
+    def test_create_dagrun(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03",
+            "run_id": "manual_abc",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
 
 
 if __name__ == '__main__':

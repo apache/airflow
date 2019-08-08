@@ -21,8 +21,6 @@
 from copy import deepcopy
 from unittest import TestCase
 
-import six
-
 from parameterized import parameterized
 from tests.compat import mock
 
@@ -42,7 +40,7 @@ TEST_PROJECT_ID = "example-id"
 
 class BuildProcessorTestCase(TestCase):
     def test_verify_source(self):
-        with six.assertRaisesRegex(self, AirflowException, "The source could not be determined."):
+        with self.assertRaisesRegex(AirflowException, "The source could not be determined."):
             BuildProcessor(body={"source": {"storageSource": {}, "repoSource": {}}}).process_body()
 
     @parameterized.expand(
@@ -77,7 +75,7 @@ class BuildProcessorTestCase(TestCase):
     )
     def test_convert_repo_url_to_storage_dict_invalid(self, url):
         body = {"source": {"repoSource": url}}
-        with six.assertRaisesRegex(self, AirflowException, "Invalid URL."):
+        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
             BuildProcessor(body=body).process_body()
 
     @parameterized.expand(
@@ -102,7 +100,7 @@ class BuildProcessorTestCase(TestCase):
     )
     def test_convert_storage_url_to_dict_invalid(self, url):
         body = {"source": {"storageSource": url}}
-        with six.assertRaisesRegex(self, AirflowException, "Invalid URL."):
+        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
             BuildProcessor(body=body).process_body()
 
     @parameterized.expand([("storageSource",), ("repoSource",)])
@@ -128,7 +126,7 @@ class GcpCloudBuildCreateBuildOperatorTestCase(TestCase):
 
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
-        with six.assertRaisesRegex(self, AirflowException, "The required parameter 'body' is missing"):
+        with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
             CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch(  # type: ignore

@@ -29,15 +29,15 @@ TODO: Review the workflow, change it accordingly to
 #
 # from airflow import DAG
 # import airflow
-# from datetime import datetime, timedelta
+# from datetime import timedelta
 # from airflow.operators import BashOperator
 # from airflow.operators import ShortCircuitOperator
 # from airflow.operators.docker_operator import DockerOperator
 #
 # default_args = {
-#     'owner': 'airflow',
+#     'owner': 'Airflow',
 #     'depends_on_past': False,
-#     'start_date': datetime.utcnow(),
+#     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],
 #     'email_on_failure': False,
 #     'email_on_retry': False,

@@ -21,7 +21,6 @@ import os
 import unittest
 from base64 import b64encode
 
-from airflow import configuration
 from airflow import models
 from airflow.contrib.operators.sftp_operator import SFTPOperator, SFTPOperation
 from airflow.contrib.operators.ssh_operator import SSHOperator
@@ -29,6 +28,7 @@ from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2017, 1, 1)
@@ -47,7 +47,6 @@ reset()
 
 class SFTPOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
@@ -76,8 +75,8 @@ class SFTPOperatorTest(unittest.TestCase):
         self.test_remote_filepath_int_dir = '{0}/{1}'.format(self.test_remote_dir,
                                                              self.test_remote_filename)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_file_transfer_put(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_local_file_content = \
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
@@ -114,8 +113,8 @@ class SFTPOperatorTest(unittest.TestCase):
             ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
             test_local_file_content)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_no_intermediate_dir_error_put(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_local_file_content = \
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
@@ -141,8 +140,8 @@ class SFTPOperatorTest(unittest.TestCase):
             ti2.run()
         self.assertIn('No such file', str(error.exception))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_with_intermediate_dir_put(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_local_file_content = \
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
@@ -179,8 +178,8 @@ class SFTPOperatorTest(unittest.TestCase):
             ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
             test_local_file_content)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_file_transfer_put(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "False")
         test_local_file_content = \
             b"This is local file content \n which is multiline " \
             b"continuing....with other character\nanother line here \n this is last line"
@@ -216,8 +215,8 @@ class SFTPOperatorTest(unittest.TestCase):
             ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
             b64encode(test_local_file_content).decode('utf-8'))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_file_transfer_get(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
@@ -254,8 +253,8 @@ class SFTPOperatorTest(unittest.TestCase):
             content_received = file.read()
         self.assertEqual(content_received.strip(), test_remote_file_content)
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_file_transfer_get(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "False")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
@@ -293,8 +292,8 @@ class SFTPOperatorTest(unittest.TestCase):
         self.assertEqual(content_received.strip(),
                          test_remote_file_content.encode('utf-8').decode('utf-8'))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_no_intermediate_dir_error_get(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
@@ -329,8 +328,8 @@ class SFTPOperatorTest(unittest.TestCase):
             ti2.run()
         self.assertIn('No such file', str(error.exception))
 
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_with_intermediate_dir_error_get(self):
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"

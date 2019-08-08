@@ -26,8 +26,6 @@ import os
 from unittest import mock
 import unittest
 
-configuration.load_test_config()
-
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
@@ -36,7 +34,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class MySqlTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -185,7 +182,6 @@ class MySqlTest(unittest.TestCase):
 
 class PostgresTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -295,7 +291,6 @@ class PostgresTest(unittest.TestCase):
 
 class TransferTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -471,6 +466,57 @@ class TransferTests(unittest.TestCase):
             d["c4"] = "DECIMAL(38,0)"
             d["c5"] = "TIMESTAMP"
             self.assertEqual(mock_load_file.call_args[1]["field_dict"], d)
+        finally:
+            with m.get_conn() as c:
+                c.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+
+    @unittest.skipUnless('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+                         "This is a MySQL test")
+    def test_mysql_to_hive_verify_csv_special_char(self):
+        mysql_table = 'test_mysql_to_hive'
+        hive_table = 'test_mysql_to_hive'
+
+        from airflow.hooks.mysql_hook import MySqlHook
+        m = MySqlHook()
+
+        try:
+            db_record = (
+                'c0',
+                '["true"]'
+            )
+            with m.get_conn() as c:
+                c.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
+                c.execute("""
+                    CREATE TABLE {} (
+                        c0 VARCHAR(25),
+                        c1 VARCHAR(25)
+                    )
+                """.format(mysql_table))
+                c.execute("""
+                    INSERT INTO {} VALUES (
+                        '{}', '{}'
+                    )
+                """.format(mysql_table, *db_record))
+
+            from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+            import unicodecsv as csv
+            t = MySqlToHiveTransfer(
+                task_id='test_m2h',
+                hive_cli_conn_id='hive_cli_default',
+                sql="SELECT * FROM {}".format(mysql_table),
+                hive_table=hive_table,
+                recreate=True,
+                delimiter=",",
+                quoting=csv.QUOTE_NONE,
+                quotechar='',
+                escapechar='@',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+            h = HiveServer2Hook()
+            r = h.get_records("SELECT * FROM {}".format(hive_table))
+            self.assertEqual(r[0], db_record)
         finally:
             with m.get_conn() as c:
                 c.execute("DROP TABLE IF EXISTS {}".format(mysql_table))

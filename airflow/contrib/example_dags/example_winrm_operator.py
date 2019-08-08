@@ -36,7 +36,7 @@ from airflow.contrib.operators.winrm_operator import WinRMOperator
 
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 

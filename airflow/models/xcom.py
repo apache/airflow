@@ -102,19 +102,7 @@ class XCom(Base, LoggingMixin):
         """
         session.expunge_all()
 
-        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
-        if enable_pickling:
-            value = pickle.dumps(value)
-        else:
-            try:
-                value = json.dumps(value).encode('UTF-8')
-            except ValueError:
-                log = LoggingMixin().log
-                log.error("Could not serialize the XCOM value into JSON. "
-                          "If you are using pickles instead of JSON "
-                          "for XCOM, then you need to enable pickle "
-                          "support for XCOM in your airflow config.")
-                raise
+        value = XCom.serialize_value(value)
 
         # remove any duplicate XComs
         session.query(cls).filter(
@@ -229,3 +217,20 @@ class XCom(Base, LoggingMixin):
                 )
             session.delete(xcom)
         session.commit()
+
+    @staticmethod
+    def serialize_value(value):
+        # TODO: "pickling" has been deprecated and JSON is preferred.
+        # "pickling" will be removed in Airflow 2.0.
+        if configuration.getboolean('core', 'enable_xcom_pickling'):
+            return pickle.dumps(value)
+
+        try:
+            return json.dumps(value).encode('UTF-8')
+        except ValueError:
+            log = LoggingMixin().log
+            log.error("Could not serialize the XCOM value into JSON. "
+                      "If you are using pickles instead of JSON "
+                      "for XCOM, then you need to enable pickle "
+                      "support for XCOM in your airflow config.")
+            raise

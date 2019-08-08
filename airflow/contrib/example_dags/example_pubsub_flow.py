@@ -50,7 +50,7 @@ messages = [
 ]
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],

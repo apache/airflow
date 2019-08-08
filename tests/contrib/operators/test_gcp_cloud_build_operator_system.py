@@ -33,7 +33,7 @@ class CloudBuildExampleDagsSystemTest(DagGcpSystemTestCase):
     """
 
     def __init__(self, method_name="runTest"):
-        super(CloudBuildExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id="example_gcp_cloud_build",
             require_local_executor=True,
@@ -42,7 +42,7 @@ class CloudBuildExampleDagsSystemTest(DagGcpSystemTestCase):
         self.helper = GCPCloudBuildTestHelper()
 
     def setUp(self):
-        super(CloudBuildExampleDagsSystemTest, self).setUp()
+        super().setUp()
         self.gcp_authenticator.gcp_authenticate()
         try:
             self.helper.create_repository_and_bucket()
@@ -60,4 +60,4 @@ class CloudBuildExampleDagsSystemTest(DagGcpSystemTestCase):
             self.helper.delete_repo()
         finally:
             self.gcp_authenticator.gcp_revoke_authentication()
-        super(CloudBuildExampleDagsSystemTest, self).tearDown()
+        super().tearDown()

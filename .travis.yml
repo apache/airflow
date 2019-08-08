@@ -18,77 +18,56 @@
 #
 dist: xenial
 language: python
-python:
-  - "3.6"
 env:
   global:
-    - TRAVIS_CACHE=$HOME/.travis_cache/
-    - CASS_DRIVER_BUILD_CONCURRENCY=8
-    - CASS_DRIVER_NO_CYTHON=1
-  matrix:
-    - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
-
+    - BUILD_ID=${TRAVIS_BUILD_ID}
+    - CI="true"
+python: "3.6"
 stages:
   - pre-test
   - test
-
 jobs:
   include:
+    - name: "Tests postgres python 3.6"
+      env: BACKEND=postgres ENV=docker
+      python: "3.6"
+      stage: test
+    - name: "Tests sqlite python 3.5"
+      env: BACKEND=sqlite ENV=docker
+      python: "3.5"
+      stage: test
+    - name: "Tests mysql python 3.6"
+      env: BACKEND=mysql ENV=docker
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (git)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
+      python: "3.6"
+      stage: test
     - name: Flake8
       stage: pre-test
-      install: pip install flake8
-      script: flake8
+      script: ./scripts/ci/ci_flake8.sh
     - name: mypy
       stage: pre-test
-      install: pip install mypy
-      script: mypy airflow tests
+      script: ./scripts/ci/ci_mypy.sh
     - name: Check license header
       stage: pre-test
-      install: skip
-      script: scripts/ci/6-check-license.sh
+      script: ./scripts/ci/ci_check_license.sh
     - name: Lint Dockerfile
       stage: pre-test
-      install: skip
-      script: scripts/ci/ci_lint_dockerfile.sh
+      script: ./scripts/ci/ci_lint_dockerfile.sh
     - name: Check docs
-      stage: pre-test
-      install: pip install -e .[doc]
-      script: docs/build.sh
+      stage: test
+      script: ./scripts/ci/ci_docs.sh
     - name: Pylint
       stage: pre-test
-      install: pip install pylint~=2.3.1  # Ensure the same version as in setup.py
-      script: scripts/ci/ci_pylint.sh
-      cache: false
-cache:
-  directories:
-    - $HOME/.wheelhouse/
-    - $HOME/.cache/pip
-    - $HOME/.travis_cache/
+      script: ./scripts/ci/ci_pylint.sh
+services:
+  - docker
 before_install:
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
-install:
-  - pip install --upgrade pip
-  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet
-script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then
-      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-before_cache:
-  - sudo chown -R travis:travis $HOME/.cache/pip $HOME/.wheelhouse/
+  - ./scripts/ci/ci_before_install.sh
+script: "./scripts/ci/ci_run_airflow_testing.sh"

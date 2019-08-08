@@ -59,12 +59,13 @@ class HttpHook(BaseHook):
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
 
-            if "://" in conn.host:
+            if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
                 # schema defaults to HTTP
                 schema = conn.schema if conn.schema else "http"
-                self.base_url = schema + "://" + conn.host
+                host = conn.host if conn.host else ""
+                self.base_url = schema + "://" + host
 
             if conn.port:
                 self.base_url = self.base_url + ":" + str(conn.port)
@@ -189,7 +190,7 @@ class HttpHook(BaseHook):
         :type _retry_args: dict
 
 
-        :Example::
+        .. code-block:: python
 
             hook = HttpHook(http_conn_id='my_conn',method='GET')
             retry_args = dict(
@@ -201,6 +202,7 @@ class HttpHook(BaseHook):
                      endpoint='v1/test',
                      _retry_args=retry_args
                  )
+
         """
         self._retry_obj = tenacity.Retrying(
             **_retry_args

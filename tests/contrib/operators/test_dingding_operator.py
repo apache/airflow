@@ -21,7 +21,7 @@ import unittest
 
 from unittest import mock
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.dingding_operator import DingdingOperator
 from airflow.utils import timezone
 
@@ -38,7 +38,6 @@ class TestDingdingOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

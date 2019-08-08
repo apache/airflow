@@ -21,15 +21,13 @@ import unittest
 import requests
 from unittest.mock import patch
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
 from tests.compat import mock
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -38,7 +36,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class HttpSensorTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -70,7 +67,7 @@ class HttpSensorTests(unittest.TestCase):
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         task = HttpSensor(
@@ -133,7 +130,7 @@ class HttpSensorTests(unittest.TestCase):
         self,
         mock_session_send
     ):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         response = requests.Response()
@@ -167,7 +164,7 @@ class FakeSession:
         self.response.status_code = 200
         self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
 
-    def send(self, request, **kwargs):
+    def send(self, *args, **kwargs):
         return self.response
 
     def prepare_request(self, request):
@@ -180,7 +177,6 @@ class FakeSession:
 
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

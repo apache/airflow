@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import google
-
 import unittest
+
+import google
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance

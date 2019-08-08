@@ -41,4 +41,4 @@ a MySQL database container:
 
   export AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@127.0.0.1:3306/AIRFLOW_HOME
 
-  airflow initdb
+  airflow db init

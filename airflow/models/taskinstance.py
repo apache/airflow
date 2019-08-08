@@ -189,7 +189,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = ''
         self.executor_config = task.executor_config
         self.init_on_load()
-        # Is this TaskInstance being currently running within `airflow run --raw`.
+        # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
 
@@ -350,7 +350,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
-        cmd = ["airflow", "run", str(dag_id), str(task_id), str(iso)]
+        cmd = ["airflow", "tasks", "run", str(dag_id), str(task_id), str(iso)]
         cmd.extend(["--mark_success"]) if mark_success else None
         cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
         cmd.extend(["--job_id", str(job_id)]) if job_id else None
@@ -902,7 +902,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 start_time = time.time()
 
-                self.render_templates()
+                self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -1102,9 +1102,6 @@ class TaskInstance(Base, LoggingMixin):
     def get_template_context(self, session=None):
         task = self.task
         from airflow import macros
-        tables = None
-        if 'tables' in task.params:
-            tables = task.params['tables']
 
         params = {}
         run_id = ''
@@ -1145,12 +1142,14 @@ class TaskInstance(Base, LoggingMixin):
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
             next_ds_nodash = next_ds.replace('-', '')
+            next_execution_date = pendulum.instance(next_execution_date)
 
         prev_ds = None
         prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
             prev_ds_nodash = prev_ds.replace('-', '')
+            prev_execution_date = pendulum.instance(prev_execution_date)
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
@@ -1198,65 +1197,62 @@ class TaskInstance(Base, LoggingMixin):
                 return str(self.var)
 
         return {
+            'conf': configuration,
             'dag': task.dag,
+            'dag_run': dag_run,
             'ds': ds,
+            'ds_nodash': ds_nodash,
+            'execution_date': pendulum.instance(self.execution_date),
+            'inlets': task.inlets,
+            'macros': macros,
             'next_ds': next_ds,
             'next_ds_nodash': next_ds_nodash,
+            'next_execution_date': next_execution_date,
+            'outlets': task.outlets,
+            'params': params,
             'prev_ds': prev_ds,
             'prev_ds_nodash': prev_ds_nodash,
-            'ds_nodash': ds_nodash,
-            'ts': ts,
-            'ts_nodash': ts_nodash,
-            'ts_nodash_with_tz': ts_nodash_with_tz,
-            'yesterday_ds': yesterday_ds,
-            'yesterday_ds_nodash': yesterday_ds_nodash,
-            'tomorrow_ds': tomorrow_ds,
-            'tomorrow_ds_nodash': tomorrow_ds_nodash,
-            'END_DATE': ds,
-            'end_date': ds,
-            'dag_run': dag_run,
-            'run_id': run_id,
-            'execution_date': self.execution_date,
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
                 lambda: self.previous_execution_date_success),
             'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
-            'next_execution_date': next_execution_date,
-            'latest_date': ds,
-            'macros': macros,
-            'params': params,
-            'tables': tables,
+            'run_id': run_id,
             'task': task,
             'task_instance': self,
-            'ti': self,
             'task_instance_key_str': ti_key_str,
-            'conf': configuration,
             'test_mode': self.test_mode,
+            'ti': self,
+            'tomorrow_ds': tomorrow_ds,
+            'tomorrow_ds_nodash': tomorrow_ds_nodash,
+            'ts': ts,
+            'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'var': {
+                'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
-                'json': VariableJsonAccessor()
             },
-            'inlets': task.inlets,
-            'outlets': task.outlets,
+            'yesterday_ds': yesterday_ds,
+            'yesterday_ds_nodash': yesterday_ds_nodash,
         }
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
 
-    def render_templates(self):
+    def render_templates(self, context=None):
         task = self.task
-        jinja_context = self.get_template_context()
+        if not context:
+            context = self.get_template_context()
+
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
             if self.task.dag.user_defined_macros:
-                jinja_context.update(
-                    self.task.dag.user_defined_macros)
+                context.update(self.task.dag.user_defined_macros)
 
         rt = self.task.render_template  # shortcut to method
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                rendered_content = rt(attr, content, jinja_context)
+                rendered_content = rt(attr, content, context)
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):

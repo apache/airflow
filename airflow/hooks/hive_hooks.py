@@ -27,7 +27,6 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
-from six.moves import zip
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -734,7 +733,7 @@ class HiveMetastoreHook(BaseHook):
         """
         with self.metastore as client:
             table = client.get_table(dbname=schema, tbl_name=table_name)
-            key_name_set = set(key.name for key in table.partitionKeys)
+            key_name_set = {key.name for key in table.partitionKeys}
             if len(table.partitionKeys) == 1:
                 field = table.partitionKeys[0].name
             elif not field:
@@ -863,8 +862,7 @@ class HiveServer2Hook(BaseHook):
                         # DB API 2 raises when no results are returned
                         # we're silencing here as some statements in the list
                         # may be `SET` or DDL
-                        for row in cur:
-                            yield row
+                        yield from cur
                     except ProgrammingError:
                         self.log.debug("get_results returned no records")
 

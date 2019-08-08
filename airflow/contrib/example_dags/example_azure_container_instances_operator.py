@@ -22,7 +22,7 @@ from airflow.contrib.operators.azure_container_instances_operator import AzureCo
 from datetime import datetime, timedelta
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': datetime(2018, 11, 1),
     'email': ['airflow@example.com'],

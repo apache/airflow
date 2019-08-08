@@ -43,14 +43,14 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,
             delimiter=S3_DELIMITER,
-            dest_gcs_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX)
 
         self.assertEqual(operator.task_id, TASK_ID)
         self.assertEqual(operator.bucket, S3_BUCKET)
         self.assertEqual(operator.prefix, S3_PREFIX)
         self.assertEqual(operator.delimiter, S3_DELIMITER)
-        self.assertEqual(operator.dest_gcs_conn_id, GCS_CONN_ID)
+        self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
         self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
 
     @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
@@ -71,7 +71,7 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
         s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
 
-        def _assert_upload(bucket, object, tmp_filename):
+        def _assert_upload(bucket, object, _):
             gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH_PREFIX)
 
             self.assertEqual(gcs_bucket, bucket)

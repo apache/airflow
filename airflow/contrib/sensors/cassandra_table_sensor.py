@@ -31,21 +31,18 @@ class CassandraTableSensor(BaseSensorOperator):
     >>> cassandra_sensor = CassandraTableSensor(table="k.t",
     ...                                         cassandra_conn_id="cassandra_default",
     ...                                         task_id="cassandra_sensor")
+
+    :param table: Target Cassandra table.
+        Use dot notation to target a specific keyspace.
+    :type table: str
+    :param cassandra_conn_id: The connection ID to use
+        when connecting to Cassandra cluster
+    :type cassandra_conn_id: str
     """
     template_fields = ('table',)
 
     @apply_defaults
     def __init__(self, table, cassandra_conn_id, *args, **kwargs):
-        """
-        Create a new CassandraTableSensor
-
-        :param table: Target Cassandra table.
-                      Use dot notation to target a specific keyspace.
-        :type table: str
-        :param cassandra_conn_id: The connection ID to use
-                                  when connecting to Cassandra cluster
-        :type cassandra_conn_id: str
-        """
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

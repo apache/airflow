@@ -21,13 +21,10 @@
 import datetime
 import unittest
 
-from airflow import configuration
 from airflow.jobs import BaseJob
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.db import create_session
-
-configuration.load_test_config()
 
 
 class BaseJobTest(unittest.TestCase):

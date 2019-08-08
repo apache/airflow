@@ -37,7 +37,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 # https://docs.databricks.com/api/latest/jobs.html#runstate
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'email': ['airflow@example.com'],
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2)

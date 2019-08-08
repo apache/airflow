@@ -23,12 +23,12 @@ import copy
 import os
 import pathlib
 import shlex
-from six import iteritems
 import subprocess
 import sys
 import warnings
+# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
+from configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError  # type: ignore
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -332,7 +332,7 @@ class AirflowConfigParser(ConfigParser):
                 key = env_var.replace(section_prefix, '').lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in iteritems(_section):
+        for key, val in _section.items():
             try:
                 val = int(val)
             except ValueError:
@@ -389,7 +389,7 @@ class AirflowConfigParser(ConfigParser):
         if include_env:
             for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
                 try:
-                    _, section, key = ev.split('__')
+                    _, section, key = ev.split('__', 2)
                     opt = self._get_env_var_option(section, key)
                 except ValueError:
                     continue
@@ -494,7 +494,13 @@ def parameterized_config(template):
     return template.format(**all_vars)
 
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+def get_airflow_test_config(airflow_home):
+    if 'AIRFLOW_TEST_CONFIG' not in os.environ:
+        return os.path.join(airflow_home, 'unittests.cfg')
+    return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
+
+
+TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):

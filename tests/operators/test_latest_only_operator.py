@@ -22,7 +22,7 @@ import unittest
 
 from freezegun import freeze_time
 
-from airflow import configuration, DAG, settings
+from airflow import DAG, settings
 from airflow.models import TaskInstance
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -48,7 +48,6 @@ class LatestOnlyOperatorTest(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
             default_args={

@@ -26,7 +26,6 @@ import unittest
 from datetime import datetime
 
 import psutil
-import six
 
 from airflow import DAG
 from airflow.utils import helpers
@@ -39,7 +38,7 @@ class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _ignores_sigterm(child_pid, child_setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
 
         signal.signal(signal.SIGTERM, signal_handler)
@@ -50,7 +49,7 @@ class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)
@@ -247,7 +246,7 @@ class HelpersTest(unittest.TestCase):
         helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
 
         for start_task in start_tasks:
-            six.assertCountEqual(self, start_task.get_direct_relatives(upstream=False), end_tasks)
+            self.assertCountEqual(start_task.get_direct_relatives(upstream=False), end_tasks)
 
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
@@ -270,6 +269,11 @@ class HelpersTest(unittest.TestCase):
         [t1, t2, t3, t4, t5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
         with self.assertRaises(AirflowException):
             helpers.chain([t1, t2], [t3, t4, t5])
+
+    def test_convert_camel_to_snake(self):
+        self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
+        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'),
+                         'something_very_random')
 
 
 if __name__ == '__main__':

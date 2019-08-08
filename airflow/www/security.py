@@ -271,7 +271,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         user_perms_views = self.get_all_permissions_views()
         # return a set of all dags that the user could access
-        return set([view for perm, view in user_perms_views if perm in self.DAG_PERMS])
+        return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
     def has_access(self, permission, view_name, user=None):
         """
@@ -344,7 +344,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
-        deleted_count = pvms.delete()
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for pvm in pvms:
+            sesh.delete(pvm)
+            deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)
@@ -426,15 +433,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             .filter(ab_perm_view_role.columns.role_id == user_role.id)\
             .join(view_menu)\
             .filter(perm_view.view_menu_id != dag_vm.id)
-        all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
+        all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
 
         for role in dag_role:
             # Get all the perm-view of the role
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
-            existing_perms_views = set([pv.permission_view_id
-                                        for pv in existing_perm_view_by_user])
+            existing_perms_views = {pv.permission_view_id for pv in existing_perm_view_by_user}
             missing_perm_views = all_perm_views - existing_perms_views
 
             for perm_view_id in missing_perm_views:
@@ -490,7 +496,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -509,7 +515,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

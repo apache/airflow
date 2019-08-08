@@ -29,7 +29,7 @@ try:
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
     args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'start_date': days_ago(2)
     }
 

@@ -35,8 +35,8 @@ nose_args=$@
 which airflow > /dev/null || python setup.py develop
 
 echo "Initializing the DB"
-yes | airflow initdb
-yes | airflow resetdb
+yes | airflow db init
+yes | airflow db reset
 
 if [ -z "$nose_args" ]; then
   nose_args="--with-coverage \

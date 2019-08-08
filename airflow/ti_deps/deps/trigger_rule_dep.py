@@ -76,16 +76,15 @@ class TriggerRuleDep(BaseTIDep):
         )
 
         successes, skipped, failed, upstream_failed, done = qry.first()
-        for dep_status in self._evaluate_trigger_rule(
-                ti=ti,
-                successes=successes,
-                skipped=skipped,
-                failed=failed,
-                upstream_failed=upstream_failed,
-                done=done,
-                flag_upstream_failed=dep_context.flag_upstream_failed,
-                session=session):
-            yield dep_status
+        yield from self._evaluate_trigger_rule(
+            ti=ti,
+            successes=successes,
+            skipped=skipped,
+            failed=failed,
+            upstream_failed=upstream_failed,
+            done=done,
+            flag_upstream_failed=dep_context.flag_upstream_failed,
+            session=session)
 
     @provide_session
     def _evaluate_trigger_rule(

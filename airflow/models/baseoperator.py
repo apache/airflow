@@ -28,7 +28,6 @@ from datetime import timedelta, datetime
 from typing import Callable, Dict, Iterable, List, Optional, Set
 
 import jinja2
-import six
 
 from airflow import configuration, settings
 from airflow.exceptions import AirflowException
@@ -138,7 +137,7 @@ class BaseOperator(LoggingMixin):
         complete for all runs before each dag can continue processing
         downstream tasks. When set to ``upstream`` the effective weight is the
         aggregate sum of all upstream ancestors. This is the opposite where
-        downtream tasks have higher weight and will be scheduled more
+        downstream tasks have higher weight and will be scheduled more
         aggressively when using positive weight values. This is useful when you
         have multiple dag run instances and prefer to have each dag complete
         before starting upstream tasks of other dags.  When set to
@@ -236,6 +235,28 @@ class BaseOperator(LoggingMixin):
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
 
+    _comps = {
+        'task_id',
+        'dag_id',
+        'owner',
+        'email',
+        'email_on_retry',
+        'retry_delay',
+        'retry_exponential_backoff',
+        'max_retry_delay',
+        'start_date',
+        'schedule_interval',
+        'depends_on_past',
+        'wait_for_downstream',
+        'priority_weight',
+        'sla',
+        'execution_timeout',
+        'on_failure_callback',
+        'on_success_callback',
+        'on_retry_callback',
+        'do_xcom_push',
+    }
+
     @apply_defaults
     def __init__(
         self,
@@ -244,7 +265,7 @@ class BaseOperator(LoggingMixin):
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: int = 0,
+        retries: int = None,
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
@@ -326,7 +347,8 @@ class BaseOperator(LoggingMixin):
                 self
             )
         self._schedule_interval = schedule_interval
-        self.retries = retries
+        self.retries = retries if retries is not None else \
+            configuration.conf.getint('core', 'default_task_retries', fallback=0)
         self.queue = queue
         self.pool = pool
         self.sla = sla
@@ -334,6 +356,7 @@ class BaseOperator(LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
@@ -351,7 +374,7 @@ class BaseOperator(LoggingMixin):
                         d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
         self.weight_rule = weight_rule
 
-        self.resources = Resources(**(resources or {}))
+        self.resources = Resources(*resources) if resources is not None else None
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
@@ -388,28 +411,6 @@ class BaseOperator(LoggingMixin):
 
         if outlets:
             self._outlets.update(outlets)
-
-        self._comps = {
-            'task_id',
-            'dag_id',
-            'owner',
-            'email',
-            'email_on_retry',
-            'retry_delay',
-            'retry_exponential_backoff',
-            'max_retry_delay',
-            'start_date',
-            'schedule_interval',
-            'depends_on_past',
-            'wait_for_downstream',
-            'priority_weight',
-            'sla',
-            'execution_timeout',
-            'on_failure_callback',
-            'on_success_callback',
-            'on_retry_callback',
-            'do_xcom_push',
-        }
 
     def __eq__(self, other):
         if (type(self) == type(other) and
@@ -643,9 +644,15 @@ class BaseOperator(LoggingMixin):
         all elements in it. If the field has another type, it will return it as it is.
         """
         rt = self.render_template
-        if isinstance(content, six.string_types):
+        if isinstance(content, str):
             result = jinja_env.from_string(content).render(**context)
-        elif isinstance(content, (list, tuple)):
+        elif isinstance(content, tuple):
+            if type(content) is not tuple:
+                # Special case for named tuples
+                result = content.__class__(*(rt(attr, e, context) for e in content))
+            else:
+                result = tuple(rt(attr, e, context) for e in content)
+        elif isinstance(content, list):
             result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
             result = {
@@ -664,7 +671,7 @@ class BaseOperator(LoggingMixin):
 
         exts = self.__class__.template_ext
         if (
-                isinstance(content, six.string_types) and
+                isinstance(content, str) and
                 any([content.endswith(ext) for ext in exts])):
             return jinja_env.get_template(content).render(**context)
         else:
@@ -689,7 +696,7 @@ class BaseOperator(LoggingMixin):
             content = getattr(self, attr)
             if content is None:
                 continue
-            elif isinstance(content, six.string_types) and \
+            elif isinstance(content, str) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.get_template_env()
                 try:
@@ -699,7 +706,7 @@ class BaseOperator(LoggingMixin):
             elif isinstance(content, list):
                 env = self.dag.get_template_env()
                 for i in range(len(content)):
-                    if isinstance(content[i], six.string_types) and \
+                    if isinstance(content[i], str) and \
                             any([content[i].endswith(ext) for ext in self.template_ext]):
                         try:
                             content[i] = env.loader.get_source(env, content[i])[0]
@@ -828,7 +835,7 @@ class BaseOperator(LoggingMixin):
         self.log.info('Dry run')
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content and isinstance(content, six.string_types):
+            if content and isinstance(content, str):
                 self.log.info('Rendering template for %s', attr)
                 self.log.info(content)
 

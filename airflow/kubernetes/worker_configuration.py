@@ -16,13 +16,11 @@
 # under the License.
 
 import os
-import six
 
 from airflow.configuration import conf
 import kubernetes.client.models as k8s
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.kubernetes.kube_config import KubeConfig
 from typing import List
 
 
@@ -36,7 +34,7 @@ class WorkerConfiguration(LoggingMixin):
     git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
     git_ssh_known_hosts_configmap_key = 'known_hosts'
 
-    def __init__(self, kube_config: KubeConfig):
+    def __init__(self, kube_config):
         self.kube_config = kube_config
         self.worker_airflow_home = self.kube_config.airflow_home
         self.worker_airflow_dags = self.kube_config.dags_folder
@@ -126,16 +124,16 @@ class WorkerConfiguration(LoggingMixin):
         return [k8s.V1Container(
             name=self.kube_config.git_sync_init_container_name,
             image=self.kube_config.git_sync_container,
-            security_context=k8s.V1SecurityContext(run_as_user=65533),  # git-sync user
+            security_context=k8s.V1SecurityContext(run_as_user=self.kube_config.git_sync_run_as_user or 65533),  # git-sync user
             env=init_environment,
-            volume_mounts=volume_mounts
+            volume_mounts=volume_mounts,
         )]
 
     def _get_env(self) -> List[k8s.V1EnvVar]:
         """Defines any necessary environment variables for the pod executor"""
         env = {}
 
-        for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
+        for env_var_name, env_var_val in self.kube_config.kube_env_vars.items():
             env[env_var_name] = env_var_val
 
         env["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
@@ -179,7 +177,7 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary secrets for the pod executor"""
         worker_secrets: List[k8s.V1EnvVar] = []
 
-        for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
+        for env_var_name, obj_key_pair in self.kube_config.kube_secrets.items():
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
                 k8s.V1EnvVar(
@@ -340,6 +338,7 @@ class WorkerConfiguration(LoggingMixin):
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command):
         pod_generator = PodGenerator(
+
             namespace=namespace,
             name=pod_id,
             image=self.kube_config.kube_image,

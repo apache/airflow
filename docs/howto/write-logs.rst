@@ -29,10 +29,10 @@ The following convention is followed while naming logs: ``{dag_id}/{task_id}/{ex
 
 In addition, users can supply a remote location to store current logs and backups.
 
-In the Airflow Web UI, local logs take precedence over remote logs. If local logs
-can not be found or accessed, the remote logs will be displayed. Note that logs
+In the Airflow Web UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
+can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
-running tasks are unavailable.
+running tasks are unavailable (but local logs are available).
 
 Before you begin
 ''''''''''''''''
@@ -132,7 +132,7 @@ example:
 
   *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
   [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
-  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow run example_bash_operator run_this_last 2017-10-03T00:00:00 --job_id 47 --raw -sd DAGS_FOLDER/example_dags/example_bash_operator.py']
+  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow tasks run example_bash_operator run_this_last 2017-10-03T00:00:00 --job_id 47 --raw -sd DAGS_FOLDER/example_dags/example_bash_operator.py']
   [2017-10-03 21:57:51,264] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,263] {__init__.py:45} INFO - Using executor SequentialExecutor
   [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
 

@@ -21,7 +21,7 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.sqoop_operator import SqoopOperator
 from airflow.exceptions import AirflowException
 
@@ -70,7 +70,6 @@ class TestSqoopOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)

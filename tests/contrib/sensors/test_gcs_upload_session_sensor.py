@@ -22,14 +22,13 @@ import unittest
 import unittest.mock as mock
 from datetime import datetime, timedelta
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow import models, DAG
 from airflow.contrib.sensors import gcs_sensor
 from airflow.settings import Session
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
-configuration.load_test_config()
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -60,7 +59,6 @@ mock_time = mock.Mock(side_effect=next_time_side_effect)
 class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,

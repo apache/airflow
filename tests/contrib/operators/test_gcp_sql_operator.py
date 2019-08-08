@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=too-many-lines
+
 import json
 import os
 import unittest
@@ -170,7 +173,7 @@ class CloudSqlTest(unittest.TestCase):
             body=CREATE_BODY,
             task_id="id"
         )
-        result = op.execute(context={
+        result = op.execute(context={  # pylint: disable=assignment-from-no-return
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
@@ -192,7 +195,7 @@ class CloudSqlTest(unittest.TestCase):
             body=CREATE_BODY,
             task_id="id"
         )
-        result = op.execute(context={
+        result = op.execute(context={  # pylint: disable=assignment-from-no-return
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
@@ -215,7 +218,7 @@ class CloudSqlTest(unittest.TestCase):
             body=CREATE_BODY,
             task_id="id"
         )
-        result = op.execute(context={
+        result = op.execute(context={  # pylint: disable=assignment-from-no-return
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
@@ -780,7 +783,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('postgres', conn.conn_type)
@@ -802,7 +805,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('postgres', conn.conn_type)
@@ -827,7 +830,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('postgres', conn.conn_type)
@@ -850,7 +853,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('mysql', conn.conn_type)
@@ -872,7 +875,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('postgres', conn.conn_type)
@@ -893,7 +896,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('mysql', conn.conn_type)
@@ -915,7 +918,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('mysql', conn.conn_type)
@@ -940,7 +943,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('mysql', conn.conn_type)
@@ -964,7 +967,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('mysql', conn.conn_type)
@@ -1005,7 +1008,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         operator.cloudsql_db_hook.create_connection()
         try:
             db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
         finally:
             operator.cloudsql_db_hook.delete_connection()
         self.assertEqual('postgres', conn.conn_type)

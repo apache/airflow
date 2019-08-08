@@ -25,7 +25,6 @@ import elasticsearch
 from unittest import mock
 import pendulum
 
-from airflow import configuration
 from airflow.models import TaskInstance, DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -71,7 +70,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es.index(index=self.index_name, doc_type=self.doc_type,
                       body=self.body, id=1)
 
-        configuration.load_test_config()
         self.dag = DAG(self.DAG_ID, start_date=self.EXECUTION_DATE)
         task = DummyOperator(task_id=self.TASK_ID, dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=self.EXECUTION_DATE)
@@ -231,6 +229,15 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     def test_set_context(self):
         self.es_task_handler.set_context(self.ti)
         self.assertTrue(self.es_task_handler.mark_end_on_close)
+
+    def test_set_context_w_json_format_and_write_stdout(self):
+        self.es_task_handler.formatter = mock.MagicMock()
+        self.es_task_handler.formatter._fmt = mock.MagicMock()
+        self.es_task_handler.formatter._fmt.find = mock.MagicMock(return_value=1)
+        self.es_task_handler.writer = mock.MagicMock()
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+        self.es_task_handler.set_context(self.ti)
 
     def test_close(self):
         self.es_task_handler.set_context(self.ti)

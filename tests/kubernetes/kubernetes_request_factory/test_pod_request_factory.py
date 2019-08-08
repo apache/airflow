@@ -15,65 +15,51 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.kubernetes.kubernetes_request_factory.pod_request_factory import SimplePodRequestFactory, \
-    ExtractXcomPodRequestFactory
+
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
+from airflow.kubernetes.pod_generator import PodGenerator, PodDefaults
 import unittest
 
 
 class TestPodRequestFactory(unittest.TestCase):
 
     def setUp(self):
+        envs = [
+            k8s.V1EnvVar(name='ENVIRONMENT', value='prod'),
+            k8s.V1EnvVar(name='LOG_LEVEL', value='warning'),
+            k8s.V1EnvVar(name='TARGET', value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    key='source_b',
+                    name='secret_b',
+                )
+            ))
+        ]
+
         self.k8s_client = ApiClient()
-        self.simple_pod_request_factory = SimplePodRequestFactory()
-        self.xcom_pod_request_factory = ExtractXcomPodRequestFactory()
-        self.pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                labels={'app': 'myapp'},
-                name='myapp-pod',
+        self.pod_generator = PodGenerator(
+            labels={'app': 'myapp'},
+            name='myapp-pod',
+            image_pull_secrets=['pull_secret_a','pull_secret_b'],
+            image='busybox',
+            envs=envs,
+            cmds=['sh', '-c', 'echo Hello Kubernetes!'],
+            volumes=[k8s.V1Volume(
+                name='secretvol0',
+                secret=k8s.V1SecretVolumeSource(secret_name='secret_b')
+            )],
+            volume_mounts=[k8s.V1VolumeMount(
+                mount_path='/etc/foo',
+                name='secretvol0',
+                read_only=True
+            )],
+            security_context=k8s.V1PodSecurityContext(
+                run_as_user=1000,
+                fs_group=2000,
             ),
-            spec=k8s.V1PodSpec(
-                image_pull_secrets=[
-                    k8s.V1LocalObjectReference('pull_secret_a'),
-                    k8s.V1LocalObjectReference('pull_secret_b')
-                ],
-                containers=[k8s.V1Container(
-                    image='busybox',
-                    name='base',
-                    env=[
-                        k8s.V1EnvVar(name='ENVIRONMENT', value='prod'),
-                        k8s.V1EnvVar(name='LOG_LEVEL', value='warning'),
-                        k8s.V1EnvVar(name='TARGET', value_from=k8s.V1EnvVarSource(
-                            secret_key_ref=k8s.V1SecretKeySelector(
-                                key='source_b',
-                                name='secret_b',
-                            )
-                        ))
-                    ],
-                    command=['sh', '-c', 'echo Hello Kubernetes!'],
-                    env_from=[
-                        k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource('secret_a')),
-                        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource('configmap_a')),
-                        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource('configmap_b')),
-                    ],
-                    ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
-                    volume_mounts=[k8s.V1VolumeMount(
-                        mount_path='/etc/foo',
-                        name='secretvol0',
-                        read_only=True
-                    )]
-                )],
-                security_context=k8s.V1PodSecurityContext(
-                    run_as_user=1000,
-                    fs_group=2000,
-                ),
-                volumes=[k8s.V1Volume(
-                    name='secretvol0',
-                    secret=k8s.V1SecretVolumeSource(secret_name='secret_b')
-                )]
-            ),
+            ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
         )
+
         self.maxDiff = None
         self.expected = {
             'apiVersion': 'v1',
@@ -118,6 +104,17 @@ class TestPodRequestFactory(unittest.TestCase):
                             'name': 'configmap_b'
                         }
                     }],
+                    'resources': {
+                        'requests': {
+                            'memory': '1Gi',
+                            'cpu': 1
+                        },
+                        'limits': {
+                            'memory': '2Gi',
+                            'cpu': 2,
+                            'nvidia.com/gpu': 1
+                        },
+                    },
                     'ports': [{'name': 'foo', 'containerPort': 1234}],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
@@ -144,19 +141,19 @@ class TestPodRequestFactory(unittest.TestCase):
         }
 
     def test_simple_pod_request_factory_create(self):
-        result = self.simple_pod_request_factory.create(self.pod)
+        result = self.pod_generator.gen_pod()
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         # sort
         result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertDictEqual(result_dict, self.expected)
 
     def test_xcom_pod_request_factory_create(self):
-        result = self.xcom_pod_request_factory.create(self.pod)
-        result_dict = self.k8s_client.sanitize_for_serialization((result))
+        result = self.pod_generator.gen_pod()
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
         container_two = {
             'name': 'airflow-xcom-sidecar',
             'image': 'python:3.5-alpine',
-            'command': ['python', '-c', self.xcom_pod_request_factory.XCOM_CMD],
+            'command': ['python', '-c', PodDefaults.XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',

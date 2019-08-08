@@ -22,7 +22,7 @@ import unittest
 
 import datetime
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor
 from airflow.contrib.sensors.wasb_sensor import WasbPrefixSensor
 from tests.compat import mock
@@ -37,7 +37,6 @@ class TestWasbBlobSensor(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)
@@ -89,7 +88,6 @@ class TestWasbPrefixSensor(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)

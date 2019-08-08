@@ -177,4 +177,4 @@ run tasks:
 
 .. code-block:: bash
 
-    airflow initdb
+    airflow db init

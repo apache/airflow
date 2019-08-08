@@ -20,6 +20,8 @@
 import os
 import unittest
 
+from google.auth.environment_vars import CREDENTIALS
+
 from airflow import AirflowException
 from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, \
     GKEClusterDeleteOperator, GKEPodOperator
@@ -35,12 +37,11 @@ PROJECT_BODY = {'name': 'test-name'}
 PROJECT_BODY_CREATE = {'name': 'test-name', 'initial_node_count': 1}
 
 TASK_NAME = 'test-task-name'
-NAMESPACE = 'default',
+NAMESPACE = ('default',)
 IMAGE = 'bash'
 
 GCLOUD_COMMAND = "gcloud container clusters get-credentials {} --zone {} --project {}"
 KUBE_ENV_VAR = 'KUBECONFIG'
-GAC_ENV_VAR = 'GOOGLE_APPLICATION_CREDENTIALS'
 FILE_NAME = '/tmp/mock_name'
 
 
@@ -68,6 +69,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             operator.execute(None)
             mock_hook.return_value.create_cluster.assert_not_called()
 
+    # pylint:disable=no-value-for-parameter
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_project_id(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -78,6 +80,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             operator.execute(None)
             mock_hook.return_value.create_cluster.assert_not_called()
 
+    # pylint:disable=no-value-for-parameter
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -99,6 +102,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID)
 
+    # pylint:disable=no-value-for-parameter
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_project_id(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -108,6 +112,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             operator.execute(None)
             mock_hook.return_value.delete_cluster.assert_not_called()
 
+    # pylint:disable=no-value-for-parameter
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_cluster_name(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -118,6 +123,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             operator.execute(None)
             mock_hook.return_value.delete_cluster.assert_not_called()
 
+    # pylint:disable=no-value-for-parameter
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -138,13 +144,14 @@ class GKEPodOperatorTest(unittest.TestCase):
                                      name=TASK_NAME,
                                      namespace=NAMESPACE,
                                      image=IMAGE)
-        if GAC_ENV_VAR in os.environ:
-            del os.environ[GAC_ENV_VAR]
+        if CREDENTIALS in os.environ:
+            del os.environ[CREDENTIALS]
 
     def test_template_fields(self):
         self.assertTrue(set(KubernetesPodOperator.template_fields).issubset(
             GKEPodOperator.template_fields))
 
+    # pylint:disable=unused-argument
     @mock.patch(
         'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator.execute')
     @mock.patch('tempfile.NamedTemporaryFile')
@@ -166,6 +173,7 @@ class GKEPodOperatorTest(unittest.TestCase):
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
 
+    # pylint:disable=unused-argument
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch(
         'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator.execute')
@@ -175,9 +183,9 @@ class GKEPodOperatorTest(unittest.TestCase):
     def test_execute_conn_id_path(self, proc_mock, file_mock, exec_mock, get_con_mock):
         # gcp_conn_id is defaulted to `google_cloud_default`
 
-        FILE_PATH = '/path/to/file'
-        KEYFILE_DICT = {"extra__google_cloud_platform__key_path": FILE_PATH}
-        get_con_mock.return_value.extra_dejson = KEYFILE_DICT
+        file_path = '/path/to/file'
+        kaeyfile_dict = {"extra__google_cloud_platform__key_path": file_path}
+        get_con_mock.return_value.extra_dejson = kaeyfile_dict
         file_mock.return_value.__enter__.return_value.name = FILE_NAME
 
         self.gke_op.execute(None)
@@ -186,9 +194,9 @@ class GKEPodOperatorTest(unittest.TestCase):
         self.assertIn(KUBE_ENV_VAR, os.environ)
         self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
 
-        self.assertIn(GAC_ENV_VAR, os.environ)
+        self.assertIn(CREDENTIALS, os.environ)
         # since we passed in keyfile_path we should get a file
-        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_PATH)
+        self.assertEqual(os.environ[CREDENTIALS], file_path)
 
         # Assert the gcloud command being called correctly
         proc_mock.assert_called_with(
@@ -196,6 +204,7 @@ class GKEPodOperatorTest(unittest.TestCase):
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
 
+    # pylint:disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch(
@@ -204,16 +213,16 @@ class GKEPodOperatorTest(unittest.TestCase):
     @mock.patch("subprocess.check_call")
     def test_execute_conn_id_dict(self, proc_mock, file_mock, exec_mock, get_con_mock):
         # gcp_conn_id is defaulted to `google_cloud_default`
-        FILE_PATH = '/path/to/file'
+        file_path = '/path/to/file'
 
         # This is used in the _set_env_from_extras method
-        file_mock.return_value.name = FILE_PATH
+        file_mock.return_value.name = file_path
         # This is used in the execute method
         file_mock.return_value.__enter__.return_value.name = FILE_NAME
 
-        KEYFILE_DICT = {"extra__google_cloud_platform__keyfile_dict":
+        keyfile_dict = {"extra__google_cloud_platform__keyfile_dict":
                         '{"private_key": "r4nd0m_k3y"}'}
-        get_con_mock.return_value.extra_dejson = KEYFILE_DICT
+        get_con_mock.return_value.extra_dejson = keyfile_dict
 
         self.gke_op.execute(None)
 
@@ -221,9 +230,9 @@ class GKEPodOperatorTest(unittest.TestCase):
         self.assertIn(KUBE_ENV_VAR, os.environ)
         self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
 
-        self.assertIn(GAC_ENV_VAR, os.environ)
+        self.assertIn(CREDENTIALS, os.environ)
         # since we passed in keyfile_path we should get a file
-        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_PATH)
+        self.assertEqual(os.environ[CREDENTIALS], file_path)
 
         # Assert the gcloud command being called correctly
         proc_mock.assert_called_with(
@@ -236,55 +245,59 @@ class GKEPodOperatorTest(unittest.TestCase):
         extras = {}
         self.gke_op._set_env_from_extras(extras)
         # _set_env_from_extras should not edit os.environ if extras does not specify
-        self.assertNotIn(GAC_ENV_VAR, os.environ)
+        self.assertNotIn(CREDENTIALS, os.environ)
 
     @mock.patch.dict(os.environ, {})
     @mock.patch('tempfile.NamedTemporaryFile')
     def test_set_env_from_extras_dict(self, file_mock):
-        file_mock.return_value.name = FILE_NAME
-
-        KEYFILE_DICT_STR = '{ \"test\": \"cluster\" }'
+        keyfile_dict_str = '{ \"test\": \"cluster\" }'
         extras = {
-            'extra__google_cloud_platform__keyfile_dict': KEYFILE_DICT_STR,
+            'extra__google_cloud_platform__keyfile_dict': keyfile_dict_str,
         }
 
-        self.gke_op._set_env_from_extras(extras)
-        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_NAME)
+        def mock_temp_write(content):
+            if not isinstance(content, bytes):
+                raise TypeError("a bytes-like object is required, not {}".format(type(content).__name__))
 
-        file_mock.return_value.write.assert_called_once_with(KEYFILE_DICT_STR)
+        file_mock.return_value.write = mock_temp_write
+        file_mock.return_value.name = FILE_NAME
+
+        key_file = self.gke_op._set_env_from_extras(extras)
+        self.assertEqual(os.environ[CREDENTIALS], FILE_NAME)
+        self.assertIsInstance(key_file, mock.MagicMock)
 
     @mock.patch.dict(os.environ, {})
     def test_set_env_from_extras_path(self):
-        TEST_PATH = '/test/path'
+        test_path = '/test/path'
 
         extras = {
-            'extra__google_cloud_platform__key_path': TEST_PATH,
+            'extra__google_cloud_platform__key_path': test_path,
         }
 
         self.gke_op._set_env_from_extras(extras)
-        self.assertEqual(os.environ[GAC_ENV_VAR], TEST_PATH)
+        self.assertEqual(os.environ[CREDENTIALS], test_path)
 
     def test_get_field(self):
-        FIELD_NAME = 'test_field'
-        FIELD_VALUE = 'test_field_value'
+        field_name = 'test_field'
+        field_value = 'test_field_value'
         extras = {
-            'extra__google_cloud_platform__{}'.format(FIELD_NAME):
-                FIELD_VALUE
+            'extra__google_cloud_platform__{}'.format(field_name):
+                field_value
         }
 
-        ret_val = self.gke_op._get_field(extras, FIELD_NAME)
-        self.assertEqual(FIELD_VALUE, ret_val)
+        ret_val = self.gke_op._get_field(extras, field_name)
+        self.assertEqual(field_value, ret_val)
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEPodOperator.log')
     def test_get_field_fail(self, log_mock):
         log_mock.info = mock.Mock()
-        LOG_STR = 'Field %s not found in extras.'
-        FIELD_NAME = 'test_field'
-        FIELD_VALUE = 'test_field_value'
+        log_str = 'Field %s not found in extras.'
+        field_name = 'test_field'
+        field_value = 'test_field_value'
 
         extras = {}
 
-        ret_val = self.gke_op._get_field(extras, FIELD_NAME, default=FIELD_VALUE)
+        ret_val = self.gke_op._get_field(extras, field_name, default=field_value)
         # Assert default is returned upon failure
-        self.assertEqual(FIELD_VALUE, ret_val)
-        log_mock.info.assert_called_with(LOG_STR, FIELD_NAME)
+        self.assertEqual(field_value, ret_val)
+        log_mock.info.assert_called_with(log_str, field_name)

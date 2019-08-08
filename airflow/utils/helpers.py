@@ -23,7 +23,12 @@ import psutil
 
 from datetime import datetime
 from functools import reduce
-from collections import Iterable
+try:
+    # Fix Python > 3.7 deprecation
+    from collections.abc import Iterable
+except ImportError:
+    # Preserve Python < 3.3 compatibility
+    from collections import Iterable
 import os
 import re
 import signal
@@ -289,7 +294,11 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     if pid == os.getpid():
         raise RuntimeError("I refuse to kill myself")
 
-    parent = psutil.Process(pid)
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        # Race condition - the process already exited
+        return
 
     children = parent.children(recursive=True)
     children.append(parent)
@@ -303,15 +312,25 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         raise
 
     log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
+    try:
+        os.killpg(os.getpgid(pid), sig)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            return
+        raise
 
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
             log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except OSError as err:
+            if err.errno == errno.ESRCH:
+                return
+            raise
 
         gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
@@ -346,3 +365,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

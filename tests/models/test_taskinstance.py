@@ -1002,7 +1002,7 @@ class TaskInstanceTest(unittest.TestCase):
                 self.task_state_in_callback = ""
                 self.callback_ran = False
 
-            def success_handler(self, context):
+            def success_handler(self, context):  # pylint: disable=unused-argument
                 self.callback_ran = True
                 session = settings.Session()
                 temp_instance = session.query(TI).filter(
@@ -1143,3 +1143,17 @@ class TaskInstanceTest(unittest.TestCase):
             ti_list[3].previous_start_date_success,
             ti_list[2].start_date,
         )
+
+    def test_pendulum_template_dates(self):
+        dag = models.DAG(
+            dag_id='test_pendulum_template_dates', schedule_interval='0 12 * * *',
+            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        task = DummyOperator(task_id='test_pendulum_template_dates_task', dag=dag)
+
+        ti = TI(task=task, execution_date=timezone.utcnow())
+
+        template_context = ti.get_template_context()
+
+        self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)

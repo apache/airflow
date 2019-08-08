@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+
+from urllib.parse import urlparse
+
 import requests
 
 from airflow import __version__
@@ -25,7 +27,6 @@ from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from time import sleep
-from six.moves.urllib import parse as urlparse
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -88,7 +89,7 @@ class DatabricksHook(BaseHook):
             assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
 
         """
-        urlparse_host = urlparse.urlparse(host).hostname
+        urlparse_host = urlparse(host).hostname
         if urlparse_host:
             # In this case, host = https://xx.cloud.databricks.com
             return urlparse_host
@@ -110,15 +111,20 @@ class DatabricksHook(BaseHook):
         :rtype: dict
         """
         method, endpoint = endpoint_info
-        url = 'https://{host}/{endpoint}'.format(
-            host=self._parse_host(self.databricks_conn.host),
-            endpoint=endpoint)
+
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth.')
+            self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
         else:
-            self.log.info('Using basic auth.')
+            self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
+            host = self.databricks_conn.host
+
+        url = 'https://{host}/{endpoint}'.format(
+            host=self._parse_host(host),
+            endpoint=endpoint)
+
         if method == 'GET':
             request_func = requests.get
         elif method == 'POST':
