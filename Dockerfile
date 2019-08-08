@@ -216,19 +216,6 @@ fi
 
 ENV PATH "${PATH}:/tmp/hive/bin"
 
-ARG RAT_VERSION="0.12"
-
-ENV RAT_VERSION="${RAT_VERSION}" \
-    RAT_JAR="/tmp/apache-rat-${RAT_VERSION}.jar" \
-    RAT_URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
-
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -sL ${RAT_URL} > ${RAT_JAR} \
-    ;\
-fi
-
 ############################################################################################################
 # This is the target image - it installs PIP and NPM dependencies including efficient caching
 # mechanisms - it might be used to build the bare airflow build or CI build
