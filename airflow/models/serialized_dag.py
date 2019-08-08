@@ -80,7 +80,6 @@ class SerializedDagModel(Base):
         :param full_filepath: full filepath of DAG file
         :return: hashed full_filepath
         """
-        # Truncates hash to 4 bytes.
         # hashing is needed because the length of fileloc is 2000 as an Airflow convention,
         # which is over the limit of indexing. If we can reduce the length of fileloc, then
         # hashing is not needed.
