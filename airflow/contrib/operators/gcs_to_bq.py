@@ -178,7 +178,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  external_table=False,
                  time_partitioning=None,
                  cluster_fields=None,
-                 autodetect=False,
+                 autodetect=True,
                  encryption_configuration=None,
                  *args, **kwargs):
 

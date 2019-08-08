@@ -1072,7 +1072,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  src_fmt_configs=None,
                  time_partitioning=None,
                  cluster_fields=None,
-                 autodetect=False,
+                 autodetect=True,
                  encryption_configuration=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
