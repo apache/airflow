@@ -36,12 +36,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
-# show Airflow's deprecation warnings
-warnings.filterwarnings(
-    action='default', category=DeprecationWarning, module='airflow')
-warnings.filterwarnings(
-    action='default', category=PendingDeprecationWarning, module='airflow')
-
 
 def generate_fernet_key():
     try:
