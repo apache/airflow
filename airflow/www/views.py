@@ -20,16 +20,17 @@
 
 import ast
 import codecs
+import configparser
 import copy
 import datetime as dt
 import functools
-import re
 from io import BytesIO
 import itertools
 import json
 import logging
 import math
 import os
+import re
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -72,6 +73,7 @@ from airflow.models import XCom, DagRun
 from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
+from airflow.utils import cron
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
@@ -79,7 +81,6 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.utils import cron
 from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
@@ -101,6 +102,11 @@ logout_user = airflow.login.logout_user
 FILTER_BY_OWNER = False
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
+REPO_SYNCS_CONFIG = None
+if os.path.exists(f'{conf.AIRFLOW_HOME}/dags/repo_syncs/config.ini'):
+    REPO_SYNCS_CONFIG = configparser.ConfigParser()
+    REPO_SYNCS_CONFIG.read(f'{conf.AIRFLOW_HOME}/dags/repo_syncs/config.ini')
 
 if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
@@ -2194,6 +2200,39 @@ class HomeView(AdminIndexView):
 
         max_dt = pendulum.timezone('UTC').convert(dt.datetime(9999, 12, 31))
         dags = list(sorted(obj_dags, key=lambda dag: dagbag.get_dag(dag.dag_id).get_next_run_date(pendulum.now('UTC')) or max_dt))
+
+        owner_dict = {}
+        if REPO_SYNCS_CONFIG:
+            # for finding the sync_repos dag, we only care about DAGs with objects.
+            sync_repos_dags = list(filter(lambda dag: dag.dag_id == REPO_SYNCS_CONFIG.get('DEFAULT', 'DAG_ID'), dags))
+            assert len(sync_repos_dags) <= 1, 'Duplicated dag_id in DAGs list!'
+            if sync_repos_dags:
+                task_id_prefix = REPO_SYNCS_CONFIG.get('DEFAULT', 'SHA_EXPORT_TASK_ID_PREFIX')
+                sync_repos_tasks = dagbag.get_dag(sync_repos_dags[0].dag_id).tasks
+                export_shas_tasks = [task for task in sync_repos_tasks if task.task_id.startswith(task_id_prefix)]
+                repos = json.loads(REPO_SYNCS_CONFIG.get('DEFAULT', 'REPOS'))
+
+                for task in export_shas_tasks:
+                    # the task_id is in the form "{task_id_prefix}_{repo_name}", isolate the repo name by
+                    # removing the task_id_prefix
+                    repo_name = task.task_id[len(task_id_prefix) + 1:]
+                    for pair in repos:
+                        if repo_name == pair['repo']:
+                            break
+                    else:
+                        continue
+
+                    last_run = sync_repos_dags[0].get_last_dagrun(include_externally_triggered=True)
+                    while last_run and not last_run.end_date:
+                        # we don't want to clear the last SHAs as soon as the DAG begins running again;
+                        # wait until it finishes
+                        last_run = last_run.get_previous_dagrun()
+
+                    if last_run:
+                        xcom = get_xcom(session, sync_repos_dags[0].dag_id, task.task_id, last_run.execution_date)
+                        if 'return_value' in xcom:
+                            owner_dict[pair['owner']] = {'sha': xcom['return_value'], 'repo': repo_name}
+
         # tack on DAGModels with no DAG object
         dags += no_obj_dags
 
@@ -2223,6 +2262,7 @@ class HomeView(AdminIndexView):
             xcom_log_urls_key=conf.get('core', 'xcom_log_urls_key'),
             get_xcom=functools.partial(get_xcom, session),
             include_owners=include_owners,
+            owner_dict=owner_dict,
             auto_complete_data=auto_complete_data)
 
 def get_xcom(session, dag_id, task_id, dttm):

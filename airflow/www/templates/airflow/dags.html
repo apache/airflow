@@ -42,13 +42,16 @@
         </form>
       </div>
     </div>
-
     <div id="owner-boxes">
       {% for owner in dags | map(attribute='owners') | unique(case_sensitive=True) | sort %}
         {% set show_owner = include_owners is none or owner in include_owners %}
         <div id="owner-box">
           <input type="checkbox" class="owner-checkbox" name="owner-checkbox-{{ owner }}" owner="{{ owner }}" {{ 'checked' if show_owner else '' }}>
-          <label for="owner-checkbox-{{ owner }}">{{ owner }}</label>
+          <label for="owner-checkbox-{{ owner }}">{{ owner }}
+          {% if owner in owner_dict %}
+            (SHA: <a href="https://github.com/coatue/{{ owner_dict[owner]['repo'] }}/tree/{{ owner_dict[owner]['sha'] }}">{{ owner_dict[owner]['sha'][:10] }}</a>)
+          {% endif %}
+          </label>
         </div>
       {% endfor %}
     </div>
