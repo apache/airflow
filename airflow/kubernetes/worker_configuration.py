@@ -20,7 +20,9 @@ import six
 
 from airflow.configuration import conf
 import kubernetes.client.models as k8s
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.kubernetes.kube_config import KubeConfig
 from typing import List
 
 
@@ -34,12 +36,11 @@ class WorkerConfiguration(LoggingMixin):
     git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
     git_ssh_known_hosts_configmap_key = 'known_hosts'
 
-    def __init__(self, kube_config):
+    def __init__(self, kube_config: KubeConfig):
         self.kube_config = kube_config
         self.worker_airflow_home = self.kube_config.airflow_home
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
-
         super().__init__()
 
     def _get_init_containers(self) -> List[k8s.V1Container]:
@@ -337,70 +338,31 @@ class WorkerConfiguration(LoggingMixin):
         return dag_volume_mount_path
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command, kube_executor_config):
-        volumes = self._get_volumes()
-        volume_mounts = self._get_volume_mounts()
-        worker_init_container_spec = self._get_init_containers()
-        resources = k8s.V1ResourceRequirements(
-            limits={
-                'memory': kube_executor_config.limit_memory,
-                'cpu': kube_executor_config.limit_cpu
-            },
-            requests={
-                'memory': kube_executor_config.request_memory,
-                'cpu': kube_executor_config.request_cpu
-            }
-        )
-        gcp_sa_key = kube_executor_config.gcp_service_account_key
-        annotations = dict(kube_executor_config.annotations) or self.kube_config.kube_annotations
-        if gcp_sa_key:
-            annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
-
-        volumes = volumes + kube_executor_config.volumes
-        volume_mounts = volume_mounts + kube_executor_config.volume_mounts
-
-        affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
-        tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
-
-        container = k8s.V1Container(
-            name='base',
-            image=kube_executor_config.image or self.kube_config.kube_image,
-            image_pull_policy=(kube_executor_config.image_pull_policy or
-                               self.kube_config.kube_image_pull_policy),
-            command=[airflow_command],
-            env=self._get_env() + self._get_secret_env(),
-            volume_mounts=volume_mounts,
-            resources=resources,
-            env_from=self._get_env_from()
-        )
-
-        spec = k8s.V1PodSpec(
-            containers=[container],
-            node_selector=(kube_executor_config.node_selectors or
-                           self.kube_config.kube_node_selectors),
-            service_account_name=self.kube_config.worker_service_account_name,
-            image_pull_secrets=self.kube_config.image_pull_secrets,
-            init_containers=worker_init_container_spec,
-            volumes=volumes,
-            affinity=affinity,
-            tolerations=tolerations,
-            security_context=self._get_security_context(),
-        )
-
-        metadata = k8s.V1ObjectMeta(
+                 try_number, airflow_command):
+        pod_generator = PodGenerator(
             namespace=namespace,
             name=pod_id,
-            annotations=annotations,
-            labels=self._get_labels(kube_executor_config.labels, {
+            image=self.kube_config.kube_image,
+            image_pull_policy=self.kube_config.kube_image_pull_policy,
+            labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
-            })
+            },
+            cmds=[airflow_command],
+            volumes=self._get_volumes(),
+            volume_mounts=self._get_volume_mounts(),
+            init_containers=self._get_init_containers(),
+            annotations=self.kube_config.kube_annotations,
+            affinity=self.kube_config.kube_affinity,
+            tolerations=self.kube_config.kube_tolerations,
+            configmaps=self._get_env_from(),
+            security_context=self._get_security_context(),
+            envs=self._get_env() + self._get_secret_env(),
+            node_selectors=self.kube_config.kube_node_selectors,
+            service_account_name=self.kube_config.worker_service_account_name,
         )
 
-        return k8s.V1Pod(
-            metadata=metadata,
-            spec=spec
-        )
+        return pod_generator.gen_pod()

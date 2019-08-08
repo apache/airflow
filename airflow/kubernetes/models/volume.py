@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import kubernetes.client.models as k8s
+from airflow.kubernetes.models.k8s_model import K8SModel
+import copy
 
-class Volume:
+
+class Volume(K8SModel):
     """Defines Kubernetes Volume"""
 
     def __init__(self, name, configs):
@@ -31,3 +35,16 @@ class Volume:
         """
         self.name = name
         self.configs = configs
+
+    def to_k8s_client_obj(self) -> k8s.V1Volume:
+        return k8s.V1Volume(
+            name=self.name,
+            **self.configs
+        )
+
+    def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
+        cp_pod = copy.deepcopy(pod)
+        volume = self.to_k8s_client_obj()
+        cp_pod.spec.volumes = pod.spec.volumes or []
+        cp_pod.spec.volumes.append(volume)
+        return cp_pod

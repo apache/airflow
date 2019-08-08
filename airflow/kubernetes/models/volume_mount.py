@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import kubernetes.client.models as k8s
+from airflow.kubernetes.models.k8s_model import K8SModel
+import copy
 
-class VolumeMount:
+
+class VolumeMount(K8SModel):
     """Defines Kubernetes Volume Mount"""
 
     def __init__(self, name, mount_path, sub_path, read_only):
@@ -35,3 +39,18 @@ class VolumeMount:
         self.mount_path = mount_path
         self.sub_path = sub_path
         self.read_only = read_only
+
+    def to_k8s_client_obj(self) -> k8s.V1VolumeMount:
+        return k8s.V1VolumeMount(
+            name=self.name,
+            mount_path=self.mount_path,
+            sub_path=self.sub_path,
+            read_only=self.read_only
+        )
+
+    def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
+        cp_pod = copy.deepcopy(pod)
+        volume_mount = self.to_k8s_client_obj()
+        cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
+        cp_pod.spec.containers[0].volume_mounts.apppend(volume_mount)
+        return cp_pod

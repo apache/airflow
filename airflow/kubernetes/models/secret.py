@@ -15,9 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.exceptions import AirflowConfigException
+import kubernetes.client.models as k8s
+from airflow.kubernetes.models.k8s_model import K8SModel
+from typing import Tuple
+import uuid
+import copy
 
 
-class Secret:
+class Secret(K8SModel):
     """Defines Kubernetes Secret Volume"""
 
     def __init__(self, deploy_type, deploy_target, secret, key=None):
@@ -36,6 +41,9 @@ class Secret:
             if not provided in `deploy_type` `env` it will mount all secrets in object
         :type key: str or None
         """
+        if deploy_type != 'env' and deploy_type != 'volume':
+            raise AirflowConfigException("deploy_type must be env or volume")
+
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target
 
@@ -50,6 +58,56 @@ class Secret:
 
         self.secret = secret
         self.key = key
+
+    def to_env_secret(self) -> k8s.V1EnvVar:
+        return k8s.V1EnvVar(
+            name=self.deploy_target,
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name=self.secret,
+                    key=self.key
+                )
+            )
+        )
+
+    def to_env_from_secret(self) -> k8s.V1EnvFromSource:
+        return k8s.V1EnvFromSource(
+            secret_ref=self.secret
+        )
+
+    def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
+        vol_id = 'secretvol{}'.format(uuid.uuid4())
+        return (
+            k8s.V1Volume(
+                name=vol_id,
+                secret=k8s.V1SecretVolumeSource(
+                    secret_name=self.secret
+                )
+            ),
+            k8s.V1VolumeMount(
+                mount_path=self.deploy_target,
+                name=vol_id,
+                read_only=True
+            )
+        )
+
+    def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
+        cp_pod = copy.deepcopy(pod)
+        if self.deploy_type == 'volume':
+            volume, volume_mount = self.to_volume_secret()
+            cp_pod.spec.volumes = pod.spec.volumes or []
+            cp_pod.spec.volumes.append(volume)
+            cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
+            cp_pod.spec.containers[0].volume_mounts.apppend(volume_mount)
+        if self.deploy_type == 'env' and self.key is not None:
+            env = self.to_env_secret()
+            cp_pod.spec.containers[0].env = cp_pod.spec.containers[0].env or []
+            cp_pod.spec.containers[0].env.append(env)
+        if self.deploy_type == 'env' and self.key is None:
+            env_from = self.to_env_from_secret()
+            cp_pod.spec.containers[0].env_from = cp_pod.spec.containers[0].env_from or []
+            cp_pod.spec.containers[0].env_from.append(env_from)
+        return cp_pod
 
     def __eq__(self, other):
         return (
