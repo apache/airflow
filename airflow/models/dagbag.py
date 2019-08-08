@@ -115,7 +115,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
-        :param from_file_only: alway load DAG from file.
+        :param from_file_only: returns a DAG loaded from file.
         :type from_file_only: bool
         """
         from airflow.models.dag import DagModel  # Avoid circular import
