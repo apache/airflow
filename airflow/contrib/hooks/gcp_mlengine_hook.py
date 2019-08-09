@@ -16,41 +16,13 @@
 """
 This module contains a Google ML Engine Hook.
 """
-
-import random
 import time
-from typing import Dict, Callable, List, Optional
+from typing import Dict, List, Optional
 
-from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 
+from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-
-def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
-    log = LoggingMixin().log
-
-    for i in range(0, max_n):
-        try:
-            response = request.execute()
-            if is_error_func(response):
-                raise ValueError(
-                    'The response contained an error: {}'.format(response)
-                )
-            if is_done_func(response):
-                log.info('Operation is done: %s', response)
-                return response
-
-            time.sleep((2**i) + (random.randint(0, 1000) / 1000))
-        except HttpError as e:
-            if e.resp.status != 429:
-                log.info('Something went wrong. Not retrying: %s', format(e))
-                raise
-            else:
-                time.sleep((2**i) + (random.randint(0, 1000) / 1000))
-
-    raise ValueError('Connection could not be established after {} retries.'.format(max_n))
 
 
 class MLEngineHook(GoogleCloudBaseHook):
@@ -62,6 +34,7 @@ class MLEngineHook(GoogleCloudBaseHook):
     """
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
+        self.num_retries = self._get_field('num_retries', 9)  # type: int
         self._mlengine = self.get_conn()
 
     def get_conn(self):
@@ -71,7 +44,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Callable = None) -> Dict:
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_job(self, job: Dict, project_id: str = None) -> Dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -90,14 +65,6 @@ class MLEngineHook(GoogleCloudBaseHook):
                 }
 
         :type job: dict
-        :param use_existing_job_fn: In case that a MLEngine job with the same
-            job_id already exist, this method (if provided) will decide whether
-            we should use this existing job, continue waiting for it to finish
-            and returning the job object. It should accepts a MLEngine job
-            object, and returns a boolean value indicating whether it is OK to
-            reuse the existing job. If 'use_existing_job_fn' is not provided,
-            we by default reuse the existing MLEngine job.
-        :type use_existing_job_fn: function
         :return: The MLEngine job object if the job successfully reach a
             terminal state (which might be FAILED or CANCELLED state).
         :rtype: dict
@@ -107,31 +74,10 @@ class MLEngineHook(GoogleCloudBaseHook):
             body=job)
         job_id = job['jobId']
 
-        try:
-            request.execute()
-        except HttpError as e:
-            # 409 means there is an existing job with the same job ID.
-            if e.resp.status == 409:
-                if use_existing_job_fn is not None:
-                    existing_job = self._get_job(project_id, job_id)
-                    if not use_existing_job_fn(existing_job):
-                        self.log.error(
-                            'Job with job_id %s already exist, but it does '
-                            'not match our expectation: %s',
-                            job_id, existing_job
-                        )
-                        raise
-                self.log.info(
-                    'Job with job_id %s already exist. Will waiting for it to finish',
-                    job_id
-                )
-            else:
-                self.log.error('Failed to create MLEngine job: {}'.format(e))
-                raise
-
+        request.execute(num_retries=self.num_retries)
         return self._wait_for_job_done(project_id, job_id)
 
-    def _get_job(self, project_id: str, job_id: str) -> Dict:
+    def _get_job(self, job_id: str, project_id: str) -> Dict:
         """
         Gets a MLEngine job based on the job name.
 
@@ -141,18 +87,10 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         job_name = 'projects/{}/jobs/{}'.format(project_id, job_id)
         request = self._mlengine.projects().jobs().get(name=job_name)  # pylint: disable=no-member
-        while True:
-            try:
-                return request.execute()
-            except HttpError as e:
-                if e.resp.status == 429:
-                    # polling after 30 seconds when quota failure occurs
-                    time.sleep(30)
-                else:
-                    self.log.error('Failed to get MLEngine job: {}'.format(e))
-                    raise
 
-    def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
+        return request.execute(num_retries=self.num_retries)
+
+    def _wait_for_job_done(self, job_id: str, project_id: str, interval: int = 30):
         """
         Waits for the Job to reach a terminal state.
 
@@ -168,7 +106,9 @@ class MLEngineHook(GoogleCloudBaseHook):
                 return job
             time.sleep(interval)
 
-    def create_version(self, project_id: str, model_name: str, version_spec: Dict) -> Dict:
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_version(self, model_name: str, version_spec: Dict, project_id: str = None,) -> Dict:
         """
         Creates the Version on Google Cloud ML Engine.
 
@@ -182,13 +122,16 @@ class MLEngineHook(GoogleCloudBaseHook):
         get_request = self._mlengine.projects().operations().get(  # pylint: disable=no-member
             name=response['name'])
 
-        return _poll_with_exponential_delay(
-            request=get_request,
-            max_n=9,
-            is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None)
+        response = get_request.execute(num_retries=self.num_retries)
+        if 'done' in response:
+            self.log.info('Operation is done: %s', response)
+            return response
 
-    def set_default_version(self, project_id: str, model_name: str, version_name: str) -> Dict:
+        raise AirflowException('En error occurred: {}'.format(response))
+
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def set_default_version(self, model_name: str, version_name: str, project_id: str = None) -> Dict:
         """
         Sets a version to be the default. Blocks until finished.
         """
@@ -197,15 +140,11 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().models().versions().setDefault(  # pylint: disable=no-member
             name=full_version_name, body={})
 
-        try:
-            response = request.execute()
-            self.log.info('Successfully set version: %s to default', response)
-            return response
-        except HttpError as e:
-            self.log.error('Something went wrong: %s', e)
-            raise
+        return request.execute(num_retries=self.num_retries)
 
-    def list_versions(self, project_id: str, model_name: str) -> List[Dict]:
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def list_versions(self, model_name: str, project_id: str = None) -> List[Dict]:
         """
         Lists all available versions of a model. Blocks until finished.
         """
@@ -215,7 +154,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
             parent=full_parent_name, pageSize=100)
 
-        response = request.execute()
+        response = request.execute(num_retries=self.num_retries)
         next_page_token = response.get('nextPageToken', None)
         result.extend(response.get('versions', []))
         while next_page_token is not None:
@@ -229,7 +168,9 @@ class MLEngineHook(GoogleCloudBaseHook):
             time.sleep(5)
         return result
 
-    def delete_version(self, project_id: str, model_name: str, version_name: str):
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def delete_version(self, model_name: str, version_name: str, project_id: str = None):
         """
         Deletes the given version of a model. Blocks until finished.
         """
@@ -241,13 +182,16 @@ class MLEngineHook(GoogleCloudBaseHook):
         get_request = self._mlengine.projects().operations().get(  # pylint: disable=no-member
             name=response['name'])
 
-        return _poll_with_exponential_delay(
-            request=get_request,
-            max_n=9,
-            is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None)
+        response = get_request.execute(num_retries=self.num_retries)
+        if 'done' in response:
+            self.log.info('Operation is done: %s', response)
+            return response
 
-    def create_model(self, project_id: str, model: Dict) -> Dict:
+        raise AirflowException('En error occured: {}'.format(response))
+
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_model(self, model: Dict,  project_id: str = None) -> Dict:
         """
         Create a Model. Blocks until finished.
         """
@@ -258,9 +202,11 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         request = self._mlengine.projects().models().create(  # pylint: disable=no-member
             parent=project, body=model)
-        return request.execute()
+        return request.execute(num_retries=self.num_retries)
 
-    def get_model(self, project_id: str, model_name: str) -> Optional[Dict]:
+    @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def get_model(self, model_name: str,  project_id: str = None) -> Optional[Dict]:
         """
         Gets a Model. Blocks until finished.
         """
@@ -270,10 +216,4 @@ class MLEngineHook(GoogleCloudBaseHook):
         full_model_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
         request = self._mlengine.projects().models().get(name=full_model_name)  # pylint: disable=no-member
-        try:
-            return request.execute()
-        except HttpError as e:
-            if e.resp.status == 404:
-                self.log.error('Model was not found: %s', e)
-                return None
-            raise
+        return request.execute(num_retries=self.num_retries)
