@@ -90,7 +90,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         es_conf = conf.getsection("elasticsearch_configs")
         expected_dict = collections.OrderedDict({
             "use_ssl": False,
-            "verify_certs": False,
+            "verify_certs": True,
         })
         self.assertDictEqual(es_conf, expected_dict)
         # ensure creating with configs does not fail
