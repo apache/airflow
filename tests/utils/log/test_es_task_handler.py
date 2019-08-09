@@ -20,7 +20,6 @@
 import os
 import shutil
 import unittest
-import collections
 
 import elasticsearch
 from unittest import mock
