@@ -23,7 +23,7 @@ import json
 import time
 import markdown
 import re
-from typing import Any
+from typing import Any, Optional
 import zipfile
 import os
 import io
@@ -376,7 +376,7 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-def get_python_source(x: Any) -> str:
+def get_python_source(x: Any) -> Optional[str]:
     """
     Helper function to get Python source (or not), preventing exceptions
     """

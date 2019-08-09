@@ -30,6 +30,7 @@ import pendulum
 
 import airflow
 from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, DAG
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -74,12 +75,11 @@ class Serialization:
         return cls._deserialize(json.loads(json_str), {})
 
     @classmethod
-    def validate_json(cls, json_str: str) -> bool:
+    def validate_json(cls, json_str: str):
         """Validate json_str satisfies JSON schema."""
         if cls._json_schema is None:
-            LOG.warning('JSON schema of %s is not set.', cls.__name__)
-            return False
-        return jsonschema.validate(json.loads(json_str), cls._json_schema)
+            raise AirflowException('JSON schema of {:s} is not set.'.format(cls.__name__))
+        jsonschema.validate(json.loads(json_str), cls._json_schema)
 
     @staticmethod
     def _encode(x, type_):
@@ -161,9 +161,11 @@ class Serialization:
             elif callable(var):
                 return str(get_python_source(var))
             elif isinstance(var, set):
+                # FIXME: casts set to list in customized serilization in future.
                 return cls._encode(
                     [cls._serialize(v, visited_dags) for v in var], type_=DAT.SET)
             elif isinstance(var, tuple):
+                # FIXME: casts tuple to list in customized serilization in future.
                 return cls._encode(
                     [cls._serialize(v, visited_dags) for v in var], type_=DAT.TUPLE)
             else:

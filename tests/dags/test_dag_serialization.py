@@ -236,19 +236,20 @@ class TestStringifiedDAGs(unittest.TestCase):
             dag = Serialization.to_json(v)
             serialized_dags[v.dag_id] = dag
 
-        simple_dag_json_str = serialized_dags['simple_dag']
-        simple_dag_json = json.loads(simple_dag_json_str)
+        # Verify JSON schema of serialized DAGs.
+        for json_str in serialized_dags.values():
+            json_object = json.loads(json_str)
+            task_dict = json_object['__var']['task_dict']['__var']
 
-        # Verify JSON schema.
-        SerializedBaseOperator.validate_json(
-            json.dumps(simple_dag_json['__var']['task_dict']['__var']['simple_task'],
-                       ensure_ascii=True))
+            # Verify JSON schema of serialized operators.
+            for task in task_dict.values():
+                SerializedBaseOperator.validate_json(json.dumps(task, ensure_ascii=True))
 
-        SerializedDAG.validate_json(simple_dag_json_str)
+            SerializedDAG.validate_json(json_str)
 
-        # Verify serialized DAGs.
+        # Compares with the ground truth of JSON string.
         self.validate_serialized_dag(
-            simple_dag_json_str,
+            serialized_dags['simple_dag'],
             serialized_simple_dag_ground_truth)
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):

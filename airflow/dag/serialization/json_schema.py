@@ -27,7 +27,7 @@ from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 def make_object_schema(
         var_schema: Optional[dict] = None, type_enum: Optional[list] = None) -> dict:
     """jsonschema of an encoded object.
-    :param var_schema: Json Schema for variable
+    :param var_schema: Json schema of variable
     :param type_enum: Used to restrict a value to a fixed set of values.
     """
     schema = {
@@ -86,9 +86,17 @@ def make_operator_schema() -> dict:
                 'ui_color': {'type': 'string'},
                 'ui_fgcolor': {'type': 'string'},
                 'template_fields': {
-                    'type': 'array',
-                    'items': {'type': 'string'}
-                }},
+                    'anyOf': [
+                        {
+                            'type': 'array',
+                            'items': {'type': 'string'}
+                        },
+                        make_object_schema(
+                            var_schema={'type': 'array'},
+                            type_enum=[DAT.TUPLE.value]),
+                    ]
+                }
+            },
             'required': [
                 'task_id', 'owner', 'start_date', '_dag',
                 'ui_color', 'ui_fgcolor', 'template_fields']
@@ -114,9 +122,13 @@ def make_dag_schema() -> dict:
                 'timezone': make_object_schema(
                     var_schema={'type': 'string'},
                     type_enum=[DAT.TIMEZONE.value]),
-                'schedule_interval': make_object_schema(
-                    var_schema={'type': 'number'},
-                    type_enum=[DAT.TIMEDELTA.value]),
+                'schedule_interval': {
+                    'anyOf': [
+                        {'type': 'string'},  # cron format.
+                        make_object_schema(
+                            var_schema={'type': 'number'},
+                            type_enum=[DAT.TIMEDELTA.value])]
+                },
                 'catchup': {'type': 'boolean'},
                 'is_subdag': {'type': 'boolean'}
             },
