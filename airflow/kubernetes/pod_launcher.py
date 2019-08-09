@@ -103,6 +103,10 @@ class PodLauncher(LoggingMixin):
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:
+                try:
+                    line = line.decode('utf-8').rstrip()
+                except:
+                    pass
                 self.log.info(line)
         result = None
         if self.extract_xcom:
@@ -151,7 +155,6 @@ class PodLauncher(LoggingMixin):
                 namespace=pod.namespace,
                 container='base',
                 follow=True,
-                tail_lines=10,
                 _preload_content=False
             )
         except BaseHTTPError as e:
