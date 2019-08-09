@@ -133,7 +133,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Not applicable for external tables.
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
-        options and schema for CSV and JSON sources. (Default: ``False``).
+        options and schema for CSV and JSON sources. (Default: ``True``).
         Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
