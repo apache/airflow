@@ -65,6 +65,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         file has been skipped. This is to prevent overloading the user with logging
         messages about skipped files. Therefore only once per DagBag is a file logged
         being skipped.
+    :param dagcached_enabled: Read DAGs from DB if dagcached_enabled is ``True``.
+        If ``False`` DAGs are read from python files.
+    :type dagcached_enabled: bool
     """
 
     # static class variables to detetct dag cycle
@@ -115,6 +118,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
+        :param dag_id: DAG Id
+        :type dag_id: str
         :param from_file_only: returns a DAG loaded from file.
         :type from_file_only: bool
         """
@@ -363,8 +368,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=None,
             only_if_updated=True,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            dagcached_enabled=False):
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.

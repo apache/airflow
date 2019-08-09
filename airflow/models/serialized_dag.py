@@ -106,7 +106,7 @@ class SerializedDagModel(Base):
     def read_all_dags(cls) -> Dict[str, 'SerializedDAG']:
         """Reads all DAGs in serialized_dag table.
 
-        :param returns: a dict of DAGs read from database
+        :returns: a dict of DAGs read from database
         """
         from airflow.dag.serialization import Serialization
 
@@ -134,7 +134,7 @@ class SerializedDagModel(Base):
     def remove_deleted_dags(cls, alive_dag_filelocs: List[str]):
         """Deletes DAGs not included in alive_dag_filelocs.
 
-        :param alive_dag_ids: file paths of alive DAGs
+        :param alive_dag_filelocs: file paths of alive DAGs
         """
         alive_fileloc_hashes = [
             cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
