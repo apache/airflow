@@ -147,6 +147,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         if self.dagcached_enabled and dag is not None:
             from airflow.dag.serialization.serialized_dag import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
+            self.log.info("Processing DAG file to render template.")
 
         # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)

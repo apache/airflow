@@ -25,6 +25,7 @@ from airflow.exceptions import DagNotFound
 from airflow.models import DagModel, SerializedDagModel, TaskFail
 from airflow.settings import DAGCACHED_ENABLED
 from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 @provide_session
@@ -37,6 +38,8 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     :param session: session used
     :return count of deleted dags
     """
+    logger = LoggingMixin()
+    logger.log.info("Deleting DAG: %s", dag_id)
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
