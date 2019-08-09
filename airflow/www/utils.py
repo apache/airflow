@@ -422,6 +422,8 @@ def get_python_source(x):
     """
     Helper function to get Python source (or not), preventing exceptions
     """
+    if isinstance(x, str):
+        return x
     source_code = None
 
     if isinstance(x, functools.partial):
