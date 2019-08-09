@@ -614,6 +614,11 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
     :type dataset_id: str
+    :param delete_contents: (Optional) Whether to force the deletion even if the dataset is not empty.
+        Will delete all tables (if any) in the dataset if set to True.
+        Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+        The default value is False.
+    :type delete_contents: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
@@ -625,6 +630,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         delete_temp_data = BigQueryDeleteDatasetOperator(
             dataset_id='temp-dataset',
             project_id='temp-project',
+            delete_contents=True, # Force the deletion of the dataset as well as its tables (if any).
             gcp_conn_id='_my_gcp_conn_',
             task_id='Deletetemp',
             dag=dag)
@@ -637,6 +643,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     def __init__(self,
                  dataset_id,
                  project_id=None,
+                 delete_contents=False,
                  gcp_conn_id='google_cloud_default',
                  bigquery_conn_id=None,
                  delegate_to=None,
@@ -650,6 +657,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.delete_contents = delete_contents
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
@@ -667,7 +675,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         cursor.delete_dataset(
             project_id=self.project_id,
-            dataset_id=self.dataset_id
+            dataset_id=self.dataset_id,
+            delete_contents=self.delete_contents
         )
 
 

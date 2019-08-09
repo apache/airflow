@@ -1683,13 +1683,19 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def delete_dataset(self, project_id, dataset_id):
+    def delete_dataset(self, project_id, dataset_id, delete_contents=False):
         """
         Delete a dataset of Big query in your project.
+
         :param project_id: The name of the project where we have the dataset .
         :type project_id: str
         :param dataset_id: The dataset to be delete.
         :type dataset_id: str
+        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
+            Will delete all tables (if any) in the dataset if set to True.
+            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+            The default value is False.
+        :type delete_contents: bool
         :return:
         """
         project_id = project_id if project_id is not None else self.project_id
@@ -1699,7 +1705,8 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             self.service.datasets().delete(
                 projectId=project_id,
-                datasetId=dataset_id).execute(num_retries=self.num_retries)
+                datasetId=dataset_id,
+                deleteContents=delete_contents).execute(num_retries=self.num_retries)
             self.log.info('Dataset deleted successfully: In project %s '
                           'Dataset %s', project_id, dataset_id)
 

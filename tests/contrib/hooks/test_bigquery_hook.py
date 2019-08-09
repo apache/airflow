@@ -703,6 +703,19 @@ class TestDatasetsOperations(unittest.TestCase):
                 project_id=project_id)
             self.assertEqual(result, expected_result['datasets'])
 
+    def test_delete_dataset(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        delete_contents = True
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.delete
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.delete_dataset(project_id, dataset_id, delete_contents)
+
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id,
+                                       deleteContents=delete_contents)
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
