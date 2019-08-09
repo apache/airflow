@@ -19,7 +19,7 @@
 
 """Operator serialization with JSON."""
 
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT
 from airflow.dag.serialization.json_schema import make_operator_schema
 from airflow.dag.serialization.serialization import Serialization
 from airflow.models import BaseOperator

@@ -29,7 +29,7 @@ import jsonschema
 import pendulum
 
 import airflow
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, BaseOperator
 from airflow.models.connection import Connection

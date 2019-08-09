@@ -21,7 +21,7 @@
 
 from typing import Any, Dict, Optional
 
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 
 def make_object_schema(

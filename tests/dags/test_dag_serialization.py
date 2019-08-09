@@ -28,7 +28,7 @@ from unittest import mock
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
 from airflow.dag.serialization import Serialization, SerializedBaseOperator, SerializedDAG
-from airflow.dag.serialization.enum import Encoding
+from airflow.dag.serialization.enums import Encoding
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, BaseOperator, Connection, DagBag
 from airflow.operators.bash_operator import BashOperator
