@@ -28,33 +28,12 @@ from airflow.models import SerializedDagModel as SDM
 from airflow.utils import db
 
 
-EXAMPLE_DAGS = [
-    'example_bash_operator',
-    'example_branch_operator',
-    'example_branch_dop_operator_v3',
-    'example_http_operator',
-    'latest_only_with_trigger',
-    'latest_only',
-    'example_passing_params_via_test_command',
-    'example_pig_operator',
-    'example_python_operator',
-    'example_short_circuit_operator',
-    'example_skip_dag',
-    'example_subdag_operator',
-    'example_trigger_controller_dag',
-    'example_trigger_target_dag',
-    'example_xcom',
-    'test_utils',
-    'tutorial'
-]
-
-
 # FIXME: it is defined in tests/dags/test_dag_serialization.py as well.
 # To move it to a shared module.
-def make_example_dags(module, dag_ids):
+def make_example_dags(module):
     """Loads DAGs from a module for test."""
     dagbag = DagBag(module.__path__[0])
-    return {k: dagbag.dags[k] for k in dag_ids}
+    return dagbag.dags
 
 
 # FIXME: move it to airflow/utils/db.py if needed.
@@ -77,7 +56,7 @@ class SerializedDagModelTest(unittest.TestCase):
         self.assertTrue(SDM.dag_fileloc_hash('/airflow/dags/test_dag.py') == 60791)
 
     def _write_example_dags(self):
-        example_dags = make_example_dags(example_dags_module, EXAMPLE_DAGS)
+        example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
             SDM.write_dag(dag)
         return example_dags
