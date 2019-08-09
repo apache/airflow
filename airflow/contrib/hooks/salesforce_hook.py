@@ -73,7 +73,7 @@ class SalesforceHook(BaseHook):
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, **kwargs):
+    def make_query(self, query, include_deleted=False, **query_params):
         """
         Make a query to Salesforce.
 
@@ -81,13 +81,15 @@ class SalesforceHook(BaseHook):
         :type query: str
         :param include_deleted: True if the query should include deleted records.
         :type include_deleted: bool
+        :param query_params: Additional optional arguments
+        :type dict
         :return: The query result.
         :rtype: dict
         """
         conn = self.get_conn()
 
         self.log.info("Querying for all objects")
-        query_results = conn.query_all(query, include_deleted=include_deleted, **kwargs)
+        query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
         self.log.info("Received results: Total size: %s; Done: %s",
                       query_results['totalSize'], query_results['done'])
