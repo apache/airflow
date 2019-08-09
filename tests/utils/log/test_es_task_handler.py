@@ -87,11 +87,11 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertIsInstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
 
     def test_client_with_config(self):
-        es_conf = conf.getsection("elasticsearch_configs")
-        expected_dict = collections.OrderedDict({
+        es_conf = dict(conf.getsection("elasticsearch_configs"))
+        expected_dict = {
             "use_ssl": False,
             "verify_certs": True,
-        })
+        }
         self.assertDictEqual(es_conf, expected_dict)
         # ensure creating with configs does not fail
         ElasticsearchTaskHandler(
