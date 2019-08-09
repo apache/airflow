@@ -432,8 +432,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         # from the table by the scheduler job.
         self.log.info("Filling up the DagBag from database")
         self.dags = SerializedDagModel.read_all_dags()
-        Stats.gauge(
-            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+        Stats.timing('collect_dags', timezone.utcnow() - start_dttm)
         Stats.gauge('dagbag_size', len(self.dags), 1)
 
     def dagbag_report(self):

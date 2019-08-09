@@ -1578,9 +1578,18 @@ class DagModel(Base):
         return self.dag_id.replace('.', '__dot__')
 
     def get_dag(self, dagcached_enabled=False):
-        # Calling it from UI should set dagcached_enabled = DAGCACHED_ENABLED.
-        return DagBag(
+        """Creates a dagbag to load and return a DAG.
+
+        Calling it from UI should set dagcached_enabled = DAGCACHED_ENABLED.
+        There may be a delay for scheduler to write serialized DAG into database,
+        loads from file in this case.
+        FIXME: removes it when webserver does not access to DAG folder in future.
+        """
+        dag = DagBag(
             dag_folder=self.fileloc, dagcached_enabled=dagcached_enabled).get_dag(self.dag_id)
+        if dagcached_enabled and dag is None:
+            dag = self.get_dag()
+        return dag
 
     @provide_session
     def create_dagrun(self,
