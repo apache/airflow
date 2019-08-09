@@ -1726,7 +1726,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False, dagcached_enabled=DAGCACHED_ENABLED)
+        dagbag.collect_dags(only_if_updated=False)
         # sync permissions for all dags
         for dag_id, dag in dagbag.dags.items():
             appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
