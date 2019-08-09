@@ -87,7 +87,7 @@ class TestMarkTasks(unittest.TestCase):
 
         self.assertTrue(len(tis) > 0)
 
-        for ti in tis:
+        for ti in tis:  # pylint: disable=too-many-nested-blocks
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
             else:
@@ -260,7 +260,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(dr.get_task_instance('run_this_last').state, State.FAILED)
 
     @provide_session
-    def _verify_task_instance_states(self, dag, date, state, session):
+    def _verify_task_instance_states(self, dag, date, state, session=None):
         TI = models.TaskInstance
         tis = session.query(TI)\
             .filter(TI.dag_id == dag.dag_id, TI.execution_date == date)

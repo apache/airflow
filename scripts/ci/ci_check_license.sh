@@ -20,6 +20,8 @@ set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+export PYTHON_VERSION=3.5
+
 # shellcheck source=./_utils.sh
 . "${MY_DIR}/_utils.sh"
 

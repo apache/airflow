@@ -156,7 +156,7 @@ class DataFlowJavaOperator(BaseOperator):
                'partitionType': 'DAY',
                'labels': {'foo' : 'bar'}
            },
-           gcp_conn_id='gcp-airflow-service-account',
+           gcp_conn_id='airflow-conn-id',
            dag=my-dag)
 
     """
@@ -273,7 +273,7 @@ class DataflowTemplateOperator(BaseOperator):
                'inputFile': "gs://bucket/input/my_input.txt",
                'outputFile': "gs://bucket/output/my_output.txt"
            },
-           gcp_conn_id='gcp-airflow-service-account',
+           gcp_conn_id='airflow-conn-id',
            dag=my-dag)
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are

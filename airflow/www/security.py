@@ -496,7 +496,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -515,7 +515,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

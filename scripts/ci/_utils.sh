@@ -173,7 +173,11 @@ function update_all_md5_files() {
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
-    touch "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}_${PYTHON_VERSION}"
+    local SUFFIX=""
+    if [[ -n ${PYTHON_VERSION:=""} ]]; then
+        SUFFIX="_${PYTHON_VERSION}"
+    fi
+    touch "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}${SUFFIX}"
 }
 
 #

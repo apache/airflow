@@ -52,7 +52,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         :rtype: google.cloud.speech_v1.SpeechClient
         """
         if not self._client:
-            self._client = SpeechClient(credentials=self._get_credentials())
+            self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     def recognize_speech(

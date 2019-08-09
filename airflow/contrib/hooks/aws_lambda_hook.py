@@ -17,6 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains AWS Lambda hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
@@ -44,6 +47,7 @@ class AwsLambdaHook(AwsHook):
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
+        self.conn = None
         super().__init__(*args, **kwargs)
 
     def get_conn(self):

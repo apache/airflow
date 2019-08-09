@@ -149,6 +149,7 @@ class _DataflowJob(LoggingMixin):
         """
         Helper method to check the state of all jobs in dataflow for this task
         if job failed raise exception
+
         :return: True if job is done.
         :rtype: bool
         :raise: Exception
@@ -311,7 +312,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+    @GoogleCloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,

@@ -147,7 +147,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         :rtype: google.cloud.vision_v1.ProductSearchClient
         """
         if not self._client:
-            self._client = ProductSearchClient(credentials=self._get_credentials())
+            self._client = ProductSearchClient(
+                credentials=self._get_credentials(),
+                client_info=self.client_info
+            )
         return self._client
 
     @cached_property

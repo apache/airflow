@@ -365,3 +365,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

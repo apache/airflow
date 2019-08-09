@@ -216,19 +216,6 @@ fi
 
 ENV PATH "${PATH}:/tmp/hive/bin"
 
-ARG RAT_VERSION="0.12"
-
-ENV RAT_VERSION="${RAT_VERSION}" \
-    RAT_JAR="/tmp/apache-rat-${RAT_VERSION}.jar" \
-    RAT_URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
-
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -sL ${RAT_URL} > ${RAT_JAR} \
-    ;\
-fi
-
 ############################################################################################################
 # This is the target image - it installs PIP and NPM dependencies including efficient caching
 # mechanisms - it might be used to build the bare airflow build or CI build
@@ -359,13 +346,6 @@ RUN \
         gosu ${AIRFLOW_USER} npm run prod; \
     fi
 
-# Always apt-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Cache for this line will be automatically invalidated if any
 # of airflow sources change
 COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
@@ -374,13 +354,6 @@ WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
 RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
-
-# Always add-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""

@@ -194,7 +194,7 @@ class GKEClusterHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.gcp_container_hook.container_v1.'
                 'ClusterManagerClient')
-    @mock.patch('airflow.contrib.hooks.gcp_container_hook.ClientInfo')
+    @mock.patch('airflow.contrib.hooks.gcp_api_base_hook.ClientInfo')
     @mock.patch('airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._get_credentials')
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None

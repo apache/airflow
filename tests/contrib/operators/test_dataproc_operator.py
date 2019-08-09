@@ -61,6 +61,7 @@ TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 CUSTOM_IMAGE = 'test-custom-image'
+CUSTOM_IMAGE_PROJECT_ID = 'test-custom-image-project-id'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
@@ -319,6 +320,27 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         expected_custom_image_url = \
             'https://www.googleapis.com/compute/beta/projects/' \
             '{}/global/images/{}'.format(GCP_PROJECT_ID, CUSTOM_IMAGE)
+        self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
+                         expected_custom_image_url)
+        self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
+                         expected_custom_image_url)
+
+    def test_init_with_custom_image_with_custom_image_project_id(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=GCE_ZONE,
+            dag=self.dag,
+            custom_image=CUSTOM_IMAGE,
+            custom_image_project_id=CUSTOM_IMAGE_PROJECT_ID
+        )
+
+        cluster_data = dataproc_operator._build_cluster_data()
+        expected_custom_image_url = \
+            'https://www.googleapis.com/compute/beta/projects/' \
+            '{}/global/images/{}'.format(CUSTOM_IMAGE_PROJECT_ID, CUSTOM_IMAGE)
         self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
                          expected_custom_image_url)
         self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],

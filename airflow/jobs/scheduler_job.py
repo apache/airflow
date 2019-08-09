@@ -28,6 +28,7 @@ import time
 from collections import defaultdict
 from datetime import timedelta
 from time import sleep
+from typing import List, Set
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -36,7 +37,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, SlaMiss, errors
+from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS
 from airflow.utils import asciiart, helpers, timezone
@@ -1204,14 +1205,17 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Processing %s", dag.dag_id)
 
-            dag_run = self.create_dag_run(dag)
-            if dag_run:
-                expected_start_date = dag.following_schedule(dag_run.execution_date)
-                if expected_start_date:
-                    schedule_delay = dag_run.start_date - expected_start_date
-                    Stats.timing(
-                        'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
-                        schedule_delay)
+            # Only creates DagRun for DAGs that are not subdag since
+            # DagRun of subdags are created when SubDagOperator executes.
+            if not dag.is_subdag:
+                dag_run = self.create_dag_run(dag)
+                if dag_run:
+                    expected_start_date = dag.following_schedule(dag_run.execution_date)
+                    if expected_start_date:
+                        schedule_delay = dag_run.start_date - expected_start_date
+                        Stats.timing(
+                            'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                            schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
@@ -1439,6 +1443,23 @@ class SchedulerJob(BaseJob):
 
         settings.Session.remove()
 
+    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
+        """
+        Find the DAGs that are not paused to process.
+
+        :param dags: specified DAGs
+        :param paused_dag_ids: paused DAG IDs
+        :return: DAGs to process
+        """
+        if len(self.dag_ids) > 0:
+            dags = [dag for dag in dags
+                    if dag.dag_id in self.dag_ids and
+                    dag.dag_id not in paused_dag_ids]
+        else:
+            dags = [dag for dag in dags
+                    if dag.dag_id not in paused_dag_ids]
+        return dags
+
     @provide_session
     def process_file(self, file_path, pickle_dags=False, session=None):
         """
@@ -1487,8 +1508,7 @@ class SchedulerJob(BaseJob):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-        paused_dag_ids = [dag.dag_id for dag in dagbag.dags.values()
-                          if dag.is_paused]
+        paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
@@ -1500,14 +1520,7 @@ class SchedulerJob(BaseJob):
                     pickle_id = dag.pickle(session).id
                 simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
 
-        if len(self.dag_ids) > 0:
-            dags = [dag for dag in dagbag.dags.values()
-                    if dag.dag_id in self.dag_ids and
-                    dag.dag_id not in paused_dag_ids]
-        else:
-            dags = [dag for dag in dagbag.dags.values()
-                    if not dag.parent_dag and
-                    dag.dag_id not in paused_dag_ids]
+        dags = self._find_dags_to_process(dagbag.dags.values(), paused_dag_ids)
 
         # Not using multiprocessing.Queue() since it's no longer a separate
         # process and due to some unusual behavior. (empty() incorrectly

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from tempfile import NamedTemporaryFile
 
 from airflow.contrib.hooks.gcs_hook import (GoogleCloudStorageHook,
@@ -52,8 +52,10 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param dest_gcs_conn_id: The destination connection ID to use
-        when connecting to Google Cloud Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type dest_gcs_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
@@ -94,6 +96,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  delimiter='',
                  aws_conn_id='aws_default',
                  verify=None,
+                 gcp_conn_id='google_cloud_default',
                  dest_gcs_conn_id=None,
                  dest_gcs=None,
                  delegate_to=None,
@@ -108,7 +111,14 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
             aws_conn_id=aws_conn_id,
             *args,
             **kwargs)
-        self.dest_gcs_conn_id = dest_gcs_conn_id
+
+        if dest_gcs_conn_id:
+            warnings.warn(
+                "The dest_gcs_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = dest_gcs_conn_id
+
+        self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
         self.replace = replace
@@ -127,7 +137,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         files = super().execute(context)
 
         gcs_hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.dest_gcs_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 
         if not self.replace:

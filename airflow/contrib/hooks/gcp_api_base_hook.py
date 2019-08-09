@@ -31,20 +31,19 @@ import httplib2
 
 import google.auth
 import google.oauth2.service_account
+from google.api_core.client_info import ClientInfo
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
+from google.auth.environment_vars import CREDENTIALS
 
 import google_auth_httplib2
 from googleapiclient.errors import HttpError
 
+from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
-# The name of the environment variable that Google Authentication library uses
-# to get service account key location. Read more:
-# https://cloud.google.com/docs/authentication/getting-started#setting_the_environment_variable
-_G_APP_CRED_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -175,6 +174,20 @@ class GoogleCloudBaseHook(BaseHook):
         """
         return self._get_field('project')
 
+    @property
+    def client_info(self) -> ClientInfo:
+        """
+        Return client information used to generate a user-agent for API calls.
+
+        It allows for better errors tracking.
+
+        This object is only used by the google-cloud-* libraries that are built specifically for
+        the Google Cloud Platform. It is not supported by The Google APIs Python Client that use Discovery
+        based APIs.
+        """
+        client_info = ClientInfo(client_library_version='airflow_v' + version.version)
+        return client_info
+
     @staticmethod
     def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:
         """
@@ -232,30 +245,25 @@ class GoogleCloudBaseHook(BaseHook):
             return func(self, *args, **kwargs)
         return inner_wrapper
 
-    class _Decorators:
-        """A private inner class for keeping all decorator methods."""
-
-        @staticmethod
-        def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
-            """
-            Function decorator that provides a GOOGLE_APPLICATION_CREDENTIALS
-            environment variable, pointing to file path of a JSON file of service
-            account key.
-            """
-            @functools.wraps(func)
-            def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
-                with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                    key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-                    keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, '
-                                'use a JSON key file.')
-                        os.environ[_G_APP_CRED_ENV_VAR] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
-                    return func(self, *args, **kwargs)
-            return wrapper
+    @staticmethod
+    def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
+        """
+        Function decorator that provides a ``GOOGLE_APPLICATION_CREDENTIALS``
+        environment variable, pointing to file path of a JSON file of service
+        account key.
+        """
+        @functools.wraps(func)
+        def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+                keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+                if key_path:
+                    if key_path.endswith('.p12'):
+                        raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+                    os.environ[CREDENTIALS] = key_path
+                elif keyfile_dict:
+                    conf_file.write(keyfile_dict)
+                    conf_file.flush()
+                    os.environ[CREDENTIALS] = conf_file.name
+                return func(self, *args, **kwargs)
+        return wrapper

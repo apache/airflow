@@ -27,7 +27,6 @@ from typing import Dict, Union, Optional
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
-from google.api_core.gapic_v1.client_info import ClientInfo
 from google.api_core.retry import Retry
 
 from google.cloud import container_v1, exceptions
@@ -68,9 +67,10 @@ class GKEClusterHook(GoogleCloudBaseHook):
         """
         if self._client is None:
             credentials = self._get_credentials()
-            # Add client library info for better error tracking
-            client_info = ClientInfo(client_library_version='airflow_v' + version.version)
-            self._client = container_v1.ClusterManagerClient(credentials=credentials, client_info=client_info)
+            self._client = container_v1.ClusterManagerClient(
+                credentials=credentials,
+                client_info=self.client_info
+            )
         return self._client
 
     @staticmethod

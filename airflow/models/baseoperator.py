@@ -693,7 +693,7 @@ class BaseOperator(LoggingMixin):
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
-            content = getattr(self, attr)
+            content = getattr(self, attr, None)
             if content is None:
                 continue
             elif isinstance(content, str) and \

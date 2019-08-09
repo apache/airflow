@@ -56,7 +56,10 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
         :rtype: google.cloud.texttospeech_v1.TextToSpeechClient
         """
         if not self._client:
-            self._client = TextToSpeechClient(credentials=self._get_credentials())
+            self._client = TextToSpeechClient(
+                credentials=self._get_credentials(),
+                client_info=self.client_info
+            )
 
         return self._client
 

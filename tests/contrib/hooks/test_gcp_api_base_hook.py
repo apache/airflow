@@ -25,6 +25,7 @@ from io import StringIO
 from parameterized import parameterized
 
 import google.auth
+from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
 from google.api_core.exceptions import RetryError, AlreadyExists
 from google.cloud.exceptions import MovedPermanently
@@ -82,6 +83,55 @@ class TestCatchHttpException(unittest.TestCase):
         self.assertTrue(self.called)
 
 
+class FallbackToDefaultProjectIdFixtureClass:
+    def __init__(self, project_id):
+        self.mock = mock.Mock()
+        self.fixture_project_id = project_id
+
+    @hook.GoogleCloudBaseHook.fallback_to_default_project_id
+    def method(self, project_id=None):
+        self.mock(project_id=project_id)
+
+    @property
+    def project_id(self):
+        return self.fixture_project_id
+
+
+class TestFallbackToDefaultProjectId(unittest.TestCase):
+
+    def test_no_arguments(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method()
+
+        gcp_hook.mock.assert_called_once_with(project_id=321)
+
+    def test_default_project_id(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method(project_id=None)
+
+        gcp_hook.mock.assert_called_once_with(project_id=321)
+
+    def test_provided_project_id(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        gcp_hook.method(project_id=123)
+
+        gcp_hook.mock.assert_called_once_with(project_id=123)
+
+    def test_restrict_positional_arguments(self):
+        gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
+
+        with self.assertRaises(AirflowException) as cm:
+            gcp_hook.method(123)
+
+        self.assertEqual(
+            str(cm.exception), "You must use keyword arguments in this methods rather than positional"
+        )
+        self.assertEqual(gcp_hook.mock.call_count, 0)
+
+
 class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
@@ -134,9 +184,9 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
-        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              key_path)
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -153,9 +203,9 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         mock_file_handler.name = file_name
         mock_file_handler.write = string_file.write
 
-        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        @hook.GoogleCloudBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint:disable=unused-argument
-            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+            self.assertEqual(os.environ[CREDENTIALS],
                              file_name)
             self.assertEqual(file_content, string_file.getvalue())
 

@@ -51,31 +51,23 @@ jobs:
     - name: Flake8
       stage: pre-test
       script: ./scripts/ci/ci_flake8.sh
-      install: skip
     - name: mypy
       stage: pre-test
       script: ./scripts/ci/ci_mypy.sh
-      install: skip
     - name: Check license header
       stage: pre-test
       script: ./scripts/ci/ci_check_license.sh
-      install: skip
     - name: Lint Dockerfile
       stage: pre-test
       script: ./scripts/ci/ci_lint_dockerfile.sh
-      install: skip
     - name: Check docs
       stage: test
       script: ./scripts/ci/ci_docs.sh
-      install: skip
     - name: Pylint
       stage: pre-test
       script: ./scripts/ci/ci_pylint.sh
-      install: skip
 services:
   - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
-install:
-  - ./hooks/build
 script: "./scripts/ci/ci_run_airflow_testing.sh"

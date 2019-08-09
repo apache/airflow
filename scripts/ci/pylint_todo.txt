@@ -21,14 +21,6 @@
 ./airflow/contrib/example_dags/example_twitter_dag.py
 ./airflow/contrib/example_dags/example_winrm_operator.py
 ./airflow/contrib/example_dags/libs/helper.py
-./airflow/contrib/hooks/aws_athena_hook.py
-./airflow/contrib/hooks/aws_dynamodb_hook.py
-./airflow/contrib/hooks/aws_firehose_hook.py
-./airflow/contrib/hooks/aws_glue_catalog_hook.py
-./airflow/contrib/hooks/aws_hook.py
-./airflow/contrib/hooks/aws_lambda_hook.py
-./airflow/contrib/hooks/aws_sns_hook.py
-./airflow/contrib/hooks/aws_sqs_hook.py
 ./airflow/contrib/hooks/azure_container_instance_hook.py
 ./airflow/contrib/hooks/azure_container_registry_hook.py
 ./airflow/contrib/hooks/azure_container_volume_hook.py
@@ -417,10 +409,6 @@
 ./scripts/perf/dags/perf_dag_1.py
 ./scripts/perf/dags/perf_dag_2.py
 ./scripts/perf/scheduler_ops_metrics.py
-./tests/api/client/test_local_client.py
-./tests/api/common/experimental/test_delete_dag.py
-./tests/api/common/experimental/test_mark_tasks.py
-./tests/api/common/experimental/test_pool.py
 ./tests/cli/test_cli.py
 ./tests/cli/test_worker_initialisation.py
 ./tests/contrib/hooks/test_aws_hook.py

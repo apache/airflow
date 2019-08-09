@@ -19,7 +19,7 @@
 
 import airflow
 from airflow.operators.python_operator import PythonOperator
-from libs.helper import print_stuff
+from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 import os
 

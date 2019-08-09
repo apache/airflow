@@ -54,7 +54,11 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         :rtype: google.cloud.spanner_v1.client.Client
         """
         if not self._client:
-            self._client = Client(project=project_id, credentials=self._get_credentials())
+            self._client = Client(
+                project=project_id,
+                credentials=self._get_credentials(),
+                client_info=self.client_info
+            )
         return self._client
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
