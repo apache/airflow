@@ -105,7 +105,7 @@ class PodLauncher(LoggingMixin):
             for line in logs:
                 try:
                     line = line.decode('utf-8').rstrip()
-                except:
+                except Exception:
                     pass
                 self.log.info(line)
         result = None
