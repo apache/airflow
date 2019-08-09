@@ -1,0 +1,20 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_REPO: '069991306234.dkr.ecr.us-east-1.amazonaws.com/datascience/airflow'
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging into ECR"
+      - $(aws ecr get-login --no-include-email --region us-east-1)
+
+  build:
+    commands:
+      - echo "Building docker image"
+      - docker build -t $DOCKER_REPO:fork -t $DOCKER_REPO:$(git rev-parse --short HEAD) --build-arg COMMIT_SHA=$(git rev-parse --short HEAD) .
+
+      - echo "Pushing to ECR"
+      - docker push $DOCKER_REPO:$(git rev-parse --short HEAD)
+      - docker push $DOCKER_REPO:fork

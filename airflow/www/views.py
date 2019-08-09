@@ -24,6 +24,7 @@ import configparser
 import copy
 import datetime as dt
 import functools
+import re
 from io import BytesIO
 import itertools
 import json
@@ -115,7 +116,7 @@ if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
 
 @current_app.context_processor
 def navbar_vars():
-    return {'git_hash': os.environ['AIRFLOW_GIT_HASH']}
+    return {'git_hash': os.environ['GIT_SHA']}
 
 
 def dag_link(v, c, m, p):
