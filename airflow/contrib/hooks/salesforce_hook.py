@@ -73,7 +73,7 @@ class SalesforceHook(BaseHook):
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, **query_params):
+    def make_query(self, query, include_deleted=False, query_params=None):
         """
         Make a query to Salesforce.
 
@@ -89,6 +89,7 @@ class SalesforceHook(BaseHook):
         conn = self.get_conn()
 
         self.log.info("Querying for all objects")
+        query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
         self.log.info("Received results: Total size: %s; Done: %s",
