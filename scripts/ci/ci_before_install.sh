@@ -37,7 +37,7 @@ docker system prune --all --force
 if [[ ${TRAVIS_JOB_NAME} == "Tests"* ]]; then
     rebuild_image_if_needed_for_tests
 elif [[ ${TRAVIS_JOB_NAME} == "Check license header"  ]]; then
-    rebuild_image_for_checklicence
+    rebuild_image_if_needed_for_checklicence
 else
     rebuild_image_if_needed_for_static_checks
 fi

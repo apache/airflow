@@ -433,22 +433,57 @@ EOF
     export AIRFLOW_CI_IMAGE
 }
 
-function rebuild_image_for_checklicence() {
+function rebuild_image_if_needed_for_checklicence() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_PUSH_IMAGES="false"
+    PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
+        'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
+    export PYTHON_VERSION
 
     export THE_IMAGE="CHECKLICENCE"
-    echo
-    echo "Rebuilding image"
-    echo
-    # shellcheck source=../../hooks/build
-    ./hooks/build | tee -a "${OUTPUT_LOG}"
-    update_all_md5_files
-    echo
-    echo "Image rebuilt"
-    echo
+    if [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE}_${PYTHON_VERSION}" ]]; then
+        echo
+        echo "Image built locally - skip force-pulling them"
+        echo
+    else
+        echo
+        echo "Image not built locally - force pulling them first"
+        echo
+        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+    fi
+
+    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED=${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED:="false"}
+    check_if_docker_build_is_needed
+
+    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+        local SKIP_REBUILD="false"
+        if [[ ${CI:=} != "true" ]]; then
+            set +e
+            if ! "${MY_DIR}/../../confirm" "The image might need to be rebuild."; then
+               SKIP_REBUILD="true"
+            fi
+            set -e
+        fi
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            echo
+            echo "Rebuilding image"
+            echo
+            # shellcheck source=../../hooks/build
+            ./hooks/build | tee -a "${OUTPUT_LOG}"
+            update_all_md5_files
+            echo
+            echo "Image rebuilt"
+            echo
+        fi
+    else
+        echo
+        echo "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
+        echo
+    fi
+
     AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE")
     export AIRFLOW_CHECKLICENCE_IMAGE
 }

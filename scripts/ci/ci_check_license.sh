@@ -31,7 +31,7 @@ force_python_3_5
 
 script_start
 
-rebuild_image_for_checklicence
+rebuild_image_if_needed_for_checklicence
 
 docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
