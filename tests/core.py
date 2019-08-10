@@ -75,7 +75,6 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -696,9 +695,6 @@ class CoreTest(unittest.TestCase):
 
         self.assertEqual(context['tomorrow_ds'], '2015-01-02')
         self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
-
-    def test_import_examples(self):
-        self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 
     def test_local_task_job(self):
         TI = TaskInstance
