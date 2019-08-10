@@ -148,7 +148,6 @@
 ./airflow/providers/apache/hive/operators/hive_stats.py
 ./airflow/operators/http_operator.py
 ./airflow/operators/jdbc_operator.py
-./airflow/operators/latest_only_operator.py
 ./airflow/providers/microsoft/mssql/operators/mssql.py
 ./airflow/providers/mssql/operators/mysql.py
 ./airflow/providers/oracle/operators/oracle.py

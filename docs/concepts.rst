@@ -1014,9 +1014,9 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+DAG. The ``LatestOnlyOperator`` skips all direct downstream tasks, if the time
 right now is not between its ``execution_time`` and the next scheduled
-``execution_time``.
+``execution_time`` or the DagRun has been externally triggered.
 
 For example, consider the following DAG:
 
@@ -1051,15 +1051,14 @@ For example, consider the following DAG:
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
 
-In the case of this DAG, the ``latest_only`` task will show up as skipped
-for all runs except the latest run. ``task1`` is directly downstream of
-``latest_only`` and will also skip for all runs except the latest.
+In the case of this DAG, the task ``task1`` is directly downstream of
+``latest_only`` and will be skipped for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
-even its ``trigger_rule`` is set to ``all_done``.
+``task2``, but it will not be skipped, since its ``trigger_rule`` is set to
+``all_done``.
 
 .. image:: img/latest_only_with_trigger.png
 
