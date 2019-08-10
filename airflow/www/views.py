@@ -1328,7 +1328,7 @@ class Airflow(AirflowBaseView):
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
             'airflow/tree.html',
-            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
+            operators=sorted({op for op in dag.tasks}, key=lambda x: x.task_type),
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs,
@@ -1426,7 +1426,7 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
+            operators=sorted({op for op in dag.tasks}, key=lambda x: x.task_type),
             blur=blur,
             root=root or '',
             task_instances=task_instances,

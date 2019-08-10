@@ -55,7 +55,7 @@
   {% for op in operators %}
   <div class="legend_item"
        style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-    {{ op.__name__ }}
+    {{ op.task_type }}
   </div>
   {% endfor %}
 
