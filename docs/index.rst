@@ -84,13 +84,19 @@ Content
     plugins
     security
     timezone
-    api
+    usage-rest-api
     integration
     metrics
     kubernetes
     lineage
     changelog
     faq
-    cli
-    macros
-    _api/index
+
+.. toctree::
+    :maxdepth: 1
+    :caption: References
+
+    CLI <cli-ref>
+    Macros <macros-ref>
+    Python API <_api/index>
+    REST API <rest-api-ref>
