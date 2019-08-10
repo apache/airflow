@@ -134,7 +134,8 @@ def make_dag_schema() -> dict:
             },
             'required': [
                 'default_args', 'params',
-                '_dag_id', 'fileloc', 'task_dict']
+                '_dag_id', 'fileloc', 'task_dict'],
+            'additionalProperties': False
         },
         type_enum=[DAT.DAG.value]
     )

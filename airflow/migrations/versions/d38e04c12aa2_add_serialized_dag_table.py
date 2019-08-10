@@ -47,7 +47,7 @@ def upgrade():
     op.create_index(   # pylint: disable=no-member
         'idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
 
-    conn = op.get_bind()
+    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
         cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
@@ -57,7 +57,7 @@ def upgrade():
                 "Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql"
             )
 
-        op.alter_column(
+        op.alter_column(  # pylint: disable=no-member
             table_name="serialized_dag",
             column_name="last_updated",
             type_=mysql.TIMESTAMP(fsp=6),
@@ -72,7 +72,7 @@ def upgrade():
         if conn.dialect.name == "postgresql":
             conn.execute("set timezone=UTC")
 
-        op.alter_column(
+        op.alter_column(  # pylint: disable=no-member
             table_name="serialized_dag",
             column_name="last_updated",
             type_=sa.TIMESTAMP(timezone=True),

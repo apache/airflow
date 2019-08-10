@@ -37,7 +37,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     _json_schema = make_operator_schema()
 
     def __init__(self, *args, **kwargs):
-        BaseOperator.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         # task_type is used by UI to display the correct class type, because UI only
         # receives BaseOperator from deserialized DAGs.
         self._task_type = 'BaseOperator'
@@ -63,7 +63,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         """Serializes operator into a JSON object.
         """
         serialize_op = cls._serialize_object(
-            op, visited_dags, included_fields=SerializedBaseOperator._included_fields)
+            op, visited_dags, included_fields=cls._included_fields)
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
         return cls._encode(serialize_op, type_=DAT.OP)
@@ -74,5 +74,5 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         """
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
         cls._deserialize_object(
-            encoded_op, op, SerializedBaseOperator._included_fields, visited_dags)
+            encoded_op, op, cls._included_fields, visited_dags)
         return op

@@ -44,7 +44,8 @@ class LoggingMixin:
     @property
     def log(self) -> Logger:
         try:
-            return self._log
+            # FIXME: LoggingMixin should have a default _log field.
+            return self._log  # type: ignore
         except AttributeError:
             self._log = logging.root.getChild(
                 self.__class__.__module__ + '.' + self.__class__.__name__
