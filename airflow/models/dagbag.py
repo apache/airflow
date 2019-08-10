@@ -132,6 +132,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         # FIXME: this exception should be removed in future, then webserver can be
         # decoupled from DAG files.
         if self.dagcached_enabled and not from_file_only:
+            print(self.dags)
             return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
@@ -431,12 +432,21 @@ class DagBag(BaseDagBag, LoggingMixin):
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
         start_dttm = timezone.utcnow()
-        # DAG post-pcocessing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
+        self.log.info("Filling up the DagBag from database")
+
         # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
         # from the table by the scheduler job.
-        self.log.info("Filling up the DagBag from database")
         self.dags = SerializedDagModel.read_all_dags()
+
+        # Adds subdags.
+        # DAG post-pcocessing steps such as self.bag_dag and croniter are not needed as
+        # they are done by scheduler before serialization.
+        subdags = {}
+        for dag in self.dags.values():
+            for subdag in dag.subdags:
+                subdags[subdag.dag_id] = subdag
+        self.dags.update(subdags)
+
         Stats.timing('collect_dags', timezone.utcnow() - start_dttm)
         Stats.gauge('dagbag_size', len(self.dags), 1)
 

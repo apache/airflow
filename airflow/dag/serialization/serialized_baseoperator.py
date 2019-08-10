@@ -32,7 +32,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     Class specific attributes used by UI are move to object attributes.
     """
     _included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
-        '_dag', '_task_type', 'ui_color', 'ui_fgcolor', 'template_fields']
+        '_dag', '_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields']
 
     _json_schema = make_operator_schema()
 
@@ -45,6 +45,8 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
         self.template_fields = BaseOperator.template_fields
+        # Not None for SubDagOperator.
+        self.subdag = None
 
     @property
     def task_type(self) -> str:
