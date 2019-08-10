@@ -36,7 +36,7 @@ docker system prune --all --force
 
 if [[ ${TRAVIS_JOB_NAME} == "Tests"* ]]; then
     rebuild_image_if_needed_for_tests
-elif [[ ${TRAVIS_JOB_NAME} == "Check license header"  ]]; then
+elif [[ ${TRAVIS_JOB_NAME} == "Check license headers"  ]]; then
     rebuild_image_if_needed_for_checklicence
 else
     rebuild_image_if_needed_for_static_checks
@@ -49,5 +49,7 @@ if [[ "${KUBERNETES_VERSION}" == "" ]]; then
     sudo mount --make-shared /
     sudo service docker restart
 fi
+
+pip install pre-commit
 
 script_end

@@ -43,9 +43,8 @@ run_this = BashOperator(
 run_this.set_downstream(run_this_last)
 
 for i in range(3):
-    i = str(i)
     task = BashOperator(
-        task_id='runme_' + i,
+        task_id='runme_' + str(i),
         bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         dag=dag)
     task.set_downstream(run_this)

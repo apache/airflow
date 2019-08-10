@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-# Script to check licences for all code. Can be started from any working directory
+# Script to run Pylint on test code. Can be started from any working directory
 set -uo pipefail
 
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
@@ -29,37 +29,32 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-echo
-echo "Running Licence check"
-echo
+DISABLE_CHECKS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
 
-sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${AIRFLOW_SOURCES}/logs"
-
-# This is the target of a symlink in airflow/www/static/docs -
-# and rat exclude doesn't cope with the symlink target doesn't exist
-sudo mkdir -p docs/_build/html/
-
-echo "Running license checks. This can take a while."
-
-if ! java -jar "${RAT_JAR}" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
-    -d "${AIRFLOW_SOURCES}" > "${AIRFLOW_SOURCES}/logs/rat-results.txt"; then
-   echo >&2 "RAT exited abnormally"
-   exit 1
+if [[ ${#@} == "0" ]]; then
+    echo
+    echo "Running pylint for 'tests' folder"
+    echo
+    find "./tests" -name "*.py" | \
+    grep -vFf scripts/ci/pylint_todo.txt | \
+    xargs pylint --disable="${DISABLE_CHECKS}" --output-format=colorized
+    RES=$?
+else
+    echo "Running Pylint for tests with parameters: $*"
+    echo
+    pylint --disable="${DISABLE_CHECKS}" --output-format=colorized "$@"
+    RES=$?
 fi
-
-ERRORS=$(grep -e "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
 
 in_container_script_end
 
-in_container_fix_ownership
-
-if test ! -z "${ERRORS}"; then
+if [[ "${RES}" != 0 ]]; then
     echo >&2
-    echo >&2 "Could not find Apache license headers in the following files:"
-    echo >&2 "${ERRORS}"
+    echo >&2 "There were some pylint errors. Exiting"
+    echo >&2
     exit 1
-    echo >&2
 else
-    echo "RAT checks passed."
+    echo
+    echo "Pylint check succeeded"
     echo
 fi

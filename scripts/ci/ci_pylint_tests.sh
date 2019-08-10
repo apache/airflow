@@ -20,13 +20,20 @@ set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
+
 # shellcheck source=./_utils.sh
 . "${MY_DIR}/_utils.sh"
 
 basic_sanity_checks
 
+force_python_3_5
+
 script_start
 
 rebuild_image_if_needed_for_static_checks
+
+run_pylint_tests "$@"
 
 script_end

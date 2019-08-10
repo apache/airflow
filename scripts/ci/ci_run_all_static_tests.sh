@@ -34,6 +34,6 @@ script_start
 
 rebuild_image_if_needed_for_static_checks
 
-run_docs
+SKIP=pylint pre-commit run --all-files
 
 script_end

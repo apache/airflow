@@ -147,15 +147,19 @@ export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
 # own docker images. In this case you can build images locally and push them
 export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 
+# You can override python binary with specific version
+export PYTHON_BINARY=${PYTHON_BINARY:=python}
+
 # Determine python version from the local python on the path.
 # You can override it with PYTHON_VERSION because all python version dependencies
 # Are determined in Docker images. If you pass IMAGE_NAME, python version will be extracted from the name
 # This default Python version is later overridden in case IMAGE_NAME is passed
 export PYTHON_VERSION=\
-${PYTHON_VERSION:=$(python -c 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
+${PYTHON_VERSION:=$(${PYTHON_BINARY} -c \
+ 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
 
 # shellcheck source=./_default_branch.sh
-. ${MY_DIR}/_default_branch.sh
+. "${MY_DIR}/_default_branch.sh"
 
 # Source brnnch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
@@ -259,7 +263,7 @@ AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_
 
 pwd
 # Determine version of the Airflow from version.py
-AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
+AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | ${PYTHON_BINARY}
 print(version.replace("+",""))
 EOF
 )
@@ -268,7 +272,7 @@ export AIRFLOW_VERSION
 # Check if we are running in the CI environment
 CI=${CI:="false"}
 
-if [[ ${CI} == "true" ]]; then
+if [[ "${CI}" == "true" ]]; then
     NON_CI="false"
 else
     NON_CI="true"
@@ -425,57 +429,65 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
-    for IMAGE in ${IMAGES_TO_PULL}
-    do
+    DOCKER_CACHE_DIRECTIVE_CI=()
+    DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
+    if [[ ${IMAGES_TO_PULL} == "" ]]; then
         echo
-        echo "Checking whether image ${IMAGE} needs to be pulled."
+        echo "Skipping building of all images."
         echo
-        PULL_IMAGE="false"
-        if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
+    else
+        for IMAGE in ${IMAGES_TO_PULL}
+        do
             echo
-            echo "Pulling images is forced. Pulling ${IMAGE}"
+            echo "Checking whether image ${IMAGE} needs to be pulled."
             echo
-            PULL_IMAGE="true"
-        else
-            IMAGE_HASH=$(docker images -q "${IMAGE}" 2> /dev/null)
-            if [[ "${IMAGE_HASH}" == "" ]]; then
+            PULL_IMAGE="false"
+            if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
                 echo
-                echo "No image ${IMAGE} locally available. Pulling for the first time."
+                echo "Pulling images is forced. Pulling ${IMAGE}"
                 echo
                 PULL_IMAGE="true"
             else
-                echo
-                echo "Image ${IMAGE} is in local registry (${IMAGE_HASH}). Not pulling it!"
-                echo
-                PULL_IMAGE="false"
+                IMAGE_HASH=$(docker images -q "${IMAGE}" 2> /dev/null)
+                if [[ "${IMAGE_HASH}" == "" ]]; then
+                    echo
+                    echo "No image ${IMAGE} locally available. Pulling for the first time."
+                    echo
+                    PULL_IMAGE="true"
+                else
+                    echo
+                    echo "Image ${IMAGE} is in local registry (${IMAGE_HASH}). Not pulling it!"
+                    echo
+                    PULL_IMAGE="false"
+                fi
             fi
-        fi
-        if [[ "${PULL_IMAGE}" == "true" ]]; then
-            if [[ "${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}" == "true" ]]; then
-                echo
-                echo "Skipping pulling image ${IMAGE}"
-                echo
+            if [[ "${PULL_IMAGE}" == "true" ]]; then
+                if [[ "${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}" == "true" ]]; then
+                    echo
+                    echo "Skipping pulling image ${IMAGE}"
+                    echo
+                else
+                    echo
+                    set -x
+                    docker pull "${IMAGE}" || true
+                    set +x
+                    echo
+                fi
+            fi
+            if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
+                DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
+            elif [[ "${IMAGE}" == "${AIRFLOW_SLIM_CI_IMAGE}" ]]; then
+                DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--cache-from" "${IMAGE}")
+            elif [[ "${IMAGE}" == "${AIRFLOW_CHECKLICENCE_IMAGE}" ]]; then
+                DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--cache-from" "${IMAGE}")
             else
                 echo
-                set -x
-                docker pull "${IMAGE}" || true
-                set +x
+                echo "Don't know how to set cache directive for ${IMAGE}. Exiting"
                 echo
+                exit 1
             fi
-        fi
-        if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
-            DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
-        elif [[ "${IMAGE}" == "${AIRFLOW_SLIM_CI_IMAGE}" ]]; then
-            DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--cache-from" "${IMAGE}")
-        elif [[ "${IMAGE}" == "${AIRFLOW_CHECKLICENCE_IMAGE}" ]]; then
-            DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--cache-from" "${IMAGE}")
-        else
-            echo
-            echo "Don't know how to set cache directive for ${IMAGE}. Exiting"
-            echo
-            exit 1
-        fi
-    done
+        done
+    fi
 fi
 
 start_step "Setting cache options"
@@ -600,13 +612,16 @@ else
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
         docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
         add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
+        save_to_file AIRFLOW_SLIM_CI_IMAGE_DEFAULT
     fi
     if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
         docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
         add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
+        save_to_file AIRFLOW_SLIM_CI_IMAGE_LATEST
         if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
             docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
             add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
+            save_to_file AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT
         fi
     fi
 fi
@@ -627,13 +642,16 @@ else
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_DEFAULT}"
         add_image_to_push "${AIRFLOW_CI_IMAGE_DEFAULT}"
+        save_to_file AIRFLOW_CI_IMAGE_DEFAULT
     fi
     if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST}"
         add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST}"
+        save_to_file AIRFLOW_CI_IMAGE_LATEST
         if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
             docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
             add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
+            save_to_file AIRFLOW_CI_IMAGE_LATEST_DEFAULT
         fi
     fi
 fi

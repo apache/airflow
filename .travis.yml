@@ -21,6 +21,8 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
+    - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - AIRFLOW_CI_SILENT="false"
     - CI="true"
 python: "3.6"
 stages:
@@ -48,24 +50,18 @@ jobs:
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
       python: "3.6"
       stage: test
-    - name: Flake8
+    - name: "Static checks except pylint and docs"
       stage: pre-test
-      script: ./scripts/ci/ci_flake8.sh
-    - name: mypy
-      stage: pre-test
-      script: ./scripts/ci/ci_mypy.sh
-    - name: Check license header
-      stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
-    - name: Lint Dockerfile
-      stage: pre-test
-      script: ./scripts/ci/ci_lint_dockerfile.sh
+      script: ./scripts/ci/ci_run_all_static_tests.sh
     - name: Check docs
-      stage: test
-      script: ./scripts/ci/ci_docs.sh
-    - name: Pylint
       stage: pre-test
-      script: ./scripts/ci/ci_pylint.sh
+      script: ./scripts/ci/ci_docs.sh
+    - name: Pylint main
+      stage: pre-test
+      script: ./scripts/ci/ci_pylint_main.sh
+    - name: Pylint tests
+      stage: pre-test
+      script: ./scripts/ci/ci_pylint_tests.sh
 services:
   - docker
 before_install:

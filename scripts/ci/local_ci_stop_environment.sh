@@ -32,9 +32,6 @@ basic_sanity_checks
 script_start
 
 export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="8080"}
 
 # Default branch name for triggered builds is master
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:="master"}

@@ -25,6 +25,7 @@ import os
 import subprocess
 import sys
 import unittest
+from typing import List
 
 from setuptools import setup, find_packages, Command
 
@@ -62,7 +63,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -83,7 +84,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -276,6 +277,7 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pre-commit',
     'pylint~=2.3.1',
     'pysftp',
     'pywinrm',
