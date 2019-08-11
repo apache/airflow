@@ -59,10 +59,17 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once',
                        default_args=args,
                        schedule_interval='@once')
-        self.athena = AWSAthenaOperator(task_id='test_aws_athena_operator', query='SELECT * FROM TEST_TABLE',
-                                        database='TEST_DATABASE', output_location='s3://test_s3_bucket/',
-                                        client_request_token='eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
-                                        sleep_time=1, max_tries=3, dag=self.dag)
+        self.athena = AWSAthenaOperator(
+            task_id='test_aws_athena_operator',
+            query='SELECT * FROM TEST_TABLE',
+            database='TEST_DATABASE',
+            output_location='s3://test_s3_bucket/',
+            client_request_token='eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
+            sleep_time=1,
+            max_tries=3,
+            do_xcom_push=True,
+            dag=self.dag,
+        )
 
     def test_init(self):
         self.assertEqual(self.athena.task_id, MOCK_DATA['task_id'])

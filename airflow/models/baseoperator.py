@@ -210,8 +210,7 @@ class BaseOperator(LoggingMixin):
             )
 
     :type executor_config: dict
-    :param do_xcom_push: if True, an XCom is pushed containing the Operator's
-        result
+    :param do_xcom_push: if True, the return value of the operator is pushed to XCom
     :type do_xcom_push: bool
     """
 
@@ -291,7 +290,7 @@ class BaseOperator(LoggingMixin):
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
         executor_config: Optional[Dict] = None,
-        do_xcom_push: bool = True,
+        do_xcom_push: bool = False,
         inlets: Optional[Dict] = None,
         outlets: Optional[Dict] = None,
         *args,

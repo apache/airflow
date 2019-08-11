@@ -23,6 +23,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Operator return values are not pushed to XCom by default
+
+The argument `do_xcom_push` on the BaseOperator controls whether or not the return value of an operator should
+be pushed to XCom. By default this was `True` which often lead to undesired XComs in the database. It is
+therefore now set to `False` and must be explicitly configured by `YourOperator(do_xcom_push=True)`.
+
 ### Changes to `SubDagOperator`
 
 `SubDagOperator` is changed to use Airflow scheduler instead of backfill
