@@ -467,7 +467,8 @@ class S3Hook(AwsHook):
                    key,
                    bucket_name=None,
                    replace=False,
-                   encrypt=False):
+                   encrypt=False,
+                   extra_args=None):
         """
         Loads bytes to S3
 
@@ -486,6 +487,9 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param extra_args: Dictionary of extra arguments i.e. `ExtraArgs`, to
+            be passed along to Boto.
+        :type extra_args: dict
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -493,8 +497,10 @@ class S3Hook(AwsHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
-        if encrypt:
+        if extra_args is None:
+            extra_args = {}
+
+        if encrypt and 'ServerSideEncryption' not in extra_args:
             extra_args['ServerSideEncryption'] = "AES256"
 
         filelike_buffer = io.BytesIO(bytes_data)
@@ -508,7 +514,8 @@ class S3Hook(AwsHook):
                       key,
                       bucket_name=None,
                       replace=False,
-                      encrypt=False):
+                      encrypt=False,
+                      extra_args=None):
         """
         Loads a file object to S3
 
@@ -524,6 +531,9 @@ class S3Hook(AwsHook):
         :param encrypt: If True, S3 encrypts the file on the server,
             and the file is stored in encrypted form at rest in S3.
         :type encrypt: bool
+        :param extra_args: Dictionary of extra arguments i.e. `ExtraArgs`, to
+            be passed along to Boto.
+        :type extra_args: dict
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -531,8 +541,10 @@ class S3Hook(AwsHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
-        if encrypt:
+        if extra_args is None:
+            extra_args = {}
+
+        if encrypt and 'ServerSideEncryption' not in extra_args:
             extra_args['ServerSideEncryption'] = "AES256"
 
         client = self.get_conn()
