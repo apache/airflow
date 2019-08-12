@@ -340,11 +340,12 @@ class BigQueryOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_bigquery_operator_defaults(self, mock_hook):
-
         operator = BigQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
-            dag=self.dag, default_args=self.args
+            dag=self.dag,
+            default_args=self.args,
+            schema_update_options=None
         )
 
         operator.execute(MagicMock())
@@ -362,7 +363,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                 maximum_billing_tier=None,
                 maximum_bytes_billed=None,
                 create_disposition='CREATE_IF_NEEDED',
-                schema_update_options=(),
+                schema_update_options=None,
                 query_params=None,
                 labels=None,
                 priority='INTERACTIVE',
