@@ -34,7 +34,7 @@ development and testing.
 Setting Up Bash Completion
 --------------------------
 
-When using bash (or `zsh`) as your shell, `airflow` can use
+When using bash (or ``zsh``) as your shell, ``airflow`` can use
 `argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
 
 For global activation of all argcomplete enabled python applications run:
