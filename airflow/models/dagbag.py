@@ -132,7 +132,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         # FIXME: this exception should be removed in future, then webserver can be
         # decoupled from DAG files.
         if self.dagcached_enabled and not from_file_only:
-            print(self.dags)
             return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
@@ -148,7 +147,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         if self.dagcached_enabled and dag is not None:
             from airflow.dag.serialization.serialized_dag import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
-            self.log.info("Processing DAG file to render template.")
 
         # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
@@ -439,7 +437,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.dags = SerializedDagModel.read_all_dags()
 
         # Adds subdags.
-        # DAG post-pcocessing steps such as self.bag_dag and croniter are not needed as
+        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
         # they are done by scheduler before serialization.
         subdags = {}
         for dag in self.dags.values():
@@ -447,7 +445,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 subdags[subdag.dag_id] = subdag
         self.dags.update(subdags)
 
-        Stats.timing('collect_dags', timezone.utcnow() - start_dttm)
+        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
         Stats.gauge('dagbag_size', len(self.dags), 1)
 
     def dagbag_report(self):

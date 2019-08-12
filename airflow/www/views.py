@@ -493,6 +493,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         # Loads dag from file
+        self.log.info("Processing DAG file to render template.")
         dag = dagbag.get_dag(dag_id, from_file_only=True)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)

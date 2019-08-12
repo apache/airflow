@@ -69,7 +69,7 @@ class SerializedDagModel(Base):
 
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
-        self.fileloc_hash = SerializedDagModel.dag_fileloc_hash(self.fileloc)
+        self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
         self.data = Serialization.to_json(dag)
         self.last_updated = timezone.utcnow()
 
@@ -87,31 +87,34 @@ class SerializedDagModel(Base):
             hashlib.sha1(full_filepath.encode('utf-8')).hexdigest(), 16))
 
     @classmethod
-    def write_dag(cls, dag: 'DAG', min_update_interval: Optional[int] = None):
+    @db.provide_session
+    def write_dag(cls, dag: 'DAG', min_update_interval: Optional[int] = None, session=None):
         """Serializes a DAG and writes it into database.
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
+        :param session: ORM Session
         """
-        with db.create_session() as session:
-            if min_update_interval is not None:
-                result = session.query(cls.last_updated).filter(
-                    cls.dag_id == dag.dag_id).first()
-                if result is not None and (
-                        timezone.utcnow() - result.last_updated).total_seconds() < min_update_interval:
-                    return
-            session.merge(cls(dag))
+
+        if min_update_interval is not None:
+            result = session.query(cls.last_updated).filter(
+                cls.dag_id == dag.dag_id)
+            if result is not None and (
+                    timezone.utcnow() - result.last_updated).total_seconds() < min_update_interval:
+                return
+        session.merge(cls(dag))
 
     @classmethod
-    def read_all_dags(cls) -> Dict[str, 'SerializedDAG']:
+    @db.provide_session
+    def read_all_dags(cls, session=None) -> Dict[str, 'SerializedDAG']:
         """Reads all DAGs in serialized_dag table.
+        :param session: ORM Session
 
         :returns: a dict of DAGs read from database
         """
         from airflow.dag.serialization import Serialization
 
-        with db.create_session() as session:
-            serialized_dags = session.query(cls.dag_id, cls.data).all()
+        serialized_dags = session.query(cls.dag_id, cls.data).all()
 
         dags = {}
         for dag_id, data in serialized_dags:
@@ -122,34 +125,37 @@ class SerializedDagModel(Base):
         return dags
 
     @classmethod
-    def remove_dag(cls, dag_id: str):
+    @db.provide_session
+    def remove_dag(cls, dag_id: str, session=None):
         """Deletes a DAG with given dag_id.
 
         :param dag_id: dag_id to be deleted
+        :param session: ORM Session
         """
-        with db.create_session() as session:
-            session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
+        session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
-    def remove_deleted_dags(cls, alive_dag_filelocs: List[str]):
+    @db.provide_session
+    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """Deletes DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param session: ORM Session
         """
         alive_fileloc_hashes = [
             cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
-        with db.create_session() as session:
-            session.execute(
-                cls.__table__.delete().where(
-                    and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                         cls.fileloc.notin_(alive_dag_filelocs))))
+        session.execute(
+            cls.__table__.delete().where(
+                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                     cls.fileloc.notin_(alive_dag_filelocs))))
 
     @classmethod
-    def has_dag(cls, dag_id: str) -> bool:
+    @db.provide_session
+    def has_dag(cls, dag_id: str, session=None) -> bool:
         """Checks a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
+        :param session: ORM Session
         """
-        with db.create_session() as session:
-            return session.query(exists().where(cls.dag_id == dag_id)).scalar()
+        return session.query(exists().where(cls.dag_id == dag_id)).scalar()
