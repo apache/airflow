@@ -43,6 +43,7 @@ from tests.compat import mock
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
 TEST_GCP_PROJECT_ID = 'test-project'
+TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
@@ -123,7 +124,8 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
         operator = BigQueryDeleteDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_GCP_PROJECT_ID
+            project_id=TEST_GCP_PROJECT_ID,
+            delete_contents=TEST_DELETE_CONTENTS
         )
 
         operator.execute(None)
@@ -133,7 +135,8 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
-                project_id=TEST_GCP_PROJECT_ID
+                project_id=TEST_GCP_PROJECT_ID,
+                delete_contents=TEST_DELETE_CONTENTS
             )
 
 

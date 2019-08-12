@@ -620,14 +620,23 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
     :type dataset_id: str
+    :param delete_contents: (Optional) Whether to force the deletion even if the dataset is not empty.
+        Will delete all tables (if any) in the dataset if set to True.
+        Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+        The default value is False.
+    :type delete_contents: bool
+    :param bigquery_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type bigquery_conn_id: str
 
     **Example**: ::
 
-        delete_temp_data = BigQueryDeleteDatasetOperator(dataset_id = 'temp-dataset',
-                                                         project_id = 'temp-project',
-                                                         bigquery_conn_id='_my_gcp_conn_',
-                                                         task_id='Deletetemp',
-                                                         dag=dag)
+        delete_temp_data = BigQueryDeleteDatasetOperator(
+            dataset_id='temp-dataset',
+            project_id='temp-project',
+            delete_contents=True, # Force the deletion of the dataset as well as its tables (if any).
+            bigquery_conn_id='_my_gcp_conn_',
+            task_id='Deletetemp',
+            dag=dag)
     """
 
     template_fields = ('dataset_id', 'project_id')
@@ -636,6 +645,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  dataset_id,
+                 delete_contents=False,
                  project_id=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
@@ -643,6 +653,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.bigquery_conn_id = bigquery_conn_id
+        self.delete_contents = delete_contents
         self.delegate_to = delegate_to
 
         super(BigQueryDeleteDatasetOperator, self).__init__(*args, **kwargs)
@@ -658,7 +669,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         cursor.delete_dataset(
             project_id=self.project_id,
-            dataset_id=self.dataset_id
+            dataset_id=self.dataset_id,
+            delete_contents=self.delete_contents
         )
 
 
