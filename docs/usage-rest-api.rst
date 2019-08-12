@@ -22,10 +22,6 @@ This document is meant to give a overview of all common tasks while using an RES
 
 .. note::
 
-   This function is not suitable for sending spam e-mails.
-
-.. note::
-
     API endpoints and samples are described in :doc:`rest-api-ref`.
 
 CLI
@@ -34,7 +30,7 @@ CLI
 For some functions the cli can use the API. To configure the CLI to use the API when available
 configure as follows:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [cli]
     api_client = airflow.api.client.json_client
@@ -57,7 +53,7 @@ Two "real" methods for authentication are currently supported for the API.
 
 To enabled Password authentication, set the following in the configuration:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [api]
     auth_backend = airflow.contrib.auth.backends.password_auth
