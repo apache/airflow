@@ -21,12 +21,11 @@ This module contains a Google Storage Transfer Service Hook.
 """
 
 import json
-import numbers
 import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 from googleapiclient.discovery import build
 
@@ -372,7 +371,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         self,
         job: Dict,
         expected_statuses: Tuple[str] = (GcpTransferOperationStatus.SUCCESS,),
-        timeout: Union[numbers.Real, timedelta, None] = None
+        timeout: Optional[Union[float, timedelta]] = None
     ) -> None:
         """
         Waits until the job reaches the expected state.
@@ -387,7 +386,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         :type expected_statuses: set[str]
         :param timeout: Time in which the operation must end in seconds. If not specified, defaults to 60
             seconds.
-        :type timeout: Union[Real, timedelta, None]
+        :type timeout: Optional[Union[float, timedelta]]
         :rtype: None
         """
         if timeout is None:
