@@ -29,7 +29,7 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook
+from airflow.gcp.hooks.automl import CloudAutoMLHook
 
 
 class AutoMLTrainModelOperator(BaseOperator):
@@ -85,7 +85,7 @@ class AutoMLTrainModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Creating model.")
         operation = hook.create_model(
             model=self.model,
@@ -163,7 +163,7 @@ class AutoMLPredictOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.predict(
             model_id=self.model_id,
             payload=self.payload,
@@ -258,7 +258,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.output_config = output_config
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Fetch batch prediction.")
         operation = hook.batch_predict(
             model_id=self.model_id,
@@ -332,7 +332,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Creating dataset")
         result = hook.create_dataset(
             dataset=self.dataset,
@@ -409,7 +409,7 @@ class AutoMLImportDataOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Importing dataset")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
@@ -505,7 +505,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Requesting column specs.")
         page_iterator = hook.list_column_specs(
             dataset_id=self.dataset_id,
@@ -586,7 +586,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Updating AutoML dataset %s.", self.dataset["name"])
         result = hook.update_dataset(
             dataset=self.dataset,
@@ -655,7 +655,7 @@ class AutoMLGetModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.get_model(
             model_id=self.model_id,
             location=self.location,
@@ -722,7 +722,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         operation = hook.delete_model(
             model_id=self.model_id,
             location=self.location,
@@ -801,7 +801,7 @@ class AutoMLDeployModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Deploying model_id %s", self.model_id)
 
         operation = hook.deploy_model(
@@ -882,7 +882,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Requesting table specs for %s.", self.dataset_id)
         page_iterator = hook.list_table_specs(
             dataset_id=self.dataset_id,
@@ -948,7 +948,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Requesting datasets")
         page_iterator = hook.list_datasets(
             location=self.location,
@@ -1029,7 +1029,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
             return dataset_id.split(",")
 
     def execute(self, context):
-        hook = AutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
         dataset_id_list = self._parse_dataset_id(self.dataset_id)
         for dataset_id in dataset_id_list:
             self.log.info("Deleting dataset %s", dataset_id)

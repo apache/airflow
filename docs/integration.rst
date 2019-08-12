@@ -936,6 +936,53 @@ Google Cloud Tasks
 
 They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
 
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.gcp.operators.automl.AutoMLTrainModelOperator`
+    Creates Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLPredictOperator`
+    Runs prediction operation on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLBatchPredictOperator`
+    Perform a batch prediction on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLCreateDatasetOperator`
+    Creates a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLListDatasetOperator`
+    Lists AutoML Datasets in project.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteDatasetOperator`
+    Deletes a dataset and all of its contents.
+
+:class:`airflow.gcp.operators.automl.AutoMLImportDataOperator`
+    Imports data to a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListColumnSpecsOperator`
+    Lists column specs in a table.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListTableSpecsOperator`
+    Lists table specs in a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesUpdateDatasetOperator`
+    Updates a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLGetModelOperator`
+    Get Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteModelOperator`
+    Delete Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeployModelOperator`
+    Deploys a model. If a model is already deployed, deploying it with the same parameters
+    has no effect. Deploying with different parametrs (as e.g. changing node_number) will
+    reset the deployment state without pausing the model_id’s availability.
+    Only applicable for Text Classification, Image Object Detection and Tables; all other
+    domains manage deployment automatically.
+
+They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
 
 .. _Qubole:
 

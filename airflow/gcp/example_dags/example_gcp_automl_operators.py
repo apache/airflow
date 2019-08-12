@@ -26,8 +26,8 @@ from copy import deepcopy
 
 import airflow
 from airflow import models
-from airflow.contrib.hooks.gcp_automl_hook import AutoMLHook
-from airflow.contrib.operators.gcp_automl_operator import (
+from airflow.gcp.hooks.automl import CloudAutoMLHook
+from airflow.gcp.operators.automl import (
     AutoMLTrainModelOperator,
     AutoMLTablesListColumnSpecsOperator,
     AutoMLPredictOperator,
@@ -71,7 +71,7 @@ DATASET = {
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}}
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
-extract_object_id = AutoMLHook.extract_object_id
+extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:

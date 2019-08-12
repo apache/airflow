@@ -43,7 +43,7 @@ from google.cloud.automl_v1beta1.types import (
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
-class AutoMLHook(GoogleCloudBaseHook):
+class CloudAutoMLHook(GoogleCloudBaseHook):
     """
     Google Cloud AutoML hook.
 
