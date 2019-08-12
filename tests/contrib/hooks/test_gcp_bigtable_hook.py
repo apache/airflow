@@ -24,8 +24,9 @@ import google
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
+from airflow.models import Connection
+from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST, \
+    GCP_CONNECTION_WITHOUT_PROJECT_ID, GCP_CONNECTION_WITH_PROJECT_ID
 from tests.compat import mock
 
 from airflow import AirflowException
@@ -38,11 +39,16 @@ CBT_TABLE = 'table'
 
 
 class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
-
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
-                        new=mock_base_gcp_hook_no_default_project_id):
-            self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id='test')
+        self.patcher_get_connections = mock.patch(
+            "airflow.hooks.base_hook.BaseHook.get_connections",
+            return_value=[GCP_CONNECTION_WITHOUT_PROJECT_ID]
+        )
+        self.patcher_get_connections.start()
+        self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id='test')
+
+    def tearDown(self) -> None:
+        self.patcher_get_connections.stop()
 
     @mock.patch('airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook._get_client')
     def test_get_instance_missing_project_id(self, get_client):
@@ -162,9 +168,15 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
 class TestBigtableHookDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
-                        new=mock_base_gcp_hook_default_project_id):
-            self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id='test')
+        self.patcher_get_connections = mock.patch(
+            "airflow.hooks.base_hook.BaseHook.get_connections",
+            return_value=[GCP_CONNECTION_WITH_PROJECT_ID]
+        )
+        self.patcher_get_connections.start()
+        self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id='test')
+
+    def tearDown(self) -> None:
+        self.patcher_get_connections.stop()
 
     @mock.patch('airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook._get_client')
     def test_get_instance(self, get_client):

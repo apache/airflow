@@ -16,25 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 from unittest import mock
+
+from airflow.models import Connection
 
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
 
-def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
-    self.extras = {
+GCP_CONNECTION_WITH_PROJECT_ID = Connection(
+    extra=json.dumps({
         'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST
-    }
-    self._conn = gcp_conn_id
-    self.delegate_to = delegate_to
+    })
+)
 
-
-def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None):
-    self.extras = {
-    }
-    self._conn = gcp_conn_id
-    self.delegate_to = delegate_to
+GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(
+    extra=json.dumps({})
+)
 
 
 def get_open_mock():

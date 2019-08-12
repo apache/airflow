@@ -27,6 +27,7 @@ import os
 import tempfile
 from typing import Any, Optional, Dict, Callable, TypeVar, Sequence
 
+from cached_property import cached_property
 import httplib2
 
 import google.auth
@@ -84,7 +85,6 @@ class GoogleCloudBaseHook(BaseHook):
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
 
     def _get_credentials(self) -> google.auth.credentials.Credentials:
         """
@@ -159,10 +159,14 @@ class GoogleCloudBaseHook(BaseHook):
         key_path, etc. They get formatted as shown below.
         """
         long_f = 'extra__google_cloud_platform__{}'.format(f)
-        if hasattr(self, 'extras') and long_f in self.extras:
+        if long_f in self.extras:
             return self.extras[long_f]
         else:
             return default
+
+    @cached_property
+    def extras(self) -> Dict:
+        return self.get_connection(self.gcp_conn_id).extra_dejson or {}  # type: Dict
 
     @property
     def project_id(self) -> Optional[str]:

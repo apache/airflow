@@ -24,11 +24,8 @@ from unittest import mock
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_cloud_build_hook import CloudBuildHook
-from tests.contrib.utils.base_gcp_mock import (
-    mock_base_gcp_hook_default_project_id,
-    mock_base_gcp_hook_no_default_project_id,
-)
-
+from tests.contrib.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID, \
+    GCP_CONNECTION_WITHOUT_PROJECT_ID
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -49,11 +46,15 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
     hook = None
 
     def setUp(self):
-        with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = CloudBuildHook(gcp_conn_id="test")
+        self.patcher_get_connections = mock.patch(
+            "airflow.hooks.base_hook.BaseHook.get_connections",
+            return_value=[GCP_CONNECTION_WITHOUT_PROJECT_ID]
+        )
+        self.patcher_get_connections.start()
+        self.hook = CloudBuildHook(gcp_conn_id="test")
+
+    def tearDown(self) -> None:
+        self.patcher_get_connections.stop()
 
     @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
@@ -115,18 +116,22 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         service_mock.operations.return_value.get.return_value.execute = execute_mock
         with self.assertRaisesRegex(AirflowException, "error"):
-            self.hook.create_build(body={})
+            self.hook.create_build(body={}, project_id=TEST_PROJECT_ID)
 
 
 class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     hook = None
 
     def setUp(self):
-        with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = CloudBuildHook(gcp_conn_id="test")
+        self.patcher_get_connections = mock.patch(
+            "airflow.hooks.base_hook.BaseHook.get_connections",
+            return_value=[GCP_CONNECTION_WITH_PROJECT_ID]
+        )
+        self.patcher_get_connections.start()
+        self.hook = CloudBuildHook(gcp_conn_id="test")
+
+    def tearDown(self) -> None:
+        self.patcher_get_connections.stop()
 
     @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
