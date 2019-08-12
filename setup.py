@@ -194,7 +194,7 @@ gcp = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-cloud-automl>=0.4.0',
     'google-cloud-bigtable==0.33.0',
-    'google-cloud-bigquery-datatransfer>=0.3.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-language>=1.1.1',

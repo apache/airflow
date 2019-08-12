@@ -20,7 +20,7 @@ import unittest
 
 from tests.compat import mock
 
-from airflow.contrib.operators.gcp_bigquery_dts_operator import (
+from airflow.gcp.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
     BigQueryDeleteDataTransferConfigOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
@@ -47,10 +47,10 @@ NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
 
 class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
     @mock.patch(
-        "airflow.contrib.operators.gcp_bigquery_dts_operator."
+        "airflow.gcp.operators.bigquery_dts."
         "BiqQueryDataTransferServiceHook.create_transfer_config"
     )
-    @mock.patch("airflow.contrib.operators.gcp_bigquery_dts_operator.get_object_id")
+    @mock.patch("airflow.gcp.operators.bigquery_dts.get_object_id")
     def test_execute(self, mock_name, mock_hook):
         mock_name.return_value = TRANSFER_CONFIG_ID
         mock_xcom = mock.MagicMock()
@@ -71,7 +71,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
 
 class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
     @mock.patch(
-        "airflow.contrib.operators.gcp_bigquery_dts_operator."
+        "airflow.gcp.operators.bigquery_dts."
         "BiqQueryDataTransferServiceHook.delete_transfer_config"
     )
     def test_execute(self, mock_hook):
@@ -90,7 +90,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
 
 class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
     @mock.patch(
-        "airflow.contrib.operators.gcp_bigquery_dts_operator."
+        "airflow.gcp.operators.bigquery_dts."
         "BiqQueryDataTransferServiceHook.start_manual_transfer_runs"
     )
     def test_execute(self, mock_hook):

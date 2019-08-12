@@ -28,12 +28,12 @@ from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_bigquery_dts_operator import (
+from airflow.gcp.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
     BigQueryDeleteDataTransferConfigOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
 )
-from airflow.contrib.sensors.gcp_bigquery_dts_sensor import (
+from airflow.gcp.sensors.bigquery_dts import (
     BigQueryDataTransferServiceTransferRunSensor,
 )
 

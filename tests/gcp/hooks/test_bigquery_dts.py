@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from copy import copy
+from copy import deepcopy
 
 from google.protobuf.json_format import ParseDict
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
@@ -28,7 +28,7 @@ from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 from airflow.version import version
-from airflow.contrib.hooks.gcp_bigquery_dts_hook import BiqQueryDataTransferServiceHook
+from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 
 
 CREDENTIALS = "test-creds"
@@ -59,7 +59,7 @@ TRANSFER_CONFIG_ID = "id1234"
 class BigQueryDataTransferHookTestCase(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.contrib.hooks.gcp_bigquery_dts_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.bigquery_dts.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook(  # type: ignore
@@ -74,12 +74,12 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         self.assertEqual(expected_version, self.hook.client_info.client_library_version)
 
     def test_disable_auto_scheduling(self):
-        expected = copy(TRANSFER_CONFIG)
+        expected = deepcopy(TRANSFER_CONFIG)
         expected.schedule_options.disable_auto_scheduling = True
         self.assertEqual(expected, self.hook._disable_auto_scheduling(TRANSFER_CONFIG))
 
     @mock.patch(
-        "airflow.contrib.hooks.gcp_bigquery_dts_hook."
+        "airflow.gcp.hooks.bigquery_dts."
         "DataTransferServiceClient.create_transfer_config"
     )
     def test_create_transfer_config(self, service_mock):
@@ -87,7 +87,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
             transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID
         )
         parent = DataTransferServiceClient.project_path(PROJECT_ID)
-        expected_config = copy(TRANSFER_CONFIG)
+        expected_config = deepcopy(TRANSFER_CONFIG)
         expected_config.schedule_options.disable_auto_scheduling = True
         service_mock.assert_called_once_with(
             parent=parent,
@@ -99,7 +99,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.contrib.hooks.gcp_bigquery_dts_hook."
+        "airflow.gcp.hooks.bigquery_dts."
         "DataTransferServiceClient.delete_transfer_config"
     )
     def test_delete_transfer_config(self, service_mock):
@@ -115,7 +115,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.contrib.hooks.gcp_bigquery_dts_hook."
+        "airflow.gcp.hooks.bigquery_dts."
         "DataTransferServiceClient.start_manual_transfer_runs"
     )
     def test_start_manual_transfer_runs(self, service_mock):

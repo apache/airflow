@@ -23,7 +23,7 @@ from typing import Sequence, Tuple
 from google.protobuf.json_format import MessageToDict
 from google.api_core.retry import Retry
 
-from airflow.contrib.hooks.gcp_bigquery_dts_hook import (
+from airflow.gcp.hooks.bigquery_dts import (
     BiqQueryDataTransferServiceHook,
     get_object_id,
 )

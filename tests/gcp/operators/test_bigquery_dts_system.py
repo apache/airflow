@@ -19,7 +19,7 @@
 
 import unittest
 
-from tests.contrib.operators.test_gcp_bigquery_dts_operator_system_helper import (
+from tests.gcp.operators.test_bigquery_dts_system_helper import (
     GcpBigqueryDtsTestHelper,
 )
 from tests.contrib.utils.base_gcp_system_test_case import (
@@ -28,7 +28,7 @@ from tests.contrib.utils.base_gcp_system_test_case import (
 )
 from tests.contrib.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
-from airflow.contrib.example_dags.example_gcp_bigquery_dts import (
+from airflow.gcp.example_dags.example_bigquery_dts import (
     GCP_PROJECT_ID,
     GCP_DTS_BQ_DATASET,
     GCP_DTS_BQ_TABLE,
