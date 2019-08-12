@@ -284,6 +284,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
+    'yamllint'
 ]
 
 if PY3:

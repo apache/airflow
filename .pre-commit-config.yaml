@@ -16,6 +16,9 @@
 # under the License.
 ---
 default_stages: [commit, push]
+default_language_version:
+  # force all unspecified python hooks to run python3
+  python: python3
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.6
@@ -78,6 +81,15 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
       - id: insert-license
+        name: Add licence for yaml files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [yaml]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+      - id: insert-license
         name: Add licence for all md files
         files: \.md$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
@@ -109,6 +121,12 @@ repos:
       - id: check-xml
   - repo: local
     hooks:
+      - id: yamllint
+        name: Check yaml files with yamllint
+        entry: yamllint -c yamllint-config.yml
+        language: python
+        types: [yaml]
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image

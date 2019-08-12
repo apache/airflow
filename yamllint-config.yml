@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
-services:
-  airflow-testing:
-    environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
+extends: default
+
+rules:
+  line-length:
+    max: 110
