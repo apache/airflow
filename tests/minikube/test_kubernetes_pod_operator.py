@@ -266,7 +266,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                 get_logs=True
             )
             k.execute(None)
-            mock_logger.info.assert_any_call(b"+ echo 10\n")
+            mock_logger.info.assert_any_call(b"+ echo 10")
 
     @staticmethod
     def test_port():
@@ -311,7 +311,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                 task_id="task"
             )
             k.execute(None)
-            mock_logger.info.assert_any_call(b"retrieved from mount\n")
+            mock_logger.info.assert_any_call(b"retrieved from mount")
 
     @staticmethod
     def test_run_as_user_root():
