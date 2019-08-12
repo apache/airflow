@@ -86,7 +86,7 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
             raise AirflowException("The required parameter 'config' is empty")
 
     def execute(self, context):
-        _hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-        return _hook.recognize_speech(
+        hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

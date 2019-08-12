@@ -124,10 +124,10 @@ class GcpTranslateSpeechOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        _speech_to_text_hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-        _translate_hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
+        speech_to_text_hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
+        translate_hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
 
-        recognize_result = _speech_to_text_hook.recognize_speech(
+        recognize_result = speech_to_text_hook.recognize_speech(
             config=self.config, audio=self.audio
         )
         recognize_dict = MessageToDict(recognize_result)
@@ -146,7 +146,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
                                    .format(recognize_dict, key))
 
         try:
-            translation = _translate_hook.translate(
+            translation = translate_hook.translate(
                 values=transcript,
                 target_language=self.target_language,
                 format_=self.format_,

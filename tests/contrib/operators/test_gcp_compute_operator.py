@@ -367,8 +367,6 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         err = cm.exception
         self.assertIn(
             "The required body field 'machineType' is missing. Please add it.", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     MOCK_OP_RESPONSE = "{'kind': 'compute#operation', 'id': '8529919847974922736', " \
                        "'name': " \

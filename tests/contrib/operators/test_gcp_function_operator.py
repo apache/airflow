@@ -71,9 +71,7 @@ def _prepare_test_bodies():
 
 class GcfFunctionDeployTest(unittest.TestCase):
     @parameterized.expand(_prepare_test_bodies())
-    @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
-    def test_body_empty_or_missing_fields(self, body, message, mock_hook):
-        mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
+    def test_body_empty_or_missing_fields(self, body, message):
         with self.assertRaises(AirflowException) as cm:
             op = GcfFunctionDeployOperator(
                 project_id="test_project_id",
@@ -84,9 +82,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
     def test_deploy_execute(self, mock_hook):
@@ -147,7 +142,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
             body=deepcopy(VALID_BODY),
             task_id="id"
         )
-        operator._hook.get_function.side_effect = \
+        mock_hook.return_value.get_function.side_effect = \
             HttpError(resp=MOCK_RESP_404, content=b'not found')
         operator.execute(None)
         mock_hook.assert_called_once_with(api_version='v1',
@@ -160,8 +155,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
             location="test_region",
             body=new_body)
 
-    @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
-    def test_empty_location(self, mock_hook):
+    def test_empty_location(self):
         with self.assertRaises(AirflowException) as cm:
             GcfFunctionDeployOperator(
                 project_id="test_project_id",
@@ -171,11 +165,8 @@ class GcfFunctionDeployTest(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'location' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
-    @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
-    def test_empty_body(self, mock_hook):
+    def test_empty_body(self):
         with self.assertRaises(AirflowException) as cm:
             GcfFunctionDeployOperator(
                 project_id="test_project_id",
@@ -185,8 +176,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'body' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     @parameterized.expand([
         (runtime,) for runtime in VALID_RUNTIMES
@@ -381,9 +370,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @parameterized.expand([
         ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),
