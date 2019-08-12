@@ -56,11 +56,11 @@ class SerializedDagModel(Base):
     __tablename__ = 'serialized_dag'
 
     dag_id = Column(String(ID_LEN), primary_key=True)
-    fileloc = Column(String(2000))
+    fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(Integer)
-    data = Column(Text)
-    last_updated = Column(UtcDateTime)
+    fileloc_hash = Column(Integer, nullable=False)
+    data = Column(Text, nullable=False)
+    last_updated = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),

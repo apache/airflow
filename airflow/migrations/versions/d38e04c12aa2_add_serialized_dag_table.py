@@ -61,6 +61,7 @@ def upgrade():
             table_name="serialized_dag",
             column_name="last_updated",
             type_=mysql.TIMESTAMP(fsp=6),
+            nullable=False,
         )
     else:
         # sqlite and mssql datetime are fine as is.  Therefore, not converting

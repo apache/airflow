@@ -313,7 +313,7 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
 # Used by DAG context_managers
 CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
 
-# If dagcached is enabled, scheduler writes serialized DAGs to DB, and webserevr
+# If dagcached is enabled, scheduler writes serialized DAGs to DB, and webserver
 # reads DAGs from DB instead of importing from files.
 DAGCACHED_ENABLED = conf.getboolean('core', 'dagcached', fallback=False)
 
