@@ -48,16 +48,14 @@ class TestPodLauncher(unittest.TestCase):
                 container='base',
                 follow=True,
                 name=mock.sentinel.name,
-                namespace=mock.sentinel.namespace,
-                tail_lines=10
+                namespace=mock.sentinel.namespace
             ),
             mock.call(
                 _preload_content=False,
                 container='base',
                 follow=True,
                 name=mock.sentinel.name,
-                namespace=mock.sentinel.namespace,
-                tail_lines=10
+                namespace=mock.sentinel.namespace
             )
         ])
 
