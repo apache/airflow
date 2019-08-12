@@ -22,8 +22,8 @@ This module contains a Google Cloud Translate Speech operator.
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_speech_to_text_hook import GCPSpeechToTextHook
-from airflow.contrib.hooks.gcp_translate_hook import CloudTranslateHook
+from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
+from airflow.gcp.hooks.translate import CloudTranslateHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

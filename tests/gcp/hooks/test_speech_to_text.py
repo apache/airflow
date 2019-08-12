@@ -20,30 +20,26 @@
 
 import unittest
 
-from airflow.contrib.hooks.gcp_text_to_speech_hook import GCPTextToSpeechHook
+from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
 from tests.compat import patch
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-INPUT = {"text": "test text"}
-VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
-AUDIO_CONFIG = {"audio_encoding": "MP3"}
+PROJECT_ID = "project-id"
+CONFIG = {"ecryption": "LINEAR16"}
+AUDIO = {"uri": "gs://bucket/object"}
 
 
-class TestTextToSpeechHook(unittest.TestCase):
+class TestTextToSpeechOperator(unittest.TestCase):
     def setUp(self):
         with patch(
             "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")
+            self.gcp_speech_to_text_hook = GCPSpeechToTextHook(gcp_conn_id="test")
 
-    @patch("airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook.get_conn")
+    @patch("airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook.get_conn")
     def test_synthesize_speech(self, get_conn):
-        synthesize_method = get_conn.return_value.synthesize_speech
-        synthesize_method.return_value = None
-        self.gcp_text_to_speech_hook.synthesize_speech(
-            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG
-        )
-        synthesize_method.assert_called_once_with(
-            input_=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
-        )
+        recognize_method = get_conn.return_value.recognize
+        recognize_method.return_value = None
+        self.gcp_speech_to_text_hook.recognize_speech(config=CONFIG, audio=AUDIO)
+        recognize_method.assert_called_once_with(config=CONFIG, audio=AUDIO, retry=None, timeout=None)

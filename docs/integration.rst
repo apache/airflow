@@ -710,27 +710,27 @@ They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to 
 Cloud Text to Speech
 ''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator`
+:class:`airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
     Synthesizes input text into audio file and stores this file to GCS.
 
-They also use :class:`airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
 
 Cloud Speech to Text
 ''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator`
+:class:`airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator`
     Recognizes speech in audio input and returns text.
 
-They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
 
 Cloud Speech Translate Operators
 --------------------------------
 
-:class:`airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator`
+:class:`airflow.gcp.operators.translate_speech.GcpTranslateSpeechOperator`
     Recognizes speech in audio input and translates it.
 
-They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` and
-    :class:`airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` and
+    :class:`airflow.gcp.hooks.translate.CloudTranslateHook` to communicate with Google Cloud Platform.
 
 Cloud Translate
 '''''''''''''''
@@ -738,7 +738,7 @@ Cloud Translate
 Cloud Translate Text Operators
 """"""""""""""""""""""""""""""
 
-:class:`airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
+:class:`airflow.gcp.operators.translate.CloudTranslateTextOperator`
     Translate a string or list of strings.
 
 

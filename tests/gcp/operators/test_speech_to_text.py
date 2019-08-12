@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_speech_to_text_operator import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
 from tests.compat import Mock, patch
 
 PROJECT_ID = "project-id"
@@ -30,7 +30,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 
 
 class CloudSqlTest(unittest.TestCase):
-    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
@@ -43,7 +43,7 @@ class CloudSqlTest(unittest.TestCase):
             config=CONFIG, audio=AUDIO, retry=None, timeout=None
         )
 
-    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
     def test_missing_config(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
@@ -56,7 +56,7 @@ class CloudSqlTest(unittest.TestCase):
         self.assertIn("config", str(err))
         mock_hook.assert_not_called()
 
-    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
     def test_missing_audio(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 

@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.contrib.hooks.gcp_translate_hook import CloudTranslateHook
+from airflow.gcp.hooks.translate import CloudTranslateHook
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests.compat import mock
 
@@ -29,12 +29,12 @@ PROJECT_ID_TEST = 'project-id'
 class TestCloudTranslateHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook.__init__',
+            'airflow.gcp.hooks.translate.CloudTranslateHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudTranslateHook(gcp_conn_id='test')
 
-    @mock.patch('airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.translate.CloudTranslateHook.get_conn')
     def test_translate_called(self, get_conn):
         # Given
         translate_method = get_conn.return_value.translate

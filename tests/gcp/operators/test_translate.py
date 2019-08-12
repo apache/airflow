@@ -19,14 +19,14 @@
 
 import unittest
 
-from airflow.contrib.operators.gcp_translate_operator import CloudTranslateTextOperator
+from airflow.gcp.operators.translate import CloudTranslateTextOperator
 from tests.compat import mock
 
 GCP_CONN_ID = 'google_cloud_default'
 
 
 class CloudTranslateTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_translate_operator.CloudTranslateHook')
+    @mock.patch('airflow.gcp.operators.translate.CloudTranslateHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.translate.return_value = [
             {

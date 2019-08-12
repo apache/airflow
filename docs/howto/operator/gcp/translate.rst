@@ -30,14 +30,14 @@ CloudTranslateTextOperator
 Translate a string or list of strings.
 
 For parameter definition, take a look at
-:class:`~airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
+:class:`~airflow.gcp.operators.translate.CloudTranslateTextOperator`
 
 Using the operator
 """"""""""""""""""
 
 Basic usage of the operator:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_text]
@@ -46,7 +46,7 @@ Basic usage of the operator:
 The result of translation is available as dictionary or array of dictionaries accessible via the usual
 XCom mechanisms of Airflow:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_translate.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_access]
@@ -56,7 +56,7 @@ XCom mechanisms of Airflow:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_translate_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/translate.py
     :language: python
     :dedent: 4
     :start-after: [START translate_template_fields]

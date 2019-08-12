@@ -22,7 +22,7 @@ import unittest
 from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
 
-from tests.contrib.operators.test_gcp_speech_operator_system_helper import GCPTextToSpeechTestHelper
+from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
 
 
 @unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)

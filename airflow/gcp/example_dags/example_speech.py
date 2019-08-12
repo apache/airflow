@@ -29,9 +29,9 @@ import os
 
 from airflow.utils import dates
 from airflow import models
-from airflow.contrib.operators.gcp_text_to_speech_operator import GcpTextToSpeechSynthesizeOperator
-from airflow.contrib.operators.gcp_speech_to_text_operator import GcpSpeechToTextRecognizeSpeechOperator
-from airflow.contrib.operators.gcp_translate_speech_operator import GcpTranslateSpeechOperator
+from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
+from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
 
 # [START howto_operator_text_to_speech_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
