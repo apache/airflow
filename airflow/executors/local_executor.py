@@ -52,10 +52,51 @@ from queue import Empty
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+import asyncio
+
+
+class AsyncioWorker(LoggingMixin):
+    def __init__(self, result_queue, loop):
+        """
+        :param result_queue: the queue to store result states tuples (key, State)
+        :type result_queue: multiprocessing.Queue
+        """
+        super().__init__()
+        self.daemon = True
+        self.result_queue = result_queue
+        self.key = None
+        self.command = None
+        self.loop = loop
+
+    async def execute_work(self, key, command):
+        """
+        Executes command received and stores result state in queue.
+        :param key: the key to identify the TI
+        :type key: tuple(dag_id, task_id, execution_date)
+        :param command: the command to execute
+        :type command: str
+        """
+        if key is None:
+            return
+        self.log.info("%s running %s", self.__class__.__name__, command)
+        try:
+            foo = await asyncio.create_subprocess_exec(
+                *command,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                loop=self.loop
+            )
+            if foo.returncode != 0:
+                raise asyncio.InvalidStateError()
+            state = State.SUCCESS
+        except asyncio.InvalidStateError as e:
+            state = State.FAILED
+            self.log.error("Failed to execute task %s.", str(e))
+        self.result_queue.put((key, state))
 
 
 class LocalWorker(multiprocessing.Process, LoggingMixin):
-
     """LocalWorker Process implementation to run airflow commands. Executes the given
     command and puts the result into a result queue when done, terminating execution."""
 
@@ -94,7 +135,6 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
 
 
 class QueuedLocalWorker(LocalWorker):
-
     """LocalWorker implementation that is waiting for tasks from a queue and will
     continue executing commands as they become available in the queue. It will terminate
     execution once the poison token is found."""
@@ -132,6 +172,9 @@ class LocalExecutor(BaseExecutor):
             :type executor: LocalExecutor
             """
             self.executor = executor
+            self.loop = asyncio.get_event_loop()
+            self.worker = AsyncioWorker(self.executor.result_queue, self.loop)
+
 
         def start(self):
             self.executor.workers_used = 0
@@ -144,12 +187,9 @@ class LocalExecutor(BaseExecutor):
             :param command: the command to execute
             :type command: str
             """
-            local_worker = LocalWorker(self.executor.result_queue)
-            local_worker.key = key
-            local_worker.command = command
             self.executor.workers_used += 1
             self.executor.workers_active += 1
-            local_worker.start()
+            self.loop.run_until_complete(self.worker.execute_work(key=key, command=command))
 
         def sync(self):
             while not self.executor.result_queue.empty():
@@ -160,6 +200,7 @@ class LocalExecutor(BaseExecutor):
         def end(self):
             while self.executor.workers_active > 0:
                 self.executor.sync()
+            self.loop.close()
 
     class _LimitedParallelism:
         """Implements LocalExecutor with limited parallelism using a task queue to
