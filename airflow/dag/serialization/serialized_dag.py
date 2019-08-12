@@ -26,11 +26,13 @@ from airflow.models import DAG
 
 
 class SerializedDAG(DAG, Serialization):
-    """A JSON serializable representation of DAG.
+    """
+    A JSON serializable representation of DAG.
 
     A stringified DAG can only be used in the scope of scheduler and webserver, because fields
     that are not serializable, such as functions and customer defined classes, are casted to
     strings.
+
     Compared with SimpleDAG: SerializedDAG contains all information for webserver.
     Compared with DagPickle: DagPickle contains all information for worker, but some DAGs are
     not pickable. SerializedDAG works for all DAGs.

@@ -40,15 +40,16 @@ class SerializedDagModel(Base):
 
     serialized_dag table is a snapshot of DAG files synchronized by scheduler.
     This feature is controlled by:
-        [core] dagcached = False: enable this feature
-        [core] dagcached_min_update_interval = 30 (s):
-            serialized DAGs are updated in DB when a file gets processed by scheduler,
-            to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
-        [scheduler] dag_dir_list_interval = 300 (s):
-            interval of deleting serialized DAGs in DB when the files are deleted, suggest
-            to use a smaller interval such as 60
 
-    It is used by webserver to load dagbags when dagcached=True. Because reading from
+    * ``[core] dagcached = True``: enable this feature
+    * ``[core] dagcached_min_update_interval = 30`` (s):
+      serialized DAGs are updated in DB when a file gets processed by scheduler,
+      to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
+    * ``[scheduler] dag_dir_list_interval = 300`` (s):
+      interval of deleting serialized DAGs in DB when the files are deleted, suggest
+      to use a smaller interval such as 60
+
+    It is used by webserver to load dagbags when ``dagcached=True``. Because reading from
     database is lightweight compared to importing from files, it solves the webserver
     scalability issue.
     """
@@ -112,8 +113,8 @@ class SerializedDagModel(Base):
     @db.provide_session
     def read_all_dags(cls, session=None) -> Dict[str, 'SerializedDAG']:
         """Reads all DAGs in serialized_dag table.
-        :param session: ORM Session
 
+        :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
         from airflow.dag.serialization import Serialization
