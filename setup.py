@@ -322,6 +322,7 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=1.0, <2.0',
+            'argcomplete~=1.10',
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',

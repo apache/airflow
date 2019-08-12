@@ -30,3 +30,29 @@ development and testing.
    :module: airflow.bin.cli
    :func: get_parser
    :prog: airflow
+
+Setting Up Bash Completion
+--------------------------
+
+When using bash (or `zsh`) as your shell, `airflow` can use
+`argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
+
+For global activation of all argcomplete enabled python applications run:
+
+.. code-block:: bash
+
+  sudo activate-global-python-argcomplete
+
+For permanent (but not global) airflow activation, use:
+
+.. code-block:: bash
+
+  register-python-argcomplete airflow >> ~/.bashrc
+
+For one-time activation of argcomplete for airflow only, use:
+
+.. code-block:: bash
+
+  eval "$(register-python-argcomplete airflow)"
+
+.. image:: img/cli_completion.gif
