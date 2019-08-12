@@ -1253,20 +1253,11 @@ class TaskInstance(Base, LoggingMixin):
             params.update(dag_run.conf)
 
     def render_templates(self, context=None):
-        task = self.task
+        """Render templates in the operator fields."""
         if not context:
             context = self.get_template_context()
 
-        if hasattr(self, 'task') and hasattr(self.task, 'dag'):
-            if self.task.dag.user_defined_macros:
-                context.update(self.task.dag.user_defined_macros)
-
-        rt = self.task.render_template  # shortcut to method
-        for attr in task.__class__.template_fields:
-            content = getattr(task, attr)
-            if content:
-                rendered_content = rt(attr, content, context)
-                setattr(task, attr, rendered_content)
+        self.task.render_template_fields(context)
 
     def email_alert(self, exception):
         exception_html = str(exception).replace('\n', '<br>')
