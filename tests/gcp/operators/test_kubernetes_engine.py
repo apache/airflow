@@ -23,7 +23,7 @@ import unittest
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, \
+from airflow.gcp.operators.kubernetes_engine import GKEClusterCreateOperator, \
     GKEClusterDeleteOperator, GKEPodOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from tests.compat import mock
@@ -47,7 +47,7 @@ FILE_NAME = '/tmp/mock_name'
 
 class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_create_execute(self, mock_hook):
         operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
                                             location=PROJECT_LOCATION,
@@ -58,7 +58,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
         mock_hook.return_value.create_cluster.assert_called_once_with(
             cluster=PROJECT_BODY_CREATE, project_id=TEST_GCP_PROJECT_ID)
 
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_create_execute_error_body(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
@@ -70,7 +70,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             mock_hook.return_value.create_cluster.assert_not_called()
 
     # pylint:disable=no-value-for-parameter
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_create_execute_error_project_id(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterCreateOperator(location=PROJECT_LOCATION,
@@ -81,7 +81,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             mock_hook.return_value.create_cluster.assert_not_called()
 
     # pylint:disable=no-value-for-parameter
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_create_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
@@ -91,7 +91,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             operator.execute(None)
             mock_hook.return_value.create_cluster.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_delete_execute(self, mock_hook):
         operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
                                             name=CLUSTER_NAME,
@@ -103,7 +103,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID)
 
     # pylint:disable=no-value-for-parameter
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_delete_execute_error_project_id(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterDeleteOperator(location=PROJECT_LOCATION,
@@ -113,7 +113,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             mock_hook.return_value.delete_cluster.assert_not_called()
 
     # pylint:disable=no-value-for-parameter
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_delete_execute_error_cluster_name(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
@@ -124,7 +124,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             mock_hook.return_value.delete_cluster.assert_not_called()
 
     # pylint:disable=no-value-for-parameter
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_delete_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
             operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
@@ -288,7 +288,7 @@ class GKEPodOperatorTest(unittest.TestCase):
         ret_val = self.gke_op._get_field(extras, field_name)
         self.assertEqual(field_value, ret_val)
 
-    @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEPodOperator.log')
+    @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEPodOperator.log')
     def test_get_field_fail(self, log_mock):
         log_mock.info = mock.Mock()
         log_str = 'Field %s not found in extras.'

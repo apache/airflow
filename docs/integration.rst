@@ -757,16 +757,16 @@ They also use :class:`airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVid
 Google Kubernetes Engine
 ''''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator`
+:class:`airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator`
     Creates a Kubernetes Cluster in Google Cloud Platform
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator`
+:class:`airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator`
     Deletes a Kubernetes Cluster in Google Cloud Platform
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEPodOperator`
+:class:`airflow.gcp.operators.kubernetes_engine.GKEPodOperator`
     Executes a task in a Kubernetes pod in the specified Google Kubernetes Engine cluster
 
-They also use :class:`airflow.contrib.hooks.gcp_container_hook.GKEClusterHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.kubernetes_engine.GKEClusterHook` to communicate with Google Cloud Platform.
 
 
 Google Natural Language
