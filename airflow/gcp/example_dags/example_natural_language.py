@@ -25,7 +25,7 @@ from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_natural_language_operator import (
+from airflow.gcp.operators.natural_language import (
     CloudLanguageAnalyzeEntitiesOperator,
     CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator,

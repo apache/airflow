@@ -22,7 +22,7 @@ from typing import Dict, Any
 
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
-from airflow.contrib.hooks.gcp_natural_language_hook import CloudNaturalLanguageHook
+from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
@@ -43,7 +43,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.analyze_entities.return_value": API_RESPONSE}  # type: ignore
     )
     def test_analyze_entities(self, get_conn):
@@ -56,7 +56,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.analyze_entity_sentiment.return_value": API_RESPONSE}
     )
     def test_analyze_entity_sentiment(self, get_conn):
@@ -69,7 +69,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.analyze_sentiment.return_value": API_RESPONSE}
     )
     def test_analyze_sentiment(self, get_conn):
@@ -82,7 +82,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.analyze_syntax.return_value": API_RESPONSE}
     )
     def test_analyze_syntax(self, get_conn):
@@ -95,7 +95,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.annotate_text.return_value": API_RESPONSE}
     )
     def test_annotate_text(self, get_conn):
@@ -113,7 +113,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook.get_conn",
+        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
         **{"return_value.classify_text.return_value": API_RESPONSE}
     )
     def test_classify_text(self, get_conn):

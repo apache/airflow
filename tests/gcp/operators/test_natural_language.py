@@ -27,7 +27,7 @@ from google.cloud.language_v1.proto.language_service_pb2 import (
     Document,
 )
 
-from airflow.contrib.operators.gcp_natural_language_operator import (
+from airflow.gcp.operators.natural_language import (
     CloudLanguageAnalyzeEntitiesOperator,
     CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator,
@@ -49,7 +49,7 @@ ENCODING_TYPE = "UTF32"
 
 
 class CloudLanguageAnalyzeEntitiesOperatorTestCase(unittest.TestCase):
-    @patch("airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageHook")
+    @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_entities.return_value = ANALYZE_ENTITIES_RESPONSE
         op = CloudLanguageAnalyzeEntitiesOperator(task_id="task-id", document=DOCUMENT)
@@ -58,7 +58,7 @@ class CloudLanguageAnalyzeEntitiesOperatorTestCase(unittest.TestCase):
 
 
 class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
-    @patch("airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageHook")
+    @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_entity_sentiment.return_value = ANALYZE_ENTITY_SENTIMENT_RESPONSE
         op = CloudLanguageAnalyzeEntitySentimentOperator(task_id="task-id", document=DOCUMENT)
@@ -67,7 +67,7 @@ class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
 
 
 class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
-    @patch("airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageHook")
+    @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_sentiment.return_value = ANALYZE_SENTIMENT_RESPONSE
         op = CloudLanguageAnalyzeSentimentOperator(task_id="task-id", document=DOCUMENT)
@@ -76,7 +76,7 @@ class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
 
 
 class CloudLanguageClassifyTextOperatorTestCase(unittest.TestCase):
-    @patch("airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageHook")
+    @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.classify_text.return_value = CLASSIFY_TEXT_RRESPONSE
         op = CloudLanguageClassifyTextOperator(task_id="task-id", document=DOCUMENT)
