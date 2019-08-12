@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException
+"""This module contains Azure Data Explorer hook"""
 
 from azure.kusto.data.request import KustoClient, KustoConnectionStringBuilder, ClientRequestProperties
 from azure.kusto.data.exceptions import KustoServiceError
+
+from airflow.hooks.base_hook import BaseHook
+from airflow.exceptions import AirflowException
 
 
 class AzureDataExplorerHook(BaseHook):

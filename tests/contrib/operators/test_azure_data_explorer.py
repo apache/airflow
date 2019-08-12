@@ -56,7 +56,7 @@ MOCK_RESULT = {
 }
 
 
-class MockResponse(object):
+class MockResponse:
     primary_results = [MOCK_RESULT]
 
 

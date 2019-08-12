@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""This module contains Azure Data Explorer operators"""
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -58,6 +59,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
+        """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
     def execute(self, context):
