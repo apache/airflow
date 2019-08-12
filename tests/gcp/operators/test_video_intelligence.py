@@ -21,7 +21,7 @@ import unittest
 
 from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.proto.video_intelligence_pb2 import AnnotateVideoResponse
-from airflow.contrib.operators.gcp_video_intelligence_operator import (
+from airflow.gcp.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
@@ -37,7 +37,7 @@ INPUT_URI = "gs://test-bucket//test-video.mp4"
 
 
 class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
-    @mock.patch("airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceHook")
+    @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_labels_green_path(self, mock_hook):
 
         mocked_operation = mock.Mock()
@@ -58,7 +58,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             retry=None,
         )
 
-    @mock.patch("airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceHook")
+    @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_explicit_content_green_path(self, mock_hook):
         mocked_operation = mock.Mock()
         mocked_operation.result = mock.Mock(return_value=AnnotateVideoResponse(annotation_results=[]))
@@ -78,7 +78,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             retry=None,
         )
 
-    @mock.patch("airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceHook")
+    @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_shots_green_path(self, mock_hook):
         mocked_operation = mock.Mock()
         mocked_operation.result = mock.Mock(return_value=AnnotateVideoResponse(annotation_results=[]))

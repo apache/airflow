@@ -745,14 +745,14 @@ Cloud Translate Text Operators
 Cloud Video Intelligence
 ''''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator`
+:class:`airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator`
     Performs video annotation, annotating video labels.
-:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
+:class:`airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
     Performs video annotation, annotating explicit content.
-:class:`airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator`
+:class:`airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator`
     Performs video annotation, annotating video shots.
 
-They also use :class:`airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook` to communicate with Google Cloud Platform.
 
 Google Kubernetes Engine
 ''''''''''''''''''''''''

@@ -34,7 +34,7 @@ from google.api_core.retry import Retry
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_video_intelligence_operator import (
+from airflow.gcp.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
