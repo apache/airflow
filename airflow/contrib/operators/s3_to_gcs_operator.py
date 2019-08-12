@@ -65,6 +65,8 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param replace: Whether you want to replace existing destination files
         or not.
     :type replace: bool
+    :param gzip: Option to compress file for upload
+    :type gzip: bool
 
 
     **Example**:
@@ -78,6 +80,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
             dest_gcs_conn_id='google_cloud_default',
             dest_gcs='gs://my.gcs.bucket/some/customers/',
             replace=False,
+            gzip=True,
             dag=my-dag)
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
@@ -98,6 +101,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  dest_gcs=None,
                  delegate_to=None,
                  replace=False,
+                 gzip=False,
                  *args,
                  **kwargs):
 
@@ -113,6 +117,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.delegate_to = delegate_to
         self.replace = replace
         self.verify = verify
+        self.gzip = gzip
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -186,7 +191,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     #                             dest_gcs_bucket,
                     #                             dest_gcs_object))
 
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name)
+                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name, gzip=self.gzip)
 
             self.log.info(
                 "All done, uploaded %d files to Google Cloud Storage",

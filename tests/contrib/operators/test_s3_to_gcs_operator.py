@@ -19,7 +19,6 @@
 
 import unittest
 
-from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.s3_to_gcs_operator import \
     S3ToGoogleCloudStorageOperator
 from tests.compat import mock
@@ -71,15 +70,14 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
         s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
 
-        def _assert_upload(bucket, object, tmp_filename):
-            gcs_bucket, gcs_object_path = _parse_gcs_url(GCS_PATH_PREFIX)
-
-            self.assertEqual(gcs_bucket, bucket)
-            self.assertIn(object[len(gcs_object_path):], MOCK_FILES)
-
-        gcs_mock_hook.return_value.upload.side_effect = _assert_upload
-
         uploaded_files = operator.execute(None)
+        gcs_mock_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=False),
+                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=False),
+                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=False)
+            ], any_order=True
+        )
 
         s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
@@ -88,6 +86,35 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         # we expect MOCK_FILES to be uploaded
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+
+    @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
+    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
+    @mock.patch(
+        'airflow.contrib.operators.s3_to_gcs_operator.GoogleCloudStorageHook')
+    def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
+        """Test the execute function when the run is successful."""
+
+        operator = S3ToGoogleCloudStorageOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            dest_gcs_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            gzip=True
+        )
+
+        s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+
+        operator.execute(None)
+        gcs_mock_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=True),
+                mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=True),
+                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=True)
+            ], any_order=True
+        )
 
 
 if __name__ == '__main__':
