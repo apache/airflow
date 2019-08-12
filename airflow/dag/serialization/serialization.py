@@ -160,11 +160,11 @@ class Serialization:
             elif callable(var):
                 return str(get_python_source(var))
             elif isinstance(var, set):
-                # FIXME: casts set to list in customized serilization in future.
+                # FIXME: casts set to list in customized serialization in future.
                 return cls._encode(
                     [cls._serialize(v, visited_dags) for v in var], type_=DAT.SET)
             elif isinstance(var, tuple):
-                # FIXME: casts tuple to list in customized serilization in future.
+                # FIXME: casts tuple to list in customized serialization in future.
                 return cls._encode(
                     [cls._serialize(v, visited_dags) for v in var], type_=DAT.TUPLE)
             else:
@@ -195,7 +195,7 @@ class Serialization:
                     return airflow.dag.serialization.SerializedDAG.deserialize_dag(
                         var, visited_dags)
                 elif isinstance(var, str) and var in visited_dags:
-                    # dag_id is stored in the serailized form for a visited DAGs.
+                    # dag_id is stored in the serialized form for a visited DAGs.
                     return visited_dags[var]
                 LOG.warning('Invalid DAG %s in deserialization.', var)
                 return None

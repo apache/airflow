@@ -20,14 +20,15 @@
 """Serialzed DAG table in database."""
 
 import hashlib
+from datetime import timedelta
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
 from sqlalchemy import Column, Index, Integer, String, Text, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import Base, ID_LEN
 from airflow.utils import db, timezone
 from airflow.utils.sqlalchemy import UtcDateTime
-
 
 if TYPE_CHECKING:
     from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
@@ -96,11 +97,14 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
 
+        # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
+        # If Yes, does nothing
+        # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            result = session.query(cls.last_updated).filter(
-                cls.dag_id == dag.dag_id)
-            if result is not None and (
-                    timezone.utcnow() - result.last_updated).total_seconds() < min_update_interval:
+            if session.query(exists().where(
+                and_(cls.dag_id == dag.dag_id,
+                     (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
+            ).scalar():
                 return
         session.merge(cls(dag))
 
