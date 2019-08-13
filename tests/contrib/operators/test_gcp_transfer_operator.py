@@ -22,6 +22,7 @@ from copy import deepcopy
 from datetime import date, time
 from typing import Dict
 
+from freezegun import freeze_time
 from parameterized import parameterized
 from botocore.credentials import Credentials
 
@@ -183,6 +184,17 @@ class TransferJobPreprocessorTest(unittest.TestCase):
         body = {SCHEDULE: {START_TIME_OF_DAY: DICT_TIME}}
         TransferJobPreprocessor(body=body).process_body()
         self.assertEqual(body[SCHEDULE][START_TIME_OF_DAY], DICT_TIME)
+
+    @freeze_time("2018-10-15")
+    def test_should_set_default_schedule(self):
+        body = {}
+        TransferJobPreprocessor(body=body, default_schedule=True).process_body()
+        self.assertEqual(body, {
+            SCHEDULE: {
+                SCHEDULE_END_DATE: {'day': 15, 'month': 10, 'year': 2018},
+                SCHEDULE_START_DATE: {'day': 15, 'month': 10, 'year': 2018}
+            }
+        })
 
 
 class TransferJobValidatorTest(unittest.TestCase):
