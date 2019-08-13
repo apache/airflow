@@ -40,7 +40,7 @@ def push(**kwargs):
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
 
-def push_by_returning():
+def push_by_returning(**kwargs):
     """Pushes an XCom without a specific target, just by returning it"""
     return value_2
 
