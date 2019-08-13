@@ -39,7 +39,7 @@ For one-time activation of argcomplete for airflow only, use:
 
   eval "$(register-python-argcomplete airflow)"
 
-.. image:: img/cli_completion.gif
+.. image:: ../img/cli_completion.gif
 
 If you’re using ``zsh``, add the following to your ``.zshrc``:
 
