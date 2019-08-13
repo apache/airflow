@@ -27,8 +27,7 @@ from googleapiclient.discovery import build_from_document
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpMockSequence
 
-
-from airflow.contrib.hooks import gcp_mlengine_hook as hook
+from airflow.gcp.hooks import mlengine as hook
 
 cml_available = True
 try:

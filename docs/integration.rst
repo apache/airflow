@@ -560,20 +560,20 @@ They also use :class:`airflow.contrib.hooks.datastore_hook.DatastoreHook` to com
 Cloud ML Engine
 '''''''''''''''
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineBatchPredictionOperator`
     Start a Cloud ML Engine batch prediction job.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineModelOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineModelOperator`
     Manages a Cloud ML Engine model.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineTrainingOperator`
     Start a Cloud ML Engine training job.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineVersionOperator`
     Manages a Cloud ML Engine model version.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.mlengine.MLEngineHook` to communicate with Google Cloud Platform.
 
 
 Cloud Storage

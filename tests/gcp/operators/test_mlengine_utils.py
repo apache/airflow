@@ -19,7 +19,7 @@ import datetime
 import unittest
 
 from airflow import DAG
-from airflow.contrib.utils import mlengine_operator_utils
+from airflow.gcp.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
 from airflow.version import version
 
@@ -80,8 +80,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             validate_fn=(lambda x: 'err=%.1f' % x['err']),
             dag=self.dag)
 
-        with patch('airflow.contrib.operators.mlengine_operator.'
-                   'MLEngineHook') as mock_mlengine_hook:
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') as mock_mlengine_hook:
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
             success_message['predictionInput'] = input_with_model
             hook_instance = mock_mlengine_hook.return_value
@@ -111,10 +110,10 @@ class CreateEvaluateOpsTest(unittest.TestCase):
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                'airflow.contrib.utils.mlengine_prediction_summary',
+                'airflow.gcp.utils.mlengine_prediction_summary',
                 ['-m'])
 
-        with patch('airflow.contrib.utils.mlengine_operator_utils.'
+        with patch('airflow.gcp.utils.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'

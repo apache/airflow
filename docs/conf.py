@@ -204,6 +204,7 @@ exclude_patterns = [
     '_api/main',
     '_api/airflow/gcp/index.rst',
     '_api/airflow/gcp/example_dags',
+    '_api/airflow/gcp/utils',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]

@@ -24,9 +24,9 @@ from googleapiclient.errors import HttpError
 from unittest.mock import ANY, patch
 
 from airflow import DAG
-from airflow.contrib.operators.mlengine_operator import (MLEngineBatchPredictionOperator,
-                                                         MLEngineTrainingOperator,
-                                                         MLEngineVersionOperator)
+from airflow.gcp.operators.mlengine import (MLEngineBatchPredictionOperator,
+                                            MLEngineTrainingOperator,
+                                            MLEngineVersionOperator)
 from airflow.exceptions import AirflowException
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
@@ -72,7 +72,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def testSuccessWithModel(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
 
             input_with_model = self.INPUT_MISSING_ORIGIN.copy()
@@ -110,7 +110,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
                              prediction_output)
 
     def testSuccessWithVersion(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
 
             input_with_version = self.INPUT_MISSING_ORIGIN.copy()
@@ -149,7 +149,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
                              prediction_output)
 
     def testSuccessWithURI(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
 
             input_with_uri = self.INPUT_MISSING_ORIGIN.copy()
@@ -228,7 +228,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
     def testHttpError(self):
         http_error_code = 403
 
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             input_with_model = self.INPUT_MISSING_ORIGIN.copy()
             input_with_model['modelName'] = \
@@ -264,7 +264,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             self.assertEqual(http_error_code, context.exception.resp.status)
 
     def testFailedJobError(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             hook_instance = mock_hook.return_value
             hook_instance.create_job.return_value = {
@@ -303,7 +303,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
     }
 
     def testSuccessCreateTrainingJob(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             success_response = self.TRAINING_INPUT.copy()
             success_response['state'] = 'SUCCEEDED'
@@ -327,7 +327,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
         training_input['trainingInput']['pythonVersion'] = '3.5'
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
 
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             success_response = self.TRAINING_INPUT.copy()
             success_response['state'] = 'SUCCEEDED'
@@ -350,7 +350,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
 
     def testHttpError(self):
         http_error_code = 403
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             hook_instance = mock_hook.return_value
             hook_instance.create_job.side_effect = HttpError(
@@ -373,7 +373,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             self.assertEqual(http_error_code, context.exception.resp.status)
 
     def testFailedJobError(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             failure_response = self.TRAINING_INPUT.copy()
             failure_response['state'] = 'FAILED'
@@ -408,7 +408,7 @@ class MLEngineVersionOperatorTest(unittest.TestCase):
     }
 
     def testSuccessCreateVersion(self):
-        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+        with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
                 as mock_hook:
             success_response = {'name': 'some-name', 'done': True}
             hook_instance = mock_hook.return_value
