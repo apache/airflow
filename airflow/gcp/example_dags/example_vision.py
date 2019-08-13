@@ -54,7 +54,7 @@ import airflow
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
 
-from airflow.contrib.operators.gcp_vision_operator import (
+from airflow.gcp.operators.vision import (
     CloudVisionProductSetCreateOperator,
     CloudVisionProductSetGetOperator,
     CloudVisionProductSetUpdateOperator,

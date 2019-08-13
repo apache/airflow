@@ -20,7 +20,7 @@
 import unittest
 
 from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
-from tests.contrib.operators.test_gcp_vision_operator_system_helper import GCPVisionTestHelper
+from tests.gcp.operators.test_vision_system_helper import GCPVisionTestHelper
 from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
 
 VISION_HELPER = GCPVisionTestHelper()
@@ -30,7 +30,7 @@ VISION_HELPER = GCPVisionTestHelper()
 class CloudVisionExampleDagsSystemTest(DagGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
         super().__init__(
-            method_name, dag_name='example_gcp_vision.py', gcp_key=GCP_AI_KEY
+            method_name, dag_name='example_vision.py', gcp_key=GCP_AI_KEY
         )
 
     def setUp(self):

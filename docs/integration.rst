@@ -670,42 +670,42 @@ Cloud Vision
 Cloud Vision Product Search Operators
 """""""""""""""""""""""""""""""""""""
 
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionAddProductToProductSetOperator`
     Adds a Product to the specified ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionAnnotateImageOperator`
     Run image detection and annotation for an image.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductCreateOperator`
     Creates a new Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductDeleteOperator`
     Permanently deletes a product and its reference images.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductGetOperator`
     Gets information associated with a Product.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductSetCreateOperator`
     Creates a new ProductSet resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductSetDeleteOperator`
     Permanently deletes a ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductSetGetOperator`
     Gets information associated with a ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductSetUpdateOperator`
     Makes changes to a ProductSet resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionProductUpdateOperator`
     Makes changes to a Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionReferenceImageCreateOperator`
     Creates a new ReferenceImage resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionRemoveProductFromProductSetOperator`
     Removes a Product from the specified ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionAnnotateImageOperator`
     Run image detection and annotation for an image.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionDetectTextOperator`
     Run text detection for an image
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionDetectDocumentTextOperator`
     Run document text detection for an image
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionDetectImageLabelsOperator`
     Run image labels detection for an image
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`
+:class:`airflow.gcp.operators.vision.CloudVisionDetectImageSafeSearchOperator`
     Run safe search detection for an image
 
-They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.vision.CloudVisionHook` to communicate with Google Cloud Platform.
 
 Cloud Text to Speech
 ''''''''''''''''''''
