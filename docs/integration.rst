@@ -481,14 +481,14 @@ They also use :class:`airflow.contrib.hooks.gcp_compute_hook.GceHook` to communi
 Cloud Functions
 '''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`
+:class:`airflow.gcp.operators.functions.GcfFunctionDeployOperator`
     deploy Google Cloud Function to Google Cloud Platform
 
-:class:`airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`
+:class:`airflow.gcp.operators.functions.GcfFunctionDeleteOperator`
     delete Google Cloud Function in Google Cloud Platform
 
 
-They also use :class:`airflow.contrib.hooks.gcp_function_hook.GcfHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.functions.GcfHook` to communicate with Google Cloud Platform.
 
 
 Cloud DataFlow
