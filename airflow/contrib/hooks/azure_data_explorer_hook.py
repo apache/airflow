@@ -32,26 +32,25 @@ class AzureDataExplorerHook(BaseHook):
 
     Extra JSON field contains the following parameters:
 
-    {
-        "tenant": "<Tenant ID>",
-        "auth_method": "<Authentication method>",
-        "certificate": "<Application PEM certificate>",
-        "thumbprint": "<Application certificate thumbprint>"
-    }
+    .. code-block:: json
 
-    Cluster:
-    --------
+        {
+            "tenant": "<Tenant ID>",
+            "auth_method": "<Authentication method>",
+            "certificate": "<Application PEM certificate>",
+            "thumbprint": "<Application certificate thumbprint>"
+        }
 
-      Azure Data Explorer cluster is specified by URL, for example: "https://help.kusto.windows.net".
-      The parameter must be provided through `Host` connection detail.
+    **Cluster**:
 
-    Tenant ID:
-    ----------
+    Azure Data Explorer cluster is specified by a URL, for example: "https://help.kusto.windows.net".
+    The parameter must be provided through `Host` connection detail.
 
-      Read more at https://docs.microsoft.com/en-us/onedrive/find-your-office-365-tenant-id
+    **Tenant ID**:
 
-    Authentication methods:
-    -----------------------
+    To learn about tenants refer to: https://docs.microsoft.com/en-us/onedrive/find-your-office-365-tenant-id
+
+    **Authentication methods**:
 
     Authentication method must be provided through "auth_method" extra parameter.
     Available authentication methods are:
@@ -128,10 +127,10 @@ class AzureDataExplorerHook(BaseHook):
         :param query: KQL query to run
         :type query: str
         :param database: Database to run the query on.
-        :param database: str
+        :type database: str
         :param options: Optional query options. See:
            https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
-        :param options: dict
+        :type options: dict
         :return: dict
         """
         properties = ClientRequestProperties()

@@ -33,8 +33,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     :param database: Database to run the query on (templated).
     :type database: str
     :param options: Optional query options. See:
-                    https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
-    :param options: dict
+      https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
+    :type options: dict
     :param azure_data_explorer_conn_id: Azure Data Explorer connection to use.
     :type azure_data_explorer_conn_id: str
     """
@@ -66,7 +66,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents
-            (https://kusto.azurewebsites.net/docs/api/rest/response2.html).
+        (https://kusto.azurewebsites.net/docs/api/rest/response2.html).
         """
         self.hook = self.get_hook()
         response = self.hook.run_query(self.query, self.database, self.options)
