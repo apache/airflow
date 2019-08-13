@@ -21,8 +21,8 @@
 import copy
 import unittest
 
-from airflow.contrib.hooks.gcp_dataflow_hook import (DataFlowHook, _Dataflow,
-                                                     _DataflowJob)
+from airflow.gcp.hooks.dataflow import (DataFlowHook, _Dataflow,
+                                        _DataflowJob)
 from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
@@ -68,7 +68,7 @@ RUNTIME_ENV = {
     }
 }
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
-DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
+DATAFLOW_STRING = 'airflow.gcp.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
@@ -158,7 +158,7 @@ class DataFlowHookTest(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(expected_cmd))
 
-    @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
+    @mock.patch('airflow.gcp.hooks.dataflow._Dataflow.log')
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):

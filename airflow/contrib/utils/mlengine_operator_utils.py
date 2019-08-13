@@ -23,7 +23,7 @@ import dill
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
-from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
+from airflow.gcp.operators.dataflow import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
 from urllib.parse import urlsplit

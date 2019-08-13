@@ -494,17 +494,17 @@ They also use :class:`airflow.contrib.hooks.gcp_function_hook.GcfHook` to commun
 Cloud DataFlow
 ''''''''''''''
 
-:class:`airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator`
+:class:`airflow.gcp.operators.dataflow.DataFlowJavaOperator`
     launching Cloud Dataflow jobs written in Java.
 
-:class:`airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator`
+:class:`airflow.gcp.operators.dataflow.DataflowTemplateOperator`
     launching a templated Cloud DataFlow batch job.
 
-:class:`airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator`
+:class:`airflow.gcp.operators.dataflow.DataFlowPythonOperator`
     launching Cloud Dataflow jobs written in python.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.dataflow.DataFlowHook` to communicate with Google Cloud Platform.
 
 
 Cloud DataProc
