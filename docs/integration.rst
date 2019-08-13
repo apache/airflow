@@ -364,26 +364,26 @@ They also use :class:`airflow.contrib.hooks.bigquery_hook.BigQueryHook` to commu
 Cloud Spanner
 '''''''''''''
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator`
     deletes an existing database from a Google Cloud Spanner instance or returns success if the database is missing.
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator`
     creates a new database in a Google Cloud instance or returns success if the database already exists.
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator`
     executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator`
     updates the structure of a Google Cloud Spanner database.
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator`
     deletes a Google Cloud Spanner instance.
 
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator`
+:class:`airflow.gcp.operators.spanner.CloudSpannerInstanceDeployOperator`
     creates a new Google Cloud Spanner instance, or if an instance with the same name exists, updates the instance.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.spanner.CloudSpannerHook` to communicate with Google Cloud Platform.
 
 
 Cloud SQL

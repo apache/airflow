@@ -37,7 +37,7 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_spanner_operator import \
+from airflow.gcp.operators.spanner import \
     CloudSpannerInstanceDeployOperator, \
     CloudSpannerInstanceDatabaseQueryOperator, \
     CloudSpannerInstanceDeleteOperator, \

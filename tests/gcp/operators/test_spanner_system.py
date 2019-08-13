@@ -18,7 +18,7 @@
 # under the License.
 import unittest
 
-from tests.contrib.operators.test_gcp_spanner_operator_system_helper import \
+from tests.gcp.operators.test_spanner_system_helper import \
     GCPSpannerTestHelper
 from tests.contrib.utils.base_gcp_system_test_case import \
     SKIP_TEST_WARNING, DagGcpSystemTestCase
