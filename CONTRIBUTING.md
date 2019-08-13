@@ -698,15 +698,19 @@ you that you should rebuild the image with REBUILD="true" environment variable s
 In airflow we have the following checks:
 
 ```text
-lint-dockerfile                  Lint dockerfile
-mypy                             Run mypy
-pylint                           Run pylint
-flake8                           Run flake8
-forbid-tabs                      Fails if tabs are used in the project
 check-merge-conflict             Checks if merge conflict is being committed
+check-executables-have-shebangs  Check that executables have shebang
+check-hooks-apply                Check hooks apply to the repository
 detect-private-key               Detects if private key is added to the repository
 end-of-file-fixer                Make sure that there is an empty line at the end
+flake8                           Run flake8
+forbid-tabs                      Fails if tabs are used in the project
+insert-license                   Add licences for shell file types
+lint-dockerfile                  Lint dockerfile
 mixed-line-ending                Detects if mixed line ending is used (\r vs. \r\n)
+mypy                             Run mypy
+pylint                           Run pylint
+shellcheck                       Check shell files with shellcheck
 ```
 ## Using pre-commit hooks
 

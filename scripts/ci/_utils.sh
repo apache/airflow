@@ -50,7 +50,7 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 
 # Read default branch name
-# shellcheck source=../../hooks/_default_branch.sh
+# shellcheck source=hooks/_default_branch.sh
 . "${AIRFLOW_SOURCES}/hooks/_default_branch.sh"
 
 # Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
@@ -460,7 +460,7 @@ function rebuild_image_if_needed_for_checklicence() {
 #
 function script_start {
     print_info
-    print_info "Running $(basename $0)"
+    print_info "Running $(basename "$0")"
     print_info
     print_info "Log is redirected to ${OUTPUT_LOG}"
     print_info
@@ -490,7 +490,7 @@ function script_end {
     END_SCRIPT_TIME=$(date +%s)
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
     print_info
-    print_info "Finished the script $(basename $0)"
+    print_info "Finished the script $(basename "$0")"
     print_info "It took ${RUN_SCRIPT_TIME} seconds"
     print_info
 }
