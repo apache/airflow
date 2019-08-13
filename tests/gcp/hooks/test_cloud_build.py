@@ -24,7 +24,7 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_cloud_build_hook import CloudBuildHook
+from airflow.gcp.hooks.cloud_build import CloudBuildHook
 from tests.contrib.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -56,7 +56,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -82,8 +82,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
         self.assertEqual(result, TEST_BUILD)
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.time.sleep")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -104,8 +104,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
         self.assertEqual(result, TEST_BUILD)
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.time.sleep")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
     def test_error_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -129,7 +129,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -151,8 +151,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         self.assertEqual(result, TEST_BUILD)
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.time.sleep")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -173,8 +173,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         self.assertEqual(result, TEST_BUILD)
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.time.sleep")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
     def test_error_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -198,7 +198,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook.get_conn")
+    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build(self, _):
         with self.assertRaises(AirflowException) as e:
             self.hook.create_build(body={})

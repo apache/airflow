@@ -25,7 +25,7 @@ from parameterized import parameterized
 from tests.compat import mock
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_cloud_build_operator import BuildProcessor, CloudBuildCreateBuildOperator
+from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
 
 
 TEST_CREATE_BODY = {
@@ -114,7 +114,7 @@ class BuildProcessorTestCase(TestCase):
 
 class GcpCloudBuildCreateBuildOperatorTestCase(TestCase):
     @mock.patch(  # type: ignore
-        "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildHook",
+        "airflow.gcp.operators.cloud_build.CloudBuildHook",
         **{"return_value.create_build.return_value": TEST_CREATE_BODY}
     )
     def test_minimal_green_path(self, _):
@@ -130,7 +130,7 @@ class GcpCloudBuildCreateBuildOperatorTestCase(TestCase):
             CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildHook",
+        "airflow.gcp.operators.cloud_build.CloudBuildHook",
         **{"return_value.create_build.return_value": TEST_CREATE_BODY}
     )
     def test_storage_source_replace(self, hook_mock):
@@ -167,7 +167,7 @@ class GcpCloudBuildCreateBuildOperatorTestCase(TestCase):
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
     @mock.patch(  # type: ignore
-        "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildHook",
+        "airflow.gcp.operators.cloud_build.CloudBuildHook",
         **{"return_value.create_build.return_value": TEST_CREATE_BODY}
     )
     def test_repo_source_replace(self, hook_mock):

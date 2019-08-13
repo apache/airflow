@@ -19,7 +19,7 @@
 """System tests for Google Cloud Build operators"""
 import unittest
 
-from tests.contrib.operators.test_gcp_cloud_build_system_helper import GCPCloudBuildTestHelper
+from tests.gcp.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper
 from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY
 
