@@ -31,12 +31,12 @@ import datetime
 
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.contrib.operators.pubsub_operator import (
+from airflow.gcp.operators.pubsub import (
     PubSubTopicCreateOperator, PubSubSubscriptionCreateOperator,
     PubSubPublishOperator, PubSubTopicDeleteOperator,
     PubSubSubscriptionDeleteOperator
 )
-from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
+from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from airflow.utils import dates
 
 project = 'your-project-id'  # Change this to your own GCP project_id

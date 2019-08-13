@@ -22,11 +22,11 @@ import unittest
 
 from googleapiclient.errors import HttpError
 
-from airflow.contrib.hooks.gcp_pubsub_hook import PubSubException, PubSubHook
+from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook
 from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
-PUBSUB_STRING = 'airflow.contrib.hooks.gcp_pubsub_hook.{}'
+PUBSUB_STRING = 'airflow.gcp.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'

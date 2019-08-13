@@ -21,7 +21,7 @@ import unittest
 
 from base64 import b64encode as b64e
 
-from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
+from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from airflow.exceptions import AirflowSensorTimeout
 from tests.compat import mock
 
@@ -52,14 +52,14 @@ class PubSubPullSensorTest(unittest.TestCase):
             })
         return messages
 
-    @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
+    @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
         operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION)
         mock_hook.return_value.pull.return_value = []
         self.assertEqual([], operator.poke(None))
 
-    @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
+    @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
         operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION,
@@ -71,7 +71,7 @@ class PubSubPullSensorTest(unittest.TestCase):
             TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3', '4', '5']
         )
 
-    @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
+    @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION,
@@ -83,7 +83,7 @@ class PubSubPullSensorTest(unittest.TestCase):
             TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)
         self.assertEqual(response, generated_messages)
 
-    @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
+    @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_execute_timeout(self, mock_hook):
         operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION,
