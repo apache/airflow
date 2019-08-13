@@ -21,7 +21,7 @@ Set Up Bash/Zsh Completion
 When using bash (or ``zsh``) as your shell, ``airflow`` can use
 `argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
 
-For global activation of all argcomplete enabled python applications run:
+For `global activation <https://github.com/kislyuk/argcomplete#activating-global-completion>`_ of all argcomplete enabled python applications run:
 
 .. code-block:: bash
 
@@ -40,3 +40,11 @@ For one-time activation of argcomplete for airflow only, use:
   eval "$(register-python-argcomplete airflow)"
 
 .. image:: img/cli_completion.gif
+
+If you’re using ``zsh``, add the following to your ``.zshrc``:
+
+.. code-block:: bash
+
+  autoload bashcompinit
+  bashcompinit
+  eval "$(register-python-argcomplete airflow)"
