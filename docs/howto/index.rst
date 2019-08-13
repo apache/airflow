@@ -42,6 +42,7 @@ configuring an Airflow environment.
     use-test-config
     check-health
     define_extra_link
+    cli-completion
 
 .. toctree::
     :maxdepth: 2

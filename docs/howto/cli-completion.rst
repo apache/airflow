@@ -15,18 +15,28 @@
     specific language governing permissions and limitations
     under the License.
 
-Command Line Interface Reference
-================================
+Set Up Bash/Zsh Completion
+==========================
 
-Airflow has a very rich command line interface that allows for
-many types of operation on a DAG, starting services, and supporting
-development and testing.
+When using bash (or ``zsh``) as your shell, ``airflow`` can use
+`argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
 
-.. contents:: Content
-    :local:
-    :depth: 2
+For global activation of all argcomplete enabled python applications run:
 
-.. argparse::
-   :module: airflow.bin.cli
-   :func: get_parser
-   :prog: airflow
+.. code-block:: bash
+
+  sudo activate-global-python-argcomplete
+
+For permanent (but not global) airflow activation, use:
+
+.. code-block:: bash
+
+  register-python-argcomplete airflow >> ~/.bashrc
+
+For one-time activation of argcomplete for airflow only, use:
+
+.. code-block:: bash
+
+  eval "$(register-python-argcomplete airflow)"
+
+.. image:: img/cli_completion.gif
