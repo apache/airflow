@@ -692,20 +692,31 @@ Sometimes your image is outdated (when dependencies change) and needs to be rebu
 dependencies have been changed. In such case the docker build pre-commit will fail and inform
 you that you should rebuild the image with REBUILD="true" environment variable set.
 
+## Prerequisites for pre-commit hooks
+
+The pre-commit hooks use several external linters that need to be installed before pre-commit are run.
+Most of the linters are installed by running `pip install -e .[devel]` in the airflow sources as they
+are python-only, however there are some that should be installed locally using different methods.
+In Linux you typically install them with `sudo apt install` on MacOS with `brew install`.
+
+The current list of prerequisites:
+
+* xmllint: Linux - install via `sudo apt install xmllint`, MacOS - install via`brew install xmllint`
 
 ## Pre-commit hooks installed
 
 In airflow we have the following checks:
 
 ```text
+check-hooks-apply                Check hooks apply to the repository
 check-merge-conflict             Checks if merge conflict is being committed
 check-executables-have-shebangs  Check that executables have shebang
-check-hooks-apply                Check hooks apply to the repository
+check-xml                        Check XML files with xmllint
 detect-private-key               Detects if private key is added to the repository
 end-of-file-fixer                Make sure that there is an empty line at the end
 flake8                           Run flake8
 forbid-tabs                      Fails if tabs are used in the project
-insert-license                   Add licences for shell file types
+insert-license                   Add licences for most file types
 lint-dockerfile                  Lint dockerfile
 mixed-line-ending                Detects if mixed line ending is used (\r vs. \r\n)
 mypy                             Run mypy
