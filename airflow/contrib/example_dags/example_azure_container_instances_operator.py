@@ -16,10 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example dag for using the AzureContainerInstancesOperator.
+"""
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
-from datetime import datetime, timedelta
 
 default_args = {
     'owner': 'Airflow',

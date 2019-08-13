@@ -16,12 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example dag for using a Kubernetes Executor Configuration.
+"""
 from __future__ import print_function
-import airflow
-from airflow.operators.python_operator import PythonOperator
-from libs.helper import print_stuff
-from airflow.models import DAG
+
 import os
+
+import airflow
+from airflow.contrib.example_dags.libs.helper import print_stuff
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
 
 args = {
     'owner': 'Airflow',
@@ -35,11 +40,14 @@ dag = DAG(
 
 
 def test_volume_mount():
+    """
+    Tests whether the volume has been mounted.
+    """
     with open('/foo/volume_mount_test.txt', 'w') as foo:
         foo.write('Hello')
 
-    rc = os.system("cat /foo/volume_mount_test.txt")
-    assert rc == 0
+    return_code = os.system("cat /foo/volume_mount_test.txt")
+    assert return_code == 0
 
 
 # You can use annotations on your kubernetes pods!

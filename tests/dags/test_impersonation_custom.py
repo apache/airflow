@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
 # AIRFLOW-1893 - Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
 # variable. This file includes a DAG that imports a custom package made available and if
@@ -42,8 +42,8 @@ dag = DAG(dag_id='impersonation_with_custom_pkg', default_args=args)
 
 
 def print_today():
-    dt = FakeDatetime.utcnow()
-    print('Today is {}'.format(dt.strftime('%Y-%m-%d')))
+    date_time = FakeDatetime.utcnow()
+    print('Today is {}'.format(date_time.strftime('%Y-%m-%d')))
 
 
 def check_hive_conf():
