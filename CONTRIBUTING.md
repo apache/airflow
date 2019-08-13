@@ -1,22 +1,21 @@
 <!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 -->
-
 # Contributing
 
 Contributions are welcome and are greatly appreciated! Every
@@ -40,26 +39,17 @@ little bit helps, and credit will always be given.
 - [Integration test development environment](#integration-test-development-environment)
   - [Prerequisites](#prerequisites)
   - [Using the Docker Compose environment](#using-the-docker-compose-environment)
-    - [Entering bash shell in Docker Compose environment](#entering-bash-shell-in-docker-compose-environment)
-    - [Running individual tests within the container](#running-individual-tests-within-the-container)
   - [Running static code analysis](#running-static-code-analysis)
-      - [Running static code analysis from the host](#running-static-code-analysis-from-the-host)
-      - [Running static code analysis in the docker compose environment](#running-static-code-analysis-in-the-docker-compose-environment)
-      - [Running static code analysis on selected files/modules](#running-static-code-analysis-on-selected-filesmodules)
   - [Docker images](#docker-images)
   - [Default behaviour for user interaction](#default-behaviour-for-user-interaction)
   - [Local Docker Compose scripts](#local-docker-compose-scripts)
-    - [Running the whole suite of tests](#running-the-whole-suite-of-tests)
-    - [Stopping the environment](#stopping-the-environment)
-    - [Fixing file/directory ownership](#fixing-filedirectory-ownership)
-    - [Building the images](#building-the-images)
-    - [Force pulling the images](#force-pulling-the-images)
   - [Cleaning up cached Docker images/containers](#cleaning-up-cached-docker-imagescontainers)
   - [Troubleshooting](#troubleshooting)
 - [Pylint checks](#pylint-checks)
 - [Pre-commit hooks](#pre-commit-hooks)
   - [Installing pre-commit hooks](#installing-pre-commit-hooks)
   - [Docker images for pre-commit hooks](#docker-images-for-pre-commit-hooks)
+  - [Prerequisites for pre-commit hooks](#prerequisites-for-pre-commit-hooks)
   - [Pre-commit hooks installed](#pre-commit-hooks-installed)
   - [Using pre-commit hooks](#using-pre-commit-hooks)
   - [Skipping pre-commit hooks](#skipping-pre-commit-hooks)
@@ -73,10 +63,6 @@ little bit helps, and credit will always be given.
 - [Setting up the node / npm javascript environment](#setting-up-the-node--npm-javascript-environment)
   - [Node/npm versions](#nodenpm-versions)
   - [Using npm to generate bundled files](#using-npm-to-generate-bundled-files)
-    - [npm](#npm)
-    - [npm packages](#npm-packages)
-    - [Upgrading npm packages](#upgrading-npm-packages)
-    - [Javascript Style Guide](#javascript-style-guide)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -712,6 +698,7 @@ check-hooks-apply                Check hooks apply to the repository
 check-merge-conflict             Checks if merge conflict is being committed
 check-executables-have-shebangs  Check that executables have shebang
 check-xml                        Check XML files with xmllint
+doctoc                           Refresh table-of-contents for md files
 detect-private-key               Detects if private key is added to the repository
 end-of-file-fixer                Make sure that there is an empty line at the end
 flake8                           Run flake8

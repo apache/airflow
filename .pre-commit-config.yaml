@@ -77,6 +77,24 @@ repos:
           - "<!--||-->"
           - --license-filepath
           - license-templates/LICENSE.txt
+      - id: insert-license
+        name: Add licence for all md files
+        files: \.md$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "<!--|| -->"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v1.4.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for md files
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        args:
+          - "--maxlevel"
+          - "2"
   - repo: meta
     hooks:
       - id: check-hooks-apply
