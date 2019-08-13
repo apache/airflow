@@ -45,6 +45,7 @@ class TestPodLauncher(unittest.TestCase):
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls([
             mock.call(
                 _preload_content=False,
+                _request_timeout=600,
                 container='base',
                 follow=True,
                 name=mock.sentinel.name,
@@ -53,6 +54,7 @@ class TestPodLauncher(unittest.TestCase):
             ),
             mock.call(
                 _preload_content=False,
+                _request_timeout=600,
                 container='base',
                 follow=True,
                 name=mock.sentinel.name,

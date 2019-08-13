@@ -18,7 +18,7 @@
 import json
 import time
 import tenacity
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -78,11 +78,17 @@ class PodLauncher(LoggingMixin):
             self,
             pod: Pod,
             startup_timeout: int = 120,
+            logs_connection_timeout: Union[Tuple[int, int], int] = 600,
             get_logs: bool = True) -> Tuple[State, Optional[str]]:
         """
         Launches the pod synchronously and waits for completion.
 
         :param pod:
+        :param logs_connection_timeout: Timeout for the connection for the logs of the pod
+             (if pod loses connection to the k8s API for longer than X seconds, then the
+             iterator will return) If one number provided, it will be total request timeout.
+             It can also be a pair (tuple) of (connection, read) timeouts. See urlib3 "Using Timeouts"
+             for more information.
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
         :param get_logs:  whether to query k8s for logs
         :return:
@@ -97,11 +103,14 @@ class PodLauncher(LoggingMixin):
                 time.sleep(1)
             self.log.debug('Pod not yet started')
 
-        return self._monitor_pod(pod, get_logs)
+        return self._monitor_pod(pod, logs_connection_timeout, get_logs)
 
-    def _monitor_pod(self, pod: Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+    def _monitor_pod(self,
+                     pod: Pod,
+                     logs_connection_timeout: Union[Tuple[int, int], int],
+                     get_logs: bool) -> Tuple[State, Optional[str]]:
         if get_logs:
-            logs = self.read_pod_logs(pod)
+            logs = self.read_pod_logs(pod, logs_connection_timeout)
             for line in logs:
                 self.log.info(line)
         result = None
@@ -143,7 +152,7 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod):
+    def read_pod_logs(self, pod, logs_connection_timeout):
 
         try:
             return self._client.read_namespaced_pod_log(
@@ -152,6 +161,7 @@ class PodLauncher(LoggingMixin):
                 container='base',
                 follow=True,
                 tail_lines=10,
+                _request_timeout=logs_connection_timeout,
                 _preload_content=False
             )
         except BaseHTTPError as e:

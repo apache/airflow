@@ -54,6 +54,12 @@ class KubernetesPodOperator(BaseOperator):
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
     :type startup_timeout_seconds: int
+    :param logs_connection_timeout_seconds: timeout in seconds for the connection
+                                            to the k8s logs API endpoint. If one
+                                            number provided, it will be total request
+                                            timeout. It can also be a pair (tuple)
+                                            of (connection, read) timeouts.
+    :type logs_connection_timeout_seconds: int or tuple(int, int)
     :param name: name of the task you want to run,
         will be used to generate a pod id
     :type name: str
@@ -150,6 +156,7 @@ class KubernetesPodOperator(BaseOperator):
                 (final_state, result) = launcher.run_pod(
                     pod,
                     startup_timeout=self.startup_timeout_seconds,
+                    logs_connection_timeout=self.logs_connection_timeout_seconds,
                     get_logs=self.get_logs)
             finally:
                 if self.is_delete_operator_pod:
@@ -187,6 +194,7 @@ class KubernetesPodOperator(BaseOperator):
                  cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
+                 logs_connection_timeout_seconds=600,
                  get_logs=True,
                  image_pull_policy='IfNotPresent',
                  annotations=None,
@@ -213,6 +221,7 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
+        self.logs_connection_timeout_seconds = logs_connection_timeout_seconds
         self.name = name
         self.env_vars = env_vars or {}
         self.ports = ports or []
