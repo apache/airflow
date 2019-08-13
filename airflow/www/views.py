@@ -1393,7 +1393,7 @@ class Airflow(AirflowViewMixin, BaseView):
                                   future, past, state):
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        task.dag = dag
+        task._dag = dag
 
         execution_date = pendulum.parse(execution_date)
 
