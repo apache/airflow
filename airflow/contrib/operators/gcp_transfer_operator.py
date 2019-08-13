@@ -607,7 +607,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
     :param wait: Wait for transfer to finish
     :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
-    :type timeout: Union[Real, timedelta, None]
+    :type timeout: Optional[Union[float, timedelta]]
     """
 
     template_fields = ('gcp_conn_id', 's3_bucket', 'gcs_bucket', 'description', 'object_conditions')
@@ -740,7 +740,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
     :param wait: Wait for transfer to finish; defaults to `True`
     :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
-    :type timeout: Union[Real, timedelta, None]
+    :type timeout: Optional[Union[float, timedelta]]
     """
 
     template_fields = (
