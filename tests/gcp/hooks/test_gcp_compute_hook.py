@@ -26,7 +26,7 @@ from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_proj
 from tests.compat import mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_compute_hook import GceHook, GceOperationStatus
+from airflow.gcp.hooks.compute import GceHook, GceOperationStatus
 
 GCE_ZONE = 'zone'
 GCE_INSTANCE = 'instance'
@@ -42,8 +42,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_no_default_project_id):
             self.gce_hook_no_project_id = GceHook(gcp_conn_id='test')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_start_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
@@ -60,8 +60,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_start_instance_no_project_id(self, wait_for_operation_to_complete, get_conn):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
@@ -77,8 +77,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_stop_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
@@ -95,8 +95,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_stop_instance_no_project_id(self, wait_for_operation_to_complete, get_conn):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
@@ -112,8 +112,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_set_machine_type_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         set_machine_type_method = get_conn.return_value.instances.return_value.setMachineType
         execute_method = set_machine_type_method.return_value.execute
@@ -132,8 +132,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_set_machine_type_no_project_id(self, wait_for_operation_to_complete, get_conn):
         set_machine_type_method = get_conn.return_value.instances.return_value.setMachineType
         execute_method = set_machine_type_method.return_value.execute
@@ -150,8 +150,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceTemplates.return_value.get
         execute_method = get_method.return_value.execute
@@ -166,8 +166,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_template_no_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceTemplates.return_value.get
         execute_method = get_method.return_value.execute
@@ -183,8 +183,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_insert_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instanceTemplates.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -201,8 +201,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_insert_instance_template_no_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instanceTemplates.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -219,8 +219,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_group_manager_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceGroupManagers.return_value.get
         execute_method = get_method.return_value.execute
@@ -238,8 +238,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_group_manager_no_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceGroupManagers.return_value.get
         execute_method = get_method.return_value.execute
@@ -256,8 +256,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_patch_instance_group_manager_overridden_project_id(self,
                                                                 wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instanceGroupManagers.return_value.patch
@@ -284,8 +284,8 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                                                                project_id='example-project',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_patch_instance_group_manager_no_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instanceGroupManagers.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -311,8 +311,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_default_project_id):
             self.gce_hook = GceHook(gcp_conn_id='test')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_start_instance(self, wait_for_operation_to_complete, get_conn):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
@@ -328,8 +328,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_start_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
@@ -346,8 +346,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_stop_instance(self, wait_for_operation_to_complete, get_conn):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
@@ -363,8 +363,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_stop_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
@@ -381,8 +381,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_set_machine_type_instance(self, wait_for_operation_to_complete, get_conn):
         execute_method = get_conn.return_value.instances.return_value.setMachineType.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -397,8 +397,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_set_machine_type_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         execute_method = get_conn.return_value.instances.return_value.setMachineType.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -414,8 +414,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_template(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceTemplates.return_value.get
         execute_method = get_method.return_value.execute
@@ -428,8 +428,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceTemplates.return_value.get
         execute_method = get_method.return_value.execute
@@ -443,8 +443,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_insert_instance_template(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instanceTemplates.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -460,8 +460,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_insert_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instanceTemplates.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -478,8 +478,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_group_manager(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceGroupManagers.return_value.get
         execute_method = get_method.return_value.execute
@@ -496,8 +496,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_get_instance_group_manager_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instanceGroupManagers.return_value.get
         execute_method = get_method.return_value.execute
@@ -515,8 +515,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_patch_instance_group_manager(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instanceGroupManagers.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -541,8 +541,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                project_id='example-project',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_patch_instance_group_manager_overridden_project_id(self,
                                                                 wait_for_operation_to_complete,
                                                                 get_conn):
@@ -570,8 +570,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                project_id='new-project',
                                                                zone='zone')
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_global_operation_status')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._check_global_operation_status')
     def test_wait_for_operation_to_complete_no_zone(self, mock_operation_status, mock_get_conn):
         service = "test-service"
         project_id = "test-project"
@@ -592,8 +592,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                       num_retries=num_retries
                                                       )
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_global_operation_status')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._check_global_operation_status')
     def test_wait_for_operation_to_complete_no_zone_error(self, mock_operation_status, mock_get_conn):
         service = "test-service"
         project_id = "test-project"
@@ -613,8 +613,8 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                           zone=None
                                                           )
 
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_compute_hook.GceHook._check_zone_operation_status')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.compute.GceHook._check_zone_operation_status')
     def test_wait_for_operation_to_complete_with_zone(self, mock_operation_status, mock_get_conn):
         service = "test-service"
         project_id = "test-project"

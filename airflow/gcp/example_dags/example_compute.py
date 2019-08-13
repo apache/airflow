@@ -34,7 +34,7 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOperator, \
+from airflow.gcp.operators.compute import GceInstanceStartOperator, \
     GceInstanceStopOperator, GceSetMachineTypeOperator
 
 # [START howto_operator_gce_args_common]

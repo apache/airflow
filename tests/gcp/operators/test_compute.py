@@ -27,7 +27,7 @@ import httplib2
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOperator, \
+from airflow.gcp.operators.compute import GceInstanceStartOperator, \
     GceInstanceStopOperator, GceSetMachineTypeOperator, GceInstanceTemplateCopyOperator, \
     GceInstanceGroupManagerUpdateTemplateOperator
 from airflow.models import TaskInstance, DAG
@@ -48,7 +48,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class GceInstanceStartTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_start(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
         op = GceInstanceStartOperator(
@@ -67,7 +67,7 @@ class GceInstanceStartTest(unittest.TestCase):
 
     # Setting all of the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_start_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {
@@ -91,7 +91,7 @@ class GceInstanceStartTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_start_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStartOperator(
@@ -105,7 +105,7 @@ class GceInstanceStartTest(unittest.TestCase):
         self.assertIn("The required parameter 'project_id' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_start_should_not_throw_ex_when_project_id_none(self, _):
         op = GceInstanceStartOperator(
             zone=GCE_ZONE,
@@ -114,7 +114,7 @@ class GceInstanceStartTest(unittest.TestCase):
         )
         op.execute(None)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_start_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStartOperator(
@@ -128,7 +128,7 @@ class GceInstanceStartTest(unittest.TestCase):
         self.assertIn("The required parameter 'zone' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_start_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStartOperator(
@@ -144,7 +144,7 @@ class GceInstanceStartTest(unittest.TestCase):
 
 
 class GceInstanceStopTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_stop(self, mock_hook):
         op = GceInstanceStopOperator(
             project_id=GCP_PROJECT_ID,
@@ -161,7 +161,7 @@ class GceInstanceStopTest(unittest.TestCase):
 
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_stop_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {
@@ -185,7 +185,7 @@ class GceInstanceStopTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_stop_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStopOperator(
@@ -199,7 +199,7 @@ class GceInstanceStopTest(unittest.TestCase):
         self.assertIn("The required parameter 'project_id' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = GceInstanceStopOperator(
             zone=GCE_ZONE,
@@ -213,7 +213,7 @@ class GceInstanceStopTest(unittest.TestCase):
             zone=GCE_ZONE, resource_id=RESOURCE_ID, project_id=None
         )
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_stop_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStopOperator(
@@ -227,7 +227,7 @@ class GceInstanceStopTest(unittest.TestCase):
         self.assertIn("The required parameter 'zone' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_stop_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStopOperator(
@@ -243,7 +243,7 @@ class GceInstanceStopTest(unittest.TestCase):
 
 
 class GceInstanceSetMachineTypeTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type(self, mock_hook):
         mock_hook.return_value.set_machine_type.return_value = True
         op = GceSetMachineTypeOperator(
@@ -265,7 +265,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
 
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {
@@ -290,7 +290,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceSetMachineTypeOperator(
@@ -305,7 +305,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         self.assertIn("The required parameter 'project_id' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = GceSetMachineTypeOperator(
             zone=GCE_ZONE,
@@ -323,7 +323,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
             project_id=None
         )
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceSetMachineTypeOperator(
@@ -338,7 +338,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         self.assertIn("The required parameter 'zone' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceSetMachineTypeOperator(
@@ -353,7 +353,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         self.assertIn("The required parameter 'resource_id' is missing", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type_should_throw_ex_when_missing_machine_type(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceSetMachineTypeOperator(
@@ -391,11 +391,11 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
                        "/zones/europe-west3-b/operations/operation-1538578207537" \
                        "-577542784f769-7999ab71-94f9ec1d'} "
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook'
+    @mock.patch('airflow.gcp.operators.compute.GceHook'
                 '._check_zone_operation_status')
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook'
+    @mock.patch('airflow.gcp.operators.compute.GceHook'
                 '._execute_set_machine_type')
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook.get_conn')
+    @mock.patch('airflow.gcp.operators.compute.GceHook.get_conn')
     def test_set_machine_type_should_handle_and_trim_gce_error(
             self, get_conn, _execute_set_machine_type, _check_zone_operation_status):
         get_conn.return_value = {}
@@ -516,7 +516,7 @@ GCE_INSTANCE_TEMPLATE_BODY_GET_NEW['name'] = GCE_INSTANCE_TEMPLATE_NEW_NAME
 
 
 class GceInstanceTemplateCopyTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -539,7 +539,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -561,7 +561,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_idempotent_copy_template_when_already_copied(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
@@ -578,7 +578,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         mock_hook.return_value.insert_instance_template.assert_not_called()
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_with_request_id(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -602,7 +602,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_with_description_fields(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -630,7 +630,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_copy_with_some_validation_warnings(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -660,7 +660,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_with_updated_nested_fields(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -690,7 +690,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_with_smaller_array_fields(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -743,7 +743,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template_with_bigger_array_fields(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -804,7 +804,7 @@ class GceInstanceTemplateCopyTest(unittest.TestCase):
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_missing_name(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
             HttpError(resp=httplib2.Response({'status': 404}), content=EMPTY_CONTENT),
@@ -927,7 +927,7 @@ GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY = {
 
 
 class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
@@ -951,7 +951,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
@@ -974,7 +974,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update_no_instance_template_field(self, mock_hook):
         instance_group_manager_no_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_template['instanceTemplate']
@@ -1003,7 +1003,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update_no_versions_field(self, mock_hook):
         instance_group_manager_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_versions['versions']
@@ -1032,7 +1032,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update_with_update_policy(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
@@ -1060,7 +1060,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update_with_request_id(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
@@ -1085,7 +1085,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_try_to_use_api_v1(self, _):
         with self.assertRaises(AirflowException) as cm:
             GceInstanceGroupManagerUpdateTemplateOperator(
@@ -1100,7 +1100,7 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("Use beta api version or above", str(err))
 
-    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_try_to_use_non_existing_template(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)

@@ -16,23 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.compute`."""
+"""This module is deprecated. Please use `airflow.gcp.hooks.compute`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.compute import (  # noqa
-    GceBaseOperator,
-    GceInstanceGroupManagerUpdateTemplateOperator,
-    GceInstanceStartOperator,
-    GceInstanceStopOperator,
-    GceInstanceTemplateCopyOperator,
-    GceSetMachineTypeOperator,
-    GcpBodyFieldSanitizer,
-    GcpBodyFieldValidator,
-)
+from airflow.gcp.hooks.compute import GceHook, GceOperationStatus  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.compute`.",
+    "This module is deprecated. Please use `airflow.gcp.hooks.compute`.",
     DeprecationWarning,
 )

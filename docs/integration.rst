@@ -457,25 +457,25 @@ They also use :class:`airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook`
 Compute Engine
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceStartOperator`
     start an existing Google Compute Engine instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceStopOperator`
     stop an existing Google Compute Engine instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`
+:class:`airflow.gcp.operators.compute.GceSetMachineTypeOperator`
     change the machine type for a stopped instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator`
     copy the Instance Template, applying specified changes.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator`
     patch the Instance Group Manager, replacing source Instance Template URL with the destination one.
 
 
-The operators have the common base operator :class:`airflow.contrib.operators.gcp_compute_operator.GceBaseOperator`
+The operators have the common base operator :class:`airflow.gcp.operators.compute.GceBaseOperator`
 
-They also use :class:`airflow.contrib.hooks.gcp_compute_hook.GceHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.compute.GceHook` to communicate with Google Cloud Platform.
 
 
 Cloud Functions

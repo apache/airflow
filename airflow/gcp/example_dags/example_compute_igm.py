@@ -43,7 +43,7 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_compute_operator import \
+from airflow.gcp.operators.compute import \
     GceInstanceTemplateCopyOperator, GceInstanceGroupManagerUpdateTemplateOperator
 
 # [START howto_operator_compute_igm_common_args]
