@@ -19,10 +19,9 @@
 #
 
 import unittest
-
-from airflow.contrib.hooks.datastore_hook import DatastoreHook
 from unittest.mock import call, patch
 
+from airflow.gcp.hooks.datastore import DatastoreHook
 from tests.compat import mock
 
 
@@ -36,8 +35,8 @@ class TestDatastoreHook(unittest.TestCase):
         with patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__', new=mock_init):
             self.datastore_hook = DatastoreHook()
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook._authorize')
-    @patch('airflow.contrib.hooks.datastore_hook.build')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook._authorize')
+    @patch('airflow.gcp.hooks.datastore.build')
     def test_get_conn(self, mock_build, mock_authorize):
         conn = self.datastore_hook.get_conn()
 
@@ -46,7 +45,7 @@ class TestDatastoreHook(unittest.TestCase):
         self.assertEqual(conn, mock_build.return_value)
         self.assertEqual(conn, self.datastore_hook.connection)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_allocate_ids(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         partial_keys = []
@@ -62,7 +61,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(keys, execute.return_value['keys'])
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_begin_transaction(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
 
@@ -76,7 +75,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(transaction, execute.return_value['transaction'])
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_commit(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         body = {'item': 'a'}
@@ -91,7 +90,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_lookup(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         keys = []
@@ -113,7 +112,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_rollback(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         transaction = 'transaction'
@@ -128,7 +127,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute = rollback.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_run_query(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         body = {'item': 'a'}
@@ -143,7 +142,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value['batch'])
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_get_operation(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         name = 'name'
@@ -160,7 +159,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_delete_operation(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         name = 'name'
@@ -177,8 +176,8 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
-    @patch('airflow.contrib.hooks.datastore_hook.time.sleep')
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_operation',
+    @patch('airflow.gcp.hooks.datastore.time.sleep')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_operation',
            side_effect=[
                {'metadata': {'common': {'state': 'PROCESSING'}}},
                {'metadata': {'common': {'state': 'NOT PROCESSING'}}}
@@ -193,7 +192,7 @@ class TestDatastoreHook(unittest.TestCase):
         mock_time_sleep.assert_called_once_with(polling_interval_in_seconds)
         self.assertEqual(result, {'metadata': {'common': {'state': 'NOT PROCESSING'}}})
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_export_to_storage_bucket(self, mock_get_conn):
         self.datastore_hook.admin_connection = mock_get_conn.return_value
         bucket = 'bucket'
@@ -218,7 +217,7 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
-    @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_import_from_storage_bucket(self, mock_get_conn):
         self.datastore_hook.admin_connection = mock_get_conn.return_value
         bucket = 'bucket'

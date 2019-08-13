@@ -547,14 +547,14 @@ Cloud DataProc
 Cloud Datastore
 '''''''''''''''
 
-:class:`airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator`
+:class:`airflow.gcp.operators.datastore.DatastoreExportOperator`
     Export entities from Google Cloud Datastore to Cloud Storage.
 
-:class:`airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator`
+:class:`airflow.gcp.operators.datastore.DatastoreImportOperator`
     Import entities from Cloud Storage to Google Cloud Datastore.
 
 
-They also use :class:`airflow.contrib.hooks.datastore_hook.DatastoreHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.datastore.DatastoreHook` to communicate with Google Cloud Platform.
 
 
 Cloud ML Engine
