@@ -30,7 +30,7 @@ from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplat
 
 import airflow
 from airflow.models import DAG
-from airflow.contrib.operators.gcp_dlp_operator import (
+from airflow.gcp.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator,
     CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
