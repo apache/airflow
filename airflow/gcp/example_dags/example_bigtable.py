@@ -53,13 +53,13 @@ from os import getenv
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_bigtable_operator import \
+from airflow.gcp.operators.bigtable import \
     BigtableInstanceCreateOperator, \
     BigtableInstanceDeleteOperator, \
     BigtableClusterUpdateOperator, \
     BigtableTableCreateOperator, \
-    BigtableTableWaitForReplicationSensor, \
     BigtableTableDeleteOperator
+from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor
 
 # [START howto_operator_gcp_bigtable_args]
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')

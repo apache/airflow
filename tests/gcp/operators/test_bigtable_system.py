@@ -18,7 +18,7 @@
 # under the License.
 import unittest
 
-from tests.contrib.operators.test_gcp_bigtable_operator_system_helper import \
+from tests.gcp.operators.test_bigtable_system_helper import \
     GCPBigtableTestHelper
 from tests.contrib.utils.base_gcp_system_test_case import \
     SKIP_TEST_WARNING, DagGcpSystemTestCase

@@ -423,26 +423,26 @@ They also use :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` a
 Cloud Bigtable
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator`
     updates the number of nodes in a Google Cloud Bigtable cluster.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator`
     creates a Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator`
     deletes a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableTableCreateOperator`
     creates a table in a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableTableDeleteOperator`
     deletes a table in a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
+:class:`airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor`
     (sensor) waits for a table to be fully replicated.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.bigtable.BigtableHook` to communicate with Google Cloud Platform.
 
 Cloud Build
 '''''''''''
