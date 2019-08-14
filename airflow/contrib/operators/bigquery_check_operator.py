@@ -90,7 +90,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :type use_legacy_sql: bool
     """
 
-    template_fields = ('sql',)
+    template_fields = ('sql', 'pass_value',)
     template_ext = ('.sql', )
 
     @apply_defaults
