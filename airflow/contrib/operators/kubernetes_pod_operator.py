@@ -133,6 +133,7 @@ class KubernetesPodOperator(BaseOperator):
                 configmaps=self.configmaps,
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
+                resources=self.resources,
                 pod=self.full_pod_spec,
             ).gen_pod()
 
@@ -141,6 +142,8 @@ class KubernetesPodOperator(BaseOperator):
             pod = append_to_pod(pod, self.volumes)
             pod = append_to_pod(pod, self.volume_mounts)
             pod = append_to_pod(pod, self.secrets)
+
+            self.pod = pod
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -200,6 +203,8 @@ class KubernetesPodOperator(BaseOperator):
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.pod = None
 
         self.image = image
         self.namespace = namespace
