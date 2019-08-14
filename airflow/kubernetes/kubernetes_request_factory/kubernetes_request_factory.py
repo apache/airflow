@@ -197,6 +197,11 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             req['spec']['initContainers'] = pod.init_containers
 
     @staticmethod
+    def extract_sidecar_containers(pod, req):
+        if pod.sidecar_containers:
+            req['spec']['containers'] += pod.sidecar_containers
+
+    @staticmethod
     def extract_service_account_name(pod, req):
         if pod.service_account_name:
             req['spec']['serviceAccountName'] = pod.service_account_name

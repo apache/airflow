@@ -302,6 +302,18 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         KubernetesRequestFactory.extract_init_containers(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
 
+    def test_extract_sidecar_containers(self):
+        sidecar_containers = [
+            {
+                'name': 'mycontainer',
+                'image': 'myimage',
+            }
+        ]
+        pod = Pod('v3.14', {}, [], sidecar_containers=sidecar_containers)
+        self.expected['spec']['containers'] += sidecar_containers
+        KubernetesRequestFactory.extract_sidecar_containers(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
     def test_extract_service_account_name(self):
         service_account_name = 'service_account_name'
         pod = Pod('v3.14', {}, [], service_account_name=service_account_name)

@@ -109,6 +109,7 @@ class Pod:
             image_pull_policy='IfNotPresent',
             image_pull_secrets=None,
             init_containers=None,
+            sidecar_containers=None,
             service_account_name=None,
             resources=None,
             annotations=None,
@@ -136,6 +137,7 @@ class Pod:
         self.image_pull_policy = image_pull_policy
         self.image_pull_secrets = image_pull_secrets
         self.init_containers = init_containers
+        self.sidecar_containers = sidecar_containers
         self.service_account_name = service_account_name
         self.resources = resources or Resources()
         self.annotations = annotations or {}
