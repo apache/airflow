@@ -353,6 +353,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
             optionalComponents=OPTIONAL_COMPONENTS,
         )
         cluster_data = dataproc_operator._build_cluster_data()
