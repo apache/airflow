@@ -20,6 +20,18 @@ repos:
   - repo: meta
     hooks:
       - id: check-hooks-apply
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.6
+    hooks:
+      - id: insert-license
+        name: Add licence for all JS files
+        files: \.js$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "/**| *| */"
+          - --license-filepath
+          - license-templates/LICENSE.txt
   - repo: local
     hooks:
       - id: lint-dockerfile
