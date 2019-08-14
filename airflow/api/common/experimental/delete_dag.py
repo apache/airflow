@@ -46,8 +46,8 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
-    if DAGCACHED_ENABLED and SerializedDagModel.has_dag(dag_id):
-        SerializedDagModel.remove_dag(dag_id)
+    if DAGCACHED_ENABLED and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
+        SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
 

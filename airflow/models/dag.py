@@ -1386,7 +1386,11 @@ class DAG(BaseDag, LoggingMixin):
         # subdags are not written into serialized_dag, because they are not displayed
         # in the DAG list on UI. They are included in the serialized parent DAG.
         if DAGCACHED_ENABLED and not self.is_subdag:
-            SerializedDagModel.write_dag(self, min_update_interval=DAGCACHED_MIN_UPDATE_INTERVAL)
+            SerializedDagModel.write_dag(
+                self,
+                min_update_interval=DAGCACHED_MIN_UPDATE_INTERVAL,
+                session=session
+            )
 
     @staticmethod
     @provide_session
