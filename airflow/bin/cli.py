@@ -53,7 +53,7 @@ from typing import Any
 import airflow
 from airflow import api
 from airflow import jobs, settings
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
 from airflow.models import (
@@ -507,7 +507,7 @@ def run(args, dag=None):
         if os.path.exists(args.cfg_path):
             os.remove(args.cfg_path)
 
-        conf.conf.read_dict(conf_dict, source=args.cfg_path)
+        conf.read_dict(conf_dict, source=args.cfg_path)
         settings.configure_vars()
 
     # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave

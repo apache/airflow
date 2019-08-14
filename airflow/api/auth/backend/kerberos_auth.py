@@ -40,7 +40,7 @@ import kerberos
 
 from requests_kerberos import HTTPKerberosAuth
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

@@ -24,7 +24,8 @@ import unittest
 from unittest import mock
 import nose
 
-from airflow import DAG, configuration, operators
+from airflow import DAG, operators
+from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
@@ -93,7 +94,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = configuration.conf.get(
+        test_config_hive_mapred_queue = conf.get(
             'hive',
             'default_hive_mapred_queue'
         )

@@ -46,7 +46,7 @@ from urllib.parse import quote
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import configuration as conf
+from airflow.configuration import conf, AIRFLOW_CONFIG
 from airflow import jobs, models
 from airflow import settings
 from airflow._vendor import nvd3
@@ -1952,10 +1952,10 @@ class ConfigurationView(AirflowBaseView):
     def conf(self):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = conf.AIRFLOW_CONFIG
+        subtitle = AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as file:
+            with open(AIRFLOW_CONFIG, 'r') as file:
                 config = file.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
