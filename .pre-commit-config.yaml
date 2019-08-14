@@ -34,8 +34,8 @@ repos:
         language: system
         always_run: true
         pass_filenames: false
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.6
+  - repo: https://github.com/potiuk/pre-commit-hooks
+    rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
@@ -48,6 +48,7 @@ repos:
           - "/*||*/"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all other files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -56,6 +57,7 @@ repos:
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
@@ -66,6 +68,7 @@ repos:
           - "||"
           - --license-filepath
           - license-templates/LICENSE.rst
+          - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
         name: Add licence for all JS files
@@ -76,6 +79,17 @@ repos:
           - "/**| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for all JINJA template files
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$ # yamllint disable-line rule:line-length
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "{#||#}"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -85,6 +99,7 @@ repos:
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all XML files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -94,6 +109,7 @@ repos:
           - "<!--||-->"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for yaml files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -103,6 +119,7 @@ repos:
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all md files
         files: \.md$
@@ -112,6 +129,7 @@ repos:
           - "<!--|| -->"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v1.4.0
     hooks:
