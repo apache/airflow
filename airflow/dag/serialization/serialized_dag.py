@@ -18,6 +18,7 @@
 # under the License.
 
 """DAG serialization with JSON."""
+import json
 
 from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.dag.serialization.json_schema import make_dag_schema
@@ -64,3 +65,14 @@ class SerializedDAG(DAG, Serialization):
         visited_dags[dag.dag_id] = dag
         cls._deserialize_object(encoded_dag, dag, cls._included_fields, visited_dags)
         return dag
+
+    @classmethod
+    def to_json(cls, var) -> str:
+        """Stringifies DAGs and operators contained by var and returns a JSON string of var.
+        """
+        json_str = json.dumps(cls._serialize(var, {}), ensure_ascii=True)
+
+        # ToDo: Verify if adding Schema Validation is the best approach or not
+        # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
+        cls.validate_json(json_str=json_str)
+        return json_str

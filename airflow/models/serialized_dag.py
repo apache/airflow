@@ -70,12 +70,12 @@ class SerializedDagModel(Base):
     )
 
     def __init__(self, dag):
-        from airflow.dag.serialization import Serialization
+        from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F811, E501; pylint: disable=redefined-outer-name
 
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
         self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
-        self.data = Serialization.to_json(dag)
+        self.data = SerializedDAG.to_json(dag)
         self.last_updated = timezone.utcnow()
 
     @staticmethod
