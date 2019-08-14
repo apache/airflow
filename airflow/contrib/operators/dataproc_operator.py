@@ -121,6 +121,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
+    :param optional_components: List of optional cluster components, for more info see
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#Component
+    :type optional_components: list[str]
     :param num_masters: The # of master nodes to spin up
     :type num_masters: int
     :param master_machine_type: Compute engine machine type to use for the master node
@@ -208,6 +211,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                  image_version=None,
                  autoscaling_policy=None,
                  properties=None,
+                 optional_components=None,
                  num_masters=1,
                  master_machine_type='n1-standard-4',
                  master_disk_type='pd-standard',
@@ -240,6 +244,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
         self.properties = properties or dict()
+        self.optional_components = optional_components
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
@@ -416,6 +421,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
+
+        if self.optional_components:
+            cluster_data['config']['softwareConfig']['optionalComponents'] = self.optional_components
 
         cluster_data = self._build_lifecycle_config(cluster_data)
 
