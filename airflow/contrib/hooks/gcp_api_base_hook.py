@@ -324,14 +324,23 @@ class GoogleCloudBaseHook(BaseHook):
                 with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
                     key_path = self._get_field('key_path', False)
                     keyfile_dict = self._get_field('keyfile_dict', False)
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, use a JSON key file.')
-                        os.environ[CREDENTIALS] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[CREDENTIALS] = conf_file.name
-                    return func(self, *args, **kwargs)
+                    current_env_state = os.environ.get(CREDENTIALS)
+                    try:
+                        if key_path:
+                            if key_path.endswith('.p12'):
+                                raise AirflowException(
+                                    'Legacy P12 key file are not supported, use a JSON key file.'
+                                )
+                            os.environ[CREDENTIALS] = key_path
+                        elif keyfile_dict:
+                            conf_file.write(keyfile_dict)
+                            conf_file.flush()
+                            os.environ[CREDENTIALS] = conf_file.name
+                        return func(self, *args, **kwargs)
+                    finally:
+                        if current_env_state is None:
+                            if CREDENTIALS in os.environ:
+                                del os.environ[CREDENTIALS]
+                        else:
+                            os.environ[CREDENTIALS] = current_env_state
             return wrapper

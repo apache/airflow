@@ -172,6 +172,94 @@ class TestCatchHttpException(unittest.TestCase):
         self.assertTrue(self.called)
 
 
+ENV_VALUE = "/tmp/a"
+
+
+@unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
+class ProvideGcpCredentialFileTestCase(unittest.TestCase):
+    def setUp(self):
+        self.instance = hook.GoogleCloudBaseHook()
+
+    def test_provide_gcp_credential_file_decorator_key_path(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+        assert_gcp_credential_file_in_env(self.instance)
+
+    @mock.patch('tempfile.NamedTemporaryFile')
+    def test_provide_gcp_credential_file_decorator_key_content(self, mock_file):
+        string_file = StringIO()
+        file_content = '{"foo": "bar"}'
+        file_name = '/test/mock-file'
+        self.instance.extras = {'extra__google_cloud_platform__keyfile_dict': file_content}
+        mock_file_handler = mock_file.return_value.__enter__.return_value
+        mock_file_handler.name = file_name
+        mock_file_handler.write = string_file.write
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            self.assertEqual(os.environ[CREDENTIALS], file_name)
+            self.assertEqual(file_content, string_file.getvalue())
+
+        assert_gcp_credential_file_in_env(self.instance)
+
+    @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
+    def test_provide_gcp_credential_keep_environment(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+        assert_gcp_credential_file_in_env(self.instance)
+        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+
+    @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
+    def test_provide_gcp_credential_keep_environment_when_exception(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            raise Exception()
+
+        with self.assertRaises(Exception):
+            assert_gcp_credential_file_in_env(self.instance)
+
+        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+
+    @mock.patch.dict(os.environ, clear=True)
+    def test_provide_gcp_credential_keep_clear_environment(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+        assert_gcp_credential_file_in_env(self.instance)
+        self.assertNotIn(CREDENTIALS, os.environ)
+
+    @mock.patch.dict(os.environ, clear=True)
+    def test_provide_gcp_credential_keep_clear_environment_when_exception(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            raise Exception()
+
+        with self.assertRaises(Exception):
+            assert_gcp_credential_file_in_env(self.instance)
+
+        self.assertNotIn(CREDENTIALS, os.environ)
+
+
 class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
