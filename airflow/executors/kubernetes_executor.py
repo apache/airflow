@@ -73,7 +73,13 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
-        self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
+
+        kube_worker_annotations = conf.get(self.kubernetes_section, 'worker_annotations')
+        if kube_worker_annotations:
+            self.kube_annotations = json.loads(kube_worker_annotations)
+        else:
+            self.kube_annotations = None
+
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
