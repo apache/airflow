@@ -28,11 +28,14 @@ from sqlalchemy.sql import exists
 
 from airflow.models.base import Base, ID_LEN
 from airflow.utils import db, timezone
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
     from airflow.models import DAG  # noqa: F401; # pylint: disable=cyclic-import
+
+log = LoggingMixin().log
 
 
 class SerializedDagModel(Base):
@@ -127,6 +130,10 @@ class SerializedDagModel(Base):
             # Sanity check.
             if dag.dag_id == dag_id:
                 dags[dag_id] = dag
+            else:
+                log.warning(
+                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG "
+                    "with '%s' dag_id", dag_id, dag.dag_id)
         return dags
 
     @classmethod
