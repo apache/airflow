@@ -851,6 +851,20 @@ class SchedulerJob(BaseJob):
                         "Next run date based on tasks %s",
                         next_run_date
                     )
+                if next_run_date and next_run_date <= dag.following_schedule(timezone.utcnow()):
+                    # if it is the very first run, set last run to previous period
+                    # This will force subsequent runs to be in the next future period
+                    # in the next future period
+                    next_execution_period = dag.previous_schedule(timezone.utcnow())
+                    dag.create_dagrun(
+                        run_id=DagRun.ID_PREFIX + next_execution_period.isoformat(),
+                        execution_date=next_execution_period,
+                        start_date=dag.start_date,
+                        state=State.SUCCESS,
+                        external_trigger=False
+                    )
+
+                    return
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
