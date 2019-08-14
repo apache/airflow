@@ -45,7 +45,8 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
         self.template_fields = BaseOperator.template_fields
-        # Not None for SubDagOperator.
+        # subdag parameter is only set for SubDagOperator.
+        # Setting it to None by default as other Operators do not have that field
         self.subdag = None
 
     @property

@@ -32,6 +32,7 @@ from airflow.dag.serialization.enums import Encoding
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, BaseOperator, Connection, DagBag
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.subdag_operator import SubDagOperator
 
 
 # FIXME: to remove useless fields.
@@ -231,6 +232,15 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.validate_deserialized_task(
             skip_operator_1_task, 'DummySkipOperator', '#e8b7e4', '#000')
 
+        example_subdag_operator = stringified_dags['example_subdag_operator']
+        section_1_task = example_subdag_operator.task_dict['section-1']
+        self.validate_deserialized_task(
+            section_1_task,
+            SubDagOperator.__name__,
+            SubDagOperator.ui_color,
+            SubDagOperator.ui_fgcolor
+        )
+
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
         self.assertTrue(isinstance(task, SerializedBaseOperator))
@@ -238,6 +248,14 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertTrue(task.task_type == task_type)
         self.assertTrue(task.ui_color == ui_color)
         self.assertTrue(task.ui_fgcolor == ui_fgcolor)
+
+        # Check that for Deserialised task, task.subdag is None for all other Operators
+        # except for the SubDagOperator where task.subdag is an instance of DAG object
+        if task.task_type == "SubDagOperator":
+            self.assertIsNotNone(task.subdag)
+            self.assertTrue(isinstance(task.subdag, DAG))
+        else:
+            self.assertIsNone(task.subdag)
 
 
 if __name__ == '__main__':
