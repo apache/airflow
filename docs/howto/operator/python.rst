@@ -46,7 +46,7 @@ Templating
 
 When you set the ``provide_context`` argument to ``True``, Airflow passes in
 an additional set of keyword arguments: one for each of the :doc:`Jinja
-template variables <../../macros>` and a ``templates_dict`` argument.
+template variables <../../macros-ref>` and a ``templates_dict`` argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <jinja-templating>`.
