@@ -18,14 +18,14 @@
 Using the REST API
 ==================
 
-This document is meant to give a overview of all common tasks while using an REST API.
+This document is meant to give an overview of all common tasks while using an REST API.
 
 .. note::
 
     API endpoints and samples are described in :doc:`rest-api-ref`.
 
 CLI
------
+---
 
 For some functions the cli can use the API. To configure the CLI to use the API when available
 configure as follows:
@@ -42,7 +42,7 @@ Authentication
 
 Authentication for the API is handled separately to the Web Authentication. The default is to not
 require any authentication on the API -- i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the deny all backend:
+Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
 
 .. code-block:: ini
 
