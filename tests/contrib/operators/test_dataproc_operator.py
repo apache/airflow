@@ -354,7 +354,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT_ID,
             num_workers=NUM_WORKERS,
-            optionalComponents=OPTIONAL_COMPONENTS,
+            optional_components=OPTIONAL_COMPONENTS,
         )
         cluster_data = dataproc_operator._build_cluster_data()
         self.assertEqual(cluster_data['config']['softwareConfig']['optionalComponents'], OPTIONAL_COMPONENTS)
