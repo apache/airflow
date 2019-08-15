@@ -254,3 +254,8 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
                     }
                 }
             )
+
+    @staticmethod
+    def extract_host_aliases(pod, req):
+        if pod.host_aliases:
+            req['spec']['hostAliases'] = pod.host_aliases
