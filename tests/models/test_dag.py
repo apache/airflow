@@ -19,10 +19,8 @@
 
 import datetime
 import logging
-import os
 import re
 import unittest
-from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
 import pendulum
@@ -439,43 +437,6 @@ class DagTest(unittest.TestCase):
 
         self.assertIn('hello', jinja_env.filters)
         self.assertEqual(jinja_env.filters['hello'], jinja_udf)
-
-    def test_resolve_template_files_value(self):
-
-        with NamedTemporaryFile(suffix='.template') as f:
-            f.write(b'{{ ds }}')
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
-
-            with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = DummyOperator(task_id='op1')
-
-            task.test_field = template_file
-            task.template_fields = ('test_field',)
-            task.template_ext = ('.template',)
-            task.resolve_template_files()
-
-        self.assertEqual(task.test_field, '{{ ds }}')
-
-    def test_resolve_template_files_list(self):
-
-        with NamedTemporaryFile(suffix='.template') as f:
-            f = NamedTemporaryFile(suffix='.template')
-            f.write(b'{{ ds }}')
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
-
-            with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = DummyOperator(task_id='op1')
-
-            task.test_field = [template_file, 'some_string']
-            task.template_fields = ('test_field',)
-            task.template_ext = ('.template',)
-            task.resolve_template_files()
-
-        self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
     def test_cycle(self):
         # test empty

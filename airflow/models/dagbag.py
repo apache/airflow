@@ -319,7 +319,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         dag.test_cycle()  # throws if a task cycle is found
 
-        dag.resolve_template_files()
+        dag.load_template_files()
         dag.last_loaded = timezone.utcnow()
 
         for task in dag.tasks:

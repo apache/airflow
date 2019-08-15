@@ -649,24 +649,6 @@ class CoreTest(unittest.TestCase):
         t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_template_non_bool(self):
-        """
-        Test templates can handle objects with no sense of truthiness
-        """
-
-        class NonBoolObject:
-            def __len__(self):
-                return NotImplemented
-
-            def __bool__(self):
-                return NotImplemented
-
-        t = OperatorSubclass(
-            task_id='test_bad_template_obj',
-            some_templated_field=NonBoolObject(),
-            dag=self.dag)
-        t.resolve_template_files()
-
     def test_task_get_template(self):
         TI = TaskInstance
         ti = TI(

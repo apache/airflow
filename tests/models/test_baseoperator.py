@@ -18,10 +18,12 @@
 # under the License.
 
 import datetime
-import unittest
-from unittest import mock
 import uuid
 from collections import namedtuple
+from pathlib import Path
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any
+from unittest import TestCase, mock
 
 import jinja2
 from parameterized import parameterized
@@ -36,9 +38,10 @@ class TestOperator(BaseOperator):
     """Operator for testing purposes."""
 
     template_fields = ("arg1", "arg2")
+    template_ext = (".test",)
 
     @apply_defaults
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+    def __init__(self, arg1: Any = None, arg2: Any = None, **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
@@ -51,7 +54,7 @@ class TestOperator(BaseOperator):
 TestNamedTuple = namedtuple("TestNamedTuple", ["var1", "var2"])
 
 
-class BaseOperatorTest(unittest.TestCase):
+class BaseOperatorTest(TestCase):
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
@@ -141,3 +144,60 @@ class BaseOperatorTest(unittest.TestCase):
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         self.assertEqual(mock_jinja_env.call_count, 1)
+
+    def test_load_template_file(self):
+        """Test loading template files provided different argument value types."""
+        with TemporaryDirectory() as tmpdir:
+            with NamedTemporaryFile(suffix=".test", dir=tmpdir, mode="w+") as tmpfile:
+                with DAG("test_dag", start_date=DEFAULT_DATE, template_searchpath=tmpdir):
+                    test_output = "testdata"
+                    tmpfile.write(test_output)
+                    tmpfile.flush()
+                    tmpfile_name = Path(tmpfile.name).name
+
+                    # Create a TestOperator with various data types as input for template-able files.
+                    # We don't run a parameterized test because of the dynamically generated tmp filepath.
+                    testcases = [
+                        ("test_string", tmpfile_name, test_output),
+                        ("test_set", {tmpfile_name}, {test_output}),
+                        ("test_list", [tmpfile_name], [test_output]),
+                        ("test_dict", {"test": tmpfile_name}, {"test": test_output}),
+                        ("test_tuple", (tmpfile_name,), (test_output,)),
+                        ("test_list_multiple_elements", [tmpfile_name, "foo"], [test_output, "foo"]),
+                        ("test_nested", {"foo": {"bar": tmpfile_name}}, {"foo": {"bar": test_output}}),
+                        (
+                            "test_namedtuple",
+                            TestNamedTuple(tmpfile_name, "foo"),
+                            TestNamedTuple(test_output, "foo"),
+                        ),
+                    ]
+                    for test_name, test_input, expected_output in testcases:
+                        with self.subTest(name=test_name):
+                            test = TestOperator(task_id="test", arg1=test_input)
+                            test.load_template_files()
+                            self.assertEqual(test.arg1, expected_output)
+
+    def test_load_non_existent_template_file(self):
+        """Test if loading a non-existing template file doesn't fail and the value remains the same."""
+        with TemporaryDirectory() as tmpdir:
+            with DAG("test_dag", start_date=DEFAULT_DATE, template_searchpath=tmpdir):
+                test = TestOperator(task_id="test", arg1="non_existing_file.test")
+                test.load_template_files()
+                self.assertEqual(test.arg1, "non_existing_file.test")
+
+    def test_template_non_bool(self):
+        """Test if templates don't fail on objects with no sense of truthiness."""
+
+        class NonBoolObject:
+            def __len__(self):  # pylint: disable=invalid-length-returned
+                return NotImplemented
+
+            def __bool__(self):
+                return NotImplemented
+
+        with TemporaryDirectory() as tmpdir:
+            with DAG("test_dag", start_date=DEFAULT_DATE, template_searchpath=tmpdir):
+                test_obj = NonBoolObject()
+                test = TestOperator(task_id="test", arg1=test_obj)
+                test.load_template_files()
+                self.assertEqual(test.arg1, test_obj)

@@ -689,7 +689,7 @@ class Airflow(AirflowBaseView):
                 "error")
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
-        task.resolve_template_files()
+        task.load_template_files()
         ti = TI(task=task, execution_date=dttm)
         ti.refresh_from_db()
 

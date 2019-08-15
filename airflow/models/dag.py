@@ -227,7 +227,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, TaskInstance]
+        self.task_dict = dict()  # type: Dict[str, BaseOperator]
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -695,9 +695,9 @@ class DAG(BaseDag, LoggingMixin):
                 subdag_lst += task.subdag.subdags
         return subdag_lst
 
-    def resolve_template_files(self):
+    def load_template_files(self):
         for t in self.tasks:
-            t.resolve_template_files()
+            t.load_template_files()
 
     def get_template_env(self) -> jinja2.Environment:
         """Build a Jinja2 environment."""

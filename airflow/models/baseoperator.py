@@ -715,30 +715,66 @@ class BaseOperator(LoggingMixin):
         it should override this method to do so.
         """
 
-    def resolve_template_files(self):
-        # Getting the content of files for template_field / template_ext
+    def load_template_files(self, jinja_env: Optional[jinja2.Environment] = None) -> None:
+        """
+        Load all template files set in this operator's fields, meaning variables holding a path e.g.
+        "/tmp/template.txt" will be loaded and replaced with the file contents. Template files within a
+        collection is possible, e.g. a set {"file1", "file2", "file3"} will be transformed into a set holding
+        the content of the 3 files {"file1 content", "file2 content", "file3 content"}. Note this operation is
+        irreversible.
+
+        :param jinja_env: Jinja environment
+        """
+
         if self.template_ext:
-            for attr in self.template_fields:
-                content = getattr(self, attr, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and \
-                        any([content.endswith(ext) for ext in self.template_ext]):
-                    env = self.get_template_env()
-                    try:
-                        setattr(self, attr, env.loader.get_source(env, content)[0])
-                    except Exception as e:
-                        self.log.exception(e)
-                elif isinstance(content, list):
-                    env = self.dag.get_template_env()
-                    for i in range(len(content)):
-                        if isinstance(content[i], str) and \
-                                any([content[i].endswith(ext) for ext in self.template_ext]):
-                            try:
-                                content[i] = env.loader.get_source(env, content[i])[0]
-                            except Exception as e:
-                                self.log.exception(e)
+            if not jinja_env:
+                jinja_env = self.get_template_env()
+
+            for attr_name in self.template_fields:
+                attr_value = getattr(self, attr_name)
+                if attr_value is not None:
+                    setattr(self, attr_name, self.load_template_file(attr_value, jinja_env))
+
         self.prepare_template()
+
+    def load_template_file(self, value: Any, jinja_env: jinja2.Environment) -> Any:
+        """
+        Load the file contents for a given value (template path). The value should contain the path to a
+        template file. E.g. "/tmp/whatever.txt" should return the file content (if the file exists). In case
+        of an error, the value is returned as-is, e.g. "/tmp/non_existing_file.txt" is returned as
+        "/tmp/non_existing_file.txt".
+
+        :param value: Path to a file to load. The path may be a collection, e.g. a list storing multiple paths
+            is also parsed.
+        :param jinja_env: Jinja environment to use for loading the file
+        :return: Content of filepath provided in value, or unchanged value if exception occurred
+        """
+
+        if isinstance(value, str) and any(value.endswith(ext) for ext in self.template_ext):
+            try:
+                source, _, _ = jinja_env.loader.get_source(jinja_env, value)
+                return source
+            except Exception as e:
+                self.log.exception(e)
+
+        if isinstance(value, tuple):
+            if type(value) is not tuple:
+                # tuple is namedtuple
+                return value.__class__(*(self.load_template_file(val, jinja_env) for val in value))
+            else:
+                return tuple(self.load_template_file(val, jinja_env) for val in value)
+
+        elif isinstance(value, list):
+            return [self.load_template_file(val, jinja_env) for val in value]
+
+        elif isinstance(value, dict):
+            return {key: self.load_template_file(val, jinja_env) for key, val in value.items()}
+
+        elif isinstance(value, set):
+            return {self.load_template_file(val, jinja_env) for val in value}
+
+        else:
+            return value
 
     @property
     def upstream_list(self):
