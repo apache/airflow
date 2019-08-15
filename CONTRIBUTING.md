@@ -321,6 +321,7 @@ If you use zsh, you should run this command:
 ```bash
 echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
 . ~/.zprofile
+```
 
 * Login and logout afterwards
 
