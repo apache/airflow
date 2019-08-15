@@ -43,9 +43,3 @@ configuring an Airflow environment.
     check-health
     define_extra_link
     cli-completion
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Developer guide
-
-    setup-test-environment-mysql
