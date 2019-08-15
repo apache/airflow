@@ -56,6 +56,7 @@ class PodLauncher(LoggingMixin):
         pod_mutation_hook(pod)
 
         req = self.kube_req_factory.create(pod)
+        print(req)
         self.log.debug('Pod Creation Request: \n%s', json.dumps(req, indent=2))
         try:
             resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace, **kwargs)

@@ -307,6 +307,9 @@ class WorkerConfiguration(LoggingMixin):
 
         return volumes, volume_mounts
 
+    def _get_host_aliases(self):
+        return {}
+
     def generate_dag_volume_mount_path(self):
         if self.kube_config.dags_volume_claim or self.kube_config.dags_volume_host:
             dag_volume_mount_path = self.worker_airflow_dags
@@ -319,6 +322,7 @@ class WorkerConfiguration(LoggingMixin):
                  try_number, airflow_command, kube_executor_config):
         volumes_dict, volume_mounts_dict = self._get_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers()
+
         resources = Resources(
             request_memory=kube_executor_config.request_memory,
             request_cpu=kube_executor_config.request_cpu,
@@ -365,5 +369,6 @@ class WorkerConfiguration(LoggingMixin):
             affinity=affinity,
             tolerations=tolerations,
             security_context=self._get_security_context(),
-            configmaps=self._get_configmaps()
+            configmaps=self._get_configmaps(),
+            host_aliases=self._get_host_aliases()
         )

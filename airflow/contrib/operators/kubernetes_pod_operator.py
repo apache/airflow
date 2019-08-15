@@ -118,8 +118,8 @@ class KubernetesPodOperator(BaseOperator):
                 gen.add_mount(mount)
             for volume in self.volumes:
                 gen.add_volume(volume)
-            for host_aliases in self.hostaliases:
-                gen.host_aliases(host_aliases)
+            for host_aliases in self.host_aliases:
+                gen.add_host_alias(host_aliases)
 
             pod = gen.make_pod(
                 namespace=self.namespace,
