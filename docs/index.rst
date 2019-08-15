@@ -81,6 +81,7 @@ Content
     ui
     concepts
     scheduler
+    executor/index
     plugins
     security
     timezone

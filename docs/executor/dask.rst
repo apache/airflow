@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Scaling Out with Dask
-=====================
+Dask Executor
+=============
 
 :class:`airflow.executors.dask_executor.DaskExecutor` allows you to run Airflow tasks in a Dask Distributed cluster.
 

@@ -15,35 +15,16 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guides
-=============
+Executor
+========
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+Executors are the mechanism by which task instances get run.
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
-
-.. toctree::
-    :maxdepth: 2
-
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    connection/index
-    secure-connections
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    cli-completion
+Airflow has support for various executors. Current used is determined by the ``executor`` option in the ``core``
+section of the configuration file.
 
 .. toctree::
-    :maxdepth: 2
-    :caption: Developer guide
+    :maxdepth: 1
+    :glob:
 
-    setup-test-environment-mysql
+    *

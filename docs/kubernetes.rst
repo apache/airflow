@@ -21,26 +21,13 @@ Kubernetes
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
-
-Example helm charts are available at ``scripts/ci/kubernetes/kube/{airflow,volumes,postgres}.yaml`` in the source distribution.
-The volumes are optional and depend on your configuration. There are two volumes available:
-
-- **Dags**:
-
-  - By storing dags onto persistent disk, it will be made available to all workers
-
-  - Another option is to use ``git-sync``. Before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod
-
-- **Logs**:
-
-  - By storing logs onto a persistent disk, the files are accessible by workers and the webserver. If you don't configure this, the logs will be lost after the worker pods shuts down
-
-  - Another option is to use S3/GCS/etc to store logs
-
+The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run tasks on Kubernetes as Pods.
 
 Kubernetes Operator
 ^^^^^^^^^^^^^^^^^^^
+
+The :doc:`KubernetesPodOperator <executor/kubernetes>` allows you to create Pods on Kubernetes. It works with
+any type of executor.
 
 .. code:: python
 
@@ -145,8 +132,6 @@ Kubernetes Operator
                               configmaps=configmaps
                               )
 
-
-See :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator`
 
 
 Pod Mutation Hook

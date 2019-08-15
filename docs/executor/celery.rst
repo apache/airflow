@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Scaling Out with Celery
-=======================
+Celery Executor
+===============
 
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
 to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, ...) and
