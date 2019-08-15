@@ -146,5 +146,5 @@ class Pod:
         self.security_context = security_context
         self.configmaps = configmaps or []
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
-        self.dnspolicy = dnspolicy,
-        self.host_aliases = host_aliases
+        self.dnspolicy = dnspolicy
+        self.host_aliases = host_aliases or []
