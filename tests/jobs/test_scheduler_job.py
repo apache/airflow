@@ -2041,7 +2041,8 @@ class SchedulerJobTest(unittest.TestCase):
         but is still present in the executor.
         """
         executor = TestExecutor(do_update=False)
-        dagbag = DagBag(executor=executor)
+        dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
+                                                                   "no_dags.py"))
         dagbag.dags.clear()
         dagbag.executor = executor
 
@@ -2083,9 +2084,9 @@ class SchedulerJobTest(unittest.TestCase):
         do_schedule()
         self.assertEqual(1, len(executor.queued_tasks))
 
-        def run_with_error(task):
+        def run_with_error(task, ignore_ti_state=False):
             try:
-                task.run()
+                task.run(ignore_ti_state=ignore_ti_state)
             except AirflowException:
                 pass
 
@@ -2095,8 +2096,12 @@ class SchedulerJobTest(unittest.TestCase):
         ti.task = dag_task1
 
         self.assertEqual(ti.try_number, 1)
-        # fail execution
-        run_with_error(ti)
+        # At this point, scheduler has tried to schedule the task once and
+        # heartbeated the executor once, which moved the state of the task from
+        # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
+        # we need to ignore the TI state as SCHEDULED is not a valid state to start
+        # executing task.
+        run_with_error(ti, ignore_ti_state=True)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 

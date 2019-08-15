@@ -73,7 +73,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Connection, DagRun, errors, XCom
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
+from airflow.ti_deps.dep_context import DepContext, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
@@ -1008,7 +1008,7 @@ class Airflow(AirflowViewMixin, BaseView):
                        if ti.state == State.NONE else "")))]
 
         # Use the scheduler's context to figure out which dependencies are not met
-        dep_context = DepContext(SCHEDULER_DEPS)
+        dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
         failed_dep_reasons = [(dep.dep_name, dep.reason) for dep in
                               ti.get_failed_dep_statuses(
                                   dep_context=dep_context)]
@@ -1113,7 +1113,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         # Make sure the task instance can be queued
         dep_context = DepContext(
-            deps=QUEUE_DEPS,
+            deps=SCHEDULER_QUEUED_DEPS,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state)
