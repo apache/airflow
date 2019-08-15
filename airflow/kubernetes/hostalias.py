@@ -17,8 +17,8 @@
 
 
 class HostAlias:
-	"""Defines Kubernetes Volume"""
+    """Defines Kubernetes Volume"""
 
-	def __init__(self, ip, hostnames):
-		self.ip = ip
-		self.hostnames = hostnames
+    def __init__(self, ip, hostnames):
+        self.ip = ip
+        self.hostnames = hostnames
