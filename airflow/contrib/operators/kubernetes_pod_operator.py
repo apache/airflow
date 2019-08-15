@@ -50,6 +50,7 @@ class KubernetesPodOperator(BaseOperator):
     :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
     :type volumes: list[airflow.contrib.kubernetes.volume.Volume]
+    :type host_aliases: list[airflow.contrib.kubernetes.hostalias.HostAlias]
     :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
