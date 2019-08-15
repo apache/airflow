@@ -21,7 +21,7 @@
 import json
 
 from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.dag.serialization.json_schema import make_dag_schema
+from airflow.dag.serialization.json_schema import load_dag_schema
 from airflow.dag.serialization.serialization import Serialization
 from airflow.models import DAG
 
@@ -40,37 +40,36 @@ class SerializedDAG(DAG, Serialization):
     """
     # Stringified DAGs and operators contain exactly these fields.
     # FIXME: to customize included fields and keep only necessary fields.
-    _included_fields = list(vars(DAG(dag_id='test')).keys())
+    _included_fields = set(vars(DAG(dag_id='test')).keys()) - {
+        'parent_dag',
+    }
 
-    _json_schema = make_dag_schema()
+    _json_schema = load_dag_schema()
 
     @classmethod
-    def serialize_dag(cls, dag: DAG, visited_dags: dict) -> dict:
+    def serialize_dag(cls, dag: DAG) -> dict:
         """Serializes a DAG into a JSON object.
         """
-        if dag.dag_id in visited_dags:
-            return {Encoding.TYPE: DAT.DAG, Encoding.VAR: str(dag.dag_id)}
-
-        new_dag = {Encoding.TYPE: DAT.DAG}
-        visited_dags[dag.dag_id] = new_dag
-        new_dag[Encoding.VAR] = cls._serialize_object(
-            dag, visited_dags, included_fields=cls._included_fields)
+        new_dag = {Encoding.TYPE: DAT.DAG, Encoding.VAR: cls._serialize_object(dag)}
         return new_dag
 
     @classmethod
-    def deserialize_dag(cls, encoded_dag: dict, visited_dags: dict) -> DAG:
+    def deserialize_dag(cls, encoded_dag: dict) -> DAG:
         """Deserializes a DAG from a JSON object.
         """
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
-        visited_dags[dag.dag_id] = dag
-        cls._deserialize_object(encoded_dag, dag, cls._included_fields, visited_dags)
+        cls._deserialize_object(encoded_dag, dag)
+        for task in dag.task_dict.values():
+            task.dag = dag
+            if task.subdag is not None:
+                setattr(task.subdag, 'parent_dag', dag)
         return dag
 
     @classmethod
     def to_json(cls, var) -> str:
         """Stringifies DAGs and operators contained by var and returns a JSON string of var.
         """
-        json_str = json.dumps(cls._serialize(var, {}), ensure_ascii=True)
+        json_str = json.dumps(cls._serialize(var), ensure_ascii=True)
 
         # ToDo: Verify if adding Schema Validation is the best approach or not
         # Validate Serialized DAG with Json Schema. Raises Error if it mismatches

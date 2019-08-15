@@ -340,7 +340,10 @@ def do_setup():
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
-        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        package_data={
+            '': ['airflow/alembic.ini', "airflow/git_version"],
+            'airflow.dag.serialization': ["*.json"],
+        },
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],

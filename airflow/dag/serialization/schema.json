@@ -1,0 +1,224 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://airflow.apache.com/schemas/serialized-dags.json",
+  "definitions": {
+    "datetime": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "datetime"
+        },
+        "__var": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "timedelta": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "timedelta"
+        },
+        "__var": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "timezone": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "timezone"
+        },
+        "__var": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "dict": {
+      "description": "A python dictionary containing values of any type",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dict"
+        },
+        "__var": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ]
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[a-fA-F0-9]{3,6}$"
+    },
+    "stringset": {
+      "description": "A set of strings",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "set"
+        },
+        "__var": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ]
+    },
+    "dag": {
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dag"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "params": { "$ref": "#/definitions/dict" },
+            "_dag_id": { "type": "string" },
+            "task_dict": {  "$ref": "#/definitions/task_dict" },
+            "timezone": { "$ref": "#/definitions/timezone" },
+            "schedule_interval": {
+              "anyOf": [
+                { "type": "string" },
+                { "$ref": "#/definitions/timedelta" }
+              ]
+            },
+            "catchup": { "type": "boolean" },
+            "is_subdag": { "type": "boolean" }
+          },
+          "required": [
+            "params",
+            "_dag_id",
+            "fileloc",
+            "task_dict"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "task_dict": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dict"
+        },
+        "__var": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/operator" }
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "operator": {
+      "$comment": "A task/operator in a DAG",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "operator"
+        },
+        "__var": {
+          "type": "object",
+          "required": [
+            "_task_type",
+            "task_id",
+            "owner",
+            "start_date",
+            "pool",
+            "ui_color",
+            "ui_fgcolor",
+            "template_fields"
+          ],
+          "properties": {
+            "_task_type": { "type": "string" },
+            "task_id": { "type": "string" },
+            "owner": { "type": "string" },
+            "start_date": { "$ref": "#/definitions/datetime" },
+            "trigger_rule": { "type": "string" },
+            "depends_on_past": { "type": "boolean" },
+            "wait_for_downstream": { "type": "boolean" },
+            "retries": { "type": "number" },
+            "queue": { "type": "string" },
+            "pool": { "type": "string" },
+            "retry_delay": { "$ref": "#/definitions/timedelta" },
+            "retry_exponential_backoff": { "type": "boolean" },
+            "params": { "$ref": "#/definitions/dict" },
+            "priority_weight": { "type": "number" },
+            "weight_rule": { "type": "string" },
+            "executor_config": { "$ref": "#/definitions/dict" },
+            "do_xcom_push": { "type": "boolean" },
+            "ui_color": { "$ref": "#/definitions/color" },
+            "ui_fgcolor": { "$ref": "#/definitions/color" },
+            "template_fields": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "subdag": { "$ref": "#/definitions/dag" },
+            "_upstream_task_ids": { "$ref": "#/definitions/stringset" },
+            "_downstream_task_ids": { "$ref": "#/definitions/stringset" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    }
+  },
+
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/definitions/dag" },
+    {
+      "type": "object",
+      "properties": {
+        "__version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  ]
+}
