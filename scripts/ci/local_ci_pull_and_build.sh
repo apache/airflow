@@ -33,7 +33,7 @@ script_start
 
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
 export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL="false"
-export ASSUME_YES="true"
+export ASSUME_YES_TO_ALL_QUESTIONS="true"
 
 rebuild_image_if_needed_for_tests
 

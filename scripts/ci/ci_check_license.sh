@@ -21,6 +21,8 @@ set -uo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export PYTHON_VERSION=3.5
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
 
 # shellcheck source=./_utils.sh
 . "${MY_DIR}/_utils.sh"
@@ -35,6 +37,7 @@ rebuild_image_if_needed_for_checklicence
 
 docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+       --env AIRFLOW_CI_SILENT \
        --env HOST_USER_ID="$(id -ur)" \
        --env HOST_GROUP_ID="$(id -gr)" \
        "${AIRFLOW_CHECKLICENCE_IMAGE}"

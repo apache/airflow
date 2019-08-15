@@ -31,8 +31,10 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
+"""Configuration of Airflow Docs"""
 import os
 import sys
+from typing import Dict
 
 import airflow
 
@@ -255,7 +257,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
-import sphinx_rtd_theme
+import sphinx_rtd_theme  # pylint: disable=wrong-import-position,wrong-import-order
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
@@ -340,7 +342,7 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
-}
+}  # type: Dict[str,str]
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,

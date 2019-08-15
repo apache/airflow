@@ -34,6 +34,6 @@ script_start
 
 rebuild_image_if_needed_for_static_checks
 
-run_docs
+run_pylint_main "$@"
 
 script_end

@@ -17,9 +17,7 @@
 # limitations under the License.
 #
 
-# Script to run Pylint on all code. Can be started from any working directory
-# ./scripts/ci/run_pylint.sh
-
+# Script to run flake8 on all code. Can be started from any working directory
 set -uo pipefail
 
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)

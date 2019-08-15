@@ -32,8 +32,7 @@ import unittest
 logger = logging.getLogger(__name__)
 
 # noinspection PyUnresolvedReferences
-version = imp.load_source(
-    'airflow.version', os.path.join('airflow', 'version.py')).version
+version = imp.load_source('airflow.version', os.path.join('airflow', 'version.py')).version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
 
@@ -63,7 +62,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []
+    user_options = []  # type: ignore
 
     def initialize_options(self):
         """Set default values for options."""
@@ -84,7 +83,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options = []
+    user_options = []  # type: ignore
 
     def initialize_options(self):
         """Set default values for options."""
@@ -276,6 +275,7 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pre-commit',
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
