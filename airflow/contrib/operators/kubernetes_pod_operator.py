@@ -208,8 +208,8 @@ class KubernetesPodOperator(BaseOperator):
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
-	             host_aliases=None,
-	             *args,
+                 host_aliases=None,
+                 *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.image = image
