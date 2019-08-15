@@ -17,8 +17,14 @@
 
 
 class HostAlias:
-    """Defines Kubernetes Volume"""
+    """Defines Kubernetes HostAliases"""
 
     def __init__(self, ip, hostnames):
+        """ Adds Kubernetes HostAliases to the Pod
+        :param ip: ip for these hostnames
+        :type ip: str
+        :param hostnames: List of hostnames to attach to the ip
+        :type hostnames: list[str]
+        """
         self.ip = ip
         self.hostnames = hostnames
