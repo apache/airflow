@@ -18,70 +18,70 @@
 */
 
 div.dataTables_length label {
-	font-weight: normal;
-	text-align: left;
-	white-space: nowrap;
+  font-weight: normal;
+  text-align: left;
+  white-space: nowrap;
 }
 
 div.dataTables_length select {
-	width: 75px;
-	display: inline-block;
+  width: 75px;
+  display: inline-block;
 }
 
 div.dataTables_filter {
-	text-align: right;
+  text-align: right;
 }
 
 div.dataTables_filter label {
-	font-weight: normal;
-	white-space: nowrap;
-	text-align: left;
+  font-weight: normal;
+  white-space: nowrap;
+  text-align: left;
 }
 
 div.dataTables_filter input {
-	margin-left: 0.5em;
-	display: inline-block;
+  margin-left: 0.5em;
+  display: inline-block;
 }
 
 div.dataTables_info {
-	padding-top: 8px;
-	white-space: nowrap;
+  padding-top: 8px;
+  white-space: nowrap;
 }
 
 div.dataTables_paginate {
-	margin: 0;
-	white-space: nowrap;
-	text-align: right;
+  margin: 0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 div.dataTables_paginate ul.pagination {
-	margin: 2px 0;
-	white-space: nowrap;
+  margin: 2px 0;
+  white-space: nowrap;
 }
 
 @media screen and (max-width: 767px) {
-	div.dataTables_length,
-	div.dataTables_filter,
-	div.dataTables_info,
-	div.dataTables_paginate {
-		text-align: center;
-	}
+  div.dataTables_length,
+  div.dataTables_filter,
+  div.dataTables_info,
+  div.dataTables_paginate {
+    text-align: center;
+  }
 }
 
 
 table.dataTable td,
 table.dataTable th {
-	-webkit-box-sizing: content-box;
-	-moz-box-sizing: content-box;
-	box-sizing: content-box;
+  -webkit-box-sizing: content-box;
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
 }
 
 
 table.dataTable {
-	clear: both;
-	margin-top: 6px !important;
-	margin-bottom: 6px !important;
-	max-width: none !important;
+  clear: both;
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+  max-width: none !important;
 }
 
 table.dataTable thead .sorting,
@@ -89,7 +89,7 @@ table.dataTable thead .sorting_asc,
 table.dataTable thead .sorting_desc,
 table.dataTable thead .sorting_asc_disabled,
 table.dataTable thead .sorting_desc_disabled {
-	cursor: pointer;
+  cursor: pointer;
 }
 
 table.dataTable thead .sorting { background: url('../images/sort_both.png') no-repeat center right; }
@@ -100,41 +100,41 @@ table.dataTable thead .sorting_asc_disabled { background: url('../images/sort_as
 table.dataTable thead .sorting_desc_disabled { background: url('../images/sort_desc_disabled.png') no-repeat center right; }
 
 table.dataTable thead > tr > th {
-	padding-left: 18px;
-	padding-right: 18px;
+  padding-left: 18px;
+  padding-right: 18px;
 }
 
 table.dataTable th:active {
-	outline: none;
+  outline: none;
 }
 
 /* Scrolling */
 div.dataTables_scrollHead table {
-	margin-bottom: 0 !important;
-	border-bottom-left-radius: 0;
-	border-bottom-right-radius: 0;
+  margin-bottom: 0 !important;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 div.dataTables_scrollHead table thead tr:last-child th:first-child,
 div.dataTables_scrollHead table thead tr:last-child td:first-child {
-	border-bottom-left-radius: 0 !important;
-	border-bottom-right-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
 }
 
 div.dataTables_scrollBody table {
-	border-top: none;
-	margin-top: 0 !important;
-	margin-bottom: 0 !important;
+  border-top: none;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 div.dataTables_scrollBody tbody tr:first-child th,
 div.dataTables_scrollBody tbody tr:first-child td {
-	border-top: none;
+  border-top: none;
 }
 
 div.dataTables_scrollFoot table {
-	margin-top: 0 !important;
-	border-top: none;
+  margin-top: 0 !important;
+  border-top: none;
 }
 
 /* Frustratingly the border-collapse:collapse used by Bootstrap makes the column
@@ -142,24 +142,24 @@ div.dataTables_scrollFoot table {
    to use separate
  */
 table.table-bordered.dataTable {
-	border-collapse: separate !important;
+  border-collapse: separate !important;
 }
 table.table-bordered thead th,
 table.table-bordered thead td {
-	border-left-width: 0;
-	border-top-width: 0;
+  border-left-width: 0;
+  border-top-width: 0;
 }
 table.table-bordered tbody th,
 table.table-bordered tbody td {
-	border-left-width: 0;
-	border-bottom-width: 0;
+  border-left-width: 0;
+  border-bottom-width: 0;
 }
 table.table-bordered th:last-child,
 table.table-bordered td:last-child {
-	border-right-width: 0;
+  border-right-width: 0;
 }
 div.dataTables_scrollHead table.table-bordered {
-	border-bottom-width: 0;
+  border-bottom-width: 0;
 }
 
 
@@ -170,31 +170,31 @@ div.dataTables_scrollHead table.table-bordered {
  */
 .table.dataTable tbody tr.active td,
 .table.dataTable tbody tr.active th {
-	background-color: #08C;
-	color: white;
+  background-color: #08C;
+  color: white;
 }
 
 .table.dataTable tbody tr.active:hover td,
 .table.dataTable tbody tr.active:hover th {
-	background-color: #0075b0 !important;
+  background-color: #0075b0 !important;
 }
 
 .table.dataTable tbody tr.active th > a,
 .table.dataTable tbody tr.active td > a {
-	color: white;
+  color: white;
 }
 
 .table-striped.dataTable tbody tr.active:nth-child(odd) td,
 .table-striped.dataTable tbody tr.active:nth-child(odd) th {
-	background-color: #017ebc;
+  background-color: #017ebc;
 }
 
 table.DTTT_selectable tbody tr {
-	cursor: pointer;
+  cursor: pointer;
 }
 
 div.DTTT .btn:hover {
-	text-decoration: none !important;
+  text-decoration: none !important;
 }
 
 ul.DTTT_dropdown.dropdown-menu {
@@ -202,54 +202,54 @@ ul.DTTT_dropdown.dropdown-menu {
 }
 
 ul.DTTT_dropdown.dropdown-menu a {
-	color: #333 !important; /* needed only when demo_page.css is included */
+  color: #333 !important; /* needed only when demo_page.css is included */
 }
 
 ul.DTTT_dropdown.dropdown-menu li {
-	position: relative;
+  position: relative;
 }
 
 ul.DTTT_dropdown.dropdown-menu li:hover a {
-	background-color: #0088cc;
-	color: white !important;
+  background-color: #0088cc;
+  color: white !important;
 }
 
 div.DTTT_collection_background {
-	z-index: 2002;
+  z-index: 2002;
 }
 
 /* TableTools information display */
 div.DTTT_print_info {
-	position: fixed;
-	top: 50%;
-	left: 50%;
-	width: 400px;
-	height: 150px;
-	margin-left: -200px;
-	margin-top: -75px;
-	text-align: center;
-	color: #333;
-	padding: 10px 30px;
-	opacity: 0.95;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 400px;
+  height: 150px;
+  margin-left: -200px;
+  margin-top: -75px;
+  text-align: center;
+  color: #333;
+  padding: 10px 30px;
+  opacity: 0.95;
 
-	background-color: white;
-	border: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 6px;
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 
-	-webkit-box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
-	        box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
+  -webkit-box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
 }
 
 div.DTTT_print_info h6 {
-	font-weight: normal;
-	font-size: 28px;
-	line-height: 28px;
-	margin: 1em;
+  font-weight: normal;
+  font-size: 28px;
+  line-height: 28px;
+  margin: 1em;
 }
 
 div.DTTT_print_info p {
-	font-size: 14px;
-	line-height: 20px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 div.dataTables_processing {
@@ -289,7 +289,7 @@ table.DTFC_Cloned tr.even {
 
 div.DTFC_RightHeadWrapper table ,
 div.DTFC_LeftHeadWrapper table {
-	border-bottom: none !important;
+  border-bottom: none !important;
     margin-bottom: 0 !important;
     border-top-right-radius: 0 !important;
     border-bottom-left-radius: 0 !important;
@@ -328,6 +328,5 @@ div.DTFC_LeftFootWrapper table {
  * FixedHeader styles
  */
 div.FixedHeader_Cloned table {
-	margin: 0 !important
+  margin: 0 !important
 }
-

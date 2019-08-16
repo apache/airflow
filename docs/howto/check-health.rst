@@ -46,4 +46,3 @@ To check the health status of your Airflow instance, you can simply access the e
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).
-

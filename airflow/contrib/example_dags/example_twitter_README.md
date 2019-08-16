@@ -42,11 +42,11 @@ The eight different CSV files are then put into eight different folders within H
 As most probably these folders and hive tables doesn't exist in your system, you will get an error for these tasks within the DAG. If you rebuild a function DAG from this example, make sure those folders and hive tables exists. When you create the table, keep the consideration of table partitioning and declaring comma as the row deliminator in your mind. Furthermore, you may also need to skip headers on each read and ensure that the user under which you have Airflow running has the right permission access. Below is a sample HQL snippet on creating such table:
 ```
 CREATE TABLE toTwitter_A(id BIGINT, id_str STRING
-						created_at STRING, text STRING)
-						PARTITIONED BY (dt STRING)
-						ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
-						STORED AS TEXTFILE;
-						alter table toTwitter_A SET serdeproperties ('skip.header.line.count' = '1');
+            created_at STRING, text STRING)
+            PARTITIONED BY (dt STRING)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+            STORED AS TEXTFILE;
+            alter table toTwitter_A SET serdeproperties ('skip.header.line.count' = '1');
 ```
 When you review the code for the DAG, you will notice that these tasks are generated using for loop. These two for loops could be combined into one loop. However, in most cases, you will be running different analysis on your incoming incoming and outgoing tweets, and hence they are kept separated in this example.
 Final step is a running the broker script, brokerapi.py, which will run queries in Hive and store the summarized data to MySQL in our case. To connect to Hive, pyhs2 library is extremely useful and easy to use. To insert data into MySQL from Python, sqlalchemy is also a good one to use.
