@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-API Reference
-=============
+Python API Reference
+====================
 
 Operators
 ---------
@@ -66,6 +66,10 @@ All operators are in the following packages:
 
   airflow/contrib/sensors/index
 
+  airflow/gcp/operators/index
+
+  airflow/gcp/sensors/index
+
 
 Hooks
 -----
@@ -85,6 +89,8 @@ All hooks are in the following packages:
   airflow/hooks/index
 
   airflow/contrib/hooks/index
+
+  airflow/gcp/hooks/index
 
 
 Executors

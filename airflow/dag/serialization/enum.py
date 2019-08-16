@@ -17,22 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
-from airflow.utils.state import State
+"""Enums for DAG serialization."""
+
+from enum import Enum, unique
 
 
-class NotRunningDep(BaseTIDep):
-    NAME = "Task Instance Not Already Running"
+# Fields of an encoded object in serialization.
+@unique
+class Encoding(str, Enum):
+    """Enum of encoding constants."""
+    TYPE = '__type'
+    VAR = '__var'
 
-    # Task instances must not already be running, as running two copies of the same
-    # task instance at the same time (AKA double-trigger) should be avoided at all
-    # costs, even if the context specifies that all dependencies should be ignored.
-    IGNOREABLE = False
 
-    @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.state == State.RUNNING:
-            yield self._failing_status(
-                reason="Task is already running, it started on {0}.".format(
-                    ti.start_date))
+# Supported types for encoding. primitives and list are not encoded.
+@unique
+class DagAttributeTypes(str, Enum):
+    """Enum of supported attribute types of DAG."""
+    DAG = 'dag'
+    OP = 'operator'
+    DATETIME = 'datetime'
+    TIMEDELTA = 'timedelta'
+    TIMEZONE = 'timezone'
+    DICT = 'dict'
+    SET = 'set'
+    TUPLE = 'tuple'

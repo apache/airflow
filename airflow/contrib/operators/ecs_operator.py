@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+from typing_extensions import Protocol
 import sys
 import re
 
@@ -24,6 +26,20 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
+
+
+class ECSProtocol(Protocol):
+    def run_task(self, **kwargs):
+        ...
+
+    def get_waiter(self, x: str):
+        ...
+
+    def describe_tasks(self, cluster, tasks):
+        ...
+
+    def stop_task(self, cluster, task, reason: str):
+        ...
 
 
 class ECSOperator(BaseOperator):
@@ -58,8 +74,8 @@ class ECSOperator(BaseOperator):
     """
 
     ui_color = '#f0ede4'
-    client = None
-    arn = None
+    client = None  # type: Optional[ECSProtocol]
+    arn = None  # type: Optional[str]
     template_fields = ('overrides',)
 
     @apply_defaults

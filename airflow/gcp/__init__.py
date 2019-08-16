@@ -16,27 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-from unittest.mock import Mock
-from datetime import datetime
-
-from airflow.ti_deps.deps.not_running_dep import NotRunningDep
-from airflow.utils.state import State
-
-
-class NotRunningDepTest(unittest.TestCase):
-
-    def test_ti_running(self):
-        """
-        Running task instances should fail this dep
-        """
-        ti = Mock(state=State.RUNNING, start_date=datetime(2016, 1, 1))
-        self.assertFalse(NotRunningDep().is_met(ti=ti))
-
-    def test_ti_not_running(self):
-        """
-        Non-running task instances should pass this dep
-        """
-        ti = Mock(state=State.NONE, start_date=datetime(2016, 1, 1))
-        self.assertTrue(NotRunningDep().is_met(ti=ti))

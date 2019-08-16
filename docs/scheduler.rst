@@ -188,4 +188,3 @@ Here are some of the ways you can **unblock tasks**:
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow dags backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
   subsections of the DAG as well as specifying date ranges.
-

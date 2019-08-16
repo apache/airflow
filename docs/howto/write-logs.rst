@@ -182,3 +182,24 @@ To output task logs to stdout in JSON format, the following config could be used
     write_stdout = True
     json_format = True
     json_fields = asctime, filename, lineno, levelname, message
+
+.. _write-logs-elasticsearch-tls:
+
+Writing Logs to Elasticsearch over TLS
+----------------------------------------
+
+To add custom configurations to ElasticSearch (e.g. turning on ssl_verify, adding a custom self-signed cert, etc.) use the `elasticsearch_configs` setting in your airfow.cfg
+
+.. code-block:: bash
+
+    [core]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+
+    [elasticsearch_configs]
+    use_ssl=True
+    verify_certs=True
+    ca_certs=/path/to/CA_certs

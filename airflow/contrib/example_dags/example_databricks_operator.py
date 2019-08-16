@@ -16,25 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example DAG which uses the DatabricksSubmitRunOperator.
+In this example, we create two tasks which execute sequentially.
+The first task is to run a notebook at the workspace path "/test"
+and the second task is to run a JAR uploaded to DBFS. Both,
+tasks use new clusters.
+
+Because we have set a downstream dependency on the notebook task,
+the spark jar task will NOT run until the notebook task completes
+successfully.
+
+The definition of a successful run is if the run has a result_state of "SUCCESS".
+For more information about the state of a run refer to
+https://docs.databricks.com/api/latest/jobs.html#runstate
+"""
 
 import airflow
 
 from airflow import DAG
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 
-# This is an example DAG which uses the DatabricksSubmitRunOperator.
-# In this example, we create two tasks which execute sequentially.
-# The first task is to run a notebook at the workspace path "/test"
-# and the second task is to run a JAR uploaded to DBFS. Both,
-# tasks use new clusters.
-#
-# Because we have set a downstream dependency on the notebook task,
-# the spark jar task will NOT run until the notebook task completes
-# successfully.
-#
-# The definition of a successful run is if the run has a result_state of "SUCCESS".
-# For more information about the state of a run refer to
-# https://docs.databricks.com/api/latest/jobs.html#runstate
 
 args = {
     'owner': 'Airflow',

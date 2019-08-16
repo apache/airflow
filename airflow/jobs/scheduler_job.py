@@ -37,9 +37,11 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
+from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS
+from airflow.ti_deps.dep_context import DepContext, SCHEDULEABLE_STATES, SCHEDULED_DEPS
+from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           DagFileProcessorAgent,
@@ -50,7 +52,6 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
-from airflow.jobs.base_job import BaseJob
 from airflow.utils.state import State
 
 
@@ -714,10 +715,7 @@ class SchedulerJob(BaseJob):
 
         for run in active_dag_runs:
             self.log.debug("Examining active DAG run: %s", run)
-            # this needs a fresh session sometimes tis get detached
-            tis = run.get_task_instances(state=(State.NONE,
-                                                State.UP_FOR_RETRY,
-                                                State.UP_FOR_RESCHEDULE))
+            tis = run.get_task_instances(state=SCHEDULEABLE_STATES)
 
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
@@ -887,10 +885,9 @@ class SchedulerJob(BaseJob):
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
-        states_to_count_as_running = [State.RUNNING, State.QUEUED]
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
-            states=states_to_count_as_running, session=session)
+            states=STATES_TO_COUNT_AS_RUNNING, session=session)
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
@@ -1535,16 +1532,14 @@ class SchedulerJob(BaseJob):
             ti = models.TaskInstance(task, ti_key[2])
 
             ti.refresh_from_db(session=session, lock_for_update=True)
-            # We can defer checking the task dependency checks to the worker themselves
-            # since they can be expensive to run in the scheduler.
-            dep_context = DepContext(deps=QUEUE_DEPS, ignore_task_deps=True)
+            # We check only deps needed to set TI to SCHEDULED state here.
+            # Deps needed to set TI to QUEUED state will be batch checked later
+            # by the scheduler for better performance.
+            dep_context = DepContext(deps=SCHEDULED_DEPS, ignore_task_deps=True)
 
             # Only schedule tasks that have their dependencies met, e.g. to avoid
             # a task that recently got its state changed to RUNNING from somewhere
             # other than the scheduler from getting its state overwritten.
-            # TODO(aoen): It's not great that we have to check all the task instance
-            # dependencies twice; once to get the task scheduled, and again to actually
-            # run the task. We should try to come up with a way to only check them once.
             if ti.are_dependencies_met(
                     dep_context=dep_context,
                     session=session,

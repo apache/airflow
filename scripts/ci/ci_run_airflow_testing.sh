@@ -32,13 +32,19 @@ script_start
 
 rebuild_image_if_needed_for_tests
 
+# Test environment
 export BACKEND=${BACKEND:="sqlite"}
 export ENV=${ENV:="docker"}
 export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
+
+# Whether local sources are mounted to docker
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
-export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="8080"}
+
+# whethere verbose output should be produced
 export AIRFLOW_CI_VERBOSE=${VERBOSE}
-export PYTHONDONTWRITEBYTECODE="true"
+
+# opposite - whether diagnostict messages should be silenced
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose-local.yml")

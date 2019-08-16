@@ -15,20 +15,22 @@
     specific language governing permissions and limitations
     under the License.
 
-Experimental Rest API
-=====================
+REST API Reference
+==================
 
-Airflow exposes an experimental Rest API. It is available through the webserver. Endpoints are
-available at /api/experimental/. Please note that we expect the endpoint definitions to change.
+Airflow exposes an REST API. It is available through the webserver. Endpoints are
+available at ``/api/experimental/``.
+
+.. warning::
+
+  The API structure is not stable. We expect the endpoint definitions to change.
 
 Endpoints
 ---------
 
 .. http:post:: /api/experimental/dags/<DAG_ID>/dag_runs
 
-
   Creates a dag_run for a given dag id.
-
 
   **Trigger DAG with config, example:**
 
@@ -44,6 +46,7 @@ Endpoints
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
 
   Returns a list of Dag Runs for a specific DAG ID.
+
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
 
@@ -84,60 +87,12 @@ Endpoints
 
   Get pool by a given name.
 
+
 .. http:post:: /api/experimental/pools
 
   Create a pool.
 
+
 .. http:delete:: /api/experimental/pools/<string:name>
 
   Delete pool.
-
-
-CLI
------
-
-For some functions the cli can use the API. To configure the CLI to use the API when available
-configure as follows:
-
-.. code-block:: bash
-
-    [cli]
-    api_client = airflow.api.client.json_client
-    endpoint_url = http://<WEBSERVER>:<PORT>
-
-
-Authentication
---------------
-
-Authentication for the API is handled separately to the Web Authentication. The default is to not
-require any authentication on the API -- i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the deny all backend:
-
-.. code-block:: ini
-
-    [api]
-    auth_backend = airflow.api.auth.backend.deny_all
-
-Two "real" methods for authentication are currently supported for the API.
-
-To enabled Password authentication, set the following in the configuration:
-
-.. code-block:: bash
-
-    [api]
-    auth_backend = airflow.contrib.auth.backends.password_auth
-
-It's usage is similar to the Password Authentication used for the Web interface.
-
-To enable Kerberos authentication, set the following in the configuration:
-
-.. code-block:: ini
-
-    [api]
-    auth_backend = airflow.api.auth.backend.kerberos_auth
-
-    [kerberos]
-    keytab = <KEYTAB>
-
-The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
-principal exists in the keytab file.

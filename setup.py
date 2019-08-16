@@ -25,6 +25,7 @@ import os
 import subprocess
 import sys
 import unittest
+from typing import List
 
 from setuptools import setup, find_packages, Command
 
@@ -62,7 +63,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -83,7 +84,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -178,7 +179,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=1.2.3',
+    'sphinx>=2.1.2',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
 docker = ['docker~=3.0']
@@ -276,6 +277,7 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pre-commit',
     'pylint~=2.3.1',
     'pysftp',
     'pywinrm',
@@ -322,6 +324,7 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=1.0, <2.0',
+            'argcomplete~=1.10',
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
@@ -358,6 +361,7 @@ def do_setup():
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
+            'typing-extensions>=3.7.4;python_version<"3.7"',
         ],
         setup_requires=[
             'docutils>=0.14, <1.0',

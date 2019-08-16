@@ -24,7 +24,8 @@ import json
 import time
 import warnings
 from copy import deepcopy
-from typing import Dict, List, Tuple, Union
+from datetime import timedelta
+from typing import Dict, List, Tuple, Union, Optional
 
 from googleapiclient.discovery import build
 
@@ -370,7 +371,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         self,
         job: Dict,
         expected_statuses: Tuple[str] = (GcpTransferOperationStatus.SUCCESS,),
-        timeout: int = 60
+        timeout: Optional[Union[float, timedelta]] = None
     ) -> None:
         """
         Waits until the job reaches the expected state.
@@ -383,11 +384,18 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
         :type expected_statuses: set[str]
-        :param timeout:
-        :type timeout: time in which the operation must end in seconds
+        :param timeout: Time in which the operation must end in seconds. If not specified, defaults to 60
+            seconds.
+        :type timeout: Optional[Union[float, timedelta]]
         :rtype: None
         """
-        while timeout > 0:
+        if timeout is None:
+            timeout = 60
+        elif isinstance(timeout, timedelta):
+            timeout = timeout.total_seconds()
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
             operations = self.list_transfer_operations(
                 request_filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
             )
@@ -395,7 +403,6 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             if GCPTransferServiceHook.operations_contain_expected_statuses(operations, expected_statuses):
                 return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
-            timeout -= TIME_TO_SLEEP_IN_SECONDS
         raise AirflowException("Timeout. The operation could not be completed within the allotted time.")
 
     def _inject_project_id(self, body: Dict, param_name: str, target_key: str) -> Dict:

@@ -333,6 +333,18 @@ BigQuery
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator`
     Deletes an existing BigQuery dataset.
 
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryGetDatasetOperator`
+    This operator is used to return the dataset specified by dataset_id.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryUpdateDatasetOperator`
+    This operator is used to update dataset for your Project in BigQuery.
+    The update method replaces the entire dataset resource, whereas the patch
+    method only replaces fields that are provided in the submitted dataset resource.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryPatchDatasetOperator`
+    This operator is used to patch dataset for your Project in BigQuery.
+    It only replaces fields that are provided in the submitted dataset resource.
+
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryOperator`
     Executes BigQuery SQL queries in a specific BigQuery database.
 
@@ -760,21 +772,21 @@ They also use :class:`airflow.contrib.hooks.gcp_container_hook.GKEClusterHook` t
 Google Natural Language
 '''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntities`
+:class:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntities`
     Finds named entities (currently proper names and common nouns) in the text along with entity types,
     salience, mentions for each entity, and other properties.
 
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentiment`
+:class:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitySentiment`
     Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
     entity and its mentions.
 
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentiment`
+:class:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentiment`
     Analyzes the sentiment of the provided text.
 
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
+:class:`airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator`
     Classifies a document into categories.
 
-They also use :class:`airflow.contrib.hooks.gcp_natural_language_operator.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
 
 
 Google Cloud Data Loss Prevention (DLP)

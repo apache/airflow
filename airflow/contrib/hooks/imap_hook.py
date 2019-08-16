@@ -16,10 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This module provides everything to be able to search in mails for a specific attachment
+and also to download it.
+It uses the imaplib library that is already integrated in python 2 and 3.
+"""
 import email
 import imaplib
-import os.path
+import os
 import re
 
 from airflow import LoggingMixin, AirflowException
@@ -30,72 +34,102 @@ class ImapHook(BaseHook):
     """
     This hook connects to a mail server by using the imap protocol.
 
+    .. note:: Please call this Hook as context manager via `with`
+        to automatically open and close the connection to the mail server.
+
     :param imap_conn_id: The connection id that contains the information used to authenticate the client.
     :type imap_conn_id: str
     """
 
     def __init__(self, imap_conn_id='imap_default'):
         super().__init__(imap_conn_id)
-        self.conn = self.get_connection(imap_conn_id)
-        self.mail_client = imaplib.IMAP4_SSL(self.conn.host)
+        self.imap_conn_id = imap_conn_id
+        self.mail_client = None
 
     def __enter__(self):
-        self.mail_client.login(self.conn.login, self.conn.password)
-        return self
+        return self.get_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.mail_client.logout()
 
-    def has_mail_attachment(self, name, mail_folder='INBOX', check_regex=False):
+    def get_conn(self):
+        """
+        Login to the mail server.
+
+        .. note:: Please call this Hook as context manager via `with`
+            to automatically open and close the connection to the mail server.
+
+        :return: an authorized ImapHook object.
+        :rtype: ImapHook
+        """
+
+        if not self.mail_client:
+            conn = self.get_connection(self.imap_conn_id)
+            self.mail_client = imaplib.IMAP4_SSL(conn.host)
+            self.mail_client.login(conn.login, conn.password)
+
+        return self
+
+    def has_mail_attachment(self, name, *, check_regex=False, mail_folder='INBOX', mail_filter='All'):
         """
         Checks the mail folder for mails containing attachments with the given name.
 
         :param name: The name of the attachment that will be searched for.
         :type name: str
-        :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
         :type check_regex: bool
+        :param mail_folder: The mail folder where to look at.
+        :type mail_folder: str
+        :param mail_filter: If set other than 'All' only specific mails will be checked.
+            See :py:meth:`imaplib.IMAP4.search` for details.
+        :type mail_filter: str
         :returns: True if there is an attachment with the given name and False if not.
         :rtype: bool
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name,
-                                                                    mail_folder,
                                                                     check_regex,
-                                                                    latest_only=True)
+                                                                    True,
+                                                                    mail_folder,
+                                                                    mail_filter)
         return len(mail_attachments) > 0
 
     def retrieve_mail_attachments(self,
                                   name,
-                                  mail_folder='INBOX',
+                                  *,
                                   check_regex=False,
                                   latest_only=False,
+                                  mail_folder='INBOX',
+                                  mail_filter='All',
                                   not_found_mode='raise'):
         """
         Retrieves mail's attachments in the mail folder by its name.
 
         :param name: The name of the attachment that will be downloaded.
         :type name: str
-        :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
         :type check_regex: bool
-        :param latest_only: If set to True it will only retrieve
-                            the first matched attachment.
+        :param latest_only: If set to True it will only retrieve the first matched attachment.
         :type latest_only: bool
+        :param mail_folder: The mail folder where to look at.
+        :type mail_folder: str
+        :param mail_filter: If set other than 'All' only specific mails will be checked.
+            See :py:meth:`imaplib.IMAP4.search` for details.
+        :type mail_filter: str
         :param not_found_mode: Specify what should happen if no attachment has been found.
-                               Supported values are 'raise', 'warn' and 'ignore'.
-                               If it is set to 'raise' it will raise an exception,
-                               if set to 'warn' it will only print a warning and
-                               if set to 'ignore' it won't notify you at all.
+            Supported values are 'raise', 'warn' and 'ignore'.
+            If it is set to 'raise' it will raise an exception,
+            if set to 'warn' it will only print a warning and
+            if set to 'ignore' it won't notify you at all.
         :type not_found_mode: str
         :returns: a list of tuple each containing the attachment filename and its payload.
         :rtype: a list of tuple
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name,
-                                                                    mail_folder,
                                                                     check_regex,
-                                                                    latest_only)
+                                                                    latest_only,
+                                                                    mail_folder,
+                                                                    mail_filter)
+
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
@@ -104,9 +138,11 @@ class ImapHook(BaseHook):
     def download_mail_attachments(self,
                                   name,
                                   local_output_directory,
-                                  mail_folder='INBOX',
+                                  *,
                                   check_regex=False,
                                   latest_only=False,
+                                  mail_folder='INBOX',
+                                  mail_filter='All',
                                   not_found_mode='raise'):
         """
         Downloads mail's attachments in the mail folder by its name to the local directory.
@@ -114,26 +150,29 @@ class ImapHook(BaseHook):
         :param name: The name of the attachment that will be downloaded.
         :type name: str
         :param local_output_directory: The output directory on the local machine
-                                       where the files will be downloaded to.
+            where the files will be downloaded to.
         :type local_output_directory: str
-        :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
         :type check_regex: bool
-        :param latest_only: If set to True it will only download
-                            the first matched attachment.
+        :param latest_only: If set to True it will only download the first matched attachment.
         :type latest_only: bool
+        :param mail_folder: The mail folder where to look at.
+        :type mail_folder: str
+        :param mail_filter: If set other than 'All' only specific mails will be checked.
+            See :py:meth:`imaplib.IMAP4.search` for details.
+        :type mail_filter: str
         :param not_found_mode: Specify what should happen if no attachment has been found.
-                               Supported values are 'raise', 'warn' and 'ignore'.
-                               If it is set to 'raise' it will raise an exception,
-                               if set to 'warn' it will only print a warning and
-                               if set to 'ignore' it won't notify you at all.
+            Supported values are 'raise', 'warn' and 'ignore'.
+            If it is set to 'raise' it will raise an exception,
+            if set to 'warn' it will only print a warning and
+            if set to 'ignore' it won't notify you at all.
         :type not_found_mode: str
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name,
-                                                                    mail_folder,
                                                                     check_regex,
-                                                                    latest_only)
+                                                                    latest_only,
+                                                                    mail_folder,
+                                                                    mail_filter)
 
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
@@ -143,19 +182,19 @@ class ImapHook(BaseHook):
     def _handle_not_found_mode(self, not_found_mode):
         if not_found_mode == 'raise':
             raise AirflowException('No mail attachments found!')
-        elif not_found_mode == 'warn':
+        if not_found_mode == 'warn':
             self.log.warning('No mail attachments found!')
         elif not_found_mode == 'ignore':
             pass  # Do not notify if the attachment has not been found.
         else:
             self.log.error('Invalid "not_found_mode" %s', not_found_mode)
 
-    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex, latest_only):
+    def _retrieve_mails_attachments_by_name(self, name, check_regex, latest_only, mail_folder, mail_filter):
         all_matching_attachments = []
 
         self.mail_client.select(mail_folder)
 
-        for mail_id in self._list_mail_ids_desc():
+        for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
             matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
 
@@ -168,8 +207,8 @@ class ImapHook(BaseHook):
 
         return all_matching_attachments
 
-    def _list_mail_ids_desc(self):
-        _, data = self.mail_client.search(None, 'All')
+    def _list_mail_ids_desc(self, mail_filter):
+        _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
@@ -183,6 +222,7 @@ class ImapHook(BaseHook):
         mail = Mail(response_mail_body)
         if mail.has_attachments():
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
+        return []
 
     def _create_files(self, mail_attachments, local_output_directory):
         for name, payload in mail_attachments:
@@ -244,24 +284,28 @@ class Mail(LoggingMixin):
         :param find_first: If set to True it will only find the first match and then quit.
         :type find_first: bool
         :returns: a list of tuples each containing name and payload
-                  where the attachments name matches the given name.
+            where the attachments name matches the given name.
         :rtype: list of tuple
         """
         attachments = []
 
+        for attachment in self._iterate_attachments():
+            found_attachment = attachment.has_matching_name(name) if check_regex \
+                else attachment.has_equal_name(name)
+            if found_attachment:
+                file_name, file_payload = attachment.get_file()
+                self.log.info('Found attachment: {}'.format(file_name))
+                attachments.append((file_name, file_payload))
+                if find_first:
+                    break
+
+        return attachments
+
+    def _iterate_attachments(self):
         for part in self.mail.walk():
             mail_part = MailPart(part)
             if mail_part.is_attachment():
-                found_attachment = mail_part.has_matching_name(name) if check_regex \
-                    else mail_part.has_equal_name(name)
-                if found_attachment:
-                    file_name, file_payload = mail_part.get_file()
-                    self.log.info('Found attachment: {}'.format(file_name))
-                    attachments.append((file_name, file_payload))
-                    if find_first:
-                        break
-
-        return attachments
+                yield mail_part
 
 
 class MailPart:

@@ -30,20 +30,32 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings, configuration
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, TaskFail, TaskInstance as TI, TaskReschedule, DagRun
+from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
+from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
+from tests.test_utils import db
 
 
 class TaskInstanceTest(unittest.TestCase):
 
+    def setUp(self):
+        db.clear_db_pools()
+        with create_session() as session:
+            test_pool = Pool(pool='test_pool', slots=1)
+            session.add(test_pool)
+            session.commit()
+
     def tearDown(self):
+        db.clear_db_pools()
         with create_session() as session:
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
@@ -210,49 +222,138 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertIs(op5.dag, dag)
 
     @patch.object(DAG, 'concurrency_reached')
-    def test_requeue_over_concurrency(self, mock_concurrency_reached):
+    def test_requeue_over_dag_concurrency(self, mock_concurrency_reached):
         mock_concurrency_reached.return_value = True
 
-        dag = DAG(dag_id='test_requeue_over_concurrency', start_date=DEFAULT_DATE,
+        dag = DAG(dag_id='test_requeue_over_dag_concurrency', start_date=DEFAULT_DATE,
                   max_active_runs=1, concurrency=2)
-        task = DummyOperator(task_id='test_requeue_over_concurrency_op', dag=dag)
+        task = DummyOperator(task_id='test_requeue_over_dag_concurrency_op', dag=dag)
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TI.run() will sync from DB before validating deps.
+        with create_session() as session:
+            session.add(ti)
+            session.commit()
         ti.run()
         self.assertEqual(ti.state, State.NONE)
 
-    @patch.object(TI, 'pool_full')
-    def test_run_pooling_task(self, mock_pool_full):
-        """
-        test that running task update task state as  without running task.
-        (no dependency check in ti_deps anymore, so also -> SUCCESS)
-        """
-        # Mock the pool out with a full pool because the pool doesn't actually exist
-        mock_pool_full.return_value = True
+    def test_requeue_over_task_concurrency(self):
+        dag = DAG(dag_id='test_requeue_over_task_concurrency', start_date=DEFAULT_DATE,
+                  max_active_runs=1, concurrency=2)
+        task = DummyOperator(task_id='test_requeue_over_task_concurrency_op', dag=dag,
+                             task_concurrency=0)
 
+        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TI.run() will sync from DB before validating deps.
+        with create_session() as session:
+            session.add(ti)
+            session.commit()
+        ti.run()
+        self.assertEqual(ti.state, State.NONE)
+
+    def test_requeue_over_pool_concurrency(self):
+        dag = DAG(dag_id='test_requeue_over_pool_concurrency', start_date=DEFAULT_DATE,
+                  max_active_runs=1, concurrency=2)
+        task = DummyOperator(task_id='test_requeue_over_pool_concurrency_op', dag=dag,
+                             task_concurrency=0)
+
+        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TI.run() will sync from DB before validating deps.
+        with create_session() as session:
+            pool = session.query(Pool).filter(Pool.pool == 'test_pool').one()
+            pool.slots = 0
+            session.add(ti)
+            session.commit()
+        ti.run()
+        self.assertEqual(ti.state, State.NONE)
+
+    def test_not_requeue_non_requeueable_task_instance(self):
+        dag = models.DAG(dag_id='test_not_requeue_non_requeueable_task_instance')
+        # Use BaseSensorOperator because sensor got
+        # one additional DEP in BaseSensorOperator().deps
+        task = BaseSensorOperator(
+            task_id='test_not_requeue_non_requeueable_task_instance_op',
+            dag=dag,
+            pool='test_pool',
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        with create_session() as session:
+            session.add(ti)
+            session.commit()
+
+        all_deps = RUNNING_DEPS | task.deps
+        all_non_requeueable_deps = all_deps - REQUEUEABLE_DEPS
+        patch_dict = {}
+        for dep in all_non_requeueable_deps:
+            class_name = dep.__class__.__name__
+            dep_patch = patch('%s.%s.%s' % (dep.__module__, class_name,
+                                            dep._get_dep_statuses.__name__))
+            method_patch = dep_patch.start()
+            method_patch.return_value = iter([TIDepStatus('mock_' + class_name, True,
+                                                          'mock')])
+            patch_dict[class_name] = (dep_patch, method_patch)
+
+        for class_name, (dep_patch, method_patch) in patch_dict.items():
+            method_patch.return_value = iter(
+                [TIDepStatus('mock_' + class_name, False, 'mock')])
+            ti.run()
+            self.assertEqual(ti.state, State.QUEUED)
+            dep_patch.return_value = TIDepStatus('mock_' + class_name, True, 'mock')
+
+        for (dep_patch, method_patch) in patch_dict.values():
+            dep_patch.stop()
+
+    def test_mark_non_runnable_task_as_success(self):
+        """
+        test that running task with mark_success param update task state
+        as SUCCESS without running task despite it fails dependency checks.
+        """
+        non_runnable_state = (
+            set(State.task_states) - RUNNABLE_STATES - set(State.SUCCESS)).pop()
+        dag = models.DAG(dag_id='test_mark_non_runnable_task_as_success')
+        task = DummyOperator(
+            task_id='test_mark_non_runnable_task_as_success_op',
+            dag=dag,
+            pool='test_pool',
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=timezone.utcnow(), state=non_runnable_state)
+        # TI.run() will sync from DB before validating deps.
+        with create_session() as session:
+            session.add(ti)
+            session.commit()
+        ti.run(mark_success=True)
+        self.assertEqual(ti.state, State.SUCCESS)
+
+    def test_run_pooling_task(self):
+        """
+        test that running a task in an existing pool update task state as SUCCESS.
+        """
         dag = models.DAG(dag_id='test_run_pooling_task')
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
-                             pool='test_run_pooling_task_pool', owner='airflow',
+                             pool='test_pool', owner='airflow',
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
             task=task, execution_date=timezone.utcnow())
         ti.run()
+
+        db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
 
-    @patch.object(TI, 'pool_full')
-    def test_run_pooling_task_with_mark_success(self, mock_pool_full):
+    def test_run_pooling_task_with_mark_success(self):
         """
-        test that running task with mark_success param update task state as SUCCESS
-        without running task.
+        test that running task in an existing pool with mark_success param
+        update task state as SUCCESS without running task
+        despite it fails dependency checks.
         """
-        # Mock the pool out with a full pool because the pool doesn't actually exist
-        mock_pool_full.return_value = True
-
         dag = models.DAG(dag_id='test_run_pooling_task_with_mark_success')
         task = DummyOperator(
             task_id='test_run_pooling_task_with_mark_success_op',
             dag=dag,
-            pool='test_run_pooling_task_with_mark_success_pool',
+            pool='test_pool',
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
@@ -319,14 +420,10 @@ class TaskInstanceTest(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    @patch.object(TI, 'pool_full')
-    def test_retry_handling(self, mock_pool_full):
+    def test_retry_handling(self):
         """
         Test that task retries are handled properly
         """
-        # Mock the pool with a pool with slots open since the pool doesn't actually exist
-        mock_pool_full.return_value = False
-
         dag = models.DAG(dag_id='test_retry_handling')
         task = BashOperator(
             task_id='test_retry_handling_op',
@@ -334,7 +431,7 @@ class TaskInstanceTest(unittest.TestCase):
             retries=1,
             retry_delay=datetime.timedelta(seconds=0),
             dag=dag,
-            owner='airflow',
+            owner='test_pool',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         def run_with_error(ti):
@@ -449,9 +546,6 @@ class TaskInstanceTest(unittest.TestCase):
         """
         Test that task reschedules are handled properly
         """
-        # Mock the pool with a pool with slots open since the pool doesn't actually exist
-        mock_pool_full.return_value = False
-
         # Return values of the python sensor callable, modified during tests
         done = False
         fail = False
@@ -471,14 +565,17 @@ class TaskInstanceTest(unittest.TestCase):
             retry_delay=datetime.timedelta(seconds=0),
             dag=dag,
             owner='airflow',
+            pool='test_pool',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
         self.assertEqual(ti.try_number, 1)
 
-        def run_ti_and_assert(run_date, expected_start_date, expected_end_date, expected_duration,
-                              expected_state, expected_try_number, expected_task_reschedule_count):
+        def run_ti_and_assert(run_date, expected_start_date, expected_end_date,
+                              expected_duration,
+                              expected_state, expected_try_number,
+                              expected_task_reschedule_count):
             with freeze_time(run_date):
                 try:
                     ti.run()

@@ -17,9 +17,7 @@
 # limitations under the License.
 #
 
-# Script to run Pylint on all code. Can be started from any working directory
-# ./scripts/ci/run_pylint.sh
-
+# Script to run Pylint on main code. Can be started from any working directory
 set -uo pipefail
 
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
@@ -32,10 +30,6 @@ in_container_basic_sanity_check
 in_container_script_start
 
 if [[ ${#@} == "0" ]]; then
-    echo
-    echo "Running Pylint with no parameters"
-    echo
-
     echo
     echo "Running pylint for all sources except 'tests' folder"
     echo
@@ -56,32 +50,17 @@ if [[ ${#@} == "0" ]]; then
     -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
         grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
-    RES_MAIN=$?
-
-    echo
-    echo "Running pylint for 'tests' folder"
-    echo
-    find "./tests" -name "*.py" | \
-    grep -vFf scripts/ci/pylint_todo.txt | \
-    xargs pylint --disable="
-        missing-docstring,
-        no-self-use,
-        too-many-public-methods,
-        protected-access
-        " \
-        --output-format=colorized
-    RES_TESTS=$?
+    RES=$?
 else
     echo "Running Pylint with parameters: $*"
     echo
     pylint --output-format=colorized "$@"
-    RES_MAIN=$?
-    RES_TESTS="0"
+    RES=$?
 fi
 
 in_container_script_end
 
-if [[ "${RES_TESTS}" != 0 || "${RES_MAIN}" != 0 ]]; then
+if [[ "${RES}" != 0 ]]; then
     echo >&2
     echo >&2 "There were some pylint errors. Exiting"
     echo >&2

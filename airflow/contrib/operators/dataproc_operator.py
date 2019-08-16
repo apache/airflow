@@ -121,6 +121,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
+    :param num_masters: The # of master nodes to spin up
+    :type num_masters: int
     :param master_machine_type: Compute engine machine type to use for the master node
     :type master_machine_type: str
     :param master_disk_type: Type of the boot disk for the master node
@@ -206,6 +208,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                  image_version=None,
                  autoscaling_policy=None,
                  properties=None,
+                 num_masters=1,
                  master_machine_type='n1-standard-4',
                  master_disk_type='pd-standard',
                  master_disk_size=1024,
@@ -226,6 +229,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
         super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
+        self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
         self.storage_bucket = storage_bucket
@@ -350,7 +354,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'gceClusterConfig': {
                 },
                 'masterConfig': {
-                    'numInstances': 1,
+                    'numInstances': self.num_masters,
                     'machineTypeUri': master_type_uri,
                     'diskConfig': {
                         'bootDiskType': self.master_disk_type,

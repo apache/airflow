@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional, Dict, Match
 import re
 import sys
 
@@ -42,10 +43,10 @@ class reset_warning_registry:
     """
 
     #: regexp for filtering which modules are reset
-    _pattern = None
+    _pattern = None  # type: Optional[Match[str]]
 
     #: dict mapping module name -> old registry contents
-    _backup = None
+    _backup = None  # type: Optional[Dict]
 
     def __init__(self, pattern=None):
         self._pattern = re.compile(pattern or ".*")

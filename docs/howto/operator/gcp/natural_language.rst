@@ -46,14 +46,14 @@ representing text.
 
 Here is an example of document with text provided as a string:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :start-after: [START howto_operator_gcp_natural_language_document_text]
     :end-before: [END howto_operator_gcp_natural_language_document_text]
 
 In addition to supplying string, a document can refer to content stored in Google Cloud Storage.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :start-after: [START howto_operator_gcp_natural_language_document_gcs]
     :end-before: [END howto_operator_gcp_natural_language_document_gcs]
@@ -66,20 +66,20 @@ Analyzing Entities
 Entity Analysis inspects the given text for known entities (proper nouns such as
 public figures, landmarks, etc.), and returns information about those entities.
 Entity analysis is performed with the
-:class:`~airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator` operator.
+:class:`~airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entities]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator`
+:template-fields:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities_result]
@@ -93,21 +93,21 @@ Analyzing Entity Sentiment
 Sentiment Analysis inspects the given text and identifies the prevailing
 emotional opinion within the text, especially to determine a writer's attitude
 as positive, negative, or neutral. Sentiment analysis is performed through
-the :class:`~airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentimentOperator`
+the :class:`~airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator`
 operator.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entity_sentiment]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator`
+:template-fields:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
@@ -122,21 +122,21 @@ Sentiment Analysis inspects the given text and identifies the prevailing
 emotional opinion within the text, especially to determine a writer's
 attitude as positive, negative, or neutral. Sentiment analysis is performed
 through the
-:class:`~airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator`
+:class:`~airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentimentOperator`
 operator.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment]
     :end-before: [END howto_operator_gcp_natural_language_analyze_sentiment]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator`
+:template-fields:`airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentimentOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment_result]
@@ -150,21 +150,21 @@ Classifying Content
 Content Classification analyzes a document and returns a list of content
 categories that apply to the text found in the document. To classify the
 content in a document, use the
-:class:`~airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
+:class:`~airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator`
 operator.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_classify_text]
     :end-before: [END howto_operator_gcp_natural_language_analyze_classify_text]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
+:template-fields:`airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_natural_language.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_classify_text_result]
