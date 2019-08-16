@@ -39,6 +39,15 @@ repos:
           - license-templates/LICENSE.txt
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
+      - id: insert-license
+        name: Add licence for all JS files
+        files: \.js$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$|^airflow/www/static/.*$
+        args:
+          - --comment-style
+          - "/**| *| */"
+          - --license-filepath
+          - license-templates/LICENSE.txt
   - repo: meta
     hooks:
       - id: check-hooks-apply
