@@ -189,6 +189,7 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 gcp = [
+    # Please keep the list in alphabetical order
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
@@ -198,14 +199,15 @@ gcp = [
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-language>=1.1.1',
+    'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.9.0, <1.10.0',
+    'google-cloud-speech>=0.36.3',
     'google-cloud-storage~=1.16',
+    'google-cloud-tasks==1.1.0',
+    'google-cloud-texttospeech>=0.4.0',
     'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
-    'google-cloud-tasks==1.1.0',
-    'google-cloud-texttospeech>=0.4.0',
-    'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
     'pandas-gbq',
