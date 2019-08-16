@@ -43,7 +43,7 @@ except Exception as e:  # pylint: disable=broad-except
         raise e
     else:
         raise unittest.SkipTest(
-            "Kubernetes integration tests require a minikube cluster;"
+            "Kubernetes integration tests require a kubernetes cluster;"
             "Skipping tests {}".format(e)
         )
 

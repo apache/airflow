@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -e
-
-export DEBIAN_FRONTEND=noninteractive
-
-apt-get update
-apt-get install -y --no-install-recommends curl gnupg2
-
-curl -sL https://deb.nodesource.com/setup_8.x | bash -
-
-apt-get update
-apt-get install -y --no-install-recommends git nodejs
-pip install GitPython
-python setup.py compile_assets sdist -q
+---
+kind: Cluster
+apiVersion: kind.sigs.k8s.io/v1alpha3
+networking:
+  apiServerAddress: 0.0.0.0
+  apiServerPort: 19090
+nodes:
+  - role: control-plane
+  - role: worker
+    extraPortMappings:
+      - containerPort: 30809
+        hostPort: 30809
+kubeadmConfigPatchesJson6902:
+  - group: kubeadm.k8s.io
+    version: v1beta2
+    kind: ClusterConfiguration
+    patch: |
+      - op: add
+        path: /apiServer/certSANs/-
+        value: docker

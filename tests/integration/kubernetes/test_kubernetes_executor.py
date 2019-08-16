@@ -34,19 +34,11 @@ except Exception as e:  # pylint: disable=broad-except
         raise e
     else:
         raise unittest.SkipTest(
-            "Kubernetes integration tests require a minikube cluster;"
+            "Kubernetes integration tests require a kubernetes cluster;"
             "Skipping tests {}".format(e)
         )
 
-
-def get_minikube_host():
-    if "MINIKUBE_IP" in os.environ:
-        host_ip = os.environ['MINIKUBE_IP']
-    else:
-        host_ip = check_output(['/usr/local/bin/minikube', 'ip']).decode('UTF-8')
-
-    host = '{}:30809'.format(host_ip.strip())
-    return host
+KUBERNETES_HOST = 'docker:30809'
 
 
 class TestKubernetesExecutor(unittest.TestCase):
@@ -67,7 +59,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=get_minikube_host()),
+            "http://{host}/health".format(host=KUBERNETES_HOST),
             timeout=1,
         )
 
@@ -188,7 +180,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         return result_json
 
     def test_integration_run_dag(self):
-        host = get_minikube_host()
+        host = KUBERNETES_HOST
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
@@ -211,7 +203,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                                        expected_final_state='success', timeout=100)
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        host = get_minikube_host()
+        host = KUBERNETES_HOST
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)

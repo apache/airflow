@@ -19,6 +19,7 @@
 #
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
+
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
 if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
@@ -130,11 +131,6 @@ export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
 if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo mkdir -p /home/travis/build/apache
   sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
-fi
-
-# Fix file permissions
-if [[ -d "${HOME}/.minikube" ]]; then
-    sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.kube" "${HOME}/.minikube"
 fi
 
 # Cleanup the logs, tmp when entering the environment
@@ -255,19 +251,14 @@ if [[ -z "${KUBERNETES_VERSION}" ]]; then
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
-    export KUBERNETES_VERSION
-    export MINIKUBE_IP
-    # This script runs inside a container, the path of the kubernetes certificate
-    # is /home/travis/.minikube/client.crt but the user in the container is `root`
-    # TODO: Check this. This should be made travis-independent :D
-    if [[ ! -d /home/travis ]]; then
-        sudo mkdir -p /home/travis
-    fi
-    sudo ln -s /root/.minikube /home/travis/.minikube
+    echo "Set up Kubernetes cluster for tests"
+    "${MY_DIR}/../kubernetes/setup_kubernetes.sh"
+    "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
+
     echo
     echo "Running CI tests with ${ARGS[*]}"
     echo
-    "${MY_DIR}/run_ci_tests.sh" tests.minikube "${ARGS[@]}"
+    "${MY_DIR}/run_ci_tests.sh" tests.integration.kubernetes "${ARGS[@]}"
 fi
 
 in_container_script_end
