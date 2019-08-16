@@ -50,5 +50,10 @@ sudo rm -rf "${AIRFLOW_ROOT}/airflow/www_rbac/node_modules"
 
 echo "Copy distro ${AIRFLOW_ROOT}/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
 cp ${AIRFLOW_ROOT}/dist/*.tar.gz "${DIRNAME}/airflow.tar.gz"
-cd "${DIRNAME}" && docker build --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
+pip freeze | grep -v airflow | grep -v postgres > requirements.txt
+if [[  "${DO_NOT_PULL}" ]]; then
+    cd "${DIRNAME}" && docker build "${DIRNAME}" --tag="${IMAGE}:${TAG}"
+else
+    cd "${DIRNAME}" && docker build --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
+fi
 rm "${DIRNAME}/airflow.tar.gz"
