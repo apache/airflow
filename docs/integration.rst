@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,9 +6,9 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
@@ -228,8 +228,11 @@ AWS Kinesis
 :class:`airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook`
     Interface with AWS Kinesis Firehose.
 
+
 Amazon SageMaker
 ''''''''''''''''
+
+For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
 
 .. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
 
@@ -255,15 +258,14 @@ Amazon SageMaker
     Create a SageMaker endpoint.
 
 
-
 .. _Databricks:
 
 Databricks
 ----------
 
-`Databricks <https://databricks.com/>`__ has contributed an Airflow operator which enables
-submitting runs to the Databricks platform. Internally the operator talks to the
-``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+With contributions from `Databricks <https://databricks.com/>`__, Airflow has several operators
+which enable the submitting and running of jobs to the Databricks platform. Internally the
+operators talk to the ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 
 
 :class:`airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator`
@@ -271,6 +273,12 @@ submitting runs to the Databricks platform. Internally the operator talks to the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
     API endpoint.
+
+:class:`airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator`
+    Runs an existing Spark job in Databricks using the
+        `api/2.0/jobs/run-now
+        <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+        API endpoint.
 
 
 .. _GCP:
@@ -324,6 +332,18 @@ BigQuery
 
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator`
     Deletes an existing BigQuery dataset.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryGetDatasetOperator`
+    This operator is used to return the dataset specified by dataset_id.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryUpdateDatasetOperator`
+    This operator is used to update dataset for your Project in BigQuery.
+    The update method replaces the entire dataset resource, whereas the patch
+    method only replaces fields that are provided in the submitted dataset resource.
+
+:class:`airflow.contrib.operators.bigquery_operator.BigQueryPatchDatasetOperator`
+    This operator is used to patch dataset for your Project in BigQuery.
+    It only replaces fields that are provided in the submitted dataset resource.
 
 :class:`airflow.contrib.operators.bigquery_operator.BigQueryOperator`
     Executes BigQuery SQL queries in a specific BigQuery database.
@@ -781,95 +801,140 @@ Google Cloud Data Loss Prevention (DLP)
 
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator`
     Creates a new job to inspect storage or calculate risk metrics.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateInspectTemplateOperator`
     Creates an InspectTemplate for re-using frequently used configuration for
     inspecting content, images, and storage.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateJobTriggerOperator`
     Creates a job trigger to run DLP actions such as scanning storage for sensitive
     information on a set schedule.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateStoredInfoTypeOperator`
     Creates a pre-built stored infoType to be used for inspection.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeidentifyContentOperator`
     De-identifies potentially sensitive info from a ContentItem. This method has limits
     on input size and output size.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDeidentifyTemplateOperator`
     Deletes a DeidentifyTemplate.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator`
     Deletes a long-running DlpJob. This method indicates that the client is no longer
     interested in the DlpJob result. The job will be cancelled if possible.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteInspectTemplateOperator`
     Deletes an InspectTemplate.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteJobTriggerOperator`
     Deletes a job trigger.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteStoredInfoTypeOperator`
     Deletes a stored infoType.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDeidentifyTemplateOperator`
     Gets a DeidentifyTemplate.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator`
     Gets the latest state of a long-running DlpJob.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetInspectTemplateOperator`
     Gets an InspectTemplate.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator`
     Gets a job trigger.
-    
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetStoredInfoTypeOperator`
     Gets a stored infoType.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPInspectContentOperator`
     Finds potentially sensitive info in content. This method has limits on
     input size, processing time, and output size.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDeidentifyTemplatesOperator`
     Lists DeidentifyTemplates.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator`
     Lists DlpJobs that match the specified filter in the request.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInfoTypesOperator`
     Returns a list of the sensitive information types that the DLP API supports.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInspectTemplatesOperator`
     Lists InspectTemplates.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListJobTriggersOperator`
     Lists job triggers.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPListStoredInfoTypesOperator`
     Lists stored infoTypes.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPRedactImageOperator`
     Redacts potentially sensitive info from an image. This method has limits on
     input size, processing time, and output size.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPReidentifyContentOperator`
     Re-identifies content that has been de-identified.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateDeidentifyTemplateOperator`
     Updates the DeidentifyTemplate.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateInspectTemplateOperator`
     Updates the InspectTemplate.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateJobTriggerOperator`
     Updates a job trigger.
-        
+
 :class:`airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator`
     Updates the stored infoType by creating a new version.
 
-They also use :class:`airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.controb.hooks.gcp_dlp_hook.CloudDLPHook` to communicate with Google Cloud Platform.
+
+
+Google Cloud Tasks
+''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueCreateOperator`
+    Creates a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueUpdateOperator`
+    Updates a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueGetOperator`
+    Gets a queue from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuesListOperator`
+    Lists queues from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueDeleteOperator`
+    Deletes a queue from Cloud Tasks, even if it has tasks in it.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePurgeOperator`
+    Purges a queue by deleting all of its tasks from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePauseOperator`
+    Pauses a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueResumeOperator`
+    Resumes a queue in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskCreateOperator`
+    Creates a task in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskGetOperator`
+    Gets a task from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTasksListOperator`
+    Lists the tasks in Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskDeleteOperator`
+    Deletes a task from Cloud Tasks.
+
+:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskRunOperator`
+    Forces to run a task in Cloud Tasks.
+
+They also use :class:`airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook` to communicate with Google Cloud Platform.
 
 
 .. _Qubole:
