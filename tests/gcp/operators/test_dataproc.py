@@ -550,6 +550,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             hook = MockHook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
+            hook._get_final_cluster_state.return_value = "ERROR"
 
             dataproc_task = DataprocClusterCreateOperator(
                 task_id=TASK_ID,
