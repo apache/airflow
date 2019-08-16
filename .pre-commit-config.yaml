@@ -42,6 +42,21 @@ repos:
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
+        name: Add licence for all rst files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - license-templates/LICENSE.rst
+        files: \.rst$
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.6
+    hooks:
+      - id: insert-license
         name: Add licence for all JS files
         files: \.js$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$

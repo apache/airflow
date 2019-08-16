@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Concepts
 ########
@@ -152,7 +154,7 @@ operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
 See :doc:`howto/operator/index` for how to use Airflow operators.
- 
+
 DAG Assignment
 --------------
 
@@ -259,7 +261,7 @@ is equivalent to:
 
     op1 >> op2 >> op4
     op1 >> op3 >> op4
-    
+
 and equivalent to:
 
 .. code:: python
@@ -850,7 +852,7 @@ that, when set to ``True``, keeps a task from getting triggered if the
 previous schedule for the task hasn't succeeded.
 
 One must be aware of the interaction between trigger rules and skipped tasks
-in schedule level. Skipped tasks will cascade through trigger rules 
+in schedule level. Skipped tasks will cascade through trigger rules
 ``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
 ``none_failed``, ``none_skipped`` and ``dummy``.
 
@@ -859,55 +861,55 @@ For example, consider the following DAG:
 .. code:: python
 
   #dags/branch_without_trigger.py
-  import datetime as dt  
-  
+  import datetime as dt
+
   from airflow.models import DAG
   from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.python_operator import BranchPythonOperator  
-  
+  from airflow.operators.python_operator import BranchPythonOperator
+
   dag = DAG(
       dag_id='branch_without_trigger',
       schedule_interval='@once',
       start_date=dt.datetime(2019, 2, 28)
-  )  
-  
-  run_this_first = DummyOperator(task_id='run_this_first', dag=dag)  
+  )
+
+  run_this_first = DummyOperator(task_id='run_this_first', dag=dag)
   branching = BranchPythonOperator(
       task_id='branching', dag=dag,
       python_callable=lambda: 'branch_a'
-  )  
-  
+  )
+
   branch_a = DummyOperator(task_id='branch_a', dag=dag)
-  follow_branch_a = DummyOperator(task_id='follow_branch_a', dag=dag)  
-  
-  branch_false = DummyOperator(task_id='branch_false', dag=dag)  
-  
-  join = DummyOperator(task_id='join', dag=dag)  
-  
+  follow_branch_a = DummyOperator(task_id='follow_branch_a', dag=dag)
+
+  branch_false = DummyOperator(task_id='branch_false', dag=dag)
+
+  join = DummyOperator(task_id='join', dag=dag)
+
   run_this_first >> branching
   branching >> branch_a >> follow_branch_a >> join
   branching >> branch_false >> join
 
-In the case of this DAG, ``join`` is downstream of ``follow_branch_a`` 
-and ``branch_false``. The ``join`` task will show up as skipped 
-because its ``trigger_rule`` is set to ``all_success`` by default and 
-skipped tasks will cascade through ``all_success``. 
+In the case of this DAG, ``join`` is downstream of ``follow_branch_a``
+and ``branch_false``. The ``join`` task will show up as skipped
+because its ``trigger_rule`` is set to ``all_success`` by default and
+skipped tasks will cascade through ``all_success``.
 
 .. image:: img/branch_without_trigger.png
 
-By setting ``trigger_rule`` to ``none_failed`` in ``join`` task, 
+By setting ``trigger_rule`` to ``none_failed`` in ``join`` task,
 
 .. code:: python
-  
+
   #dags/branch_with_trigger.py
   ...
   join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
   ...
 
-The ``join`` task will be triggered as soon as 
-``branch_false`` has been skipped (a valid completion state) and 
-``follow_branch_a`` has succeeded. Because skipped tasks **will not** 
-cascade through ``none_failed``. 
+The ``join`` task will be triggered as soon as
+``branch_false`` has been skipped (a valid completion state) and
+``follow_branch_a`` has succeeded. Because skipped tasks **will not**
+cascade through ``none_failed``.
 
 .. image:: img/branch_with_trigger.png
 
@@ -922,8 +924,8 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time 
-right now is not between its ``execution_time`` and the next scheduled 
+DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+right now is not between its ``execution_time`` and the next scheduled
 ``execution_time``.
 
 For example, consider the following DAG:
@@ -966,7 +968,7 @@ for all runs except the latest run. ``task1`` is directly downstream of
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2``. It will be first skipped directly by ``LatestOnlyOperator``, 
+``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
 even its ``trigger_rule`` is set to ``all_done``.
 
 .. image:: img/latest_only_with_trigger.png

@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,9 +6,9 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
@@ -801,91 +801,91 @@ Google Cloud Data Loss Prevention (DLP)
 
 :class:`airflow.gcp.operators.dlp.CloudDLPCreateDLPJobOperator`
     Creates a new job to inspect storage or calculate risk metrics.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPCreateInspectTemplateOperator`
     Creates an InspectTemplate for re-using frequently used configuration for
     inspecting content, images, and storage.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPCreateJobTriggerOperator`
     Creates a job trigger to run DLP actions such as scanning storage for sensitive
     information on a set schedule.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPCreateStoredInfoTypeOperator`
     Creates a pre-built stored infoType to be used for inspection.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeidentifyContentOperator`
     De-identifies potentially sensitive info from a ContentItem. This method has limits
     on input size and output size.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator`
     Deletes a DeidentifyTemplate.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeleteDlpJobOperator`
     Deletes a long-running DlpJob. This method indicates that the client is no longer
     interested in the DlpJob result. The job will be cancelled if possible.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeleteInspectTemplateOperator`
     Deletes an InspectTemplate.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeleteJobTriggerOperator`
     Deletes a job trigger.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator`
     Deletes a stored infoType.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPGetDeidentifyTemplateOperator`
     Gets a DeidentifyTemplate.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPGetDlpJobOperator`
     Gets the latest state of a long-running DlpJob.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPGetInspectTemplateOperator`
     Gets an InspectTemplate.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPGetJobTripperOperator`
     Gets a job trigger.
-    
+
 :class:`airflow.gcp.operators.dlp.CloudDLPGetStoredInfoTypeOperator`
     Gets a stored infoType.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPInspectContentOperator`
     Finds potentially sensitive info in content. This method has limits on
     input size, processing time, and output size.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListDeidentifyTemplatesOperator`
     Lists DeidentifyTemplates.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListDlpJobsOperator`
     Lists DlpJobs that match the specified filter in the request.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListInfoTypesOperator`
     Returns a list of the sensitive information types that the DLP API supports.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListInspectTemplatesOperator`
     Lists InspectTemplates.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListJobTriggersOperator`
     Lists job triggers.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPListStoredInfoTypesOperator`
     Lists stored infoTypes.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPRedactImageOperator`
     Redacts potentially sensitive info from an image. This method has limits on
     input size, processing time, and output size.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPReidentifyContentOperator`
     Re-identifies content that has been de-identified.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator`
     Updates the DeidentifyTemplate.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPUpdateInspectTemplateOperator`
     Updates the InspectTemplate.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPUpdateJobTriggerOperator`
     Updates a job trigger.
-        
+
 :class:`airflow.gcp.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator`
     Updates the stored infoType by creating a new version.
 
