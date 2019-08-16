@@ -20,6 +20,8 @@ repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.6
     hooks:
+      - id: forbid-tabs
+        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
       - id: insert-license
         name: Add licence for all SQL files
         files: \.sql$
@@ -39,12 +41,6 @@ repos:
           - license-templates/LICENSE.txt
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
-  - repo: meta
-    hooks:
-      - id: check-hooks-apply
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.6
-    hooks:
       - id: insert-license
         name: Add licence for all JS files
         files: \.js$
@@ -54,6 +50,16 @@ repos:
           - "/**| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
   - repo: local
     hooks:
       - id: lint-dockerfile

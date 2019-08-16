@@ -160,4 +160,3 @@ Time deltas
 For schedules with time deltas Airflow assumes you always will want to run with the specified interval. So if you
 specify a timedelta(hours=2) you will always want to run two hours later. In this case day light savings time will
 be taken into account.
-

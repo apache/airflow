@@ -16,14 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Default configuration for the Airflow webserver"""
 import os
-from airflow import configuration as conf
 from flask_appbuilder.security.manager import AUTH_DB
 # from flask_appbuilder.security.manager import AUTH_LDAP
 # from flask_appbuilder.security.manager import AUTH_OAUTH
 # from flask_appbuilder.security.manager import AUTH_OID
 # from flask_appbuilder.security.manager import AUTH_REMOTE_USER
+
+from airflow import configuration as conf
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # The SQLAlchemy connection string.
@@ -62,7 +64,7 @@ AUTH_TYPE = AUTH_DB
 # When using OAuth Auth, uncomment to setup provider(s) info
 # Google OAuth example:
 # OAUTH_PROVIDERS = [{
-# 	'name':'google',
+#   'name':'google',
 #     'whitelist': ['@YOU_COMPANY_DOMAIN'],  # optional
 #     'token_key':'access_token',
 #     'icon':'fa-google',
