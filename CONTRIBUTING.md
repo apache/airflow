@@ -705,7 +705,7 @@ forbid-tabs                      Fails if tabs are used in the project
 check-merge-conflict             Checks if merge conflict is being committed
 detect-private-key               Detects if private key is added to the repository
 end-of-file-fixer                Make sure that there is an empty line at the end
-mixed-line-ending                Deteccts if mixed line ending is used (\r vs. \r\n)
+mixed-line-ending                Detects if mixed line ending is used (\r vs. \r\n)
 ```
 ## Using pre-commit hooks
 
