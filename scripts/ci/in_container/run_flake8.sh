@@ -30,13 +30,13 @@ in_container_basic_sanity_check
 in_container_script_start
 
 if [[ ${#@} == "0" ]]; then
-    echo
-    echo "Running flake8 with no parameters"
-    echo
+    print_in_container_info
+    print_in_container_info "Running flake8 with no parameters"
+    print_in_container_info
 else
-    echo
-    echo "Running flake8 with parameters: $*"
-    echo
+    print_in_container_info
+    print_in_container_info "Running flake8 with parameters: $*"
+    print_in_container_info
 fi
 
 flake8 "$@"

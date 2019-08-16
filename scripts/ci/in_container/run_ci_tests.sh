@@ -63,6 +63,7 @@ if [[ "${RES}" != "0" ]]; then
             --xunit-file "${XUNIT_FILE}" --only-failed
         echo
         printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
+        echo
     else
         echo
         echo " Not printing summary of failed tests. Missing file: ${XUNIT_FILE}"

@@ -40,8 +40,9 @@ if [[ ${#@} == "0" ]]; then
     xargs pylint --disable="${DISABLE_CHECKS}" --output-format=colorized
     RES=$?
 else
-    echo "Running Pylint for tests with parameters: $*"
-    echo
+    print_in_container_info
+    print_in_container_info "Running Pylint for tests with parameters: $*"
+    print_in_container_info
     pylint --disable="${DISABLE_CHECKS}" --output-format=colorized "$@"
     RES=$?
 fi

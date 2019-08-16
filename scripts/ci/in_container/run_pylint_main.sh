@@ -52,8 +52,9 @@ if [[ ${#@} == "0" ]]; then
         grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
     RES=$?
 else
-    echo "Running Pylint with parameters: $*"
-    echo
+    print_in_container_info
+    print_in_container_info "Running Pylint with parameters: $*"
+    print_in_container_info
     pylint --output-format=colorized "$@"
     RES=$?
 fi

@@ -29,10 +29,10 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-echo
-echo "Running mypy with parameters: $*"
-echo
-echo
+print_in_container_info
+print_in_container_info "Running mypy with parameters: $*"
+print_in_container_info
+print_in_container_info
 
 mypy "$@"
 
