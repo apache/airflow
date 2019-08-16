@@ -158,7 +158,7 @@ other development environments that you have on your local machine.
 Another disadvantage is that you you cannot run tests that require
 external components - mysql, postgres database, hadoop, mongo, cassandra, redis etc..
 The tests in Airflow are a mixture of unit and integration tests and some of them
-require those components to be setup. Only real unit tests can be run bu default in local environment.
+require those components to be setup. Only real unit tests can be run by default in local environment.
 
 If you want to run integration tests, you need to configure and install the dependencies on your own.
 
@@ -392,7 +392,8 @@ If you are already in the [Docker Compose Environment](#entering-bash-shell-in-d
 you can also run the same static checks from within container:
 
 * Mypy: `./scripts/ci/in_container/run_mypy.sh airflow tests`
-* Pylint: `./scripts/ci/in_container/run_pylint.sh`
+* Pylint for main files: `./scripts/ci/in_container/run_pylint_main.sh`
+* Pylint for test files: `./scripts/ci/in_container/run_pylint_tests.sh`
 * Flake8: `./scripts/ci/in_container/run_flake8.sh`
 * Licence check: `./scripts/ci/in_container/run_check_licence.sh`
 * Documentation: `./scripts/ci/in_container/run_docs_build.sh`
