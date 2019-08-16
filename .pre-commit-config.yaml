@@ -29,6 +29,16 @@ repos:
           - "/*||*/"
           - --license-filepath
           - license-templates/LICENSE.txt
+      - id: insert-license
+        name: Add licence for all other files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+        files: >
+          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
   - repo: meta
     hooks:
       - id: check-hooks-apply
