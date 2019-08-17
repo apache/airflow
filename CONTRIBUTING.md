@@ -158,7 +158,7 @@ other development environments that you have on your local machine.
 Another disadvantage is that you you cannot run tests that require
 external components - mysql, postgres database, hadoop, mongo, cassandra, redis etc..
 The tests in Airflow are a mixture of unit and integration tests and some of them
-require those components to be setup. Only real unit tests can be run bu default in local environment.
+require those components to be setup. Only real unit tests can be run by default in local environment.
 
 If you want to run integration tests, you need to configure and install the dependencies on your own.
 
