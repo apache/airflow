@@ -101,3 +101,21 @@ AUTH_TYPE = AUTH_DB
 # Please make sure to remove "navbar_color" configuration from airflow.cfg
 # in order to fully utilize the theme. (or use that property in conjunction with theme)
 # APP_THEME = "bootstrap-theme.css"  # default bootstrap
+# APP_THEME = "amelia.css"
+# APP_THEME = "cerulean.css"
+# APP_THEME = "cosmo.css"
+# APP_THEME = "cyborg.css"
+# APP_THEME = "darkly.css"
+# APP_THEME = "flatly.css"
+# APP_THEME = "journal.css"
+# APP_THEME = "lumen.css"
+# APP_THEME = "paper.css"
+# APP_THEME = "readable.css"
+# APP_THEME = "sandstone.css"
+# APP_THEME = "simplex.css"
+# APP_THEME = "slate.css"
+# APP_THEME = "solar.css"
+# APP_THEME = "spacelab.css"
+# APP_THEME = "superhero.css"
+# APP_THEME = "united.css"
+# APP_THEME = "yeti.css"
