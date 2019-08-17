@@ -447,7 +447,7 @@ They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to c
 Cloud Build
 '''''''''''
 
-:class:`airflow.gcp.operators.build.CloudBuildCreateBuildOperator`
+:class:`airflow.gcp.operators.cloud_build.CloudBuildCreateBuildOperator`
      Starts a build with the specified configuration.
 
 
