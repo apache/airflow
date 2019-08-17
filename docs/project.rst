@@ -59,6 +59,7 @@ Committers
 - @KevinYang21 (Kevin Yang)
 - @mik-laj (Kamil Breguła)
 - @aijamalnk (Aizhamal Nurmamat kyzy)
+- @milton0825 (Chao-Han Tsai)
 
 
 For the full list of contributors, take a look at `Airflow's Github
