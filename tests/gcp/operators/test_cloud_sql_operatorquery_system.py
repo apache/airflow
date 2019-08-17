@@ -26,8 +26,7 @@ import time
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
-from tests.contrib.utils.base_gcp_system_test_case import BaseGcpSystemTestCase, \
-    DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import TestBaseGcpSystem, TestDagGcpSystem
 from tests.gcp.operators.test_cloud_sql_system_helper import \
     CloudSqlQueryTestHelper
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
@@ -55,7 +54,7 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
 @unittest.skipIf(not enable_cloudsql_query_test, SKIP_CLOUDSQL_QUERY_WARNING)
-class CloudSqlProxySystemTest(BaseGcpSystemTestCase):
+class CloudSqlProxySystemTest(TestBaseGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name,
@@ -124,7 +123,7 @@ class CloudSqlProxySystemTest(BaseGcpSystemTestCase):
 
 
 @unittest.skipIf(not enable_cloudsql_query_test, SKIP_CLOUDSQL_QUERY_WARNING)
-class CloudSqlQueryExampleDagsSystemTest(DagGcpSystemTestCase):
+class CloudSqlQueryExampleDagsSystemTest(TestDagGcpSystem):
 
     def __init__(self, method_name='runTest'):
         super().__init__(

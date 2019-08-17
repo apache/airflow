@@ -18,16 +18,15 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 
 from tests.gcp.operators.test_compute_system_helper import \
     GCPComputeTestHelper
 from tests.contrib.utils.gcp_authenticator import GCP_COMPUTE_KEY
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
-class GcpComputeExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
+class GcpComputeExampleDagsSystemTest(TestDagGcpSystem):
 
     def setUp(self):
         super().setUp()
@@ -53,8 +52,8 @@ class GcpComputeExampleDagsSystemTest(DagGcpSystemTestCase):
         self._run_dag()
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
-class GcpComputeIgmExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
+class GcpComputeIgmExampleDagsSystemTest(TestDagGcpSystem):
 
     def setUp(self):
         super().setUp()

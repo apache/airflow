@@ -160,9 +160,8 @@ IMPORT_BODY = {
 }
 
 
-class CloudSqlTest(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
+class TestCloudSql(unittest.TestCase):
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlInstanceCreateOperator._check_if_instance_exists")
     @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
     def test_instance_create(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
@@ -706,7 +705,7 @@ class CloudSqlTest(unittest.TestCase):
         self.assertTrue(result)
 
 
-class CloudSqlQueryValidationTest(unittest.TestCase):
+class TestCloudSqlQueryValidation(unittest.TestCase):
 
     @staticmethod
     def _setup_connections(get_connections, uri):

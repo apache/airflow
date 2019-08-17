@@ -69,7 +69,7 @@ def _prepare_test_bodies():
     return body_values
 
 
-class GcfFunctionDeployTest(unittest.TestCase):
+class TestGcfFunctionDeploy(unittest.TestCase):
     @parameterized.expand(_prepare_test_bodies())
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_body_empty_or_missing_fields(self, body, message, mock_hook):
@@ -545,7 +545,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
         mock_hook.reset_mock()
 
 
-class GcfFunctionDeleteTest(unittest.TestCase):
+class TestGcfFunctionDelete(unittest.TestCase):
     _FUNCTION_NAME = 'projects/project_name/locations/project_location/functions' \
                      '/function_name'
     _DELETE_FUNCTION_EXPECTED = {

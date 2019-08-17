@@ -33,7 +33,7 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class BashOperatorTest(unittest.TestCase):
+class TestBashOperator(unittest.TestCase):
 
     def test_echo_env_variables(self):
         """

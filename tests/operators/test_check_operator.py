@@ -102,7 +102,7 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute()
 
 
-class IntervalCheckOperatorTest(unittest.TestCase):
+class TestIntervalCheckOperator(unittest.TestCase):
 
     def _construct_operator(self, table, metric_thresholds,
                             ratio_formula, ignore_zero):

@@ -40,7 +40,7 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 
 
-class DagTest(unittest.TestCase):
+class TestDag(unittest.TestCase):
 
     def _occur_before(self, a, b, list_):
         """

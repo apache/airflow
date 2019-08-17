@@ -23,7 +23,7 @@ from paramiko import SFTP_NO_SUCH_FILE, SFTP_FAILURE
 from airflow.contrib.sensors.sftp_sensor import SFTPSensor
 
 
-class SFTPSensorTest(unittest.TestCase):
+class TestSFTPSensor(unittest.TestCase):
     @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'

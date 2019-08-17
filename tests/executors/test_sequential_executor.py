@@ -23,7 +23,7 @@ from unittest import mock
 from airflow.executors.sequential_executor import SequentialExecutor
 
 
-class SequentialExecutorTest(unittest.TestCase):
+class TestSequentialExecutor(unittest.TestCase):
 
     @mock.patch('airflow.executors.sequential_executor.SequentialExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')

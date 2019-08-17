@@ -32,7 +32,7 @@ AZURE_CONN_ID = 'azure_data_lake_default'
 GCS_CONN_ID = 'google_cloud_default'
 
 
-class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
+class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test AdlsToGoogleCloudStorageOperator instance is properly initialized."""
 

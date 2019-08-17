@@ -45,7 +45,7 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
 
-class TaskInstanceTest(unittest.TestCase):
+class TestTaskInstance(unittest.TestCase):
 
     def setUp(self):
         db.clear_db_pools()

@@ -80,7 +80,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class DataFlowHookTest(unittest.TestCase):
+class TestDataFlowHook(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -250,7 +250,7 @@ class DataFlowHookTest(unittest.TestCase):
         )
 
 
-class DataFlowTemplateHookTest(unittest.TestCase):
+class TestDataFlowTemplateHook(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -300,7 +300,7 @@ class DataFlowTemplateHookTest(unittest.TestCase):
         )
 
 
-class DataFlowJobTest(unittest.TestCase):
+class TestDataFlowJob(unittest.TestCase):
 
     def setUp(self):
         self.mock_dataflow = MagicMock()
@@ -324,7 +324,7 @@ class DataFlowJobTest(unittest.TestCase):
                                           location=TEST_LOCATION)
 
 
-class DataflowTest(unittest.TestCase):
+class TestDataflow(unittest.TestCase):
 
     def test_data_flow_valid_job_id(self):
         cmd = ['echo', 'additional unit test lines.\n' +

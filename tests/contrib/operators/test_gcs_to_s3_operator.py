@@ -36,7 +36,7 @@ S3_BUCKET = 's3://bucket/'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
-class GoogleCloudStorageToS3OperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
 
     # Test1: incremental behaviour (just some files missing)
     @mock_s3

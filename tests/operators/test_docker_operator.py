@@ -31,7 +31,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class DockerOperatorTestCase(unittest.TestCase):
+class TestDockerOperator(unittest.TestCase):
     @mock.patch('airflow.utils.file.mkdtemp')
     @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute(self, client_class_mock, mkdtemp_mock):

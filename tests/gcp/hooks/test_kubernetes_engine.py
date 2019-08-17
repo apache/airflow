@@ -30,7 +30,7 @@ TEST_GCP_PROJECT_ID = 'test-project'
 GKE_ZONE = 'test-zone'
 
 
-class GKEClusterHookDeleteTest(unittest.TestCase):
+class TestGKEClusterHookDelete(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -84,7 +84,7 @@ class GKEClusterHookDeleteTest(unittest.TestCase):
             convert_mock.assert_not_called()
 
 
-class GKEClusterHookCreateTest(unittest.TestCase):
+class TestGKEClusterHookCreate(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -165,7 +165,7 @@ class GKEClusterHookCreateTest(unittest.TestCase):
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
 
-class GKEClusterHookGetTest(unittest.TestCase):
+class TestGKEClusterHookGet(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -186,7 +186,7 @@ class GKEClusterHookGetTest(unittest.TestCase):
                                       retry=retry_mock, timeout=timeout_mock)
 
 
-class GKEClusterHookTest(unittest.TestCase):
+class TestGKEClusterHook(unittest.TestCase):
 
     def setUp(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)

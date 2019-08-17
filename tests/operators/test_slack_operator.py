@@ -24,7 +24,7 @@ from airflow.operators.slack_operator import SlackAPIPostOperator
 from tests.compat import mock
 
 
-class SlackAPIPostOperatorTestCase(unittest.TestCase):
+class TestSlackAPIPostOperator(unittest.TestCase):
     def setUp(self):
         self.test_username = 'test_username'
         self.test_channel = '#test_slack_channel'

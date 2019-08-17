@@ -28,7 +28,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-class NotInRetryPeriodDepTest(unittest.TestCase):
+class TestNotInRetryPeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state, end_date=None,
                            retry_delay=timedelta(minutes=15)):

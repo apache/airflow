@@ -135,7 +135,7 @@ class TestFallbackToDefaultProjectId(unittest.TestCase):
 ENV_VALUE = "/tmp/a"
 
 
-class ProvideGcpCredentialFileTestCase(unittest.TestCase):
+class TestProvideGcpCredentialFile(unittest.TestCase):
     def setUp(self):
         with mock.patch(
             'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',

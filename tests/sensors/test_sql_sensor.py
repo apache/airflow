@@ -29,7 +29,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
 
-class SqlSensorTests(unittest.TestCase):
+class TestSqlSensor(unittest.TestCase):
 
     def setUp(self):
         args = {

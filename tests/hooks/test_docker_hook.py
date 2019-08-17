@@ -31,7 +31,7 @@ except ImportError:
 
 
 @mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
-class DockerHookTest(unittest.TestCase):
+class TestDockerHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(

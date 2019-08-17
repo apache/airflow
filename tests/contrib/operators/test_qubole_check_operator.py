@@ -28,7 +28,7 @@ from qds_sdk.commands import HiveCommand
 from tests.compat import mock
 
 
-class QuboleValueCheckOperatorTest(unittest.TestCase):
+class TestQuboleValueCheckOperator(unittest.TestCase):
 
     def setUp(self):
         self.task_id = 'test_task'

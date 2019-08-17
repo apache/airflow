@@ -27,7 +27,7 @@ from airflow.contrib.utils.sendgrid import send_email
 from tests.compat import mock
 
 
-class SendEmailSendGridTest(unittest.TestCase):
+class TestSendEmailSendGrid(unittest.TestCase):
     # Unit test for sendgrid.send_email()
     def setUp(self):
         self.to = ['foo@foo.com', 'bar@bar.com']

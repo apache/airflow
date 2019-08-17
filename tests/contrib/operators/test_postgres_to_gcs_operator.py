@@ -42,7 +42,7 @@ SCHEMA_JSON = b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ' \
               b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
 
 
-class PostgresToGoogleCloudStorageOperatorTest(unittest.TestCase):
+class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         postgres = PostgresHook()

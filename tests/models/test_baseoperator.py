@@ -51,7 +51,7 @@ class TestOperator(BaseOperator):
 TestNamedTuple = namedtuple("TestNamedTuple", ["var1", "var2"])
 
 
-class BaseOperatorTest(unittest.TestCase):
+class TestBaseOperator(unittest.TestCase):
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),

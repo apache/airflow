@@ -38,7 +38,7 @@ TEST_MESSAGES = [
     {'attributes': {'foo': ''}}]
 
 
-class PubSubPullSensorTest(unittest.TestCase):
+class TestPubSubPullSensor(unittest.TestCase):
 
     def _generate_messages(self, count):
         messages = []

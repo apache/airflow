@@ -30,7 +30,7 @@ DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
 
 
-class CreateEvaluateOpsTest(unittest.TestCase):
+class TestCreateEvaluateOps(unittest.TestCase):
     INPUT_MISSING_ORIGIN = {
         'dataFormat': 'TEXT',
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],

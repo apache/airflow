@@ -153,7 +153,7 @@ def setup_mock_requests(mock_requests,
             [side_effect] * error_count + [create_valid_response_mock(response_content)]
 
 
-class DatabricksHookTest(unittest.TestCase):
+class TestDatabricksHook(unittest.TestCase):
     """
     Tests for DatabricksHook.
     """
@@ -390,7 +390,7 @@ class DatabricksHookTest(unittest.TestCase):
             timeout=self.hook.timeout_seconds)
 
 
-class DatabricksHookTokenTest(unittest.TestCase):
+class TestDatabricksHookToken(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with token.
     """
@@ -424,7 +424,7 @@ class DatabricksHookTokenTest(unittest.TestCase):
         self.assertEqual(kwargs['auth'].token, TOKEN)
 
 
-class RunStateTest(unittest.TestCase):
+class TestRunState(unittest.TestCase):
     def test_is_terminal_true(self):
         terminal_states = ['TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
         for state in terminal_states:

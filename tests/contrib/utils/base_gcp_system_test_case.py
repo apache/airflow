@@ -89,7 +89,7 @@ environment. You can enable it in one of two ways:
 """.format(__file__)
 
 
-class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):
+class TestBaseGcpSystem(unittest.TestCase, LoggingMixin):
     def __init__(self,
                  method_name,
                  gcp_key,
@@ -116,7 +116,7 @@ class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):
         self.gcp_authenticator.gcp_restore_authentication()
 
 
-class DagGcpSystemTestCase(BaseGcpSystemTestCase):
+class TestDagGcpSystem(TestBaseGcpSystem):
     def __init__(self,
                  method_name,
                  gcp_key,

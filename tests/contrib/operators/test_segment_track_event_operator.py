@@ -61,7 +61,7 @@ class TestSegmentHook(unittest.TestCase):
             self.test_hook.on_error('error', ['items'])
 
 
-class SegmentTrackEventOperatorTest(unittest.TestCase):
+class TestSegmentTrackEventOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.segment_track_event_operator.SegmentHook')
     def test_execute(self, mock_hook):

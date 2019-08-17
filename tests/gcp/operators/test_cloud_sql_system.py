@@ -20,8 +20,7 @@ import os
 import unittest
 
 from airflow import AirflowException
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.operators.test_cloud_sql_system_helper import \
     CloudSqlQueryTestHelper
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
@@ -31,8 +30,8 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
-class CloudSqlExampleDagsIntegrationTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
+class CloudSqlExampleDagsIntegrationTest(TestDagGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name,

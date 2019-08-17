@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 
 
-class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
+class TestMLEngineBatchPredictionOperator(unittest.TestCase):
     INPUT_MISSING_ORIGIN = {
         'dataFormat': 'TEXT',
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
@@ -280,7 +280,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             self.assertEqual('A failure message', str(context.exception))
 
 
-class MLEngineTrainingOperatorTest(unittest.TestCase):
+class TestMLEngineTrainingOperator(unittest.TestCase):
     TRAINING_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'job_id': 'test_training',
@@ -395,7 +395,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             self.assertEqual('A failure message', str(context.exception))
 
 
-class MLEngineVersionOperatorTest(unittest.TestCase):
+class TestMLEngineVersionOperator(unittest.TestCase):
     VERSION_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'model_name': 'test-model',

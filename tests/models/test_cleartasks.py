@@ -29,7 +29,7 @@ from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 
 
-class ClearTasksTest(unittest.TestCase):
+class TestClearTasks(unittest.TestCase):
 
     def test_clear_task_instances(self):
         dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,

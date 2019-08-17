@@ -63,7 +63,7 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
-class SchedulerJobTest(unittest.TestCase):
+class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
         clear_db_runs()

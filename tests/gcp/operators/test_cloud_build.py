@@ -38,7 +38,7 @@ TEST_CREATE_BODY = {
 TEST_PROJECT_ID = "example-id"
 
 
-class BuildProcessorTestCase(TestCase):
+class TestBuildProcessor(TestCase):
     def test_verify_source(self):
         with self.assertRaisesRegex(AirflowException, "The source could not be determined."):
             BuildProcessor(body={"source": {"storageSource": {}, "repoSource": {}}}).process_body()
@@ -112,7 +112,7 @@ class BuildProcessorTestCase(TestCase):
         self.assertEqual(body, expected_body)
 
 
-class GcpCloudBuildCreateBuildOperatorTestCase(TestCase):
+class TestGcpCloudBuildCreateBuildOperator(TestCase):
     @mock.patch(  # type: ignore
         "airflow.gcp.operators.cloud_build.CloudBuildHook",
         **{"return_value.create_build.return_value": TEST_CREATE_BODY}

@@ -45,7 +45,7 @@ KUBE_ENV_VAR = 'KUBECONFIG'
 FILE_NAME = '/tmp/mock_name'
 
 
-class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
+class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.kubernetes_engine.GKEClusterHook')
     def test_create_execute(self, mock_hook):
@@ -135,7 +135,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
             mock_hook.return_value.delete_cluster.assert_not_called()
 
 
-class GKEPodOperatorTest(unittest.TestCase):
+class TestGKEPodOperator(unittest.TestCase):
     def setUp(self):
         self.gke_op = GKEPodOperator(project_id=TEST_GCP_PROJECT_ID,
                                      location=PROJECT_LOCATION,

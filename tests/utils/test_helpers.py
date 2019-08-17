@@ -148,6 +148,11 @@ class TestHelpers(unittest.TestCase):
         self.assertFalse(helpers.is_container("a string is not a container"))
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
 
+        self.assertTrue(helpers.is_container(['test_list']))
+        self.assertFalse(helpers.is_container('test_str_not_iterable'))
+        # Pass an object that is not iter nor a string.
+        self.assertFalse(helpers.is_container(10))
+
     def test_as_tuple(self):
         self.assertEqual(
             helpers.as_tuple("a string is not a container"),
@@ -159,8 +164,6 @@ class TestHelpers(unittest.TestCase):
             ("a", "list", "is", "a", "container")
         )
 
-
-class HelpersTest(unittest.TestCase):
     def test_as_tuple_iter(self):
         test_list = ['test_str']
         as_tup = helpers.as_tuple(test_list)
@@ -170,12 +173,6 @@ class HelpersTest(unittest.TestCase):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
-
-    def test_is_container(self):
-        self.assertTrue(helpers.is_container(['test_list']))
-        self.assertFalse(helpers.is_container('test_str_not_iterable'))
-        # Pass an object that is not iter nor a string.
-        self.assertFalse(helpers.is_container(10))
 
     def test_cross_downstream(self):
         """Test if all dependencies between tasks are all set correctly."""

@@ -101,7 +101,7 @@ class OperatorSubclass(BaseOperator):
         pass
 
 
-class CoreTest(unittest.TestCase):
+class TestCore(unittest.TestCase):
     TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_no_previous_runs'
     TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID = \
         TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous'
@@ -1068,7 +1068,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
-class CliTests(unittest.TestCase):
+class TestCli(unittest.TestCase):
 
     TEST_USER1_EMAIL = 'test-user1@example.com'
     TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -2085,7 +2085,7 @@ class FakeHDFSHook:
         return client
 
 
-class ConnectionTest(unittest.TestCase):
+class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
@@ -2164,7 +2164,7 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].port == 5432
 
 
-class WebHDFSHookTest(unittest.TestCase):
+class TestWebHDFSHook(unittest.TestCase):
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2181,7 +2181,7 @@ snakebite = None  # type: None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
-class HDFSHookTest(unittest.TestCase):
+class TestHDFSHook(unittest.TestCase):
     def setUp(self):
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
@@ -2224,7 +2224,7 @@ class HDFSHookTest(unittest.TestCase):
 send_email_test = mock.Mock()
 
 
-class EmailTest(unittest.TestCase):
+class TestEmail(unittest.TestCase):
     def setUp(self):
         configuration.conf.remove_option('email', 'EMAIL_BACKEND')
 
@@ -2244,7 +2244,7 @@ class EmailTest(unittest.TestCase):
         self.assertFalse(mock_send_email.called)
 
 
-class EmailSmtpTest(unittest.TestCase):
+class TestEmailSmtp(unittest.TestCase):
     def setUp(self):
         configuration.conf.set('smtp', 'SMTP_SSL', 'False')
 

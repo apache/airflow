@@ -37,7 +37,7 @@ class DummySubClass(DummyClass):
         self.test_sub_param = test_sub_param
 
 
-class ApplyDefaultTest(unittest.TestCase):
+class TestApplyDefault(unittest.TestCase):
 
     def test_apply(self):
         dc = DummyClass(test_param=True)

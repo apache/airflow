@@ -26,7 +26,7 @@ from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
 from airflow.exceptions import AirflowException
 
 
-class DockerSwarmOperatorTestCase(unittest.TestCase):
+class TestDockerSwarmOperator(unittest.TestCase):
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
     @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')

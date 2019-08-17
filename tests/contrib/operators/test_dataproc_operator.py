@@ -116,7 +116,7 @@ def _assert_dataproc_job_id(mock_hook, dataproc_task):
     assert dataproc_task.dataproc_job_id == DATAPROC_JOB_ID
 
 
-class DataprocClusterCreateOperatorTest(unittest.TestCase):
+class TestDataprocClusterCreateOperator(unittest.TestCase):
     # Unit test for the DataprocClusterCreateOperator
     def setUp(self):
         # instantiate two different test cases with different labels.
@@ -531,7 +531,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                          "Set internal_ip_only to true only when you pass a subnetwork_uri.")
 
 
-class DataprocClusterScaleOperatorTest(unittest.TestCase):
+class TestDataprocClusterScaleOperator(unittest.TestCase):
     # Unit test for the DataprocClusterScaleOperator
     def setUp(self):
         # Setup service.projects().regions().clusters().patch()
@@ -594,7 +594,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataprocClusterDeleteOperatorTest(unittest.TestCase):
+class TestDataprocClusterDeleteOperator(unittest.TestCase):
     # Unit test for the DataprocClusterDeleteOperator
     def setUp(self):
         # Setup service.projects().regions().clusters().delete()
@@ -643,7 +643,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataProcJobBaseOperatorTest(unittest.TestCase):
+class TestDataProcJobBaseOperator(unittest.TestCase):
 
     def setUp(self):
         self.dag = DAG(
@@ -682,7 +682,7 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
             mock_hook.cancel.assert_called_once_with(mock.ANY, job_id, GCP_REGION)
 
 
-class DataProcHadoopOperatorTest(unittest.TestCase):
+class TestDataProcHadoopOperator(unittest.TestCase):
     # Unit test for the DataProcHadoopOperator
     @mock.patch(
         'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
@@ -731,7 +731,7 @@ class DataProcHadoopOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcHiveOperatorTest(unittest.TestCase):
+class TestDataProcHiveOperator(unittest.TestCase):
     # Unit test for the DataProcHiveOperator
     @mock.patch(
         'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
@@ -780,7 +780,7 @@ class DataProcHiveOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcPigOperatorTest(unittest.TestCase):
+class TestDataProcPigOperator(unittest.TestCase):
     @mock.patch(
         'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
         new_callable=PropertyMock,
@@ -832,7 +832,7 @@ class DataProcPigOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcPySparkOperatorTest(unittest.TestCase):
+class TestDataProcPySparkOperator(unittest.TestCase):
     # Unit test for the DataProcPySparkOperator
     @mock.patch(
         'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
@@ -884,7 +884,7 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcSparkOperatorTest(unittest.TestCase):
+class TestDataProcSparkOperator(unittest.TestCase):
     # Unit test for the DataProcSparkOperator
     @mock.patch(
         'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
@@ -934,7 +934,7 @@ class DataProcSparkOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
     def setUp(self):
         # Setup service.projects().regions().workflowTemplates().instantiate().execute()
         self.operation = {'name': 'operation', 'done': True}
@@ -981,7 +981,7 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
     def setUp(self):
         # Setup service.projects().regions().workflowTemplates().instantiateInline()
         #              .execute()

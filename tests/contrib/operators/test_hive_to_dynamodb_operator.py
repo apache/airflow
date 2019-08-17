@@ -40,7 +40,7 @@ except ImportError:
     mock_dynamodb2 = None
 
 
-class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
+class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
 
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}

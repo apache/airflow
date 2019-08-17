@@ -41,7 +41,7 @@ class ChooseBranchOneTwo(BaseBranchOperator):
         return ['branch_1', 'branch_2']
 
 
-class BranchOperatorTest(unittest.TestCase):
+class TestBranchOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

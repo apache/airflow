@@ -51,7 +51,7 @@ SCHEMA_JSON = [
 ]
 
 
-class MsSqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
+class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""

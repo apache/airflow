@@ -39,7 +39,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class GoogleCloudKMSHookTest(unittest.TestCase):
+class TestGoogleCloudKMSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
                         new=mock_init):

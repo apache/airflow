@@ -29,7 +29,7 @@ from tests.test_utils.config import conf_vars
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
 
 
-class ConnectionTest(unittest.TestCase):
+class TestConnection(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
 

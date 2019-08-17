@@ -40,7 +40,7 @@ from tests.test_utils.db import clear_db_runs
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class LocalTaskJobTest(unittest.TestCase):
+class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 

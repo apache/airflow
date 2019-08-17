@@ -23,7 +23,7 @@ from airflow.hooks.slack_hook import SlackHook
 from tests.compat import mock
 
 
-class SlackHookTestCase(unittest.TestCase):
+class TestSlackHook(unittest.TestCase):
     def test_init_with_token_only(self):
         test_token = 'test_token'
         slack_hook = SlackHook(token=test_token, slack_conn_id=None)
