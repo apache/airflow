@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+"""Hook for winrm remote execution."""
 import getpass
 
 from winrm.protocol import Protocol
@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
+# TODO: Fixme please - I have too complex implementation
+# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-branches
 class WinRMHook(BaseHook):
     """
     Hook for winrm remote execution using pywinrm.

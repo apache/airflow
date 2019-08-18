@@ -8,13 +8,11 @@
 ./airflow/contrib/auth/backends/ldap_auth.py
 ./airflow/contrib/auth/backends/password_auth.py
 ./airflow/contrib/hooks/azure_container_instance_hook.py
-./airflow/contrib/hooks/azure_container_registry_hook.py
 ./airflow/contrib/hooks/azure_container_volume_hook.py
 ./airflow/contrib/hooks/azure_cosmos_hook.py
 ./airflow/contrib/hooks/azure_data_lake_hook.py
 ./airflow/contrib/hooks/azure_fileshare_hook.py
 ./airflow/contrib/hooks/cassandra_hook.py
-./airflow/contrib/hooks/cloudant_hook.py
 ./airflow/contrib/hooks/databricks_hook.py
 ./airflow/contrib/hooks/datadog_hook.py
 ./airflow/contrib/hooks/datastore_hook.py
@@ -25,8 +23,6 @@
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/contrib/hooks/grpc_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
-./airflow/contrib/hooks/jira_hook.py
-./airflow/contrib/hooks/mongo_hook.py
 ./airflow/contrib/hooks/openfaas_hook.py
 ./airflow/contrib/hooks/opsgenie_alert_hook.py
 ./airflow/contrib/hooks/pinot_hook.py
@@ -34,7 +30,6 @@
 ./airflow/contrib/hooks/qubole_hook.py
 ./airflow/contrib/hooks/redshift_hook.py
 ./airflow/contrib/hooks/sagemaker_hook.py
-./airflow/contrib/hooks/salesforce_hook.py
 ./airflow/contrib/hooks/segment_hook.py
 ./airflow/contrib/hooks/sftp_hook.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
@@ -44,10 +39,8 @@
 ./airflow/contrib/hooks/spark_sql_hook.py
 ./airflow/contrib/hooks/spark_submit_hook.py
 ./airflow/contrib/hooks/sqoop_hook.py
-./airflow/contrib/hooks/ssh_hook.py
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/contrib/hooks/wasb_hook.py
-./airflow/contrib/hooks/winrm_hook.py
 ./airflow/contrib/operators/adls_list_operator.py
 ./airflow/contrib/operators/adls_to_gcs.py
 ./airflow/contrib/operators/awsbatch_operator.py
@@ -156,7 +149,6 @@
 ./airflow/executors/local_executor.py
 ./airflow/executors/sequential_executor.py
 ./airflow/executors/__init__.py
-./airflow/hooks/base_hook.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
 ./airflow/hooks/druid_hook.py
@@ -171,9 +163,7 @@
 ./airflow/hooks/postgres_hook.py
 ./airflow/hooks/presto_hook.py
 ./airflow/hooks/samba_hook.py
-./airflow/hooks/slack_hook.py
 ./airflow/hooks/sqlite_hook.py
-./airflow/hooks/webhdfs_hook.py
 ./airflow/hooks/zendesk_hook.py
 ./airflow/hooks/__init__.py
 ./airflow/jobs/backfill_job.py
@@ -414,7 +404,6 @@
 ./tests/contrib/hooks/test_spark_sql_hook.py
 ./tests/contrib/hooks/test_spark_submit_hook.py
 ./tests/contrib/hooks/test_sqoop_hook.py
-./tests/contrib/hooks/test_ssh_hook.py
 ./tests/contrib/hooks/test_zendesk_hook.py
 ./tests/contrib/operators/test_aws_sqs_publish_operator.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py

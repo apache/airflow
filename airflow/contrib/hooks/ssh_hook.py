@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Hook for SSH connections."""
 import getpass
 import os
 import warnings
@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
+# noinspection PyAbstractClass
 class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
@@ -238,7 +239,16 @@ class SSHHook(BaseHook):
 
         return client
 
-    def create_tunnel(self, local_port, remote_port=None, remote_host="localhost"):
+    def create_tunnel(self, local_port: int, remote_port: int = None, remote_host: str = "localhost") \
+            -> SSHTunnelForwarder:
+        """
+        Creates tunnel for SSH connection [Deprecated].
+
+        :param local_port: local port number
+        :param remote_port: remote port number
+        :param remote_host: remote host
+        :return:
+        """
         warnings.warn('SSHHook.create_tunnel is deprecated, Please'
                       'use get_tunnel() instead. But please note that the'
                       'order of the parameters have changed'
