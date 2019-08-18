@@ -111,7 +111,6 @@
 ./airflow/contrib/operators/vertica_to_mysql.py
 ./airflow/contrib/operators/wasb_delete_blob_operator.py
 ./airflow/contrib/operators/winrm_operator.py
-./airflow/contrib/plugins/metastore_browser/main.py
 ./airflow/contrib/sensors/aws_athena_sensor.py
 ./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
 ./airflow/contrib/sensors/aws_redshift_cluster_sensor.py
