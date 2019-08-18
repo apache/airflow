@@ -142,7 +142,6 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/contrib/task_runner/cgroup_task_runner.py
 ./airflow/contrib/utils/log/task_handler_with_custom_formatter.py
 ./airflow/contrib/utils/mlengine_operator_utils.py
 ./airflow/contrib/utils/mlengine_prediction_summary.py

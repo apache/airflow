@@ -1,21 +1,23 @@
-# -*- coding: utf-8 -*-
-#
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+"""
+ -*- coding: utf-8 -*-
+
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+"""
 
 import datetime
 import getpass
@@ -65,6 +67,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         self._finished_running = False
         self._cpu_shares = None
         self._mem_mb_limit = None
+        self.mem_cgroup_name = None
+        self.cpu_cgroup_name = None
         self._created_cpu_cgroup = False
         self._created_mem_cgroup = False
         self._cur_user = getpass.getuser()
@@ -211,10 +215,10 @@ class CgroupTaskRunner(BaseTaskRunner):
         """
         with open("/proc/self/cgroup") as file:
             lines = file.readlines()
-            d = {}
+            subsystem_cgroup_map = {}
             for line in lines:
                 line_split = line.rstrip().split(":")
                 subsystem = line_split[1]
                 group_name = line_split[2]
-                d[subsystem] = group_name
-            return d
+                subsystem_cgroup_map[subsystem] = group_name
+            return subsystem_cgroup_map
