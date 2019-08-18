@@ -66,7 +66,6 @@ class SSHHook(BaseHook):
                  timeout=10,
                  keepalive_interval=30
                  ):
-        super().__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username

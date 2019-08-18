@@ -34,7 +34,6 @@ class CloudantHook(BaseHook):
     """
 
     def __init__(self, cloudant_conn_id='cloudant_default'):
-        super().__init__(cloudant_conn_id)
         self.cloudant_conn_id = cloudant_conn_id
 
     def get_conn(self):

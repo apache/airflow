@@ -33,7 +33,6 @@ class JiraHook(BaseHook):
     def __init__(self,
                  jira_conn_id='jira_default',
                  proxies=None):
-        super().__init__(jira_conn_id)
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
         self.client = None

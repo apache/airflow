@@ -49,7 +49,6 @@ class WebHDFSHook(BaseHook):
     """
 
     def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
-        super().__init__(webhdfs_conn_id)
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
 
