@@ -43,3 +43,4 @@ configuring an Airflow environment.
     check-health
     define_extra_link
     cli-completion
+    tracking-user-activity
