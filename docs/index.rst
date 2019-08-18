@@ -85,6 +85,7 @@ Content
     profiling
     cli
     scheduler
+    executor/index
     plugins
     security
     timezone
