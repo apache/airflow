@@ -544,6 +544,8 @@ class SchedulerJob(BaseJob):
                 stacktrace=stacktrace))
         session.commit()
 
+        Stats.gauge('scheduler.dagbag.errors', len(dagbag.import_errors))
+
     @provide_session
     def create_dag_run(self, dag, session=None):
         """
@@ -789,6 +791,7 @@ class SchedulerJob(BaseJob):
                 "Set %s task instances to state=%s as their associated DagRun was not in RUNNING state",
                 tis_changed, new_state
             )
+            Stats.gauge('scheduler.tasks.without_dagrun', tis_changed)
 
     @provide_session
     def __get_concurrency_maps(self, states, session=None):
@@ -914,6 +917,7 @@ class SchedulerJob(BaseJob):
 
             # Number of tasks that cannot be scheduled because of no open slot in pool
             num_starving_tasks = 0
+            num_tasks_in_executor = 0
             for current_index, task_instance in enumerate(priority_sorted_task_instances):
                 if open_slots <= 0:
                     self.log.info(
@@ -961,7 +965,9 @@ class SchedulerJob(BaseJob):
                         "Not handling task %s as the executor reports it is running",
                         task_instance.key
                     )
+                    num_tasks_in_executor += 1
                     continue
+
                 executable_tis.append(task_instance)
                 open_slots -= 1
                 dag_concurrency_map[dag_id] += 1
@@ -973,6 +979,10 @@ class SchedulerJob(BaseJob):
                         pools[pool_name].open_slots())
             Stats.gauge('pool.used_slots.{pool_name}'.format(pool_name=pool_name),
                         pools[pool_name].occupied_slots())
+            Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
+            Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
+            Stats.gauge('scheduler.tasks.starving', num_starving_tasks)
+            Stats.gauge('scheduler.tasks.executable', len(executable_tis))
 
         task_instance_str = "\n\t".join(
             [repr(x) for x in executable_tis])
@@ -1029,6 +1039,7 @@ class SchedulerJob(BaseJob):
             ti_query
             .with_for_update()
             .all())
+
         if len(tis_to_set_to_queued) == 0:
             self.log.info("No tasks were able to have their state changed to queued.")
             session.commit()
