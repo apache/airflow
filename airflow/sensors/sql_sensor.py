@@ -28,7 +28,7 @@ from airflow.utils.decorators import apply_defaults
 class SqlSensor(BaseSensorOperator):
     """
     Runs a sql statement repeatedly until a criteria is met. It will keep trying until
-    success or failure criteria are met, or if the first cell is in (0, '0', '', 'None').
+    success or failure criteria are met, or if the first cell is not in (0, '0', '', None).
     An allow_null parameter exclude 'None' results from failure criteria.
     Optional success and failure callables are called with the first cell returned as the argument.
     If success callable is defined the sensor will keep retrying until the criteria is met.
@@ -61,7 +61,7 @@ class SqlSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
-                 allow_null=False, *args, **kwargs):
+                 allow_null=True, *args, **kwargs):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
