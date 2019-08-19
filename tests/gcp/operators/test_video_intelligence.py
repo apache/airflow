@@ -56,6 +56,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )
 
     @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -76,6 +77,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )
 
     @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -96,4 +98,5 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )
