@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Setup for the Airflow library."""
+"""Setup.py for the Airflow project."""
 
-import importlib
+from importlib import util
 import io
 import logging
 import os
@@ -33,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 # noinspection PyUnresolvedReferences
-spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
 # noinspection PyUnresolvedReferences
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-version = mod.version
+mod = util.module_from_spec(spec)
+spec.loader.exec_module(mod)  # type: ignore
+version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
 

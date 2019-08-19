@@ -29,7 +29,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-# noinspection PyAbstractClass
 class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.

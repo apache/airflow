@@ -751,10 +751,25 @@ function filter_out_files_from_pylint_todo_list() {
   set +e
   for FILE in "$@"
   do
+      if [[ ${FILE} == "airflow/migrations/versions/"* ]]; then
+          # Skip all generated migration scripts
+          continue
+      fi
       if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
           FILTERED_FILES+=("${FILE}")
       fi
   done
   set -e
   export FILTERED_FILES
+}
+
+function refresh_pylint_todo() {
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+        --env AIRFLOW_CI_SILENT \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
 }

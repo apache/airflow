@@ -199,8 +199,12 @@ as follows:
 3) Fix all the issues reported by pylint
 4) Re-run [scripts/ci/ci_pylint.sh](scripts/ci/ci_pylint.sh)
 5) If you see "success" - submit PR following [Pull Request guidelines](#pull-request-guidelines)
+6) You can refresh periodically [scripts/ci/pylint_todo.txt](scripts/ci/pylint_todo.txt) file.
+   You can do it by running
+   [scripts/ci/ci_refresh_pylint_todo.sh](scripts/ci/ci_refresh_pylint_todo.sh).
+   This can take quite some time (especially on MacOS)!
 
-There are following guidelines when fixing pylint errors:
+You can follow these guidelines when fixing pylint errors:
 
 * Ideally fix the errors rather than disable pylint checks - often you can easily refactor the code
   (IntelliJ/PyCharm might be helpful when extracting methods in complex code or moving methods around)

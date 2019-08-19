@@ -16,14 +16,18 @@
 # under the License.
 
 import unittest
+from unittest import mock
+from unittest.mock import ANY
+
 import os
 import shutil
 import json
-from unittest.mock import ANY
 from subprocess import check_call
+
 from kubernetes.client.rest import ApiException
 import kubernetes.client.models as k8s
 from kubernetes.client.api_client import ApiClient
+
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.kubernetes.secret import Secret
 from airflow import AirflowException
@@ -32,11 +36,10 @@ from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.volume import Volume
-from tests.compat import mock
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
-except Exception as e:
+except Exception as e:  # pylint: disable=broad-except
     if os.environ.get('KUBERNETES_VERSION'):
         raise e
     else:
@@ -46,10 +49,11 @@ except Exception as e:
         )
 
 
+# pylint: disable=unused-argument
 class TestKubernetesPodOperator(unittest.TestCase):
 
     def setUp(self):
-        self.maxDiff = None
+        self.maxDiff = None  # pylint: disable=invalid-name
         self.api_client = ApiClient()
         self.expected_pod = {
             'apiVersion': 'v1',
@@ -584,5 +588,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
 
 
+# pylint: enable=unused-argument
 if __name__ == '__main__':
     unittest.main()

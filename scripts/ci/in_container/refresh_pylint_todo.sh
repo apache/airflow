@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Sends lineage metadata to a backend"""
 
+# Script to run Pylint on main code. Can be started from any working directory
+set -uo pipefail
 
-class LineageBackend:
-    """Sends lineage metadata to a backend"""
-    def send_lineage(self,
-                     operator=None, inlets=None, outlets=None, context=None):
-        """
-        Sends lineage metadata to a backend
-        :param operator: the operator executing a transformation on the inlets and outlets
-        :param inlets: the inlets to this operator
-        :param outlets: the outlets from this operator
-        :param context: the current context of the task instance
-        """
-        raise NotImplementedError()
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
+
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
+
+in_container_basic_sanity_check
+
+in_container_script_start
+
+in_container_refresh_pylint_todo
+
+in_container_script_end
