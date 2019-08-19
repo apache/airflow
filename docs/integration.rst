@@ -895,46 +895,46 @@ They also use :class:`airflow.gcp.hooks.dlp.CloudDLPHook` to communicate with Go
 Google Cloud Tasks
 ''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueCreateOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueueCreateOperator`
     Creates a queue in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueUpdateOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueueUpdateOperator`
     Updates a queue in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueGetOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueueGetOperator`
     Gets a queue from Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuesListOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueuesListOperator`
     Lists queues from Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueDeleteOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueueDeleteOperator`
     Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePurgeOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueuePurgeOperator`
     Purges a queue by deleting all of its tasks from Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueuePauseOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueuePauseOperator`
     Pauses a queue in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksQueueResumeOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksQueueResumeOperator`
     Resumes a queue in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskCreateOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksTaskCreateOperator`
     Creates a task in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskGetOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksTaskGetOperator`
     Gets a task from Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTasksListOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksTasksListOperator`
     Lists the tasks in Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskDeleteOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksTaskDeleteOperator`
     Deletes a task from Cloud Tasks.
 
-:class:`airflow.contrib.operators.gcp_tasks_operator.CloudTasksTaskRunOperator`
+:class:`airflow.gcp.operators.tasks.CloudTasksTaskRunOperator`
     Forces to run a task in Cloud Tasks.
 
-They also use :class:`airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
 
 
 .. _Qubole:

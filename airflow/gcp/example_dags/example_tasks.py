@@ -31,7 +31,7 @@ from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
 import airflow
-from airflow.contrib.operators.gcp_tasks_operator import (
+from airflow.gcp.operators.tasks import (
     CloudTasksQueueCreateOperator,
     CloudTasksTaskCreateOperator,
     CloudTasksTaskRunOperator,
