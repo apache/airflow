@@ -42,7 +42,7 @@ class SerializedDAG(DAG, Serialization):
     # FIXME: to customize included fields and keep only necessary fields.
     _included_fields = set(vars(DAG(dag_id='test')).keys()) - {
         'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
-        '_full_filepath'
+        '_full_filepath', 'user_defined_filters', 'user_defined_macros'
     }
 
     _json_schema = load_dag_schema()
