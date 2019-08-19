@@ -22,7 +22,7 @@ import unittest
 from airflow import AirflowException
 from tests.contrib.utils.base_gcp_system_test_case import \
     SKIP_TEST_WARNING, DagGcpSystemTestCase
-from tests.contrib.operators.test_gcp_sql_operator_system_helper import \
+from tests.gcp.operators.test_cloud_sql_system_helper import \
     CloudSqlQueryTestHelper
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 

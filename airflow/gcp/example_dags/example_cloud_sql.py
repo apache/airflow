@@ -33,7 +33,7 @@ from urllib.parse import urlsplit
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
+from airflow.gcp.operators.cloud_sql import CloudSqlInstanceCreateOperator, \
     CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
     CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceExportOperator, \

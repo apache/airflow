@@ -25,10 +25,10 @@ import unittest
 import time
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_sql_hook import CloudSqlProxyRunner
+from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
 from tests.contrib.utils.base_gcp_system_test_case import BaseGcpSystemTestCase, \
     DagGcpSystemTestCase
-from tests.contrib.operators.test_gcp_sql_operator_system_helper import \
+from tests.gcp.operators.test_cloud_sql_system_helper import \
     CloudSqlQueryTestHelper
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 
@@ -41,7 +41,7 @@ SKIP_CLOUDSQL_QUERY_WARNING = """
     environment variable to 'True' and then you should be able to
     run it manually after you create the database
     Creating the database can be done by running
-    `{}/test_gcp_sql_operatorquery_system_helper.py \
+    `{}/test_cloud_sql_operatorquery_system_helper.py \
 --action=before-tests`
     (you should remember to delete the database with --action=after-tests flag)
 """.format(dirname(__file__))

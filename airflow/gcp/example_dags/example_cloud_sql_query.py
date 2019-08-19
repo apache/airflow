@@ -44,7 +44,7 @@ from urllib.parse import quote_plus
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_sql_operator import CloudSqlQueryOperator
+from airflow.gcp.operators.cloud_sql import CloudSqlQueryOperator
 
 # [START howto_operator_cloudsql_query_arguments]
 

@@ -26,7 +26,7 @@ from googleapiclient.errors import HttpError
 
 from parameterized import parameterized
 
-from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHook
+from airflow.gcp.hooks.cloud_sql import CloudSqlHook, CloudSqlDatabaseHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
@@ -65,8 +65,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         err = cm.exception
         self.assertIn("Exporting instance ", str(err))
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_import(self, wait_for_operation_to_complete, get_conn):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
@@ -81,8 +81,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_import_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
@@ -98,8 +98,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_export(self, wait_for_operation_to_complete, get_conn):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
@@ -114,8 +114,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_export_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
@@ -131,8 +131,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_instance(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
@@ -146,8 +146,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
@@ -162,8 +162,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_instance(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -178,8 +178,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -195,8 +195,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_instance(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -212,8 +212,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -230,8 +230,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_instance(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -246,8 +246,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -263,8 +263,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_database(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
@@ -281,8 +281,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
@@ -300,8 +300,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_database(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -317,8 +317,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -335,8 +335,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_database(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -356,8 +356,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -378,8 +378,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_database(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -397,8 +397,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -424,8 +424,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
                         new=mock_base_gcp_hook_no_default_project_id):
             self.cloudsql_hook_no_default_project_id = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_import_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
@@ -441,8 +441,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_import_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
@@ -458,8 +458,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_export_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
@@ -475,8 +475,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_instance_export_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
@@ -492,8 +492,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
@@ -508,8 +508,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
@@ -524,8 +524,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -541,8 +541,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -557,8 +557,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -575,8 +575,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -592,8 +592,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -609,8 +609,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -625,8 +625,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
@@ -644,8 +644,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_get_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
@@ -661,8 +661,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -679,8 +679,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_create_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
@@ -696,8 +696,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -718,8 +718,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_patch_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
@@ -736,8 +736,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -756,8 +756,8 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook.get_conn')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
     def test_delete_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
@@ -776,7 +776,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
 
 class TestCloudsqlDatabaseHook(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_ssl_certs_no_ssl(self, get_connection):
         connection = Connection()
         connection.set_extra(json.dumps({
@@ -799,7 +799,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         [{"sslrootcert": "root_cert_file.pem", "sslcert": "cert_file.pem"}],
     ])
     @mock.patch('os.path.isfile')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_ssl_certs_missing_cert_params(
             self, cert_dict, get_connection, mock_is_file):
         mock_is_file.side_effects = True
@@ -822,7 +822,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         self.assertIn("SSL connections requires", str(err))
 
     @mock.patch('os.path.isfile')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_ssl_certs_with_ssl(self, get_connection, mock_is_file):
         connection = Connection()
         mock_is_file.return_value = True
@@ -841,7 +841,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         hook.validate_ssl_certs()
 
     @mock.patch('os.path.isfile')
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_ssl_certs_with_ssl_files_not_readable(
             self, get_connection, mock_is_file):
         connection = Connection()
@@ -863,7 +863,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         err = cm.exception
         self.assertIn("must be a readable file", str(err))
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_socket_path_length_too_long(self, get_connection):
         connection = Connection()
         connection.set_extra(json.dumps({
@@ -881,7 +881,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         err = cm.exception
         self.assertIn("The UNIX socket path length cannot exceed", str(err))
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_socket_path_length_not_too_long(self, get_connection):
         connection = Connection()
         connection.set_extra(json.dumps({
@@ -905,7 +905,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         ["http://host:80/database"],
         ["http://host:80/"],
     ])
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_create_connection_missing_fields(self, uri, get_connection):
         connection = Connection()
         connection.parse_from_uri(uri)
@@ -925,7 +925,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         err = cm.exception
         self.assertIn("needs to be set in connection", str(err))
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_create_delete_connection(self, get_connection):
         connection = Connection()
         connection.parse_from_uri("http://user:password@host:80/database")
@@ -942,7 +942,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         hook.delete_connection()
         self.assertIsNone(hook.retrieve_connection())
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_sqlproxy_runner_no_proxy(self, get_connection):
         connection = Connection()
         connection.parse_from_uri("http://user:password@host:80/database")
@@ -963,7 +963,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         finally:
             hook.delete_connection()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_sqlproxy_runner(self, get_connection):
         connection = Connection()
         connection.parse_from_uri("http://user:password@host:80/database")
@@ -984,7 +984,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         finally:
             hook.delete_connection()
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_database_hook(self, get_connection):
         connection = Connection()
         connection.parse_from_uri("http://user:password@host:80/database")

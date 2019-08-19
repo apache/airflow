@@ -389,35 +389,35 @@ They also use :class:`airflow.gcp.hooks.spanner.CloudSpannerHook` to communicate
 Cloud SQL
 '''''''''
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceCreateOperator`
     create a new Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`
     creates a new database inside a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`
     deletes a database from a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`
     updates a database inside a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDeleteOperator`
     delete a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceExportOperator`
     exports data from a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceImportOperator`
     imports data into a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstancePatchOperator`
     patch a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlQueryOperator`
     run query in a Cloud SQL instance.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` and :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook` and :class:`airflow.gcp.hooks.cloud_sql.CloudSqlHook` to communicate with Google Cloud Platform.
 
 
 Cloud Bigtable
