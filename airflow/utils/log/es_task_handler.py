@@ -252,7 +252,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
 
         if self.write_stdout:
-            self.writer.close()
             self.handler.close()
             sys.stdout = sys.__stdout__
 
