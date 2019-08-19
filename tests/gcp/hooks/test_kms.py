@@ -20,11 +20,11 @@
 import unittest
 from base64 import b64encode
 
-from airflow.contrib.hooks.gcp_kms_hook import GoogleCloudKMSHook
+from airflow.gcp.hooks.kms import GoogleCloudKMSHook
 from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
-KMS_STRING = 'airflow.contrib.hooks.gcp_kms_hook.{}'
+KMS_STRING = 'airflow.gcp.hooks.kms.{}'
 
 
 TEST_PROJECT = 'test-project'
