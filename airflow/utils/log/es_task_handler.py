@@ -101,7 +101,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
         :param execution_date: execution date of the dag run.
         """
-        return execution_date.strftime("%Y_%m_%dT%H_%I_%S_%f")
+        return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
     def _read(self, ti, try_number, metadata=None):
         """
