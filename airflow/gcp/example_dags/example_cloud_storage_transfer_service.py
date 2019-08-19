@@ -44,7 +44,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict
 
 from airflow import models
-from airflow.contrib.hooks.gcp_transfer_hook import (
+from airflow.gcp.hooks.cloud_storage_transfer_service import (
     GcpTransferOperationStatus,
     GcpTransferJobsStatus,
     TRANSFER_OPTIONS,
@@ -66,7 +66,7 @@ from airflow.contrib.hooks.gcp_transfer_hook import (
     TRANSFER_JOB_FIELD_MASK,
     ALREADY_EXISTING_IN_SINK,
 )
-from airflow.contrib.operators.gcp_transfer_operator import (
+from airflow.gcp.operators.cloud_storage_transfer_service import (
     GcpTransferServiceJobCreateOperator,
     GcpTransferServiceJobDeleteOperator,
     GcpTransferServiceJobUpdateOperator,
@@ -76,7 +76,7 @@ from airflow.contrib.operators.gcp_transfer_operator import (
     GcpTransferServiceOperationResumeOperator,
     GcpTransferServiceOperationCancelOperator,
 )
-from airflow.contrib.sensors.gcp_transfer_sensor import GCPTransferServiceWaitForJobStatusSensor
+from airflow.gcp.sensors.cloud_storage_transfer_service import GCPTransferServiceWaitForJobStatusSensor
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_transfer_common_variables]

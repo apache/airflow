@@ -634,34 +634,34 @@ They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to 
 Transfer Service
 ''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator`
     Deletes a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator`
     Creates a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator`
     Updates a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceOperationCancelOperator`
     Cancels a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceOperationGetOperator`
     Gets a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceOperationPauseOperator`
     Pauses a transfer operation
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceOperationResumeOperator`
     Resumes a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GcpTransferServiceOperationsListOperator`
     Gets a list of transfer operations.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
     Copies objects from a Google Cloud Storage bucket to another bucket.
-:class:`airflow.contrib.operators.gcp_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
+:class:`airflow.cogcpperators.cloud_storage_transfer_service.S3ToGoogleCloudStorageTransferOperator`
     Synchronizes an S3 bucket with a Google Cloud Storage bucket.
 
 
-:class:`airflow.contrib.sensors.gcp_transfer_operator.GCPTransferServiceWaitForJobStatusSensor`
+:class:`airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor`
     Waits for at least one operation belonging to the job to have the
     expected status.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook` to communicate with Google Cloud Platform.
 
 
 Cloud Vision

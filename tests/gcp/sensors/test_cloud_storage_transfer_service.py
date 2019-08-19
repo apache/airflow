@@ -20,13 +20,13 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.contrib.hooks.gcp_transfer_hook import GcpTransferOperationStatus
-from airflow.contrib.sensors.gcp_transfer_sensor import GCPTransferServiceWaitForJobStatusSensor
+from airflow.gcp.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
+from airflow.gcp.sensors.cloud_storage_transfer_service import GCPTransferServiceWaitForJobStatusSensor
 from tests.compat import mock
 
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
-    @mock.patch('airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_wait_for_status_success(self, mock_tool):
         operations = [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}]
         mock_tool.return_value.list_transfer_operations.return_value = operations
@@ -51,7 +51,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_wait_for_status_success_default_expected_status(self, mock_tool):
 
         op = GCPTransferServiceWaitForJobStatusSensor(
@@ -71,7 +71,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch('airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_wait_for_status_after_retry(self, mock_tool):
         operations_set = [
             [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}],
@@ -116,7 +116,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
             ),
         ]
     )
-    @mock.patch('airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_wait_for_status_normalize_status(self, expected_status, received_status, mock_tool):
         operations = [{'metadata': {'status': GcpTransferOperationStatus.SUCCESS}}]
 
