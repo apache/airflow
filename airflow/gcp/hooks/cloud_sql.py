@@ -736,7 +736,7 @@ class CloudSqlDatabaseHook(BaseHook):
            in the connection URL
     :type default_gcp_project_id: str
     """
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,

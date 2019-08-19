@@ -20,7 +20,7 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 import requests
 from googleapiclient.discovery import build
@@ -40,7 +40,7 @@ class GcfHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,

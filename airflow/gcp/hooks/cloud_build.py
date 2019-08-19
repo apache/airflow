@@ -19,7 +19,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Dict
+from typing import Dict, Any, Optional
 
 from googleapiclient.discovery import build
 
@@ -48,7 +48,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,

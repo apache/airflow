@@ -21,7 +21,7 @@ This module contains a Google Compute Engine Hook.
 """
 
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from googleapiclient.discovery import build
 
@@ -49,7 +49,7 @@ class GceHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,
