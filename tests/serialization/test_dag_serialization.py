@@ -143,6 +143,7 @@ def collect_dags():
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
     dags.update(make_example_dags(example_dags))
+    # dags.update(make_example_dags(contrib_example_dags))
     dags.update(make_example_dags(contrib_example_dags))
     return dags
 
@@ -172,7 +173,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                        '}')))
 
     def test_serialization(self):
-        """Serailzation and deserialization should work for every DAG and Operator."""
+        """Serialization and deserialization should work for every DAG and Operator."""
         dags = collect_dags()
         serialized_dags = {}
         for _, v in dags.items():

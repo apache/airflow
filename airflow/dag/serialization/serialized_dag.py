@@ -41,7 +41,8 @@ class SerializedDAG(DAG, Serialization):
     # Stringified DAGs and operators contain exactly these fields.
     # FIXME: to customize included fields and keep only necessary fields.
     _included_fields = set(vars(DAG(dag_id='test')).keys()) - {
-        'parent_dag',
+        'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+        '_full_filepath'
     }
 
     _json_schema = load_dag_schema()
@@ -59,6 +60,7 @@ class SerializedDAG(DAG, Serialization):
         """
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
         cls._deserialize_object(encoded_dag, dag)
+        setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
             if task.subdag is not None:
