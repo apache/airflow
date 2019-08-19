@@ -188,6 +188,7 @@ exclude_patterns = [
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
+    '_api/airflow/typing',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
     '_api/airflow/migrations',

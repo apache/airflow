@@ -18,7 +18,7 @@
 # under the License.
 
 from typing import Optional
-from typing_extensions import Protocol
+from airflow.typing import Protocol
 from datetime import datetime
 from contextlib import closing
 

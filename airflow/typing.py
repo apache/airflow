@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,34 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default authentication backend - everything is allowed"""
-from typing import Optional
-from functools import wraps
-from airflow.typing import Protocol
 
+"""
+This module provides helper code to make type annotation within Airflow
+codebase easier.
+"""
 
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
-
-
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
-
-
-def init_app(_):
-    """Initializes authentication backend"""
-
-
-def requires_authentication(function):
-    """Decorator for functions that require authentication"""
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        return function(*args, **kwargs)
-
-    return decorated
+try:
+    # Protocol is only added to typing module starting from python 3.8
+    # we can safely remove this shim import after Airflow drops support for
+    # <3.8
+    from typing import Protocol  # noqa # pylint: disable=unused-import
+except ImportError:
+    from typing_extensions import Protocol  # type: ignore # noqa

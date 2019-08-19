@@ -38,9 +38,9 @@ jobs:
       env: BACKEND=sqlite ENV=docker
       python: "3.5"
       stage: test
-    - name: "Tests mysql python 3.6"
+    - name: "Tests mysql python 3.7"
       env: BACKEND=mysql ENV=docker
-      python: "3.6"
+      python: "3.7"
       stage: test
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode

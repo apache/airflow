@@ -233,7 +233,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
             {FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: ["transferJobs/test-job"]},
         )
 
-        mock_sleep.assert_called_once_with(TIME_TO_SLEEP_IN_SECONDS)
+        mock_sleep.assert_called_with(TIME_TO_SLEEP_IN_SECONDS)
 
     @mock.patch('time.sleep')
     @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook.get_conn')

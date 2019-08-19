@@ -361,7 +361,7 @@ def do_setup():
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
-            'typing-extensions>=3.7.4;python_version<"3.7"',
+            'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
         setup_requires=[
             'docutils>=0.14, <1.0',
