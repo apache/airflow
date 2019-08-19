@@ -60,7 +60,7 @@ one to the other (though tasks can exchange metadata!). Airflow is not
 in the `Spark Streaming <http://spark.apache.org/streaming/>`_
 or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
 `Oozie <http://oozie.apache.org/>`_ or
-`Azkaban <http://data.linkedin.com/opensource/azkaban>`_.
+`Azkaban <https://azkaban.github.io/>`_.
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic
