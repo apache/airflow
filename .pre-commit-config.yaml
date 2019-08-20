@@ -42,6 +42,15 @@ repos:
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
+        name: Add licence for all rst files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - license-templates/LICENSE.rst
+        files: \.rst$
+      - id: insert-license
         name: Add licence for all JS files
         files: \.js$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$|^airflow/www/static/.*$
@@ -59,10 +68,15 @@ repos:
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
-    hooks:
-      - id: check-executables-have-shebangs
+      - id: insert-license
+        name: Add licence for all XML files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [xml]
+        args:
+          - --comment-style
+          - "<!--||-->"
+          - --license-filepath
+          - license-templates/LICENSE.txt
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -73,6 +87,8 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
+      - id: check-executables-have-shebangs
+      - id: check-xml
   - repo: local
     hooks:
       - id: shellcheck
