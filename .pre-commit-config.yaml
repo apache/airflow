@@ -50,6 +50,19 @@ repos:
           - "/**| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
+      - id: insert-license
+        name: Add licence for shell files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [shell]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: check-executables-have-shebangs
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -62,6 +75,11 @@ repos:
       - id: mixed-line-ending
   - repo: local
     hooks:
+      - id: shellcheck
+        name: Check Shell scripts syntax correctness
+        language: docker_image
+        entry: koalaman/shellcheck:stable -x -a
+        types: [shell]
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system

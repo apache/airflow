@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
-#  distributed with this work for additional information
-#  regarding copyright ownership.  The ASF licenses this file
-#  to you under the Apache License, Version 2.0 (the
-#  "License"); you may not use this file except in compliance
-#  with the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing,
-#  software distributed under the License is distributed on an
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#  KIND, either express or implied.  See the License for the
-#  specific language governing permissions and limitations
-#  under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 #
 # Asserts that you are actually in container
@@ -65,7 +64,7 @@ function in_container_cleanup_pyc() {
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "*.pyc" | grep ".pyc$" | sudo xargs rm -vf | wc -l)
-    print_in_container_info "Number of deleted .pyc files:"
+    print_in_container_info "Number of deleted .pyc files: ${NUM_FILES}"
     set -o pipefail
     print_in_container_info
     print_in_container_info
@@ -86,7 +85,7 @@ function in_container_cleanup_pycache() {
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rvf | wc -l)
-    print_in_container_info "Number of deleted __pycache__ dirs (and files):"
+    print_in_container_info "Number of deleted __pycache__ dirs (and files): ${NUM_FILES}"
     set -o pipefail
     print_in_container_info
     print_in_container_info
@@ -121,3 +120,5 @@ function in_container_basic_sanity_check() {
     in_container_cleanup_pyc
     in_container_cleanup_pycache
 }
+
+export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access"

@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
-#  distributed with this work for additional information
-#  regarding copyright ownership.  The ASF licenses this file
-#  to you under the Apache License, Version 2.0 (the
-#  "License"); you may not use this file except in compliance
-#  with the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing,
-#  software distributed under the License is distributed on an
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#  KIND, either express or implied.  See the License for the
-#  specific language governing permissions and limitations
-#  under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
+#
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
@@ -25,7 +25,7 @@ if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=./_in_container_utils.sh
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/_in_container_utils.sh"
 
 in_container_basic_sanity_check
@@ -118,11 +118,11 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
     java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
-        >"${AIRFLOW_HOME}"/logs/minicluster.log 2>&1 &
+        >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
     echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa \
-        >"${AIRFLOW_HOME}"/logs/ssh-keygen.log 2>&1
+        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
     ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
