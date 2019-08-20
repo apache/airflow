@@ -167,7 +167,6 @@ class AirflowBaseView(BaseView):
 
 class Airflow(AirflowBaseView):
     @expose('/health')
-    @provide_session
     def health(self, session=None):
         """
         An endpoint helping check the health status of the Airflow instance,
@@ -182,7 +181,7 @@ class Airflow(AirflowBaseView):
         scheduler_status = 'unhealthy'
         payload['metadatabase'] = {'status': 'healthy'}
         try:
-            scheduler_job = jobs.SchedulerJob.most_recent_job(session=session)
+            scheduler_job = jobs.SchedulerJob.most_recent_job()
 
             if scheduler_job:
                 latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()

@@ -93,7 +93,7 @@ class BaseJob(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session: Session) -> Optional['BaseJob']:
+    def most_recent_job(cls, session: Session = None) -> Optional['BaseJob']:
         """
         Return the most recent job of this type, if any, based on last
         heartbeat received.
