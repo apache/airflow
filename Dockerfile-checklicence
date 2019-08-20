@@ -84,6 +84,7 @@ RUN adduser airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
 COPY --chown=airflow:airflow scripts ${AIRFLOW_SOURCES}/scripts
+COPY --chown=airflow:airflow .rat-excludes ${AIRFLOW_SOURCES}/.rat-excludes
 
 USER airflow
 

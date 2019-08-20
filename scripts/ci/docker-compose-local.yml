@@ -45,6 +45,7 @@ services:
       - ../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../CHANGELOG.txt:/opt/airflow/CHANGELOG:cached
       - ../../.github:/opt/airflow/.github:cached
+      - ../../.bash_completion:/root/.bash_completion:cached
       - ../../.bash_completion.d:/root/.bash_completion.d:cached
       - ../../.bash_history:/root/.bash_history:cached
       - ../../.bash_aliases:/root/.bash_aliases:cached

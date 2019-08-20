@@ -37,7 +37,9 @@ setup.cfg \
 Dockerfile \
 Dockerfile-checklicence \
 .dockerignore \
-airflow/version.py
+airflow/version.py \
+airflow/www/package.json \
+airflow/www/package-lock.json
 "
 
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
@@ -98,7 +100,6 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
       "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
       "-v" "${AIRFLOW_SOURCES}/.bash_completion.d:/root/.bash_completion.d:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
       "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
@@ -117,6 +118,10 @@ else
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
         "--env" "PYTHONDONTWRITEBYTECODE" \
+        "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
+        "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
+        "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
+        "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
     )
 fi
 
@@ -757,4 +762,50 @@ function filter_out_files_from_pylint_todo_list() {
   done
   set -e
   export FILTERED_FILES
+}
+
+function run_eslint() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint /opt/airflow/scripts/ci/in_container/run_eslint.sh \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            "${AIRFLOW_SLIM_CI_IMAGE}"| tee -a "${OUTPUT_LOG}"
+    else
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint /opt/airflow/scripts/ci/in_container/run_eslint.sh \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
+    fi
+}
+
+function run_npmaudit() {
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint /opt/airflow/scripts/ci/in_container/run_npmaudit.sh \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            "${AIRFLOW_SLIM_CI_IMAGE}"
+}
+
+function run_npmaudit_fix() {
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint /opt/airflow/scripts/ci/in_container/run_npmaudit_fix.sh \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            "${AIRFLOW_SLIM_CI_IMAGE}"
 }

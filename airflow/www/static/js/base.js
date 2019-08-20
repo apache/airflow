@@ -16,20 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {defaultFormatWithTZ, moment} from './datetime-utils';
+import moment from 'moment-timezone';
+import { defaultFormatWithTZ } from './datetime-utils';
 
 function displayTime() {
-  let utcTime = moment().utc().format(defaultFormatWithTZ);
+  const utcTime = moment().utc().format(defaultFormatWithTZ);
   $('#clock')
-    .attr("data-original-title", function() {
-      return hostName
-    })
+    // hostName is defined in baselayout.html
+    // eslint-disable-next-line no-undef
+    .attr('data-original-title', () => hostName)
     .html(utcTime);
 
   setTimeout(displayTime, 1000);
 }
 
-var el = document.createElement("span");
+const el = document.createElement('span');
 
 export function escapeHtml(text) {
   el.textContent = text;
@@ -39,60 +40,62 @@ export function escapeHtml(text) {
 window.escapeHtml = escapeHtml;
 
 export function convertSecsToHumanReadable(seconds) {
-   var oriSeconds = seconds
-   var floatingPart = oriSeconds- Math.floor(oriSeconds)
+  const oriSeconds = seconds;
+  const floatingPart = oriSeconds - Math.floor(oriSeconds);
 
-   seconds = Math.floor(seconds)
+  let newSeconds = Math.floor(seconds);
 
-   var secondsPerHour = 60 * 60;
-   var secondsPerMinute = 60;
+  const secondsPerHour = 60 * 60;
+  const secondsPerMinute = 60;
 
-   var hours = Math.floor(seconds / secondsPerHour);
-   seconds = seconds - hours * secondsPerHour;
+  const hours = Math.floor(newSeconds / secondsPerHour);
+  newSeconds -= hours * secondsPerHour;
 
-   var minutes = Math.floor(seconds / secondsPerMinute);
-   seconds = seconds - minutes * secondsPerMinute;
+  const minutes = Math.floor(newSeconds / secondsPerMinute);
+  newSeconds -= minutes * secondsPerMinute;
 
-   var readableFormat = ''
-   if (hours > 0) {
-     readableFormat += hours + "Hours ";
-   }
-   if (minutes > 0) {
-     readableFormat += minutes + "Min ";
-   }
-   if (seconds + floatingPart > 0) {
-     if (Math.floor(oriSeconds) === oriSeconds) {
-       readableFormat += seconds + "Sec";
-     } else {
-       seconds += floatingPart
-       readableFormat += seconds.toFixed(3) + "Sec";
-     }
-   }
-   return readableFormat
+  let readableFormat = '';
+  if (hours > 0) {
+    readableFormat += `${hours}Hours `;
+  }
+  if (minutes > 0) {
+    readableFormat += `${minutes}Min `;
+  }
+  if (newSeconds + floatingPart > 0) {
+    if (Math.floor(oriSeconds) === oriSeconds) {
+      readableFormat += `${newSeconds}Sec`;
+    } else {
+      newSeconds += floatingPart;
+      readableFormat += `${newSeconds.toFixed(3)}Sec`;
+    }
+  }
+  return readableFormat;
 }
 window.convertSecsToHumanReadable = convertSecsToHumanReadable;
 
 function postAsForm(url, parameters) {
-  var form = $("<form></form>");
+  const form = $('<form></form>');
 
-  form.attr("method", "POST");
-  form.attr("action", url);
+  form.attr('method', 'POST');
+  form.attr('action', url);
 
-  $.each(parameters || {}, function(key, value) {
-    var field = $('<input></input>');
+  $.each(parameters || {}, (key, value) => {
+    const field = $('<input></input>');
 
-    field.attr("type", "hidden");
-    field.attr("name", key);
-    field.attr("value", value);
+    field.attr('type', 'hidden');
+    field.attr('name', key);
+    field.attr('value', value);
 
     form.append(field);
   });
 
-  var field = $('<input></input>');
+  const field = $('<input></input>');
 
-  field.attr("type", "hidden");
-  field.attr("name", "csrf_token");
-  field.attr("value", csrfToken);
+  field.attr('type', 'hidden');
+  field.attr('name', 'csrf_token');
+  // csrfToken is defined in baselayout.html
+  // eslint-disable-next-line no-undef
+  field.attr('value', csrfToken);
 
   form.append(field);
 
@@ -104,14 +107,16 @@ function postAsForm(url, parameters) {
 
 window.postAsForm = postAsForm;
 
-$(document).ready(function () {
+$(document).ready(() => {
   displayTime();
   $('span').tooltip();
   $.ajaxSetup({
-    beforeSend: function(xhr, settings) {
+    beforeSend(xhr, settings) {
       if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-        xhr.setRequestHeader("X-CSRFToken", csrfToken);
+        // csrfToken is defined in baselayout.html
+        // eslint-disable-next-line no-undef
+        xhr.setRequestHeader('X-CSRFToken', csrfToken);
       }
-    }
+    },
   });
 });

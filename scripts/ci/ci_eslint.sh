@@ -23,8 +23,6 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
 
-export PYTHON_VERSION=3.5
-
 # shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
@@ -34,28 +32,6 @@ script_start
 
 rebuild_ci_slim_image_if_needed
 
-SKIP="pylint"
-
-echo "###########################################################"
-echo "    This job runs all static checks"
-echo "    It skips pylint until we fix all pylint files"
-
-
-if [[ "${TRAVIS_EVENT_TYPE:=}" != "cron" ]]; then
-    echo "    It also skips npmaudit as this is regular job"
-    SKIP="${SKIP},npmaudit"
-else
-    echo "    This is a CRON job, so it also runs npmaudit"
-fi
-
-export SKIP
-
-echo
-echo "    SKIP=${SKIP}"
-echo
-echo "###########################################################"
-echo
-
-pre-commit run --all-files --show-diff-on-failure
+run_eslint "$@"
 
 script_end

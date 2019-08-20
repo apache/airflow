@@ -196,3 +196,15 @@ repos:
         language: system
         entry: ./scripts/ci/ci_flake8.sh
         files: \.py$
+      - id: eslint
+        name: Run eslint
+        entry: ./scripts/ci/ci_eslint.sh
+        language: system
+        types: [javascript]
+        require_serial: true
+      - id: npmaudit
+        name: Run npm audit
+        entry: ./scripts/ci/ci_npm_audit.sh
+        language: system
+        types: [javascript]
+        require_serial: true

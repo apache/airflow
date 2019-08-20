@@ -32,6 +32,7 @@ echo
 echo "Running Licence check"
 echo
 
+sudo mkdir -pv "${AIRFLOW_SOURCES}/logs"
 sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${AIRFLOW_SOURCES}/logs"
 
 # This is the target of a symlink in airflow/www/static/docs -
