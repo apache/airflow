@@ -410,7 +410,6 @@ function rebuild_image_if_needed_for_static_checks() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
-    export AIRFLOW_CONTAINER_BUILD_NPM="false"  # Skip NPM builds to make them faster !
 
     export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
 
