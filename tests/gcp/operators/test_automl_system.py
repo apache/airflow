@@ -21,13 +21,13 @@ import unittest
 from tests.contrib.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
     SKIP_LONG_TEST_WARNING,
-    DagGcpSystemTestCase,
+    TestDagGcpSystem,
 )
 from tests.contrib.utils.gcp_authenticator import GCP_AUTOML_KEY
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_AUTOML_KEY), SKIP_TEST_WARNING)
-class AutoMLDatasetOperationsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_AUTOML_KEY), SKIP_TEST_WARNING)
+class AutoMLDatasetOperationsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
         super().__init__(
             method_name,
@@ -41,9 +41,9 @@ class AutoMLDatasetOperationsSystemTest(DagGcpSystemTestCase):
 
 
 @unittest.skipIf(
-    DagGcpSystemTestCase.skip_long(GCP_AUTOML_KEY), SKIP_LONG_TEST_WARNING
+    TestDagGcpSystem.skip_long(GCP_AUTOML_KEY), SKIP_LONG_TEST_WARNING
 )
-class AutoMLModelOperationsSystemTest(DagGcpSystemTestCase):
+class AutoMLModelOperationsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
         super().__init__(
             method_name,
