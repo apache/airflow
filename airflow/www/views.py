@@ -182,7 +182,7 @@ class Airflow(AirflowBaseView):
         scheduler_status = 'unhealthy'
         payload['metadatabase'] = {'status': 'healthy'}
         try:
-            scheduler_job = jobs.SchedulerJob.most_recent_job()
+            scheduler_job = jobs.SchedulerJob.most_recent_job(session=session)
 
             if scheduler_job:
                 latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
