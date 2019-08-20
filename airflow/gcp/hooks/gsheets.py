@@ -103,8 +103,8 @@ class GSheetsHook(GoogleCloudBaseHook):
         """
         if not range_:
             raise AirflowException("The 'range_' argument must be passed!")
-        # service = self.get_conn()
-        response = self.get_conn().spreadsheets().values().get(  # pylint: disable=no-member
+        service = self.get_conn()
+        response = service.spreadsheets().values().get(  # pylint: disable=no-member
             spreadsheetId=self.spreadsheet_id,
             range=range_,
             majorDimension=major_dimension,
