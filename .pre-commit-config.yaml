@@ -76,7 +76,7 @@ repos:
   - repo: local
     hooks:
       - id: shellcheck
-        name: Check Shell scripts syntax corectness
+        name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
