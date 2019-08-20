@@ -16,21 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for HDFS operations"""
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 try:
-    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
+    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient  # pylint: disable=syntax-error
     snakebite_loaded = True
 except ImportError:
     snakebite_loaded = False
 
 
 class HDFSHookException(AirflowException):
-    pass
+    """Exception specific for HDFS"""
 
 
+# noinspection PyAbstractClass
 class HDFSHook(BaseHook):
     """
     Interact with HDFS. This class is a wrapper around the snakebite library.
@@ -87,8 +89,8 @@ class HDFSHook(BaseHook):
                             effective_user=effective_user, use_sasl=use_sasl,
                             hdfs_namenode_principal=hdfs_namenode_principal)
         elif len(connections) > 1:
-            nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn, effective_user=effective_user,
+            name_node = [Namenode(conn.host, conn.port) for conn in connections]
+            client = HAClient(name_node, effective_user=effective_user,
                               use_sasl=use_sasl,
                               hdfs_namenode_principal=hdfs_namenode_principal)
         else:

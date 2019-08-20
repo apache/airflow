@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -216,19 +215,6 @@ fi
 
 ENV PATH "${PATH}:/tmp/hive/bin"
 
-ARG RAT_VERSION="0.12"
-
-ENV RAT_VERSION="${RAT_VERSION}" \
-    RAT_JAR="/tmp/apache-rat-${RAT_VERSION}.jar" \
-    RAT_URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
-
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -sL ${RAT_URL} > ${RAT_JAR} \
-    ;\
-fi
-
 ############################################################################################################
 # This is the target image - it installs PIP and NPM dependencies including efficient caching
 # mechanisms - it might be used to build the bare airflow build or CI build
@@ -239,8 +225,6 @@ fi
 FROM ${APT_DEPS_IMAGE} as main
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
-WORKDIR /opt/airflow
 
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
@@ -255,6 +239,8 @@ ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
 ARG AIRFLOW_SOURCES=/opt/airflow
 ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+
+WORKDIR ${AIRFLOW_SOURCES}
 
 RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/dags \
@@ -319,6 +305,18 @@ RUN \
         && pip uninstall --yes apache-airflow; \
     fi
 
+# Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
+# installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
+# Rather than after setup.py is added.
+COPY --chown=airflow:airflow airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
+COPY --chown=airflow:airflow airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
+
+WORKDIR ${AIRFLOW_SOURCES}/airflow/www
+
+RUN gosu ${AIRFLOW_USER} npm ci
+
+WORKDIR ${AIRFLOW_SOURCES}
+
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
 
@@ -337,34 +335,14 @@ COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/
 # In non-CI optimized build this will install all dependencies before installing sources.
 RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
 
-COPY --chown=airflow:airflow airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
-COPY --chown=airflow:airflow airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-ARG BUILD_NPM=true
-ENV BUILD_NPM=${BUILD_NPM}
-
-# Install necessary NPM dependencies (triggered by changes in package-lock.json)
-RUN \
-    if [[ "${BUILD_NPM}" == "true" ]]; then \
-        gosu ${AIRFLOW_USER} npm ci; \
-    fi
-
+# Copy all www files here so that we can run npm building for production
 COPY --chown=airflow:airflow airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 # Package NPM for production
-RUN \
-    if [[ "${BUILD_NPM}" == "true" ]]; then \
-        gosu ${AIRFLOW_USER} npm run prod; \
-    fi
-
-# Always apt-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN gosu ${AIRFLOW_USER} npm run prod
 
 # Cache for this line will be automatically invalidated if any
 # of airflow sources change
@@ -374,13 +352,6 @@ WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
 RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
-
-# Always add-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""

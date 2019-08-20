@@ -19,6 +19,7 @@
 """
 This module contains Google Cloud Storage to S3 operator.
 """
+import warnings
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
@@ -39,8 +40,10 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :type delimiter: str
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google Cloud Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -75,11 +78,12 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  bucket,
                  prefix=None,
                  delimiter=None,
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  dest_aws_conn_id=None,
                  dest_s3_key=None,
@@ -88,15 +92,22 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
                  *args,
                  **kwargs):
 
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         super().__init__(
             bucket=bucket,
             prefix=prefix,
             delimiter=delimiter,
-            google_cloud_storage_conn_id=google_cloud_storage_conn_id,
+            gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             *args,
             **kwargs
         )
+
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
         self.dest_verify = dest_verify
@@ -123,7 +134,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
 
         if files:
             hook = GoogleCloudStorageHook(
-                google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+                google_cloud_storage_conn_id=self.gcp_conn_id,
                 delegate_to=self.delegate_to
             )
 

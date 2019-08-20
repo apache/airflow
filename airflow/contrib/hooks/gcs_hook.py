@@ -21,6 +21,7 @@
 This module contains a Google Cloud Storage hook.
 """
 
+from typing import Optional
 import gzip as gz
 import os
 import shutil
@@ -38,7 +39,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     connection.
     """
 
-    _conn = None
+    _conn = None  # type: Optional[storage.Client]
 
     def __init__(self,
                  google_cloud_storage_conn_id='google_cloud_default',
@@ -51,7 +52,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         if not self._conn:
-            self._conn = storage.Client(credentials=self._get_credentials())
+            self._conn = storage.Client(credentials=self._get_credentials(),
+                                        client_info=self.client_info,
+                                        project=self.project_id)
 
         return self._conn
 
@@ -479,7 +482,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         self.log.info('A new ACL entry created in bucket: %s', bucket_name)
 
-    def insert_object_acl(self, bucket_name, object_name, entity, role, user_project=None):
+    def insert_object_acl(self, bucket_name, object_name, entity, role, generation=None, user_project=None):
         """
         Creates a new ACL entry on the specified object.
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
@@ -498,6 +501,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param role: The access permission for the entity.
             Acceptable values are: "OWNER", "READER".
         :type role: str
+        :param generation: Optional. If present, selects a specific revision of this object.
+        :type generation: long
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
         :type user_project: str
@@ -506,7 +511,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name=bucket_name)
-        blob = bucket.blob(object_name)
+        blob = bucket.blob(blob_name=object_name, generation=generation)
         # Reload fetches the current ACL from Cloud Storage.
         blob.acl.reload()
         blob.acl.entity_from_dict(entity_dict={"entity": entity, "role": role})

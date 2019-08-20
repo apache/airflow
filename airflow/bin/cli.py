@@ -59,7 +59,7 @@ from airflow.executors import get_default_executor
 from airflow.models import (
     Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
 )
-from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
+from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
@@ -559,7 +559,7 @@ def task_failed_deps(args):
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
 
-    dep_context = DepContext(deps=SCHEDULER_DEPS)
+    dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
     # TODO, Do we want to print or log this
     if failed_deps:

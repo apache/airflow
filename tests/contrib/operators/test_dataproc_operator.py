@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# pylint: disable=too-many-lines
 
 import datetime
 import re
@@ -61,6 +62,7 @@ TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 CUSTOM_IMAGE = 'test-custom-image'
+CUSTOM_IMAGE_PROJECT_ID = 'test-custom-image-project-id'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
@@ -324,6 +326,27 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
                          expected_custom_image_url)
 
+    def test_init_with_custom_image_with_custom_image_project_id(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=GCE_ZONE,
+            dag=self.dag,
+            custom_image=CUSTOM_IMAGE,
+            custom_image_project_id=CUSTOM_IMAGE_PROJECT_ID
+        )
+
+        cluster_data = dataproc_operator._build_cluster_data()
+        expected_custom_image_url = \
+            'https://www.googleapis.com/compute/beta/projects/' \
+            '{}/global/images/{}'.format(CUSTOM_IMAGE_PROJECT_ID, CUSTOM_IMAGE)
+        self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
+                         expected_custom_image_url)
+        self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
+                         expected_custom_image_url)
+
     def test_build_single_node_cluster(self):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
@@ -402,6 +425,73 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                             {'zoneUri': zone_uri},
                         'masterConfig': {
                             'numInstances': 1,
+                            'machineTypeUri': machine_type_uri,
+                            'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 1024}},
+                        'workerConfig': {
+                            'numInstances': 123,
+                            'machineTypeUri': machine_type_uri,
+                            'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 1024}},
+                        'secondaryWorkerConfig': {},
+                        'softwareConfig': {},
+                        'lifecycleConfig': {},
+                        'encryptionConfig': {},
+                        'autoscalingConfig': {},
+                    },
+                    'labels': {'airflow-version': mock.ANY}})
+            hook.wait.assert_called_once_with(self.operation)
+
+    def test_create_cluster_with_multiple_masters(self):
+        # Setup service.projects().regions().clusters().create()
+        #              .execute()
+
+        # pylint:disable=attribute-defined-outside-init
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_clusters = Mock()
+        self.mock_clusters.create.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.clusters.return_value = self.mock_clusters
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        # pylint:enable=attribute-defined-outside-init
+
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.wait.return_value = None
+            num_masters = 3
+
+            dataproc_task = DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                cluster_name=CLUSTER_NAME,
+                num_masters=num_masters,
+                project_id=GCP_PROJECT_ID,
+                num_workers=NUM_WORKERS,
+                zone=GCE_ZONE,
+                dag=self.dag
+            )
+            dataproc_task.execute(None)
+
+            project_uri = 'https://www.googleapis.com/compute/v1/projects/test-project-id'
+            machine_type_uri = project_uri + '/zones/us-central1-a/machineTypes/n1-standard-4'
+            zone_uri = project_uri + '/zones/us-central1-a'
+
+            self.mock_clusters.create.assert_called_once_with(
+                region=GCP_REGION,
+                projectId=GCP_PROJECT_ID,
+                requestId=mock.ANY,
+                body={
+                    'projectId': 'test-project-id',
+                    'clusterName': 'test-cluster-name',
+                    'config': {
+                        'gceClusterConfig':
+                            {'zoneUri': zone_uri},
+                        'masterConfig': {
+                            'numInstances': num_masters,
                             'machineTypeUri': machine_type_uri,
                             'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 1024}},
                         'workerConfig': {

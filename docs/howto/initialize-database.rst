@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Initializing a Database Backend
 ===============================
@@ -31,7 +33,7 @@ SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
 
 .. note:: If you decide to use **Postgres**, we recommend using the ``psycopg2``
    driver and specifying it in your SqlAlchemy connection string. (I.e.,
-   ``postgresql+psycopg2://<user>:<password>@<host>/<db>``.) 
+   ``postgresql+psycopg2://<user>:<password>@<host>/<db>``.)
    Also note that since SqlAlchemy does not expose a way to target a
    specific schema in the Postgres connection URI, you may
    want to set a default schema for your role with a

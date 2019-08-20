@@ -312,7 +312,12 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         raise
 
     log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
+    try:
+        os.killpg(os.getpgid(pid), sig)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            return
+        raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
@@ -320,7 +325,12 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         for p in alive:
             log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except OSError as err:
+            if err.errno == errno.ESRCH:
+                return
+            raise
 
         gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
@@ -355,3 +365,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

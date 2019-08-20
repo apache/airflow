@@ -143,7 +143,7 @@ class Connection(Base, LoggingMixin):
             if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query)))
+            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
     def get_password(self):
         if self._password and self.is_encrypted:

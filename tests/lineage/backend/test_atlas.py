@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import unittest
+from configparser import DuplicateSectionError
 
 from airflow.configuration import conf, AirflowConfigException
 from airflow.lineage.backend.atlas import AtlasBackend
@@ -25,8 +27,6 @@ from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from tests.compat import mock
-
-from backports.configparser import DuplicateSectionError
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

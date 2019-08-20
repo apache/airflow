@@ -64,6 +64,17 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
+    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
+                 conf=None, state=None):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.execution_date = execution_date
+        self.start_date = start_date
+        self.external_trigger = external_trigger
+        self.conf = conf
+        self.state = state
+        super().__init__()
+
     def __repr__(self):
         return (
             '<DagRun {dag_id} @ {execution_date}: {run_id}, '

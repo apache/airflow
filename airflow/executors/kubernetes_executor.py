@@ -189,6 +189,8 @@ class KubeConfig:
         self.git_ssh_key_secret_name = conf.get(self.kubernetes_section, 'git_ssh_key_secret_name')
         self.git_ssh_known_hosts_configmap_name = conf.get(self.kubernetes_section,
                                                            'git_ssh_known_hosts_configmap_name')
+        self.git_sync_credentials_secret = conf.get(self.kubernetes_section,
+                                                    'git_sync_credentials_secret')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly

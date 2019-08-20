@@ -28,13 +28,14 @@ trigger it manually `airflow dags trigger example_qubole_operator`.
 example. Also be aware that it might spin up clusters to run these examples.*
 """
 
-import airflow
-from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from airflow.contrib.operators.qubole_operator import QuboleOperator
 import filecmp
 import random
+
+import airflow
+from airflow import DAG
+from airflow.contrib.operators.qubole_operator import QuboleOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 
 default_args = {
     'owner': 'Airflow',
@@ -50,11 +51,19 @@ dag = DAG('example_qubole_operator', default_args=default_args, schedule_interva
 dag.doc_md = __doc__
 
 
-def compare_result(ds, **kwargs):
+def compare_result(**kwargs):
+    """
+    Compares the results of two QuboleOperator tasks.
+
+    :param kwargs: The context of the executed task.
+    :type kwargs: dict
+    :return: True if the files are the same, False otherwise.
+    :rtype: bool
+    """
     ti = kwargs['ti']
-    r1 = t1.get_results(ti)
-    r2 = t2.get_results(ti)
-    return filecmp.cmp(r1, r2)
+    qubole_result_1 = t1.get_results(ti)
+    qubole_result_2 = t2.get_results(ti)
+    return filecmp.cmp(qubole_result_1, qubole_result_2)
 
 
 t1 = QuboleOperator(

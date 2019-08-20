@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional  # noqa: W0611
 import json
 import os
 import subprocess
@@ -37,7 +38,7 @@ GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
-
+GCP_TASKS_KEY = 'gcp_tasks.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
@@ -55,7 +56,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
     connection - it can authenticate with the gcp key name specified
     """
 
-    original_account = None
+    original_account = None  # type: Optional[str]
 
     def __init__(self, gcp_key, project_extra=None):
         """

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Optional
 import logging
 import socket
 
@@ -36,7 +37,7 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any
-appbuilder = None
+appbuilder = None  # type: Optional[AppBuilder]
 csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)

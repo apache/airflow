@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Writing Logs
 ============
@@ -182,3 +184,24 @@ To output task logs to stdout in JSON format, the following config could be used
     write_stdout = True
     json_format = True
     json_fields = asctime, filename, lineno, levelname, message
+
+.. _write-logs-elasticsearch-tls:
+
+Writing Logs to Elasticsearch over TLS
+----------------------------------------
+
+To add custom configurations to ElasticSearch (e.g. turning on ssl_verify, adding a custom self-signed cert, etc.) use the `elasticsearch_configs` setting in your airfow.cfg
+
+.. code-block:: bash
+
+    [core]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+
+    [elasticsearch_configs]
+    use_ssl=True
+    verify_certs=True
+    ca_certs=/path/to/CA_certs

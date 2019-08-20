@@ -19,6 +19,7 @@
 """
 Tests for Google Cloud Build Hook
 """
+from typing import Optional
 import unittest
 from unittest import mock
 
@@ -46,7 +47,7 @@ TEST_PROJECT_ID = "cloud-build-project-id"
 
 
 class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
-    hook = None
+    hook = None  # type: Optional[CloudBuildHook]
 
     def setUp(self):
         with mock.patch(
@@ -119,7 +120,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
 
 class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
-    hook = None
+    hook = None  # type: Optional[CloudBuildHook]
 
     def setUp(self):
         with mock.patch(
@@ -188,7 +189,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
 
 class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
-    hook = None
+    hook = None  # type: Optional[CloudBuildHook]
 
     def setUp(self):
         with mock.patch(

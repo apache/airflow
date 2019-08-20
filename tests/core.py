@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
 import io
 import json
 import multiprocessing
@@ -73,9 +74,9 @@ from airflow.utils.dates import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.hooks import hdfs_hook
 from tests.test_utils.config import conf_vars
 
-NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -695,9 +696,6 @@ class CoreTest(unittest.TestCase):
 
         self.assertEqual(context['tomorrow_ds'], '2015-01-02')
         self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
-
-    def test_import_examples(self):
-        self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 
     def test_local_task_job(self):
         TI = TaskInstance
@@ -2177,8 +2175,8 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
-HDFSHook = None
-snakebite = None
+HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
+snakebite = None  # type: None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")

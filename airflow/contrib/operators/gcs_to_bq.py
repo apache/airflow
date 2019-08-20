@@ -104,10 +104,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
     :type max_id_key: str
-    :param bigquery_conn_id: Reference to a specific BigQuery hook.
+    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform and
+        interact with the BigQuery service.
     :type bigquery_conn_id: str
-    :param google_cloud_storage_conn_id: Reference to a specific Google
-        cloud storage hook.
+    :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
+        Platform and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
@@ -132,7 +133,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Not applicable for external tables.
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
-        options and schema for CSV and JSON sources. (Default: ``False``).
+        options and schema for CSV and JSON sources. (Default: ``True``).
         Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
@@ -177,7 +178,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  external_table=False,
                  time_partitioning=None,
                  cluster_fields=None,
-                 autodetect=False,
+                 autodetect=True,
                  encryption_configuration=None,
                  *args, **kwargs):
 

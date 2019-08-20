@@ -17,7 +17,6 @@
 # under the License.
 
 # This script was based on one made by @kimoonkim for kubernetes-hdfs
-
 set -ex
 
 if [[ ! -x /usr/local/bin/minikube ]]; then

@@ -35,6 +35,7 @@ from airflow.models.base import Base, ID_LEN
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.db import create_session, provide_session
+from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -191,8 +192,11 @@ class BaseJob(Base, LoggingMixin):
 
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
-        except OperationalError as e:
-            self.log.error("Scheduler heartbeat got an exception: %s", str(e))
+        except OperationalError:
+            Stats.incr(
+                convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
+                1)
+            self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
