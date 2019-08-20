@@ -49,7 +49,7 @@ Extra (optional)
     .. code-block:: json
 
        {
-          "key_file": "/home/airflow/.ssh/id_rsa"
+          "key_file": "/home/airflow/.ssh/id_rsa",
           "timeout": "10",
           "compress": "false",
           "no_host_key_check": "false",
