@@ -256,7 +256,7 @@ class DockerOperator(BaseOperator):
         if self.force_pull or len(self.cli.images(name=self.image)) == 0:
             self.log.info('Pulling docker image %s', self.image)
             for l in self.cli.pull(self.image, stream=True):
-                output = json.loads(l.decode('utf-8').strip())
+                output = json.loads(l.decode('utf-8').replace('\r\n', '\n').strip())
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
