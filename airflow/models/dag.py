@@ -673,6 +673,26 @@ class DAG(BaseDag, LoggingMixin):
         return dagrun
 
     @provide_session
+    def get_dagruns_between(self, start_date, end_date, session=None):
+        """
+        Returns the list of dag runs between start_date (inclusive) and end_date (inclusive).
+
+        :param start_date: The starting execution date of the DagRun to find.
+        :param end_date: The ending execution date of the DagRun to find.
+        :param session:
+        :return: The list of DagRuns found.
+        """
+        dagruns = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == self.dag_id,
+                DagRun.execution_date >= start_date,
+                DagRun.execution_date <= end_date)
+            .all())
+
+        return dagruns
+
+    @provide_session
     def _get_latest_execution_date(self, session=None):
         return session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
