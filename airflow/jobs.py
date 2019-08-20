@@ -852,13 +852,15 @@ class SchedulerJob(BaseJob):
                         next_run_date
                     )
                 if next_run_date and next_run_date <= dag.following_schedule(timezone.utcnow()):
-                    # if it is the very first run, set last run to previous period
+                    # if it is the very first run, set last run to previous, previous period
                     # This will force subsequent runs to be in the next future period
-                    # in the next future period
-                    next_execution_period = dag.previous_schedule(timezone.utcnow())
+                    # We need to set execution_date to 2 periods in the past, to force the next run
+                    # to occur in the next period vs the period after, since airflow runs the dags only for the previous
+                    # period.
+                    previous_execution_period = dag.previous_schedule(dag.previous_schedule(timezone.utcnow()))
                     dag.create_dagrun(
-                        run_id=DagRun.ID_PREFIX + next_execution_period.isoformat(),
-                        execution_date=next_execution_period,
+                        run_id=DagRun.ID_PREFIX + previous_execution_period.isoformat(),
+                        execution_date=previous_execution_period,
                         start_date=dag.start_date,
                         state=State.SUCCESS,
                         external_trigger=False
