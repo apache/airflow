@@ -227,7 +227,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, TaskInstance]
+        self.task_dict = dict()  # type: Dict[str, BaseOperator]
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -751,8 +751,14 @@ class DAG(BaseDag, LoggingMixin):
         return tis
 
     @property
-    def roots(self):
-        return [t for t in self.tasks if not t.downstream_list]
+    def roots(self) -> List["BaseOperator"]:
+        """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
+        return [task for task in self.tasks if not task.upstream_list]
+
+    @property
+    def leaves(self) -> List["BaseOperator"]:
+        """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
+        return [task for task in self.tasks if not task.downstream_list]
 
     def topological_sort(self, include_subdag_tasks: bool = False):
         """
@@ -1085,14 +1091,12 @@ class DAG(BaseDag, LoggingMixin):
 
         return dp
 
-    def tree_view(self):
-        """
-        Shows an ascii tree representation of the DAG
-        """
+    def tree_view(self) -> None:
+        """Print an ASCII tree representation of the DAG."""
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
-            for t in task.upstream_list:
+            for t in task.downstream_list:
                 get_downstream(t, level)
 
         for t in self.roots:

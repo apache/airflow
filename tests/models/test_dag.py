@@ -18,11 +18,13 @@
 # under the License.
 
 import datetime
+import io
 import logging
 import os
 import re
 import unittest
 from tempfile import NamedTemporaryFile
+from unittest import mock
 from unittest.mock import patch
 
 import pendulum
@@ -846,3 +848,44 @@ class DagTest(unittest.TestCase):
 
         dag = DAG('DAG', default_args=default_args)
         self.assertEqual(dag.timezone.name, local_tz.name)
+
+    def test_roots(self):
+        """Verify if dag.roots returns the root tasks of a DAG."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t4 = DummyOperator(task_id="t4")
+            t5 = DummyOperator(task_id="t5")
+            [t1, t2] >> t3 >> [t4, t5]
+
+            self.assertCountEqual(dag.roots, [t1, t2])
+
+    def test_leaves(self):
+        """Verify if dag.leaves returns the leaf tasks of a DAG."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t4 = DummyOperator(task_id="t4")
+            t5 = DummyOperator(task_id="t5")
+            [t1, t2] >> t3 >> [t4, t5]
+
+            self.assertCountEqual(dag.leaves, [t4, t5])
+
+    def test_tree_view(self):
+        """Verify correctness of dag.tree_view()."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t1 >> t2 >> t3
+
+            with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+                dag.tree_view()
+                stdout = mock_stdout.getvalue()
+
+            stdout_lines = stdout.split("\n")
+            self.assertIn('t1', stdout_lines[0])
+            self.assertIn('t2', stdout_lines[1])
+            self.assertIn('t3', stdout_lines[2])

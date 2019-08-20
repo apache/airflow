@@ -142,7 +142,7 @@
 
     // Set edges
     edges.forEach(function(edge) {
-      g.setEdge(edge.u, edge.v)
+      g.setEdge(edge.source_id, edge.target_id)
     });
 
     var render = dagreD3.render(),
