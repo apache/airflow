@@ -46,18 +46,14 @@ class GSheetsHook(GoogleCloudBaseHook):
 
     def __init__(
         self,
+        spreadsheet_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        spreadsheet_id: str = None,
         api_version: str = 'v4',
         delegate_to: str = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
-        self.gcp_conn_id = gcp_conn_id
-
-        if not spreadsheet_id:
-            raise AirflowException("The spreadsheet_id must be passed!")
-
         self.spreadsheet_id = spreadsheet_id
+        self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.delegate_to = delegate_to
         self.num_retries = self._get_field('num_retries', 5)
@@ -101,8 +97,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not range_:
-            raise AirflowException("The 'range_' argument must be passed!")
         service = self.get_conn()
         response = service.spreadsheets().values().get(  # pylint: disable=no-member
             spreadsheetId=self.spreadsheet_id,
@@ -140,8 +134,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not ranges:
-            raise AirflowException("The 'ranges' argument must be passed!")
         service = self.get_conn()
         response = service.spreadsheets().values().batchGet(  # pylint: disable=no-member
             spreadsheetId=self.spreadsheet_id,
@@ -190,10 +182,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not range_:
-            raise AirflowException("The 'range_' argument must be passed!")
-        if not values:
-            raise AirflowException("The 'values' argument must be passed!")
         service = self.get_conn()
         body = {
             "range": range_,
@@ -249,10 +237,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not ranges:
-            raise AirflowException("The 'ranges' argument must be passed!")
-        if not values:
-            raise AirflowException("The 'values' argument must be passed!")
         if len(ranges) != len(values):
             raise AirflowException(
                 "'Ranges' and and 'Lists' must be of equal length. \n \
@@ -267,7 +251,6 @@ class GSheetsHook(GoogleCloudBaseHook):
                 "values": values[idx]
             }
             data.append(value_range)
-
         body = {
             "valueInputOption": value_input_option,
             "data": data,
@@ -323,10 +306,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not range_:
-            raise AirflowException("The 'range_' argument must be passed!")
-        if not values:
-            raise AirflowException("The 'values' argument must be passed!")
         service = self.get_conn()
         body = {
             "range": range_,
@@ -357,8 +336,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not range_:
-            raise AirflowException("The 'range_' argument must be passed!")
         service = self.get_conn()
         response = service.spreadsheets().values().clear(  # pylint: disable=no-member
             spreadsheetId=self.spreadsheet_id,
@@ -378,9 +355,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         :return: Google Sheets API response.
         :rtype: dict
         """
-        if not ranges:
-            raise AirflowException("The 'ranges' argument must be passed!")
-
         service = self.get_conn()
         body = {
             "ranges": ranges
