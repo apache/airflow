@@ -82,12 +82,10 @@ serialized_simple_dag_ground_truth = {
             "__type": "dict"},
         "timezone": {"__var": "UTC", "__type": "timezone"},
         "schedule_interval": {"__var": 86400.0, "__type": "timedelta"},
-        "_schedule_interval": {"__var": 86400.0, "__type": "timedelta"},
         "max_active_runs": 16,
         "orientation": "LR",
         "catchup": True,
         "is_subdag": False,
-        "partial": False,
     }}
 
 

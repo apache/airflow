@@ -114,7 +114,16 @@
               ]
             },
             "catchup": { "type": "boolean" },
-            "is_subdag": { "type": "boolean" }
+            "is_subdag": { "type": "boolean" },
+            "fileloc": { "type" : "string"},
+            "orientation": { "type" : "string"},
+            "_description": { "type" : "string"},
+            "_concurrency": { "type" : "number"},
+            "max_active_runs": { "type" : "number"},
+            "default_args": { "$ref": "#/definitions/dict" },
+            "start_date": { "$ref": "#/definitions/datetime" },
+            "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
+            "doc_md": { "type" : "string"}
           },
           "required": [
             "params",
@@ -122,7 +131,7 @@
             "fileloc",
             "task_dict"
           ],
-          "additionalProperties": true
+          "additionalProperties": false
         }
       },
       "required": [
