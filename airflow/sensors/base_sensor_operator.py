@@ -113,11 +113,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException(
                         "Snap. Time is OUT for dag: {dag}"
-                        .format(dag=self.dag.dag_id))
+                        .format(dag=str(context['dag_run']) if context['dag_run'] else ""))
                 else:
                     raise AirflowSensorTimeout(
                         "Snap. Time is OUT for dag: {dag}"
-                        .format(dag=self.dag.dag_id))
+                        .format(dag=str(context['dag_run']) if context['dag_run'] else ""))
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
                     seconds=self.poke_interval)
