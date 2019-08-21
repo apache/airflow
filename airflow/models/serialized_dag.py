@@ -88,8 +88,8 @@ class SerializedDagModel(Base):
         # hashing is needed because the length of fileloc is 2000 as an Airflow convention,
         # which is over the limit of indexing. If we can reduce the length of fileloc, then
         # hashing is not needed.
-        return int(0xFFFF & int(
-            hashlib.sha1(full_filepath.encode('utf-8')).hexdigest(), 16))
+        return int.from_bytes(
+            hashlib.sha1(full_filepath.encode('utf-8')).digest()[-2:], byteorder='big', signed=False)
 
     @classmethod
     @db.provide_session
