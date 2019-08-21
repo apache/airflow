@@ -65,9 +65,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         file has been skipped. This is to prevent overloading the user with logging
         messages about skipped files. Therefore only once per DagBag is a file logged
         being skipped.
-    :param dagcached_enabled: Read DAGs from DB if dagcached_enabled is ``True``.
+    :param store_serialized_dags: Read DAGs from DB if store_serialized_dags is ``True``.
         If ``False`` DAGs are read from python files.
-    :type dagcached_enabled: bool
+    :type store_serialized_dags: bool
     """
 
     # static class variables to detetct dag cycle
@@ -84,7 +84,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             executor=None,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            dagcached_enabled=False):
+            store_serialized_dags=False):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
@@ -97,7 +97,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.executor = executor
         self.import_errors = {}
         self.has_logged = False
-        self.dagcached_enabled = dagcached_enabled
+        self.store_serialized_dags = store_serialized_dags
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -125,13 +125,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         from airflow.models.dag import DagModel  # Avoid circular import
 
-        # Only read DAGs from DB if this dagbag is dagcached_enabled.
+        # Only read DAGs from DB if this dagbag is store_serialized_dags.
         # from_file_only is an exception, currently it is for renderring templates
         # in UI only. Because functions are gone in serialized DAGs, DAGs must be
         # imported from files.
         # FIXME: this exception should be removed in future, then webserver can be
         # decoupled from DAG files.
-        if self.dagcached_enabled and not from_file_only:
+        if self.store_serialized_dags and not from_file_only:
             return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
@@ -142,9 +142,9 @@ class DagBag(BaseDagBag, LoggingMixin):
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
-        # Needs to load from file for a dagcached_enabled dagbag.
+        # Needs to load from file for a store_serialized_dags dagbag.
         enforce_from_file = False
-        if self.dagcached_enabled and dag is not None:
+        if self.store_serialized_dags and dag is not None:
             from airflow.dag.serialization.serialized_dag import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
 
@@ -381,7 +381,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
-        if self.dagcached_enabled:
+        if self.store_serialized_dags:
             self.collect_dags_from_db()
             return
 

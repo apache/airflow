@@ -52,9 +52,8 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
-from airflow.settings import DAGCACHED_ENABLED
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
-from airflow.ti_deps.dep_context import DepContext, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import create_session, provide_session
@@ -71,7 +70,7 @@ from airflow.www.widgets import AirflowModelListWidget
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER, dagcached_enabled=DAGCACHED_ENABLED)
+    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
@@ -459,7 +458,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag(DAGCACHED_ENABLED)
+        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -1690,7 +1689,7 @@ class Airflow(AirflowBaseView):
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
             is_paused=is_paused,
-            dagcached_enabled=DAGCACHED_ENABLED)
+            store_serialized_dags=STORE_SERIALIZED_DAGS)
         return "OK"
 
     @expose('/refresh', methods=['POST'])

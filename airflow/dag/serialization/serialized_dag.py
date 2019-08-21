@@ -64,8 +64,8 @@ class SerializedDAG(DAG, Serialization):
         setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
-            if task.subdag is not None:
-                setattr(task.subdag, 'parent_dag', dag)
+            if task.subdag is not None:  # type: ignore # Property of SubDagOperator
+                setattr(task.subdag, 'parent_dag', dag)  # type: ignore
         return dag
 
     @classmethod

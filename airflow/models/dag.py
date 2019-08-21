@@ -46,7 +46,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.settings import DAGCACHED_ENABLED, DAGCACHED_MIN_UPDATE_INTERVAL
+from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
@@ -1385,10 +1385,10 @@ class DAG(BaseDag, LoggingMixin):
         # Write DAGs to serialized_dag table in DB.
         # subdags are not written into serialized_dag, because they are not displayed
         # in the DAG list on UI. They are included in the serialized parent DAG.
-        if DAGCACHED_ENABLED and not self.is_subdag:
+        if STORE_SERIALIZED_DAGS and not self.is_subdag:
             SerializedDagModel.write_dag(
                 self,
-                min_update_interval=DAGCACHED_MIN_UPDATE_INTERVAL,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                 session=session
             )
 
@@ -1582,17 +1582,17 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self, dagcached_enabled=False):
+    def get_dag(self, store_serialized_dags=False):
         """Creates a dagbag to load and return a DAG.
 
-        Calling it from UI should set dagcached_enabled = DAGCACHED_ENABLED.
+        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
         There may be a delay for scheduler to write serialized DAG into database,
         loads from file in this case.
-        FIXME: removes it when webserver does not access to DAG folder in future.
+        FIXME: remove it when webserver does not access to DAG folder in future.
         """
         dag = DagBag(
-            dag_folder=self.fileloc, dagcached_enabled=dagcached_enabled).get_dag(self.dag_id)
-        if dagcached_enabled and dag is None:
+            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
+        if store_serialized_dags and dag is None:
             dag = self.get_dag()
         return dag
 
@@ -1635,18 +1635,19 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      dagcached_enabled: bool = False,
+                      store_serialized_dags: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
+        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
         dag_ids = [self.dag_id]  # type: List[str]
         if including_subdags:
-            dag = self.get_dag(dagcached_enabled)
+            dag = self.get_dag(store_serialized_dags)
             if dag is None:
                 raise DagNotFound("Dag id {} not found".format(self.dag_id))
             subdags = dag.subdags
