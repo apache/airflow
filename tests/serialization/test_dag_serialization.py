@@ -68,8 +68,6 @@ serialized_simple_dag_ground_truth = {
                         "do_xcom_push": True,
                         "_upstream_task_ids": {"__var": [], "__type": "set"},
                         "_downstream_task_ids": {"__var": [], "__type": "set"},
-                        "inlets": [],
-                        "outlets": [],
                         "_inlets": {
                             "__var": {"auto": False, "task_ids": [], "datasets": []},
                             "__type": "dict"},

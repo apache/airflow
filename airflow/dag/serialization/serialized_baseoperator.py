@@ -30,8 +30,9 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
     """
-    _included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
-        '_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields']
+    _included_fields = list(vars(BaseOperator(task_id='test')).keys() - {
+        'inlets', 'outlets'
+    }) + ['_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
