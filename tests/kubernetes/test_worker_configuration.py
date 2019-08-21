@@ -358,6 +358,45 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                          'The location where the git ssh secret is mounted'
                          ' needs to be the same as the GIT_SSH_KEY_FILE path')
 
+    def test_make_pod_git_sync_credentials_secret(self):
+        # Tests the pod created with git_sync_credentials_secret will get into the init container
+        self.kube_config.git_sync_credentials_secret = 'airflow-git-creds-secret'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+        self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.git_sync_dest = 'repo'
+        self.kube_config.git_subpath = 'path'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+
+        username_env = k8s.V1EnvVar(
+            name='GIT_SYNC_USERNAME',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name=self.kube_config.git_sync_credentials_secret,
+                    key='GIT_SYNC_USERNAME')
+            )
+        )
+        password_env = k8s.V1EnvVar(
+            name='GIT_SYNC_PASSWORD',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name=self.kube_config.git_sync_credentials_secret,
+                    key='GIT_SYNC_PASSWORD')
+            )
+        )
+
+        self.assertIn(username_env, pod.spec.init_containers[0].env,
+                      'The username env for git credentials did not get into the init container')
+
+        self.assertIn(password_env, pod.spec.init_containers[0].env,
+                      'The password env for git credentials did not get into the init container')
+
     def test_make_pod_git_sync_ssh_with_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct with known hosts
         self.kube_config.airflow_configmap = 'airflow-configmap'

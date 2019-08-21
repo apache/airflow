@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Optional
+from typing_extensions import Protocol
 import sys
 
 from math import pow
@@ -27,6 +29,20 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
+
+
+class BatchProtocol(Protocol):
+    def submit_job(self, jobName, jobQueue, jobDefinition, containerOverrides):
+        ...
+
+    def get_waiter(self, x: str):
+        ...
+
+    def describe_jobs(self, jobs):
+        ...
+
+    def terminate_job(self, jobId: str, reason: str):
+        ...
 
 
 class AWSBatchOperator(BaseOperator):
@@ -59,8 +75,8 @@ class AWSBatchOperator(BaseOperator):
     """
 
     ui_color = '#c3dae0'
-    client = None
-    arn = None
+    client = None  # type: Optional[BatchProtocol]
+    arn = None  # type: Optional[str]
     template_fields = ('job_name', 'overrides',)
 
     @apply_defaults

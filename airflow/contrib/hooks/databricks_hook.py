@@ -16,17 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Databricks hook."""
 from urllib.parse import urlparse
+from time import sleep
 
 import requests
+from requests import exceptions as requests_exceptions
+from requests.auth import AuthBase
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from requests import exceptions as requests_exceptions
-from requests.auth import AuthBase
-from time import sleep
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -39,29 +39,59 @@ CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
+class RunState:
+    """
+    Utility class for the run state concept of Databricks runs.
+    """
+    def __init__(self, life_cycle_state, result_state, state_message):
+        self.life_cycle_state = life_cycle_state
+        self.result_state = result_state
+        self.state_message = state_message
+
+    @property
+    def is_terminal(self) -> bool:
+        """True if the current state is a terminal state."""
+        if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                ('Unexpected life cycle state: {}: If the state has '
+                 'been introduced recently, please check the Databricks user '
+                 'guide for troubleshooting information').format(
+                    self.life_cycle_state))
+        return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
+
+    @property
+    def is_successful(self) -> bool:
+        """True if the result state is SUCCESS"""
+        return self.result_state == 'SUCCESS'
+
+    def __eq__(self, other):
+        return self.life_cycle_state == other.life_cycle_state and \
+            self.result_state == other.result_state and \
+            self.state_message == other.state_message
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+
+# noinspection PyAbstractClass
 class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
+
+    :param databricks_conn_id: The name of the databricks connection to use.
+    :type databricks_conn_id: str
+    :param timeout_seconds: The amount of time in seconds the requests library
+        will wait before timing-out.
+    :type timeout_seconds: int
+    :param retry_limit: The number of times to retry the connection in case of
+        service outages.
+    :type retry_limit: int
+    :param retry_delay: The number of seconds to wait between retries (it
+        might be a floating point number).
+    :type retry_delay: float
     """
-    def __init__(
-            self,
-            databricks_conn_id='databricks_default',
-            timeout_seconds=180,
-            retry_limit=3,
-            retry_delay=1.0):
-        """
-        :param databricks_conn_id: The name of the databricks connection to use.
-        :type databricks_conn_id: str
-        :param timeout_seconds: The amount of time in seconds the requests library
-            will wait before timing-out.
-        :type timeout_seconds: int
-        :param retry_limit: The number of times to retry the connection in case of
-            service outages.
-        :type retry_limit: int
-        :param retry_delay: The number of seconds to wait between retries (it
-            might be a floating point number).
-        :type retry_delay: float
-        """
+    def __init__(self, databricks_conn_id='databricks_default', timeout_seconds=180, retry_limit=3,
+                 retry_delay=1.0):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
@@ -189,12 +219,24 @@ class DatabricksHook(BaseHook):
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
 
-    def get_run_page_url(self, run_id):
+    def get_run_page_url(self, run_id: str) -> str:
+        """
+        Retrieves run_page_url.
+
+        :param run_id: id of the run
+        :return: URL of the run page
+        """
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
-    def get_run_state(self, run_id):
+    def get_run_state(self, run_id: str) -> RunState:
+        """
+        Retrieves run state of the run.
+
+        :param run_id: id of the run
+        :return: state of the run
+        """
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
@@ -204,23 +246,42 @@ class DatabricksHook(BaseHook):
         state_message = state['state_message']
         return RunState(life_cycle_state, result_state, state_message)
 
-    def cancel_run(self, run_id):
+    def cancel_run(self, run_id: str) -> None:
+        """
+        Cancels the run.
+
+        :param run_id: id of the run
+        """
         json = {'run_id': run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
 
-    def restart_cluster(self, json):
+    def restart_cluster(self, json: dict) -> None:
+        """
+        Restarts the cluster.
+
+        :param json: json dictionary containing cluster specification.
+        """
         self._do_api_call(RESTART_CLUSTER_ENDPOINT, json)
 
-    def start_cluster(self, json):
+    def start_cluster(self, json: dict) -> None:
+        """
+        Starts the cluster.
+
+        :param json: json dictionary containing cluster specification.
+        """
         self._do_api_call(START_CLUSTER_ENDPOINT, json)
 
-    def terminate_cluster(self, json):
+    def terminate_cluster(self, json: dict) -> None:
+        """
+        Terminates the cluster.
+
+        :param json: json dictionary containing cluster specification.
+        """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
 
 
 def _retryable_error(exception):
-    return isinstance(exception, requests_exceptions.ConnectionError) \
-        or isinstance(exception, requests_exceptions.Timeout) \
+    return isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) \
         or exception.response is not None and exception.response.status_code >= 500
 
 
@@ -232,38 +293,6 @@ RUN_LIFE_CYCLE_STATES = [
     'SKIPPED',
     'INTERNAL_ERROR'
 ]
-
-
-class RunState:
-    """
-    Utility class for the run state concept of Databricks runs.
-    """
-    def __init__(self, life_cycle_state, result_state, state_message):
-        self.life_cycle_state = life_cycle_state
-        self.result_state = result_state
-        self.state_message = state_message
-
-    @property
-    def is_terminal(self):
-        if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(
-                ('Unexpected life cycle state: {}: If the state has '
-                 'been introduced recently, please check the Databricks user '
-                 'guide for troubleshooting information').format(
-                    self.life_cycle_state))
-        return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
-
-    @property
-    def is_successful(self):
-        return self.result_state == 'SUCCESS'
-
-    def __eq__(self, other):
-        return self.life_cycle_state == other.life_cycle_state and \
-            self.result_state == other.result_state and \
-            self.state_message == other.state_message
-
-    def __repr__(self):
-        return str(self.__dict__)
 
 
 class _TokenAuth(AuthBase):

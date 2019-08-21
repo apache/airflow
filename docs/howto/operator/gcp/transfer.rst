@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Google Cloud Transfer Service Operators
 =======================================
@@ -53,7 +55,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -61,17 +63,17 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_create_job_body_gcp]
       :end-before: [END howto_operator_gcp_transfer_create_job_body_gcp]
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_create_job_body_aws]
       :end-before: [END howto_operator_gcp_transfer_create_job_body_aws]
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_create_job]
@@ -80,7 +82,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_create_template_fields]
@@ -104,7 +106,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -112,7 +114,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_delete_job]
@@ -121,7 +123,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_delete_template_fields]
@@ -145,7 +147,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -153,12 +155,12 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_update_job_body]
       :end-before: [END howto_operator_gcp_transfer_update_job_body]
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_update_job]
@@ -167,7 +169,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_update_template_fields]
@@ -191,7 +193,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -199,7 +201,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_cancel_operation]
@@ -208,7 +210,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_cancel_template_fields]
@@ -233,7 +235,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -241,7 +243,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_get_operation]
@@ -250,7 +252,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_get_template_fields]
@@ -274,7 +276,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -282,7 +284,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_list_operations]
@@ -291,7 +293,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operations_list_template_fields]
@@ -315,7 +317,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -323,7 +325,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_pause_operation]
@@ -332,7 +334,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_pause_template_fields]
@@ -356,7 +358,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -364,7 +366,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_resume_operation]
@@ -373,7 +375,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_transfer_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_resume_template_fields]
@@ -396,7 +398,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_common_variables]
       :end-before: [END howto_operator_gcp_transfer_common_variables]
@@ -404,7 +406,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_transfer.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_storage_transfer_service.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_wait_operation]
@@ -413,7 +415,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/sensors/gcp_transfer_sensor.py
+.. literalinclude:: ../../../../airflow/gcp/sensors/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_sensor_template_fields]

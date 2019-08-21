@@ -86,6 +86,27 @@ class WorkerConfiguration(LoggingMixin):
             name=self.dags_volume_name,
             read_only=False
         )]
+
+        if self.kube_config.git_sync_credentials_secret:
+            init_environment.extend([
+                k8s.V1EnvVar(
+                    name='GIT_SYNC_USERNAME',
+                    value_from=k8s.V1EnvVarSource(
+                        secret_key_ref=k8s.V1SecretKeySelector(
+                            name=self.kube_config.git_sync_credentials_secret,
+                            key='GIT_SYNC_USERNAME')
+                    )
+                ),
+                k8s.V1EnvVar(
+                    name='GIT_SYNC_PASSWORD',
+                    value_from=k8s.V1EnvVarSource(
+                        secret_key_ref=k8s.V1SecretKeySelector(
+                            name=self.kube_config.git_sync_credentials_secret,
+                            key='GIT_SYNC_PASSWORD')
+                    )
+                )
+            ])
+
         if self.kube_config.git_ssh_key_secret_name:
             volume_mounts.append(k8s.V1VolumeMount(
                 name=self.git_sync_ssh_secret_volume_name,

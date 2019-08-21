@@ -69,7 +69,7 @@ NOTEBOOK_PARAMS = {
     "oldest-time-to-consider": "1457570074236"
 }
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None
+RESULT_STATE = None  # type: None
 
 
 def run_now_endpoint(host):

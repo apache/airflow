@@ -18,12 +18,12 @@
 # under the License.
 
 import unittest
+
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
-
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
+from tests.compat import mock
 
 HELLO_SERVER_CMD = """
 import socket, sys
@@ -156,11 +156,11 @@ class SSHHookTest(unittest.TestCase):
         with hook.create_tunnel(2135, 2134):
             server_output = server_handle.stdout.read(5)
             self.assertEqual(server_output, b"ready")
-            s = socket.socket()
-            s.connect(("localhost", 2135))
-            response = s.recv(5)
+            socket = socket.socket()
+            socket.connect(("localhost", 2135))
+            response = socket.recv(5)
             self.assertEqual(response, b"hello")
-            s.close()
+            socket.close()
             server_handle.communicate()
             self.assertEqual(server_handle.returncode, 0)
 

@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional  # noqa: W0611
 import json
 import os
 import subprocess
@@ -55,7 +56,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
     connection - it can authenticate with the gcp key name specified
     """
 
-    original_account = None
+    original_account = None  # type: Optional[str]
 
     def __init__(self, gcp_key, project_extra=None):
         """

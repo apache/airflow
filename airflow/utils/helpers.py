@@ -92,18 +92,6 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
-
-
 def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string

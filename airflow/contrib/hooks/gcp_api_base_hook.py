@@ -31,7 +31,7 @@ import httplib2
 
 import google.auth
 import google.oauth2.service_account
-from google.api_core.client_info import ClientInfo
+from google.api_core.gapic_v1.client_info import ClientInfo
 from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
 
@@ -92,21 +92,18 @@ class GoogleCloudBaseHook(BaseHook):
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-        scope_value = self._get_field('scope', None)  # type: Optional[str]
-        scopes = [s.strip() for s in scope_value.split(',')] \
-            if scope_value else _DEFAULT_SCOPES  # type: Sequence[str]
 
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
-            credentials, _ = google.auth.default(scopes=scopes)
+            credentials, _ = google.auth.default(scopes=self.scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
                 self.log.debug('Getting connection using JSON key file %s' % key_path)
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_file(
-                        key_path, scopes=scopes)
+                        key_path, scopes=self.scopes)
                 )
             elif key_path.endswith('.p12'):
                 raise AirflowException('Legacy P12 key file are not supported, '
@@ -126,7 +123,7 @@ class GoogleCloudBaseHook(BaseHook):
 
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_info(
-                        keyfile_dict_json, scopes=scopes)
+                        keyfile_dict_json, scopes=self.scopes)
                 )
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
@@ -187,6 +184,19 @@ class GoogleCloudBaseHook(BaseHook):
         """
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
         return client_info
+
+    @property
+    def scopes(self) -> Sequence[str]:
+        """
+        Return OAuth 2.0 scopes.
+
+        :return: Returns the scope defined in the connection configuration, or the default scope
+        :rtype: Sequence[str]
+        """
+        scope_value = self._get_field('scope', None)  # type: Optional[str]
+
+        return [s.strip() for s in scope_value.split(',')] \
+            if scope_value else _DEFAULT_SCOPES
 
     @staticmethod
     def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:
@@ -257,13 +267,23 @@ class GoogleCloudBaseHook(BaseHook):
             with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
                 key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
                 keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-                if key_path:
-                    if key_path.endswith('.p12'):
-                        raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
-                    os.environ[CREDENTIALS] = key_path
-                elif keyfile_dict:
-                    conf_file.write(keyfile_dict)
-                    conf_file.flush()
-                    os.environ[CREDENTIALS] = conf_file.name
-                return func(self, *args, **kwargs)
+                current_env_state = os.environ.get(CREDENTIALS)
+                try:
+                    if key_path:
+                        if key_path.endswith('.p12'):
+                            raise AirflowException(
+                                'Legacy P12 key file are not supported, use a JSON key file.'
+                            )
+                        os.environ[CREDENTIALS] = key_path
+                    elif keyfile_dict:
+                        conf_file.write(keyfile_dict)
+                        conf_file.flush()
+                        os.environ[CREDENTIALS] = conf_file.name
+                    return func(self, *args, **kwargs)
+                finally:
+                    if current_env_state is None:
+                        if CREDENTIALS in os.environ:
+                            del os.environ[CREDENTIALS]
+                    else:
+                        os.environ[CREDENTIALS] = current_env_state
         return wrapper

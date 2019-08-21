@@ -109,7 +109,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :type bigquery_conn_id: str
     """
 
-    template_fields = ('sql', 'gcp_conn_id', )
+    template_fields = ('sql', 'gcp_conn_id', 'pass_value', )
     template_ext = ('.sql', )
 
     @apply_defaults
