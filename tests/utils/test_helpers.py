@@ -144,28 +144,6 @@ class TestHelpers(unittest.TestCase):
                                                   2),
                          14)
 
-    def test_is_in(self):
-        obj = ["list", "object"]
-        # Check for existence of a list object within a list
-        self.assertTrue(
-            helpers.is_in(obj, [obj])
-        )
-
-        # Check that an empty list returns false
-        self.assertFalse(
-            helpers.is_in(obj, [])
-        )
-
-        # Check to ensure it handles None types
-        self.assertFalse(
-            helpers.is_in(None, [obj])
-        )
-
-        # Check to ensure true will be returned of multiple objects exist
-        self.assertTrue(
-            helpers.is_in(obj, [obj, obj])
-        )
-
     def test_is_container(self):
         self.assertFalse(helpers.is_container("a string is not a container"))
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
@@ -192,45 +170,6 @@ class HelpersTest(unittest.TestCase):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
-
-    def test_is_in(self):
-        from airflow.utils import helpers
-        # `is_in` expects an object, and a list as input
-
-        test_dict = {'test': 1}
-        test_list = ['test', 1, dict()]
-        small_i = 3
-        big_i = 2 ** 31
-        test_str = 'test_str'
-        test_tup = ('test', 'tuple')
-
-        test_container = [test_dict, test_list, small_i, big_i, test_str, test_tup]
-
-        # Test that integers are referenced as the same object
-        self.assertTrue(helpers.is_in(small_i, test_container))
-        self.assertTrue(helpers.is_in(3, test_container))
-
-        # python caches small integers, so i is 3 will be True,
-        # but `big_i is 2 ** 31` is False.
-        self.assertTrue(helpers.is_in(big_i, test_container))
-        self.assertFalse(helpers.is_in(2 ** 31, test_container))
-
-        self.assertTrue(helpers.is_in(test_dict, test_container))
-        self.assertFalse(helpers.is_in({'test': 1}, test_container))
-
-        self.assertTrue(helpers.is_in(test_list, test_container))
-        self.assertFalse(helpers.is_in(['test', 1, dict()], test_container))
-
-        self.assertTrue(helpers.is_in(test_str, test_container))
-        self.assertTrue(helpers.is_in('test_str', test_container))
-        bad_str = 'test_'
-        bad_str += 'str'
-        self.assertFalse(helpers.is_in(bad_str, test_container))
-
-        self.assertTrue(helpers.is_in(test_tup, test_container))
-        self.assertFalse(helpers.is_in(('test', 'tuple'), test_container))
-        bad_tup = ('test', 'tuple', 'hello')
-        self.assertFalse(helpers.is_in(bad_tup[:2], test_container))
 
     def test_is_container(self):
         self.assertTrue(helpers.is_container(['test_list']))
