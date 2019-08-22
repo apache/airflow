@@ -50,9 +50,12 @@ jobs:
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
       python: "3.6"
       stage: test
-    - name: "Static checks"
+    - name: "Static checks (no pylint)"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests.sh
+      script: ./scripts/ci/ci_run_all_static_tests_except_pylint.sh
+    - name: "Pylint checks"
+      stage: pre-test
+      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
     - name: Check docs
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
