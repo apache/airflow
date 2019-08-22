@@ -801,7 +801,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.task_queue.put(task)
                 except HTTPError as e:
                     self.log.warning('HTTPError when attempting to run task, re-queueing. '
-                                     'Exception: %s' + str(e))
+                                     'Exception: %s', str(e))
                     self.task_queue.put(task)
                 finally:
                     self.task_queue.task_done()
