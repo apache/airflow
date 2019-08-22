@@ -687,7 +687,7 @@ In Linux you typically install them with `sudo apt install` on MacOS with `brew 
 
 The current list of prerequisites:
 
-* xmllint: Linux - install via `sudo apt install xmllint`, MacOS - install via`brew install xmllint`
+* xmllint: Linux - install via `sudo apt install xmllint`, MacOS - install via `brew install xmllint`
 * yamllint: install via `pip install yamllint`
 
 ## Pre-commit hooks installed
@@ -728,11 +728,6 @@ run pre-commit hooks manually as needed.
 
 *You can run all checks manually on all files by running:*
 `SKIP=pylint pre-commit run --all-files`
-
-Note this might be very slow for individual tests with pylint because of passing individual files. It is
-recommended to run `/scripts/ci/ci_pylint_main.sh` (for the main application files) or
-`/scripts/ci/ci_pylint_tests.sh` (for tests) for pylint check.
-You can also adding SKIP=pylint variable (as in the example above) if you run pre-commit hooks with --all-files switch.
 
 *You can skip one or more of the checks by specifying comma-separated list of checks to skip in SKIP variable:*
 `SKIP=pylint,mypy pre-commit run --all-files`

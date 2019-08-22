@@ -34,16 +34,6 @@ script_start
 
 rebuild_image_if_needed_for_static_checks
 
-if [[ "${#@}" != "0" ]]; then
-    filter_out_files_from_pylint_todo_list "$@"
-
-    if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
-        echo "Filtered out all files. Skipping pylint."
-    else
-        run_pylint_main "${FILTERED_FILES[@]}"
-    fi
-else
-    run_pylint_main
-fi
+rebuild_image_if_needed_for_checklicence
 
 script_end

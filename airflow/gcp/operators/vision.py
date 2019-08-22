@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-  # pylint: disable=too-many-lines
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +20,6 @@
 This module contains a Google Cloud Vision operator.
 """
 
-# pylint: disable=too-many-lines
 
 from copy import deepcopy
 from typing import Union, List, Dict, Any, Sequence, Tuple, Optional
