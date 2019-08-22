@@ -24,7 +24,7 @@ from tests.gcp.operators.test_bigquery_dts_system_helper import (
 )
 from tests.contrib.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
-    DagGcpSystemTestCase,
+    TestDagGcpSystem,
 )
 from tests.contrib.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
@@ -36,8 +36,8 @@ from airflow.gcp.example_dags.example_bigquery_dts import (
 )
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_BIGQUERY_KEY), SKIP_TEST_WARNING)
-class GcpBigqueryDtsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_BIGQUERY_KEY), SKIP_TEST_WARNING)
+class GcpBigqueryDtsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
         super(GcpBigqueryDtsSystemTest, self).__init__(
             method_name, dag_id="example_gcp_bigquery_dts", gcp_key=GCP_BIGQUERY_KEY
