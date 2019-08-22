@@ -149,14 +149,14 @@ class GcpBodyFieldSanitizer(LoggingMixin):
             elif isinstance(child, list):
                 for index, elem in enumerate(child):
                     if not isinstance(elem, dict):
-                        self.log.warn(
+                        self.log.warning(
                             "The field %s element at index %s is of wrong type. "
                             "It should be dict and is %s. Skipping it.",
                             current_path, index, elem)
                     self._sanitize(elem, remaining_path, "{}.{}[{}]".format(
                         current_path, field_name, index))
             else:
-                self.log.warn(
+                self.log.warning(
                     "The field %s is of wrong type. It should be dict or list and it is %s. Skipping it.",
                     current_path, child
                 )
