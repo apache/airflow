@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
+from typing import Any
+
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -47,7 +49,7 @@ class GoogleDriveHook(GoogleCloudBaseHook):
         self.api_version = api_version
         self.num_retries = self._get_field("num_retries", 5)
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Retrieves the connection to Google Drive.
 
