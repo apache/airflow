@@ -111,13 +111,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
                     self._do_skip_downstream_tasks(context)
-                    raise AirflowSkipException(
-                        "Snap. Time is OUT for dag: {dag}"
-                        .format(dag=str(context['dag_run']) if context['dag_run'] else ""))
+                    raise AirflowSkipException("Snap. Time is OUT for dag: {dag}")
                 else:
-                    raise AirflowSensorTimeout(
-                        "Snap. Time is OUT for dag: {dag}"
-                        .format(dag=str(context['dag_run']) if context['dag_run'] else ""))
+                    raise AirflowSensorTimeout("Snap. Time is OUT for dag: {dag}")
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
                     seconds=self.poke_interval)
