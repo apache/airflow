@@ -169,8 +169,7 @@ class AirflowBaseView(BaseView):
 
 class Airflow(AirflowBaseView):
     @expose('/health')
-    @provide_session
-    def health(self, session=None):
+    def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.

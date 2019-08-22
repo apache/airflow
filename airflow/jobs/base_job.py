@@ -27,8 +27,7 @@ from time import sleep
 
 from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import make_transient, Session
-from typing import Optional
+from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow import executors, models
@@ -96,7 +95,7 @@ class BaseJob(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session):  # type: (Session) -> Optional[BaseJob]
+    def most_recent_job(cls, session=None):
         """
         Return the most recent job of this type, if any, based on last
         heartbeat received.
