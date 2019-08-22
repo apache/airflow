@@ -21,12 +21,13 @@ import tempfile
 import time
 import os
 import collections
+import warnings
 
-import botocore.config
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.hooks.S3_hook import S3Hook
 from airflow.utils import timezone
 
@@ -130,6 +131,7 @@ class SageMakerHook(AwsHook):
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
     def tar_and_s3_upload(self, path, key, bucket):
         """
@@ -232,58 +234,27 @@ class SageMakerHook(AwsHook):
 
     def get_log_conn(self):
         """
-        Establish an AWS connection for retrieving logs during training
-
-        :rtype: CloudWatchLogs.Client
+        This method is deprecated.
+        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_conn` instead.
         """
-        config = botocore.config.Config(retries={'max_attempts': 15})
-        return self.get_client_type('logs', config=config)
+        warnings.warn("Method `get_log_conn` has been deprecated. "
+                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_conn` instead.",
+                      category=DeprecationWarning,
+                      stacklevel=2)
+
+        return self.logs_hook.get_conn()
 
     def log_stream(self, log_group, stream_name, start_time=0, skip=0):
         """
-        A generator for log items in a single stream. This will yield all the
-        items that are available at the current moment.
-
-        :param log_group: The name of the log group.
-        :type log_group: str
-        :param stream_name: The name of the specific stream.
-        :type stream_name: str
-        :param start_time: The time stamp value to start reading the logs from (default: 0).
-        :type start_time: int
-        :param skip: The number of log entries to skip at the start (default: 0).
-            This is for when there are multiple entries at the same timestamp.
-        :type skip: int
-        :rtype: dict
-        :return: | A CloudWatch log event with the following key-value pairs:
-                 |   'timestamp' (int): The time in milliseconds of the event.
-                 |   'message' (str): The log event data.
-                 |   'ingestionTime' (int): The time in milliseconds the event was ingested.
+        This method is deprecated.
+        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.
         """
+        warnings.warn("Method `log_stream` has been deprecated. "
+                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.",
+                      category=DeprecationWarning,
+                      stacklevel=2)
 
-        next_token = None
-
-        event_count = 1
-        while event_count > 0:
-            if next_token is not None:
-                token_arg = {'nextToken': next_token}
-            else:
-                token_arg = {}
-
-            response = self.get_log_conn().get_log_events(logGroupName=log_group,
-                                                          logStreamName=stream_name,
-                                                          startTime=start_time,
-                                                          startFromHead=True,
-                                                          **token_arg)
-            next_token = response['nextForwardToken']
-            events = response['events']
-            event_count = len(events)
-            if event_count > skip:
-                events = events[skip:]
-                skip = 0
-            else:
-                skip = skip - event_count
-                events = []
-            yield from events
+        return self.logs_hook.get_log_events(log_group, stream_name, start_time, skip)
 
     def multi_stream_iter(self, log_group, streams, positions=None):
         """
@@ -301,7 +272,7 @@ class SageMakerHook(AwsHook):
         :return: A tuple of (stream number, cloudwatch log event).
         """
         positions = positions or {s: Position(timestamp=0, skip=0) for s in streams}
-        event_iters = [self.log_stream(log_group, s, positions[s].timestamp, positions[s].skip)
+        event_iters = [self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
                        for s in streams]
         events = []
         for s in event_iters:
@@ -526,7 +497,7 @@ class SageMakerHook(AwsHook):
         if len(stream_names) < instance_count:
             # Log streams are created whenever a container starts writing to stdout/err, so this list
             # may be dynamic until we have a stream for every instance.
-            logs_conn = self.get_log_conn()
+            logs_conn = self.logs_hook.get_conn()
             try:
                 streams = logs_conn.describe_log_streams(
                     logGroupName=log_group,
