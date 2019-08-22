@@ -27,6 +27,8 @@ from uuid import uuid4
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
+from urllib3.exceptions import HTTPError
+
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
@@ -796,6 +798,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 except ApiException as e:
                     self.log.warning('ApiException when attempting to run task, re-queueing. '
                                      'Message: %s' % json.loads(e.body)['message'])
+                    self.task_queue.put(task)
+                except HTTPError as e:
+                    self.log.warning('HTTPError when attempting to run task, re-queueing. '
+                                     'Exception: %s' + str(e))
                     self.task_queue.put(task)
                 finally:
                     self.task_queue.task_done()
