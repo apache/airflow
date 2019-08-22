@@ -148,6 +148,9 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
+    # This method transforms option names on every read, get, or set operation.
+    # This changes from the default behaviour of ConfigParser from lowercasing
+    # to instead be case-preserving
     def optionxform(self, optionstr: str) -> str:
         return optionstr
 
