@@ -641,6 +641,7 @@ In Linux you typically install them with `sudo apt install` on MacOS with `brew 
 The current list of prerequisites:
 
 * xmllint: Linux - install via `sudo apt install xmllint`, MacOS - install via`brew install xmllint`
+* yamllint: install via `pip install yamllint`
 
 ## Pre-commit hooks installed
 
@@ -662,6 +663,7 @@ mixed-line-ending                Detects if mixed line ending is used (\r vs. \r
 mypy                             Run mypy
 pylint                           Run pylint
 shellcheck                       Check shell files with shellcheck
+yamllint                         Check yaml files with yamllint
 ```
 ## Using pre-commit hooks
 
