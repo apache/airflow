@@ -64,6 +64,6 @@ try:
     )
 
 except ImportError as e:
-    log.warn("Could not import KubernetesPodOperator: " + str(e))
-    log.warn("Install kubernetes dependencies with: "
-             "    pip install 'apache-airflow[kubernetes]'")
+    log.warning("Could not import KubernetesPodOperator: " + str(e))
+    log.warning("Install kubernetes dependencies with: "
+                "    pip install 'apache-airflow[kubernetes]'")

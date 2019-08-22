@@ -311,7 +311,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)

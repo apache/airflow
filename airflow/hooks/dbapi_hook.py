@@ -174,10 +174,10 @@ class DbApiHook(BaseHook):
         Sets the autocommit flag on the connection
         """
         if not self.supports_autocommit and autocommit:
-            self.log.warn(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+            self.log.warning(
+                "%s connection doesn't support autocommit but autocommit activated.",
+                getattr(self, self.conn_name_attr)
+            )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn):
