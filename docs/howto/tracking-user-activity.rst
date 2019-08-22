@@ -15,33 +15,22 @@
     specific language governing permissions and limitations
     under the License.
 
+Tracking User Activity
+=============================
 
+You can configure Airflow to route anonymous data to
+`Google Analytics <https://analytics.google.com/>`_,
+`Segment <https://segment.com/>`_, or `Metarouter <https://www.metarouter.io/>`_.
 
-How-to Guides
-=============
+Edit ``airflow.cfg`` and set the ``analytics`` block to have a ``tool`` and ``id``:
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+.. code-block:: python
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+  [webserver]
+  # Send anonymous user activity to Google Analytics, Segment, or Metarouter
+  analytics_tool = google_analytics # valid options: google_analytics, segment, metarouter
+  analytics_id = XXXXXXXXXXX
 
-.. toctree::
-    :maxdepth: 2
-
-    set-config
-    initialize-database
-    operator/index
-    connection/index
-    secure-connections
-    write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
+.. note:: You can see view injected tracker html within Airflow's source code at
+  ``airflow/www_rbac/templates/appbuilder/baselayout.html``. The related global
+  variables are set in ``airflow/www_rbac/templates/app.py``.
