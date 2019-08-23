@@ -64,7 +64,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         Retrieves connection to Google Sheets.
         
         :return: Google Sheets services object.
-        :rtype: dict
+        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
