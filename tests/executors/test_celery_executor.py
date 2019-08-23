@@ -48,7 +48,7 @@ def _prepare_test_bodies():
     return [(configuration.conf.get('celery', 'BROKER_URL'))]
 
 
-class CeleryExecutorTest(unittest.TestCase):
+class TestCeleryExecutor(unittest.TestCase):
 
     @contextlib.contextmanager
     def _prepare_app(self, broker_url=None, execute=None):

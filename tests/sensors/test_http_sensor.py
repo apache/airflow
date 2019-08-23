@@ -34,7 +34,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class TestHttpSensor(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -175,7 +175,7 @@ class FakeSession:
         return self.response
 
 
-class HttpOpSensorTest(unittest.TestCase):
+class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)

@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
+import io
 import json
 import multiprocessing
 import os
@@ -35,7 +37,6 @@ from tempfile import NamedTemporaryFile
 from time import sleep
 from unittest import mock
 
-import six
 import sqlalchemy
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
@@ -73,9 +74,9 @@ from airflow.utils.dates import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.hooks import hdfs_hook
 from tests.test_utils.config import conf_vars
 
-NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -100,7 +101,7 @@ class OperatorSubclass(BaseOperator):
         pass
 
 
-class CoreTest(unittest.TestCase):
+class TestCore(unittest.TestCase):
     TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_no_previous_runs'
     TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID = \
         TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous'
@@ -697,9 +698,6 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(context['tomorrow_ds'], '2015-01-02')
         self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
 
-    def test_import_examples(self):
-        self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
-
     def test_local_task_job(self):
         TI = TaskInstance
         ti = TI(
@@ -1070,7 +1068,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
-class CliTests(unittest.TestCase):
+class TestCli(unittest.TestCase):
 
     TEST_USER1_EMAIL = 'test-user1@example.com'
     TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -1162,8 +1160,7 @@ class CliTests(unittest.TestCase):
                 '--use_random_password'
             ])
             cli.users_create(args)
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.users_list(self.parser.parse_args(['users', 'list']))
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
@@ -1388,8 +1385,7 @@ class CliTests(unittest.TestCase):
         self.appbuilder.sm.add_role('FakeTeamA')
         self.appbuilder.sm.add_role('FakeTeamB')
 
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.roles_list(self.parser.parse_args(['roles', 'list']))
             stdout = mock_stdout.getvalue()
 
@@ -1429,8 +1425,7 @@ class CliTests(unittest.TestCase):
         resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_list(self.parser.parse_args(['connections', 'list']))
             stdout = mock_stdout.getvalue()
         conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
@@ -1459,8 +1454,7 @@ class CliTests(unittest.TestCase):
     def test_cli_connections_add_delete(self):
         # Add connections:
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
@@ -1501,8 +1495,7 @@ class CliTests(unittest.TestCase):
         ])
 
         # Attempt to add duplicate
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
@@ -1551,8 +1544,7 @@ class CliTests(unittest.TestCase):
                                           None, None, "{'extra': 'yes'}"))
 
         # Delete connections
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'new1']))
             cli.connections_delete(self.parser.parse_args(
@@ -1588,8 +1580,7 @@ class CliTests(unittest.TestCase):
             self.assertTrue(result is None)
 
         # Attempt to delete a non-existing connection
-        with mock.patch('sys.stdout',
-                        new_callable=six.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'fake']))
             stdout = mock_stdout.getvalue()
@@ -2094,7 +2085,7 @@ class FakeHDFSHook:
         return client
 
 
-class ConnectionTest(unittest.TestCase):
+class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
@@ -2173,7 +2164,7 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].port == 5432
 
 
-class WebHDFSHookTest(unittest.TestCase):
+class TestWebHDFSHook(unittest.TestCase):
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2185,12 +2176,12 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
-HDFSHook = None
-snakebite = None
+HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
+snakebite = None  # type: None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
-class HDFSHookTest(unittest.TestCase):
+class TestHDFSHook(unittest.TestCase):
     def setUp(self):
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
@@ -2233,7 +2224,7 @@ class HDFSHookTest(unittest.TestCase):
 send_email_test = mock.Mock()
 
 
-class EmailTest(unittest.TestCase):
+class TestEmail(unittest.TestCase):
     def setUp(self):
         configuration.conf.remove_option('email', 'EMAIL_BACKEND')
 
@@ -2253,7 +2244,7 @@ class EmailTest(unittest.TestCase):
         self.assertFalse(mock_send_email.called)
 
 
-class EmailSmtpTest(unittest.TestCase):
+class TestEmailSmtp(unittest.TestCase):
     def setUp(self):
         configuration.conf.set('smtp', 'SMTP_SSL', 'False')
 

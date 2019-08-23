@@ -21,6 +21,7 @@ from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
 from airflow.utils.state import State
+from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils.db import provide_session
 
 
@@ -65,7 +66,7 @@ class Pool(Base):
             session
             .query(TaskInstance)
             .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state.in_([State.QUEUED, State.RUNNING]))
+            .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
             .count()
         )
 

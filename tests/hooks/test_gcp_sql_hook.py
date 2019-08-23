@@ -21,7 +21,7 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
+from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook
 from airflow.models.connection import Connection
 
 

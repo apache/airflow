@@ -23,13 +23,15 @@ This module contains a Google Cloud Dataproc hook.
 
 import time
 import uuid
+from typing import Dict, List, Optional, Any, Iterable
 
 from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
-from airflow.version import version
+from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version
 
 UUID_LENGTH = 9
 
@@ -44,8 +46,15 @@ class DataprocJobStatus:
 
 
 class _DataProcJob(LoggingMixin):
-    def __init__(self, dataproc_api, project_id, job, region='global',
-                 job_error_states=None, num_retries=None):
+    def __init__(
+        self,
+        dataproc_api: Any,
+        project_id: str,
+        job: Dict,
+        region: str = 'global',
+        job_error_states: Iterable[str] = None,
+        num_retries: int = None
+    ) -> None:
         self.dataproc_api = dataproc_api
         self.project_id = project_id
         self.region = region
@@ -130,7 +139,7 @@ class _DataProcJob(LoggingMixin):
             self.job_id, str(self.job['status']['state'])
         )
 
-    def wait_for_done(self):
+    def wait_for_done(self) -> bool:
         """
         Awaits the Dataproc job to complete.
 
@@ -189,7 +198,7 @@ class _DataProcJob(LoggingMixin):
                           else "No details available")
             raise Exception(ex_message + ": " + ex_details)
 
-    def get(self):
+    def get(self) -> Dict:
         """
         Returns Dataproc job.
         """
@@ -197,7 +206,14 @@ class _DataProcJob(LoggingMixin):
 
 
 class _DataProcJobBuilder:
-    def __init__(self, project_id, task_id, cluster_name, job_type, properties):
+    def __init__(
+        self,
+        project_id: str,
+        task_id: str,
+        cluster_name: str,
+        job_type: str,
+        properties: Dict[str, str]
+    ) -> None:
         name = task_id + "_" + str(uuid.uuid4())[:8]
         self.job_type = job_type
         self.job = {
@@ -213,7 +229,7 @@ class _DataProcJobBuilder:
                 job_type: {
                 }
             }
-        }
+        }  # type: Dict[str, Any]
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
@@ -227,7 +243,7 @@ class _DataProcJobBuilder:
         if labels:
             self.job["job"]["labels"].update(labels)
 
-    def add_variables(self, variables):
+    def add_variables(self, variables: List[str]) -> None:
         """
         Set variables for Dataproc job.
 
@@ -237,7 +253,7 @@ class _DataProcJobBuilder:
         if variables is not None:
             self.job["job"][self.job_type]["scriptVariables"] = variables
 
-    def add_args(self, args):
+    def add_args(self, args: List[str]) -> None:
         """
         Set args for Dataproc job.
 
@@ -247,7 +263,7 @@ class _DataProcJobBuilder:
         if args is not None:
             self.job["job"][self.job_type]["args"] = args
 
-    def add_query(self, query):
+    def add_query(self, query: List[str]) -> None:
         """
         Set query uris for Dataproc job.
 
@@ -256,7 +272,7 @@ class _DataProcJobBuilder:
         """
         self.job["job"][self.job_type]["queryList"] = {'queries': [query]}
 
-    def add_query_uri(self, query_uri):
+    def add_query_uri(self, query_uri: str) -> None:
         """
         Set query uri for Dataproc job.
 
@@ -265,7 +281,7 @@ class _DataProcJobBuilder:
         """
         self.job["job"][self.job_type]["queryFileUri"] = query_uri
 
-    def add_jar_file_uris(self, jars):
+    def add_jar_file_uris(self, jars: List[str]) -> None:
         """
         Set jars uris for Dataproc job.
 
@@ -275,7 +291,7 @@ class _DataProcJobBuilder:
         if jars is not None:
             self.job["job"][self.job_type]["jarFileUris"] = jars
 
-    def add_archive_uris(self, archives):
+    def add_archive_uris(self, archives: List[str]) -> None:
         """
         Set archives uris for Dataproc job.
 
@@ -285,7 +301,7 @@ class _DataProcJobBuilder:
         if archives is not None:
             self.job["job"][self.job_type]["archiveUris"] = archives
 
-    def add_file_uris(self, files):
+    def add_file_uris(self, files: List[str]) -> None:
         """
         Set file uris for Dataproc job.
 
@@ -295,7 +311,7 @@ class _DataProcJobBuilder:
         if files is not None:
             self.job["job"][self.job_type]["fileUris"] = files
 
-    def add_python_file_uris(self, pyfiles):
+    def add_python_file_uris(self, pyfiles: List[str]) -> None:
         """
         Set python file uris for Dataproc job.
 
@@ -305,7 +321,7 @@ class _DataProcJobBuilder:
         if pyfiles is not None:
             self.job["job"][self.job_type]["pythonFileUris"] = pyfiles
 
-    def set_main(self, main_jar, main_class):
+    def set_main(self, main_jar: Optional[str], main_class: Optional[str]) -> None:
         """
         Set Dataproc main class.
 
@@ -322,7 +338,7 @@ class _DataProcJobBuilder:
         else:
             self.job["job"][self.job_type]["mainClass"] = main_class
 
-    def set_python_main(self, main):
+    def set_python_main(self, main: str) -> None:
         """
         Set Dataproc main python file uri.
 
@@ -331,7 +347,7 @@ class _DataProcJobBuilder:
         """
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
 
-    def set_job_name(self, name):
+    def set_job_name(self, name: str) -> None:
         """
         Set Dataproc job name.
 
@@ -340,7 +356,7 @@ class _DataProcJobBuilder:
         """
         self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid4())[:8]
 
-    def build(self):
+    def build(self) -> Dict:
         """
         Returns Dataproc job.
 
@@ -355,13 +371,13 @@ class _DataProcOperation(LoggingMixin):
     Continuously polls Dataproc Operation until it completes.
     """
 
-    def __init__(self, dataproc_api, operation, num_retries):
+    def __init__(self, dataproc_api: Any, operation: Dict, num_retries: int) -> None:
         self.dataproc_api = dataproc_api
         self.operation = operation
         self.operation_name = self.operation['name']
         self.num_retries = num_retries
 
-    def wait_for_done(self):
+    def wait_for_done(self) -> bool:
         """
         Awaits Dataproc operation to complete.
 
@@ -371,8 +387,7 @@ class _DataProcOperation(LoggingMixin):
         if self._check_done():
             return True
 
-        self.log.info(
-            'Waiting for Dataproc Operation %s to finish', self.operation_name)
+        self.log.info('Waiting for Dataproc Operation %s to finish', self.operation_name)
         while True:
             time.sleep(10)
             self.operation = (
@@ -380,12 +395,13 @@ class _DataProcOperation(LoggingMixin):
                 .regions()
                 .operations()
                 .get(name=self.operation_name)
-                .execute(num_retries=self.num_retries))
+                .execute(num_retries=self.num_retries)
+            )
 
             if self._check_done():
                 return True
 
-    def get(self):
+    def get(self) -> Dict:
         """
         Returns Dataproc operation.
 
@@ -393,7 +409,7 @@ class _DataProcOperation(LoggingMixin):
         """
         return self.operation
 
-    def _check_done(self):
+    def _check_done(self) -> bool:
         if 'done' in self.operation:
             if 'error' in self.operation:
                 self.log.warning(
@@ -427,13 +443,15 @@ class DataProcHook(GoogleCloudBaseHook):
     :param api_version: Version of Google Cloud API
     :type api_version: str
     """
-    def __init__(self,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 api_version='v1beta2'):
+    def __init__(
+        self,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: str = None,
+        api_version: str = 'v1beta2'
+    ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
+        self.num_retries = self._get_field('num_retries', 5)   # type: int
 
     def get_conn(self):
         """
@@ -444,7 +462,7 @@ class DataProcHook(GoogleCloudBaseHook):
             'dataproc', self.api_version, http=http_authorized,
             cache_discovery=False)
 
-    def get_cluster(self, project_id, region, cluster_name):
+    def get_cluster(self, project_id: str, region: str, cluster_name: str):
         """
         Returns Google Cloud Dataproc cluster.
 
@@ -463,7 +481,13 @@ class DataProcHook(GoogleCloudBaseHook):
             clusterName=cluster_name
         ).execute(num_retries=self.num_retries)
 
-    def submit(self, project_id, job, region='global', job_error_states=None):
+    def submit(
+        self,
+        project_id: str,
+        job: Dict,
+        region: str = 'global',
+        job_error_states: Iterable[str] = None
+    ) -> None:
         """
         Submits Google Cloud Dataproc job.
 
@@ -483,7 +507,13 @@ class DataProcHook(GoogleCloudBaseHook):
         if not submitted.wait_for_done():
             submitted.raise_error()
 
-    def create_job_template(self, task_id, cluster_name, job_type, properties):
+    def create_job_template(
+        self,
+        task_id: str,
+        cluster_name: str,
+        job_type: str,
+        properties: Dict[str, str],
+    ) -> _DataProcJobBuilder:
         """
         Creates Google Cloud Dataproc job template.
 
@@ -497,10 +527,20 @@ class DataProcHook(GoogleCloudBaseHook):
         :type properties: dict
         :return: Dataproc Job
         """
-        return _DataProcJobBuilder(self.project_id, task_id, cluster_name,
-                                   job_type, properties)
+        if not self.project_id:
+            raise AirflowException(
+                "The project ID could not be determined. You should specify the project id "
+                "in the connection configuration."
+            )
+        return _DataProcJobBuilder(
+            self.project_id,
+            task_id,
+            cluster_name,
+            job_type,
+            properties
+        )
 
-    def wait(self, operation):
+    def wait(self, operation: Dict) -> None:
         """
         Awaits for Google Cloud Dataproc Operation to complete.
         """
@@ -508,7 +548,7 @@ class DataProcHook(GoogleCloudBaseHook):
                                        self.num_retries)
         submitted.wait_for_done()
 
-    def cancel(self, project_id, job_id, region='global'):
+    def cancel(self, project_id: str, job_id: str, region: str = 'global') -> Dict:
         """
         Cancel a Google Cloud DataProc job.
 

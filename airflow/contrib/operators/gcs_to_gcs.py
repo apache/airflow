@@ -19,6 +19,7 @@
 """
 This module contains a Google Cloud Storage operator.
 """
+import warnings
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -61,8 +62,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -85,7 +88,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             source_object='sales/sales-2017/january.avro',
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/january-backup.avro',
-            google_cloud_storage_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id
         )
 
     The following Operator would copy all the Avro files from ``sales/sales-2017``
@@ -98,7 +101,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             source_object='sales/sales-2017/*.avro',
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/',
-            google_cloud_storage_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2017``
@@ -112,7 +115,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             source_object='sales/sales-2017/*.avro',
             destination_bucket='data_backup',
             move_object=True,
-            google_cloud_storage_conn_id=google_cloud_conn_id
+            gcp_conn_id=google_cloud_conn_id
         )
 
     """
@@ -127,25 +130,33 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  destination_bucket=None,
                  destination_object=None,
                  move_object=False,
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  last_modified_time=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
         self.move_object = move_object
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
 
     def execute(self, context):
 
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
 

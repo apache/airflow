@@ -31,6 +31,15 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     ...                            document_id="unique-doc-id",
     ...                            azure_cosmos_conn_id="azure_cosmos_default",
     ...                            task_id="azure_cosmos_sensor")
+
+    :param database_name: Target CosmosDB database_name.
+    :type database_name: str
+    :param collection_name: Target CosmosDB collection_name.
+    :type collection_name: str
+    :param document_id: The ID of the target document.
+    :type query: str
+    :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
+    :type azure_cosmos_conn_id: str
     """
     template_fields = ('database_name', 'collection_name', 'document_id')
 
@@ -43,18 +52,6 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
             azure_cosmos_conn_id="azure_cosmos_default",
             *args,
             **kwargs):
-        """
-        Create a new AzureCosmosDocumentSensor
-
-        :param database_name: Target CosmosDB database_name.
-        :type database_name: str
-        :param collection_name: Target CosmosDB collection_name.
-        :type collection_name: str
-        :param document_id: The ID of the target document.
-        :type query: str
-        :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
-        :type azure_cosmos_conn_id: str
-        """
         super().__init__(*args, **kwargs)
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
         self.database_name = database_name

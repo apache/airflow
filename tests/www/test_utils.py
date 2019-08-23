@@ -27,7 +27,7 @@ from bs4 import BeautifulSoup
 from airflow.www import utils
 
 
-class UtilsTest(unittest.TestCase):
+class TestUtils(unittest.TestCase):
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -212,7 +212,7 @@ class UtilsTest(unittest.TestCase):
         self.assertNotIn('<b2>', html)
 
 
-class AttrRendererTest(unittest.TestCase):
+class TestAttrRenderer(unittest.TestCase):
 
     def setUp(self):
         self.attr_renderer = utils.get_attr_renderer()

@@ -23,7 +23,7 @@ from enum import Enum
 from airflow.contrib.utils.weekday import WeekDay
 
 
-class WeekDayTest(unittest.TestCase):
+class TestWeekDay(unittest.TestCase):
     def test_weekday_enum_length(self):
         self.assertEqual(len(WeekDay), 7)
 

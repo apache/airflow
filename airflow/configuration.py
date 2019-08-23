@@ -23,12 +23,12 @@ import copy
 import os
 import pathlib
 import shlex
-from six import iteritems
 import subprocess
 import sys
 import warnings
+# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
+from configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError  # type: ignore
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -332,7 +332,7 @@ class AirflowConfigParser(ConfigParser):
                 key = env_var.replace(section_prefix, '').lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in iteritems(_section):
+        for key, val in _section.items():
             try:
                 val = int(val)
             except ValueError:

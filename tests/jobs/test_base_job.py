@@ -27,7 +27,7 @@ from airflow.utils.state import State
 from airflow.utils.db import create_session
 
 
-class BaseJobTest(unittest.TestCase):
+class TestBaseJob(unittest.TestCase):
     class TestJob(BaseJob):
         __mapper_args__ = {
             'polymorphic_identity': 'TestJob'

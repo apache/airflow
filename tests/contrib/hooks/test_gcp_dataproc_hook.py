@@ -38,7 +38,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class DataProcHookTest(unittest.TestCase):
+class TestDataProcHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
                         new=mock_init):
@@ -53,7 +53,7 @@ class DataProcHookTest(unittest.TestCase):
                                              job_error_states=mock.ANY, num_retries=mock.ANY)
 
 
-class DataProcJobTest(unittest.TestCase):
+class TestDataProcJob(unittest.TestCase):
     UUID = '12345678'
     JOB_TO_SUBMIT = {
         'job':

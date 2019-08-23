@@ -45,7 +45,7 @@ SOURCE_FILES_LIST = [
 MOD_TIME_1 = datetime(2016, 1, 1)
 
 
-class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     """
     Tests the three use-cases for the wildcard operator. These are
     no_prefix: *test_object

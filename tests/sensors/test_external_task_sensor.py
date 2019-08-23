@@ -36,7 +36,7 @@ TEST_TASK_ID = 'time_sensor_check'
 DEV_NULL = '/dev/null'
 
 
-class ExternalTaskSensorTests(unittest.TestCase):
+class TestExternalTaskSensor(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag(

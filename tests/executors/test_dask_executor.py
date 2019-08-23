@@ -50,7 +50,7 @@ SKIP_DASK = True
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class BaseDaskTest(unittest.TestCase):
+class TestBaseDask(unittest.TestCase):
 
     def assert_tasks_on_executor(self, executor):
         # start the executor
@@ -84,7 +84,7 @@ class BaseDaskTest(unittest.TestCase):
         self.assertTrue(fail_future.exception() is not None)
 
 
-class DaskExecutorTest(BaseDaskTest):
+class TestDaskExecutor(TestBaseDask):
 
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
@@ -127,7 +127,7 @@ class DaskExecutorTest(BaseDaskTest):
         self.cluster.close(timeout=5)
 
 
-class DaskExecutorTLSTest(BaseDaskTest):
+class TestDaskExecutorTLS(TestBaseDask):
 
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)

@@ -143,7 +143,7 @@ class BaseExecutor(LoggingMixin):
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
             reverse=True)
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running[key] = command

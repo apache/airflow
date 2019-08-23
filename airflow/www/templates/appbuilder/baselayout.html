@@ -75,15 +75,20 @@
 
 
 {% block tail_js %}
-{{ super() }}
-<script type="text/javascript">
-  // below variables are used in base.js
-  var hostName = '{{ hostname }}';
-  var csrfToken = '{{ csrf_token() }}';
-  $("time[title]").tooltip()
-</script>
-<!--[if IE ]>
-<script src="{{ url_for_asset('ie.js') }}" type="text/javascript"></script>
-<![endif]-->
-<script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
+  {{ super() }}
+
+  <script type="text/javascript">
+    // below variables are used in base.js
+    var hostName = '{{ hostname }}';
+    var csrfToken = '{{ csrf_token() }}';
+    $("time[title]").tooltip()
+  </script>
+  <!--[if IE ]>
+  <script src="{{ url_for_asset('ie.js') }}" type="text/javascript"></script>
+  <![endif]-->
+  <script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
+
+  {% if analytics_tool is defined and analytics_tool %}
+    {% include "analytics/" + analytics_tool + ".html" %}
+  {% endif %}
 {% endblock %}

@@ -25,7 +25,7 @@ from airflow.contrib.operators.gcs_acl_operator import \
 from tests.compat import mock
 
 
-class GoogleCloudStorageAclTest(unittest.TestCase):
+class TestGoogleCloudStorageAcl(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageHook')
     def test_bucket_create_acl(self, mock_hook):
         operator = GoogleCloudStorageBucketCreateAclEntryOperator(
@@ -49,6 +49,7 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             bucket="test-bucket",
             object_name="test-object",
             entity="test-entity",
+            generation=42,
             role="test-role",
             user_project="test-user-project",
             task_id="id"
@@ -58,6 +59,7 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             bucket_name="test-bucket",
             object_name="test-object",
             entity="test-entity",
+            generation=42,
             role="test-role",
             user_project="test-user-project"
         )

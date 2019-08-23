@@ -17,9 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default authentication backend - everything is allowed"""
+from typing import Optional
 from functools import wraps
+from typing_extensions import Protocol
 
-CLIENT_AUTH = None
+
+class ClientAuthProtocol(Protocol):
+    """
+    Protocol type for CLIENT_AUTH
+    """
+    def handle_response(self, _):
+        """
+        CLIENT_AUTH.handle_response method
+        """
+        ...
+
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):

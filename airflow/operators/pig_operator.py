@@ -48,11 +48,12 @@ class PigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, pig,
-            pig_cli_conn_id='pig_cli_default',
-            pigparams_jinja_translate=False,
-            pig_opts=None,
-            *args, **kwargs):
+            self,
+            pig: str,
+            pig_cli_conn_id: str = 'pig_cli_default',
+            pigparams_jinja_translate: bool = False,
+            pig_opts: str = None,
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate

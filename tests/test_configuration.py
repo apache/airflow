@@ -45,7 +45,7 @@ def env_vars(**vars):
             os.environ.pop(key, None)
 
 
-class ConfTest(unittest.TestCase):
+class TestConf(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):

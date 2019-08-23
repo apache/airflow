@@ -36,7 +36,7 @@ from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
 import airflow.example_dags
 
 
-class DagBagTest(unittest.TestCase):
+class TestDagBag(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.empty_dir = mkdtemp()

@@ -84,7 +84,7 @@ class PythonOperator(BaseOperator):
         templates_exts: Optional[Iterable[str]] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')

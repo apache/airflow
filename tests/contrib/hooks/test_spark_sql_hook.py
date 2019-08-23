@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-import six
+import io
 import unittest
 from unittest.mock import patch, call
 from itertools import dropwhile
@@ -82,8 +81,8 @@ class TestSparkSqlHook(unittest.TestCase):
     @patch('airflow.contrib.hooks.spark_sql_hook.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = six.StringIO('Spark-sql communicates using stdout')
-        mock_popen.return_value.stderr = six.StringIO('stderr')
+        mock_popen.return_value.stdout = io.StringIO('Spark-sql communicates using stdout')
+        mock_popen.return_value.stderr = io.StringIO('stderr')
         mock_popen.return_value.wait.return_value = 0
 
         # When

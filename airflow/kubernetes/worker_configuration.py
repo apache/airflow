@@ -16,7 +16,6 @@
 # under the License.
 
 import os
-import six
 
 from airflow.configuration import conf
 from airflow.kubernetes.pod import Pod, Resources
@@ -80,6 +79,28 @@ class WorkerConfiguration(LoggingMixin):
                 'value': self.kube_config.git_password
             })
 
+        if self.kube_config.git_sync_credentials_secret:
+            init_environment.extend([
+                {
+                    'name': 'GIT_SYNC_USERNAME',
+                    'valueFrom': {
+                        'secretKeyRef': {
+                            'name': self.kube_config.git_sync_credentials_secret,
+                            'key': 'GIT_SYNC_USERNAME'
+                        }
+                    }
+                },
+                {
+                    'name': 'GIT_SYNC_PASSWORD',
+                    'valueFrom': {
+                        'secretKeyRef': {
+                            'name': self.kube_config.git_sync_credentials_secret,
+                            'key': 'GIT_SYNC_PASSWORD'
+                        }
+                    }
+                }
+            ])
+
         volume_mounts = [{
             'mountPath': self.kube_config.git_sync_root,
             'name': self.dags_volume_name,
@@ -140,7 +161,7 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {}
 
-        for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
+        for env_var_name, env_var_val in self.kube_config.kube_env_vars.items():
             env[env_var_name] = env_var_val
 
         env["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
@@ -171,7 +192,7 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary secrets for the pod executor"""
         worker_secrets = []
 
-        for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
+        for env_var_name, obj_key_pair in self.kube_config.kube_secrets.items():
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
                 Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key)

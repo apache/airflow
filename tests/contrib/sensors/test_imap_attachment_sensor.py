@@ -18,104 +18,39 @@
 # under the License.
 
 import unittest
-
 from unittest.mock import patch, Mock
 
-from airflow.contrib.sensors.imap_attachment_sensor import ImapAttachmentSensor
-from airflow.models import Connection
-from airflow.utils import db
+from parameterized import parameterized
 
-imap_hook_string = 'airflow.contrib.sensors.imap_attachment_sensor.ImapHook'
+from airflow.contrib.sensors.imap_attachment_sensor import ImapAttachmentSensor
 
 
 class TestImapAttachmentSensor(unittest.TestCase):
 
     def setUp(self):
-        db.merge_conn(
-            Connection(
-                conn_id='imap_test',
-                host='base_url',
-                login='user',
-                password='password'
-            )
-        )
-
-    @patch(imap_hook_string)
-    def test_poke_with_attachment_found(self, mock_imap_hook):
-        mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
-        mock_imap_hook.has_mail_attachment.return_value = True
-
-        imap_attachment_sensor = ImapAttachmentSensor(
-            conn_id='imap_test',
-            attachment_name='test_attachment',
-            task_id='check_for_attachment_on_mail_server_test',
-            dag=None
-        )
-
-        self.assertTrue(imap_attachment_sensor.poke(context={}))
-        mock_imap_hook.has_mail_attachment.assert_called_once_with(
-            name='test_attachment',
+        self.kwargs = dict(
+            attachment_name='test_file',
+            check_regex=False,
             mail_folder='INBOX',
-            check_regex=False
-        )
-
-    @patch(imap_hook_string)
-    def test_poke_with_attachment_not_found(self, mock_imap_hook):
-        mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
-        mock_imap_hook.has_mail_attachment.return_value = False
-
-        imap_attachment_sensor = ImapAttachmentSensor(
-            conn_id='imap_test',
-            attachment_name='test_attachment',
-            task_id='check_for_attachment_on_mail_server_test',
+            mail_filter='All',
+            task_id='test_task',
             dag=None
         )
 
-        self.assertFalse(imap_attachment_sensor.poke(context={}))
-        mock_imap_hook.has_mail_attachment.assert_called_once_with(
-            name='test_attachment',
-            mail_folder='INBOX',
-            check_regex=False
-        )
-
-    @patch(imap_hook_string)
-    def test_poke_with_check_regex_true(self, mock_imap_hook):
+    @parameterized.expand([(True,), (False,)])
+    @patch('airflow.contrib.sensors.imap_attachment_sensor.ImapHook')
+    def test_poke(self, has_attachment_return_value, mock_imap_hook):
         mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
-        mock_imap_hook.has_mail_attachment.return_value = True
+        mock_imap_hook.has_mail_attachment.return_value = has_attachment_return_value
 
-        imap_attachment_sensor = ImapAttachmentSensor(
-            conn_id='imap_test',
-            attachment_name='.*_test_attachment',
-            task_id='check_for_attachment_on_mail_server_test',
-            check_regex=True,
-            dag=None
-        )
+        has_attachment = ImapAttachmentSensor(**self.kwargs).poke(context={})
 
-        self.assertTrue(imap_attachment_sensor.poke(context={}))
+        self.assertEqual(has_attachment, mock_imap_hook.has_mail_attachment.return_value)
         mock_imap_hook.has_mail_attachment.assert_called_once_with(
-            name='.*_test_attachment',
-            mail_folder='INBOX',
-            check_regex=True
-        )
-
-    @patch(imap_hook_string)
-    def test_poke_with_different_mail_folder(self, mock_imap_hook):
-        mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
-        mock_imap_hook.has_mail_attachment.return_value = True
-
-        imap_attachment_sensor = ImapAttachmentSensor(
-            conn_id='imap_test',
-            attachment_name='test_attachment',
-            task_id='check_for_attachment_on_mail_server_test',
-            mail_folder='test',
-            dag=None
-        )
-
-        self.assertTrue(imap_attachment_sensor.poke(context={}))
-        mock_imap_hook.has_mail_attachment.assert_called_once_with(
-            name='test_attachment',
-            mail_folder='test',
-            check_regex=False
+            name=self.kwargs['attachment_name'],
+            check_regex=self.kwargs['check_regex'],
+            mail_folder=self.kwargs['mail_folder'],
+            mail_filter=self.kwargs['mail_filter']
         )
 
 

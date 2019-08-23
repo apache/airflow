@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -8,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -40,7 +38,7 @@ if [[ -f /.dockerenv ]]; then
     sudo mkdir -pv _api
     echo "Created the _build and _api folders in case they do not exist"
     echo "Changing ownership of _build and _api folders to ${AIRFLOW_USER}:${AIRFLOW_USER}"
-    sudo chown -R "${AIRFLOW_USER}:${AIRFLOW_USER}" .
+    sudo chown -R "${AIRFLOW_USER}":"${AIRFLOW_USER}" .
     echo "Changed ownership of the whole doc folder to ${AIRFLOW_USER}:${AIRFLOW_USER}"
 else
     # We are outside the container so we simply make sure that the directories exist
@@ -86,7 +84,7 @@ SUCCEED_LINE=$(make html |\
     grep 'build succeeded' |\
     head -1)
 
-NUM_CURRENT_WARNINGS=$(echo ${SUCCEED_LINE} |\
+NUM_CURRENT_WARNINGS=$(echo "${SUCCEED_LINE}" |\
     sed -E 's/build succeeded, ([0-9]+) warnings?\./\1/g')
 
 if [[  -f /.dockerenv ]]; then
@@ -94,15 +92,15 @@ if [[  -f /.dockerenv ]]; then
     # _build and _api folder files, so that they can be accessed by the host user
     # The _api folder should be deleted by then but just in case we should change the ownership
     echo "Changing ownership of docs/_build folder back to ${HOST_USER_ID}:${HOST_GROUP_ID}"
-    sudo chown ${HOST_USER_ID}:${HOST_GROUP_ID} _build
+    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" _build
     if [[ -d _api ]]; then
-        sudo chown ${HOST_USER_ID}:${HOST_GROUP_ID} _api
+        sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" _api
     fi
     echo "Changed ownership of docs/_build folder back to ${HOST_USER_ID}:${HOST_GROUP_ID}"
 fi
 
 
-if echo ${SUCCEED_LINE} | grep -q "warning"; then
+if echo "${SUCCEED_LINE}" | grep -q "warning"; then
     echo
     echo "Unexpected problems found in the documentation. "
     echo "Currently, ${NUM_CURRENT_WARNINGS} warnings found. "

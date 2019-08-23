@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Task runner for cgroup to run Airflow task"""
+
 import datetime
 import getpass
 import os
@@ -65,6 +67,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         self._finished_running = False
         self._cpu_shares = None
         self._mem_mb_limit = None
+        self.mem_cgroup_name = None
+        self.cpu_cgroup_name = None
         self._created_cpu_cgroup = False
         self._created_mem_cgroup = False
         self._cur_user = getpass.getuser()
@@ -211,10 +215,10 @@ class CgroupTaskRunner(BaseTaskRunner):
         """
         with open("/proc/self/cgroup") as file:
             lines = file.readlines()
-            d = {}
+            subsystem_cgroup_map = {}
             for line in lines:
                 line_split = line.rstrip().split(":")
                 subsystem = line_split[1]
                 group_name = line_split[2]
-                d[subsystem] = group_name
-            return d
+                subsystem_cgroup_map[subsystem] = group_name
+            return subsystem_cgroup_map

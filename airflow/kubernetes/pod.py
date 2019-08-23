@@ -39,6 +39,11 @@ class Resources:
     def has_requests(self):
         return self.request_cpu is not None or self.request_memory is not None
 
+    def __str__(self):
+        return "Request: [cpu: {}, memory: {}], Limit: [cpu: {}, memory: {}, gpu: {}]".format(
+            self.request_cpu, self.request_memory, self.limit_cpu, self.limit_memory, self.limit_gpu
+        )
+
 
 class Port:
     def __init__(

@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class JenkinsOperatorTestCase(unittest.TestCase):
+class TestJenkinsOperator(unittest.TestCase):
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute(self):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')

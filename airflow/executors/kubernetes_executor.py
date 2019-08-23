@@ -189,6 +189,8 @@ class KubeConfig:
         self.git_ssh_key_secret_name = conf.get(self.kubernetes_section, 'git_ssh_key_secret_name')
         self.git_ssh_known_hosts_configmap_name = conf.get(self.kubernetes_section,
                                                            'git_ssh_known_hosts_configmap_name')
+        self.git_sync_credentials_secret = conf.get(self.kubernetes_section,
+                                                    'git_sync_credentials_secret')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
@@ -304,7 +306,7 @@ class KubeConfig:
                 'through ssh key, but not both')
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
+class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace
@@ -323,8 +325,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise
             else:
-                self.log.warn('Watch died gracefully, starting back up with: '
-                              'last resource_version: %s', self.resource_version)
+                self.log.warning('Watch died gracefully, starting back up with: '
+                                 'last resource_version: %s', self.resource_version)
 
     def _run(self, kube_client, resource_version, worker_uuid, kube_config):
         self.log.info(
@@ -388,7 +390,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
         elif status == 'Running':
             self.log.info('Event: %s is Running', pod_id)
         else:
-            self.log.warn(
+            self.log.warning(
                 'Event: Invalid state: %s on pod: %s with labels: %s with '
                 'resource_version: %s', status, pod_id, labels, resource_version
             )
@@ -452,16 +454,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def delete_pod(self, pod_id):
-        if self.kube_config.delete_worker_pods:
-            try:
-                self.kube_client.delete_namespaced_pod(
-                    pod_id, self.namespace, body=client.V1DeleteOptions(),
-                    **self.kube_config.kube_client_request_args)
-            except ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+    def delete_pod(self, pod_id: str) -> None:
+        try:
+            self.kube_client.delete_namespaced_pod(
+                pod_id, self.namespace, body=client.V1DeleteOptions(),
+                **self.kube_config.kube_client_request_args)
+        except ApiException as e:
+            # If the pod is already deleted
+            if e.status != 404:
+                raise
 
     def sync(self):
         """
@@ -589,14 +590,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
         try:
             try_num = int(labels.get('try_number', '1'))
         except ValueError:
-            self.log.warn("could not get try_number as an int: %s", labels.get('try_number', '1'))
+            self.log.warning("could not get try_number as an int: %s", labels.get('try_number', '1'))
 
         try:
             dag_id = labels['dag_id']
             task_id = labels['task_id']
             ex_time = self._label_safe_datestring_to_datetime(labels['execution_date'])
         except Exception as e:
-            self.log.warn(
+            self.log.warning(
                 'Error while retrieving labels; labels: %s; exception: %s',
                 labels, e
             )
@@ -625,7 +626,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     dag_id = task.dag_id
                     task_id = task.task_id
                     return (dag_id, task_id, ex_time, try_num)
-        self.log.warn(
+        self.log.warning(
             'Failed to find and match task details to a pod; labels: %s',
             labels
         )
@@ -805,11 +806,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             except Empty:
                 break
 
-    def _change_state(self, key, state, pod_id):
+    def _change_state(self, key, state, pod_id: str) -> None:
         if state != State.RUNNING:
-            self.kube_scheduler.delete_pod(pod_id)
-            try:
+            if self.kube_config.delete_worker_pods:
+                self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
+            try:
                 self.running.pop(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
