@@ -13,11 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+This module contains helper functions for MLEngine operators.
+"""
 
 import base64
 import json
 import os
 import re
+from urllib.parse import urlsplit
 
 import dill
 
@@ -26,10 +30,9 @@ from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
 from airflow.gcp.operators.dataflow import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
-from urllib.parse import urlsplit
 
 
-def create_evaluate_ops(task_prefix,
+def create_evaluate_ops(task_prefix,  # pylint:disable=too-many-arguments
                         data_format,
                         input_paths,
                         prediction_path,
@@ -227,8 +230,7 @@ def create_evaluate_ops(task_prefix,
         prediction_path = kwargs["templates_dict"]["prediction_path"]
         scheme, bucket, obj, _, _ = urlsplit(prediction_path)
         if scheme != "gs" or not bucket or not obj:
-            raise ValueError("Wrong format prediction_path: %s",
-                             prediction_path)
+            raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
         summary = os.path.join(obj.strip("/"),
                                "prediction.summary.json")
         gcs_hook = GoogleCloudStorageHook()

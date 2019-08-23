@@ -18,13 +18,13 @@
 import datetime
 import unittest
 
+from unittest.mock import ANY
+from unittest.mock import patch
+
 from airflow import DAG
 from airflow.gcp.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
 from airflow.version import version
-
-from unittest.mock import ANY
-from unittest.mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
@@ -67,7 +67,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
         self.metric_fn_encoded = mlengine_operator_utils.base64.b64encode(
             mlengine_operator_utils.dill.dumps(self.metric_fn, recurse=True))
 
-    def testSuccessfulRun(self):
+    def test_successful_run(self):
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
 
         pred, summary, validate = mlengine_operator_utils.create_evaluate_ops(
@@ -122,7 +122,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 'legal-bucket', 'fake-output-path/prediction.summary.json')
             self.assertEqual('err=0.9', result)
 
-    def testFailures(self):
+    def test_failures(self):
         dag = DAG(
             'test_dag',
             default_args={
