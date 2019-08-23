@@ -603,10 +603,10 @@ Cloud Storage
 :class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
     Copies objects from a bucket to another, with renaming if requested.
 
-:class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
     Copy data from any MySQL Database to Google cloud storage in JSON format.
 
-:class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
     Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
 
 :class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor`
