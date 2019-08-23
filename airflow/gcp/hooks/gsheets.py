@@ -62,6 +62,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     def get_conn(self):
         """
         Retrieves connection to Google Sheets.
+        
         :return: Google Sheets services object.
         :rtype: dict
         """
