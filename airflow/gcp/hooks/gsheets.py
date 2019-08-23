@@ -270,7 +270,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     def append_values(
         self,
         range_: str,
-        values: list,
+        values: List,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         insert_data_option: str = 'OVERWRITE',
