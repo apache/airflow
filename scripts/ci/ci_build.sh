@@ -34,6 +34,4 @@ script_start
 
 rebuild_image_if_needed_for_static_checks
 
-rebuild_image_if_needed_for_checklicence
-
 script_end

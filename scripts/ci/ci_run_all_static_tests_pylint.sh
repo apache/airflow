@@ -34,8 +34,6 @@ script_start
 
 rebuild_image_if_needed_for_static_checks
 
-rebuild_image_if_needed_for_checklicence
-
 pre-commit run pylint --all-files --show-diff-on-failure
 
 script_end

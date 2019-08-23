@@ -16,38 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -xeuo pipefail
+set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
 
 # shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
 basic_sanity_checks
 
+force_python_3_5
+
 script_start
 
-export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+rebuild_image_if_needed_for_static_checks
 
-# Cleanup docker installation. It should be empty in CI but let's not risk
-docker system prune --all --force
-
-if [[ ${TRAVIS_JOB_NAME} == "Tests"* ]]; then
-    rebuild_image_if_needed_for_tests
-elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
-    rebuild_image_if_needed_for_checklicence
-else
-    rebuild_image_if_needed_for_static_checks
-fi
-
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-# Required for K8s v1.10.x. See
-# https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-if [[ "${KUBERNETES_VERSION}" == "" ]]; then
-    sudo mount --make-shared /
-    sudo service docker restart
-fi
-
-pip install pre-commit yamllint
+SKIP=pylint,check-apache-license pre-commit run --all-files --show-diff-on-failure
 
 script_end
