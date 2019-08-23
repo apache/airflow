@@ -42,7 +42,6 @@
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/contrib/hooks/wasb_hook.py
 ./airflow/contrib/operators/adls_list_operator.py
-./airflow/contrib/operators/adls_to_gcs.py
 ./airflow/contrib/operators/awsbatch_operator.py
 ./airflow/contrib/operators/aws_athena_operator.py
 ./airflow/contrib/operators/aws_sqs_publish_operator.py

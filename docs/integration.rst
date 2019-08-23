@@ -106,7 +106,7 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
 :class:`airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator`
     Lists the files located in a specified Azure Data Lake path.
 
-:class:`airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
+:class:`airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
     Copies files from an Azure Data Lake path to a Google Cloud Storage bucket.
 
 
