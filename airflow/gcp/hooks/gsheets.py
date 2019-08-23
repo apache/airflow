@@ -150,7 +150,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     def update_values(
         self,
         range_: str,
-        values: list,
+        values: List,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
