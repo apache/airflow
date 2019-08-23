@@ -205,7 +205,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     def batch_update_values(
         self,
         ranges: List,
-        values: list,
+        values: List,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
