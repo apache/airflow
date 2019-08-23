@@ -27,6 +27,8 @@ from uuid import uuid4
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
+from urllib3.exceptions import HTTPError
+
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
@@ -339,7 +341,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
         if resource_version:
             kwargs['resource_version'] = resource_version
         if kube_config.kube_client_request_args:
-            for key, value in kube_config.kube_client_request_args.iteritems():
+            for key, value in kube_config.kube_client_request_args.items():
                 kwargs[key] = value
 
         last_resource_version = None
@@ -686,7 +688,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             )
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
-                for key, value in self.kube_config.kube_client_request_args.iteritems():
+                for key, value in self.kube_config.kube_client_request_args.items():
                     kwargs[key] = value
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
@@ -800,6 +802,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 except ApiException as e:
                     self.log.warning('ApiException when attempting to run task, re-queueing. '
                                      'Message: %s' % json.loads(e.body)['message'])
+                    self.task_queue.put(task)
+                except HTTPError as e:
+                    self.log.warning('HTTPError when attempting to run task, re-queueing. '
+                                     'Exception: %s', str(e))
                     self.task_queue.put(task)
                 finally:
                     self.task_queue.task_done()
