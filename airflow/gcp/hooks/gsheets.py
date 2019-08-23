@@ -112,7 +112,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     @GoogleCloudBaseHook.catch_http_exception
     def batch_get_values(
         self,
-        ranges: list,
+        ranges: List,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER'
