@@ -1071,7 +1071,7 @@ def serve_logs(args):
         return flask.send_from_directory(
             log,
             filename,
-            mimetype="application/json",
+            mimetype="application/json;charset=utf-8",
             as_attachment=False)
 
     worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
