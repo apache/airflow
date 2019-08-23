@@ -204,7 +204,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     @GoogleCloudBaseHook.catch_http_exception
     def batch_update_values(
         self,
-        ranges: list,
+        ranges: List,
         values: list,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
