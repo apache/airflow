@@ -132,8 +132,15 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
                 req['spec'].get('volumes', []))
         for idx, vol in enumerate(vol_secrets):
             vol_id = 'secretvol' + str(idx)
+
+            if vol.key:
+                mount_path, secret_item_path = vol.deploy_target.rpartition('/')[::2]
+                mount_path = mount_path or '/'
+            else:
+                mount_path = vol.deploy_target
+
             req['spec']['containers'][0]['volumeMounts'].append({
-                'mountPath': vol.deploy_target,
+                'mountPath': mount_path,
                 'name': vol_id,
                 'readOnly': True
             })
@@ -143,6 +150,11 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
                     'secretName': vol.secret
                 }
             })
+            if vol.key:
+                req['spec']['volumes'][idx]['secret']['items'] = [{
+                    'key': vol.key,
+                    'path': secret_item_path
+                }]
 
     @staticmethod
     def extract_env_and_secrets(pod, req):

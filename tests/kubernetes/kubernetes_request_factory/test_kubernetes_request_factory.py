@@ -151,29 +151,47 @@ class TestKubernetesRequestFactory(unittest.TestCase):
     def test_extract_volume_secrets(self):
         # Test when secrets is not empty
         secrets = [
-            Secret('volume', 'KEY1', 's1', 'key-1'),
+            Secret('volume', '/key1', 's1', 'key-1'),
             Secret('env', 'KEY2', 's2'),
-            Secret('volume', 'KEY3', 's3', 'key-2')
+            Secret('volume', '/var/key3', 's3', 'key-3'),
+            Secret('volume', '/var/secrets', 's4')
         ]
         pod = Pod('v3.14', {}, [], secrets=secrets)
         self.expected['spec']['containers'][0]['volumeMounts'] = [{
-            'mountPath': 'KEY1',
+            'mountPath': '/',
             'name': 'secretvol0',
             'readOnly': True
         }, {
-            'mountPath': 'KEY3',
+            'mountPath': '/var',
             'name': 'secretvol1',
+            'readOnly': True
+        }, {
+            'mountPath': '/var/secrets',
+            'name': 'secretvol2',
             'readOnly': True
         }]
         self.expected['spec']['volumes'] = [{
             'name': 'secretvol0',
             'secret': {
-                'secretName': 's1'
+                'secretName': 's1',
+                'items': [{
+                    'key': 'key-1',
+                    'path': 'key1'
+                }]
             }
         }, {
             'name': 'secretvol1',
             'secret': {
-                'secretName': 's3'
+                'secretName': 's3',
+                'items': [{
+                    'key': 'key-3',
+                    'path': 'key3'
+                }]
+            }
+        }, {
+            'name': 'secretvol2',
+            'secret': {
+                'secretName': 's4'
             }
         }]
         KubernetesRequestFactory.extract_volume_secrets(pod, self.input_req)
