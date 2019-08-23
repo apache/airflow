@@ -63,6 +63,6 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         self.assertIsNotNone(handler)
 
         # setting the expected value of the formatter
-        expected_formatter_value = "test_dag-test_task:" + repr(handler.formatter)
+        expected_formatter_value = "test_dag-test_task:" + handler.formatter._fmt
         set_context(logger, ti)
-        self.assertEqual(expected_formatter_value, repr(handler.formatter))
+        self.assertEqual(expected_formatter_value, handler.formatter._fmt)
