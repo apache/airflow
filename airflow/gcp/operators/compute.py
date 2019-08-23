@@ -198,7 +198,7 @@ class GceSetMachineTypeOperator(GceBaseOperator):
     :type validate_body: bool
     """
     # [START gce_instance_set_machine_type_template_fields]
-    template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'zone', 'resource_id', 'body', 'gcp_conn_id', 'api_version')
     # [END gce_instance_set_machine_type_template_fields]
 
     @apply_defaults

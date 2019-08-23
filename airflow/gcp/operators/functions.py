@@ -118,7 +118,7 @@ class GcfFunctionDeployOperator(BaseOperator):
     :type validate_body: bool
     """
     # [START gcf_function_deploy_template_fields]
-    template_fields = ('project_id', 'location', 'gcp_conn_id', 'api_version')
+    template_fields = ('body', 'project_id', 'location', 'gcp_conn_id', 'api_version')
     # [END gcf_function_deploy_template_fields]
 
     @apply_defaults
