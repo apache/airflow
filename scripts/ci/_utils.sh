@@ -524,6 +524,7 @@ function run_flake8() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -533,6 +534,7 @@ function run_flake8() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -546,6 +548,7 @@ function run_docs() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}"
 }
 
@@ -557,6 +560,7 @@ function run_check_license() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_CI_IMAGE}"
 }
 
@@ -570,6 +574,7 @@ function run_mypy() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "airflow" "tests" "docs" | tee -a "${OUTPUT_LOG}"
     else
@@ -580,6 +585,7 @@ function run_mypy() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -595,6 +601,7 @@ function run_pylint_main() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -604,6 +611,7 @@ function run_pylint_main() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -620,6 +628,7 @@ function run_pylint_tests() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -629,6 +638,7 @@ function run_pylint_tests() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -643,6 +653,7 @@ function run_docker_lint() {
         docker run \
             -v "$(pwd):/root" \
             -w /root \
+            --rm \
             hadolint/hadolint /bin/hadolint Dockerfile*
         echo
         echo "Docker pylint completed with no errors"
@@ -654,6 +665,7 @@ function run_docker_lint() {
         docker run \
             -v "$(pwd):/root" \
             -w /root \
+            --rm \
             hadolint/hadolint /bin/hadolint "$@"
         echo
         echo "Docker pylint completed with no errors"
