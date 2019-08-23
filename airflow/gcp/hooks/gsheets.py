@@ -79,7 +79,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER'
-    ) -> dict:
+    ) -> Dict:
         """
         Gets values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
