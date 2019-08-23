@@ -21,6 +21,7 @@
 This module contains a Google Sheets API hook
 """
 
+from typing import Any, Dict, List
 from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
@@ -62,7 +63,7 @@ class GSheetsHook(GoogleCloudBaseHook):
     def get_conn(self) -> Any:
         """
         Retrieves connection to Google Sheets.
-        
+
         :return: Google Sheets services object.
         :rtype: Any
         """
@@ -96,7 +97,7 @@ class GSheetsHook(GoogleCloudBaseHook):
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         response = service.spreadsheets().values().get(  # pylint: disable=no-member
@@ -122,7 +123,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
 
         :param ranges: The A1 notation of the values to retrieve.
-        :type ranges: list
+        :type ranges: List
         :param major_dimension: Indicates which dimension an operation should apply to.
             DIMENSION_UNSPECIFIED, ROWS, or COLUMNS
         :type major_dimension: str
@@ -133,7 +134,7 @@ class GSheetsHook(GoogleCloudBaseHook):
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         response = service.spreadsheets().values().batchGet(  # pylint: disable=no-member
@@ -164,7 +165,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :param values: Data within a range of the spreadsheet.
-        :type values: list
+        :type values: List
         :param major_dimension: Indicates which dimension an operation should apply to.
             DIMENSION_UNSPECIFIED, ROWS, or COLUMNS
         :type major_dimension: str
@@ -181,7 +182,7 @@ class GSheetsHook(GoogleCloudBaseHook):
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         body = {
@@ -217,9 +218,9 @@ class GSheetsHook(GoogleCloudBaseHook):
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
 
         :param ranges: The A1 notation of the values to retrieve.
-        :type ranges: list
+        :type ranges: List
         :param values: Data within a range of the spreadsheet.
-        :type values: list
+        :type values: List
         :param major_dimension: Indicates which dimension an operation should apply to.
             DIMENSION_UNSPECIFIED, ROWS, or COLUMNS
         :type major_dimension: str
@@ -236,7 +237,7 @@ class GSheetsHook(GoogleCloudBaseHook):
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         if len(ranges) != len(values):
             raise AirflowException(
@@ -285,7 +286,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :param values: Data within a range of the spreadsheet.
-        :type values: list
+        :type values: List
         :param major_dimension: Indicates which dimension an operation should apply to.
             DIMENSION_UNSPECIFIED, ROWS, or COLUMNS
         :type major_dimension: str
@@ -305,7 +306,7 @@ class GSheetsHook(GoogleCloudBaseHook):
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         body = {
@@ -335,7 +336,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         response = service.spreadsheets().values().clear(  # pylint: disable=no-member
@@ -352,9 +353,9 @@ class GSheetsHook(GoogleCloudBaseHook):
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear
 
         :param ranges: The A1 notation of the values to retrieve.
-        :type ranges: list
+        :type ranges: List
         :return: Google Sheets API response.
-        :rtype: dict
+        :rtype: Dict
         """
         service = self.get_conn()
         body = {
