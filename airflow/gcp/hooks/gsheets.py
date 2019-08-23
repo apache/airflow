@@ -156,7 +156,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER'
-    ) -> dict:
+    ) -> Dict:
         """
         Updates values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
