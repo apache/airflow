@@ -59,7 +59,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         self.num_retries = self._get_field('num_retries', 5)
         self._conn = None
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Retrieves connection to Google Sheets.
         
