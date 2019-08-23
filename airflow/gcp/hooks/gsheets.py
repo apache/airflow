@@ -327,7 +327,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
-    def clear(self, range_: str) -> dict:
+    def clear(self, range_: str) -> Dict:
         """
         Clear values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear
