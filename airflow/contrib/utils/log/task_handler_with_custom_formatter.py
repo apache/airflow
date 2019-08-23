@@ -51,7 +51,7 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
             _, self.prefix_jinja_template = parse_template_string(prefix)
             rendered_prefix = self._render_prefix(ti)
 
-        self.setFormatter(logging.Formatter(rendered_prefix + ":" + self.formatter._fmt))# pylint: disable=W0212
+        self.setFormatter(logging.Formatter(rendered_prefix + ":" + self.formatter._fmt))  #pylint:disable=W0212
         self.setLevel(self.level)
 
     def _render_prefix(self, ti):
