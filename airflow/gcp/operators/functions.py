@@ -142,7 +142,6 @@ class GcfFunctionDeployOperator(BaseOperator):
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
                                                           api_version=api_version)
-        self._hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_inputs()
         super().__init__(*args, **kwargs)
 
@@ -157,22 +156,22 @@ class GcfFunctionDeployOperator(BaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def _create_new_function(self):
-        self._hook.create_new_function(
+    def _create_new_function(self, hook):
+        hook.create_new_function(
             project_id=self.project_id,
             location=self.location,
             body=self.body)
 
-    def _update_function(self):
-        self._hook.update_function(self.body['name'], self.body, self.body.keys())
+    def _update_function(self, hook):
+        hook.update_function(self.body['name'], self.body, self.body.keys())
 
-    def _check_if_function_exists(self):
+    def _check_if_function_exists(self, hook):
         name = self.body.get('name')
         if not name:
             raise GcpFieldValidationException("The 'name' field should be present in "
                                               "body: '{}'.".format(self.body))
         try:
-            self._hook.get_function(name)
+            hook.get_function(name)
         except HttpError as e:
             status = e.resp.status
             if status == 404:
@@ -180,10 +179,10 @@ class GcfFunctionDeployOperator(BaseOperator):
             raise e
         return True
 
-    def _upload_source_code(self):
-        return self._hook.upload_function_zip(project_id=self.project_id,
-                                              location=self.location,
-                                              zip_path=self.zip_path)
+    def _upload_source_code(self, hook):
+        return hook.upload_function_zip(project_id=self.project_id,
+                                        location=self.location,
+                                        zip_path=self.zip_path)
 
     def _set_airflow_version_label(self):
         if 'labels' not in self.body.keys():
@@ -192,14 +191,15 @@ class GcfFunctionDeployOperator(BaseOperator):
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
     def execute(self, context):
+        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         if self.zip_path_preprocessor.should_upload_function():
-            self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code()
+            self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code(hook)
         self._validate_all_body_fields()
         self._set_airflow_version_label()
-        if not self._check_if_function_exists():
-            self._create_new_function()
+        if not self._check_if_function_exists(hook):
+            self._create_new_function(hook)
         else:
-            self._update_function()
+            self._update_function(hook)
 
 
 GCF_SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
@@ -320,7 +320,6 @@ class GcfFunctionDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        self.hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
@@ -333,8 +332,9 @@ class GcfFunctionDeleteOperator(BaseOperator):
                     'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
 
     def execute(self, context):
+        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         try:
-            return self.hook.delete_function(self.name)
+            return hook.delete_function(self.name)
         except HttpError as e:
             status = e.resp.status
             if status == 404:

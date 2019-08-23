@@ -84,9 +84,6 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_deploy_execute(self, mock_hook):
@@ -142,13 +139,13 @@ class TestGcfFunctionDeploy(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_empty_project_id_is_ok(self, mock_hook):
+        mock_hook.return_value.get_function.side_effect = \
+            HttpError(resp=MOCK_RESP_404, content=b'not found')
         operator = GcfFunctionDeployOperator(
             location="test_region",
             body=deepcopy(VALID_BODY),
             task_id="id"
         )
-        operator._hook.get_function.side_effect = \
-            HttpError(resp=MOCK_RESP_404, content=b'not found')
         operator.execute(None)
         mock_hook.assert_called_once_with(api_version='v1',
                                           gcp_conn_id='google_cloud_default')
@@ -171,8 +168,6 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'location' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_empty_body(self, mock_hook):
@@ -185,8 +180,6 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'body' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     @parameterized.expand([
         (runtime,) for runtime in VALID_RUNTIMES
@@ -362,9 +355,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
          "The body field 'source_code.sourceRepository.url' of value '' does not match"),
     ]
     )
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
-    def test_invalid_source_code_union_field(self, source_code, message, mock_hook):
-        mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
+    def test_invalid_source_code_union_field(self, source_code, message):
         body = deepcopy(VALID_BODY)
         body.pop('sourceUploadUrl', None)
         body.pop('sourceArchiveUrl', None)
@@ -381,9 +372,6 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @parameterized.expand([
         ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),

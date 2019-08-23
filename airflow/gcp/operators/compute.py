@@ -53,7 +53,6 @@ class GceBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        self._hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
@@ -110,9 +109,10 @@ class GceInstanceStartOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        return self._hook.start_instance(zone=self.zone,
-                                         resource_id=self.resource_id,
-                                         project_id=self.project_id)
+        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        return hook.start_instance(zone=self.zone,
+                                   resource_id=self.resource_id,
+                                   project_id=self.project_id)
 
 
 class GceInstanceStopOperator(GceBaseOperator):
@@ -157,9 +157,10 @@ class GceInstanceStopOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        self._hook.stop_instance(zone=self.zone,
-                                 resource_id=self.resource_id,
-                                 project_id=self.project_id)
+        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook.stop_instance(zone=self.zone,
+                           resource_id=self.resource_id,
+                           project_id=self.project_id)
 
 
 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
@@ -225,11 +226,12 @@ class GceSetMachineTypeOperator(GceBaseOperator):
             self._field_validator.validate(self.body)
 
     def execute(self, context):
+        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
-        return self._hook.set_machine_type(zone=self.zone,
-                                           resource_id=self.resource_id,
-                                           body=self.body,
-                                           project_id=self.project_id)
+        return hook.set_machine_type(zone=self.zone,
+                                     resource_id=self.resource_id,
+                                     body=self.body,
+                                     project_id=self.project_id)
 
 
 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
@@ -353,6 +355,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             self._field_validator.validate(self.body_patch)
 
     def execute(self, context):
+        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new template
@@ -362,7 +365,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # and deleting/recreating is not worth the hassle especially
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
-            existing_template = self._hook.get_instance_template(
+            existing_template = hook.get_instance_template(
                 resource_id=self.body_patch['name'], project_id=self.project_id)
             self.log.info(
                 "The %s template already existed. It was likely created by previous run of the operator. "
@@ -375,17 +378,17 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # not yet exist
             if not e.resp.status == 404:
                 raise e
-        old_body = self._hook.get_instance_template(resource_id=self.resource_id,
-                                                    project_id=self.project_id)
+        old_body = hook.get_instance_template(resource_id=self.resource_id,
+                                              project_id=self.project_id)
         new_body = deepcopy(old_body)
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
-        self._hook.insert_instance_template(body=new_body,
-                                            request_id=self.request_id,
-                                            project_id=self.project_id)
-        return self._hook.get_instance_template(resource_id=self.body_patch['name'],
-                                                project_id=self.project_id)
+        hook.insert_instance_template(body=new_body,
+                                      request_id=self.request_id,
+                                      project_id=self.project_id)
+        return hook.get_instance_template(resource_id=self.body_patch['name'],
+                                          project_id=self.project_id)
 
 
 class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
@@ -463,7 +466,8 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             self._change_performed = True
 
     def execute(self, context):
-        old_instance_group_manager = self._hook.get_instance_group_manager(
+        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        old_instance_group_manager = hook.get_instance_group_manager(
             zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
         patch_body = {}
         if 'versions' in old_instance_group_manager:
@@ -480,7 +484,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             self.log.info(
                 "Calling patch instance template with updated body: %s",
                 patch_body)
-            return self._hook.patch_instance_group_manager(
+            return hook.patch_instance_group_manager(
                 zone=self.zone, resource_id=self.resource_id,
                 body=patch_body, request_id=self.request_id,
                 project_id=self.project_id)
