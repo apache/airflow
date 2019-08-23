@@ -22,7 +22,7 @@ import datetime
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.file_to_gcs import FileToGoogleCloudStorageOperator
+from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
 from tests.compat import mock
 
 
@@ -55,7 +55,7 @@ class TestFileToGcsOperator(unittest.TestCase):
         self.assertEqual(operator.mime_type, self._config['mime_type'])
         self.assertEqual(operator.gzip, self._config['gzip'])
 
-    @mock.patch('airflow.contrib.operators.file_to_gcs.GoogleCloudStorageHook',
+    @mock.patch('airflow.operators.local_to_gcs.GoogleCloudStorageHook',
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value

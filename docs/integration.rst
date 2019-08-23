@@ -579,7 +579,7 @@ They also use :class:`airflow.gcp.hooks.mlengine.MLEngineHook` to communicate wi
 Cloud Storage
 '''''''''''''
 
-:class:`airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator`
+:class:`airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator`
     Uploads a file to Google Cloud Storage.
 
 :class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`

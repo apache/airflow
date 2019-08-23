@@ -58,7 +58,6 @@
 ./airflow/contrib/operators/emr_add_steps_operator.py
 ./airflow/contrib/operators/emr_create_job_flow_operator.py
 ./airflow/contrib/operators/emr_terminate_job_flow_operator.py
-./airflow/contrib/operators/file_to_gcs.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/hipchat_operator.py
