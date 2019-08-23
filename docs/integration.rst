@@ -597,10 +597,10 @@ Cloud Storage
 :class:`airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator`
     Creates a new cloud storage bucket.
 
-:class:`airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
+:class:`airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
     Loads files from Google cloud storage into BigQuery.
 
-:class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
+:class:`airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
     Copies objects from a bucket to another, with renaming if requested.
 
 :class:`airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`

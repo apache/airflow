@@ -28,7 +28,7 @@ from airflow.operators import bash_operator
 
 gcs_to_bq = None  # type: Any
 try:
-    from airflow.contrib.operators import gcs_to_bq
+    pass
 except ImportError:
     pass
 
