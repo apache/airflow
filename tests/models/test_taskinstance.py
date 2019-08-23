@@ -989,8 +989,8 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
-        configuration.set('email', 'SUBJECT_TEMPLATE', '/subject/path')
-        configuration.set('email', 'HTML_CONTENT_TEMPLATE', '/html_content/path')
+        configuration.set('email', 'subject_template', '/subject/path')
+        configuration.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):

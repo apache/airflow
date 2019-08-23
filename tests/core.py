@@ -774,7 +774,7 @@ class CoreTest(unittest.TestCase):
         self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
         self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
 
-        with conf_vars({('core', 'FERNET_KEY'): None}):
+        with conf_vars({('core', 'fernet_key'): None}):
             with self.assertRaises(AirflowConfigException) as cm:
                 configuration.conf.get("core", "FERNET_KEY")
 
@@ -2731,7 +2731,7 @@ class EmailTest(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        with conf_vars({('email', 'EMAIL_BACKEND'): 'tests.core.send_email_test'}):
+        with conf_vars({('email', 'email_backend'): 'tests.core.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
@@ -2814,7 +2814,7 @@ class EmailSmtpTest(unittest.TestCase):
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        with conf_vars({('smtp', 'SMTP_SSL'): 'True'}):
+        with conf_vars({('smtp', 'smtp_ssl'): 'True'}):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
         mock_smtp_ssl.assert_called_with(
@@ -2828,8 +2828,8 @@ class EmailSmtpTest(unittest.TestCase):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
         with conf_vars({
-                ('smtp', 'SMTP_USER'): None,
-                ('smtp', 'SMTP_PASSWORD'): None,
+                ('smtp', 'smtp_user'): None,
+                ('smtp', 'smtp_password'): None,
         }):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
