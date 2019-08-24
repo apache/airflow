@@ -237,9 +237,16 @@ class TestOracleHook(unittest.TestCase):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ['col1', 'col2', 'col3']
         self.db_hook.bulk_insert_rows('table', rows, target_fields, commit_every=2)
-        self.cur.prepare.assert_called_with(
-            "insert into table (col1, col2, col3) values (:1, :2, :3)")
-        self.cur.executemany.assert_called_with(None, rows[2:])
+        calls = [
+            mock.call("insert into table (col1, col2, col3) values (:1, :2, :3)"),
+            mock.call("insert into table (col1, col2, col3) values (:1, :2, :3)"),
+        ]
+        self.cur.prepare.assert_has_calls(calls)
+        calls = [
+            mock.call(None, rows[:2]),
+            mock.call(None, rows[2:]),
+        ]
+        self.cur.executemany.assert_has_calls(calls, any_order=True)
 
     def test_bulk_insert_rows_without_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]

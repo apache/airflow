@@ -180,7 +180,7 @@ class TestDataFlowHook(unittest.TestCase):
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
         dataflow = _Dataflow(['test', 'cmd'])
-        mock_logging.info.assert_called_with('Running command: %s', 'test cmd')
+        mock_logging.info.assert_called_once_with('Running command: %s', 'test cmd')
         self.assertRaises(Exception, dataflow.wait_for_done)
 
     def test_valid_dataflow_job_name(self):
@@ -311,8 +311,8 @@ class TestDataFlowJob(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
                      TEST_LOCATION, 10, TEST_JOB_ID)
-        mock_jobs.get.assert_called_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
-                                         jobId=TEST_JOB_ID)
+        mock_jobs.get.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
+                                              jobId=TEST_JOB_ID)
 
     def test_dataflow_job_init_without_job_id(self):
         mock_jobs = MagicMock()
@@ -320,8 +320,8 @@ class TestDataFlowJob(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
                      TEST_LOCATION, 10)
-        mock_jobs.list.assert_called_with(projectId=TEST_PROJECT,
-                                          location=TEST_LOCATION)
+        mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
+                                               location=TEST_LOCATION)
 
 
 class TestDataflow(unittest.TestCase):

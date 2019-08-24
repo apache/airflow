@@ -168,7 +168,7 @@ class TestGKEPodOperator(unittest.TestCase):
         self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
 
         # Assert the gcloud command being called correctly
-        proc_mock.assert_called_with(
+        proc_mock.assert_called_once_with(
             GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
@@ -199,7 +199,7 @@ class TestGKEPodOperator(unittest.TestCase):
         self.assertEqual(os.environ[CREDENTIALS], file_path)
 
         # Assert the gcloud command being called correctly
-        proc_mock.assert_called_with(
+        proc_mock.assert_called_once_with(
             GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
@@ -235,7 +235,7 @@ class TestGKEPodOperator(unittest.TestCase):
         self.assertEqual(os.environ[CREDENTIALS], file_path)
 
         # Assert the gcloud command being called correctly
-        proc_mock.assert_called_with(
+        proc_mock.assert_called_once_with(
             GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
@@ -300,4 +300,4 @@ class TestGKEPodOperator(unittest.TestCase):
         ret_val = self.gke_op._get_field(extras, field_name, default=field_value)
         # Assert default is returned upon failure
         self.assertEqual(field_value, ret_val)
-        log_mock.info.assert_called_with(log_str, field_name)
+        log_mock.info.assert_called_once_with(log_str, field_name)

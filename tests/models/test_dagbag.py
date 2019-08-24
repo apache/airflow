@@ -623,11 +623,11 @@ class TestDagBag(unittest.TestCase):
             session.commit()
 
             dagbag.kill_zombies()
-            mock_ti_handle_failure \
-                .assert_called_with(ANY,
-                                    configuration.getboolean('core',
-                                                             'unit_test_mode'),
-                                    ANY)
+            mock_ti_handle_failure.assert_called_once_with(
+                ANY,
+                configuration.getboolean('core', 'unit_test_mode'),
+                ANY
+            )
 
     @patch.object(TI, 'handle_failure')
     def test_kill_zombie_when_job_received_no_heartbeat(self, mock_ti_handle_failure):
@@ -655,11 +655,11 @@ class TestDagBag(unittest.TestCase):
             session.commit()
 
             dagbag.kill_zombies()
-            mock_ti_handle_failure \
-                .assert_called_with(ANY,
-                                    configuration.getboolean('core',
-                                                             'unit_test_mode'),
-                                    ANY)
+            mock_ti_handle_failure.assert_called_once_with(
+                ANY,
+                configuration.getboolean('core', 'unit_test_mode'),
+                ANY
+            )
 
     @patch.object(TI, 'handle_failure')
     def test_kill_zombies_doesn_nothing(self, mock_ti_handle_failure):
