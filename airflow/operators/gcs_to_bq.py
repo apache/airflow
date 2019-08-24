@@ -25,7 +25,7 @@ import json
 from airflow import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

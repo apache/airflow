@@ -19,7 +19,7 @@
 
 """Publish message to SQS queue"""
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

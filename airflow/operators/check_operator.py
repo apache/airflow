@@ -21,7 +21,7 @@ from typing import Any, Dict, Iterable, Optional, SupportsAbs
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -27,7 +27,7 @@ from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow import AirflowException
 from airflow.gcp.hooks.bigtable import BigtableHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

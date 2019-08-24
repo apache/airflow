@@ -30,7 +30,8 @@ from airflow.contrib import example_dags as contrib_example_dags
 from airflow.dag.serialization import Serialization, SerializedBaseOperator, SerializedDAG
 from airflow.dag.serialization.enum import Encoding
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import DAG, BaseOperator, Connection, DagBag
+from airflow.models import DAG, Connection, DagBag
+from airflow.operators.base_operator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 
 # airflow/example_dags/

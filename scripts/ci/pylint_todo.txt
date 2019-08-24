@@ -169,7 +169,7 @@
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
-./airflow/operators/__init__.py
+./airflow/operators/base_operator.py
 ./airflow/operators/bash_operator.py
 ./airflow/operators/check_operator.py
 ./airflow/operators/dagrun_operator.py
@@ -203,6 +203,7 @@
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
 ./airflow/operators/subdag_operator.py
+./airflow/operators/__init__.py
 ./airflow/plugins_manager.py
 ./airflow/sensors/__init__.py
 ./airflow/sensors/base_sensor_operator.py

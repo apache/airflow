@@ -41,6 +41,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### BaseOperator package changed
+The BaseOperator was moved from `airflow.models(.baseoperator)` to `airflow.operators.base_operator` 
+([AIRFLOW-5307](https://issues.apache.org/jira/browse/AIRFLOW-5307)).
+
 ### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather

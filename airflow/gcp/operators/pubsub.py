@@ -26,7 +26,7 @@ from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
 
 from airflow.gcp.hooks.pubsub import PubSubHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

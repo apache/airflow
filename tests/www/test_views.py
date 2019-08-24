@@ -41,8 +41,8 @@ from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.jobs import BaseJob
-from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models import DAG, Connection, DagRun, TaskInstance
+from airflow.operators.base_operator import BaseOperator, BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import dates, timezone

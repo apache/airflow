@@ -23,7 +23,7 @@ import warnings
 from typing import Dict, List, Optional, Union
 
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

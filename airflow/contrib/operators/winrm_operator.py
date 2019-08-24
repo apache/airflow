@@ -25,7 +25,7 @@ from winrm.exceptions import WinRMOperationTimeoutError
 from airflow.configuration import conf
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 # Hide the following error message in urllib3 when making WinRM connections:

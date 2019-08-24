@@ -29,7 +29,7 @@ from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, Voic
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

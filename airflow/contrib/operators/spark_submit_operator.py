@@ -18,7 +18,7 @@
 # under the License.
 #
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.settings import WEB_COLORS
 from airflow.utils.decorators import apply_defaults
 

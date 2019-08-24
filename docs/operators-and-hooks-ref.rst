@@ -31,7 +31,7 @@ Fundamentals
 
 * :mod:`airflow.hooks.base_hook`
 * :mod:`airflow.hooks.dbapi_hook`
-* :mod:`airflow.models.baseoperator`
+* :mod:`airflow.operators.base_operator`
 * :mod:`airflow.sensors.base_sensor_operator`
 
 **Operators:**

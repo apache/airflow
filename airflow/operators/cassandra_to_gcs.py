@@ -34,7 +34,7 @@ from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

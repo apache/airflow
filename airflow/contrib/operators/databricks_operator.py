@@ -25,7 +25,7 @@ import time
 
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 XCOM_RUN_ID_KEY = 'run_id'
@@ -217,7 +217,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
-    # Used in airflow.models.BaseOperator
+    # Used in airflow.operators.base_operator.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
@@ -423,7 +423,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
-    # Used in airflow.models.BaseOperator
+    # Used in airflow.operators.base_operator.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'

@@ -23,7 +23,7 @@ from typing import List, Union
 
 from airflow import AirflowException
 from airflow.gcp.hooks.translate import CloudTranslateHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

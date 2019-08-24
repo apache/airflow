@@ -31,7 +31,7 @@ The following code shows how to add extra links to an operator:
 
 .. code-block:: python
 
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.operators.base_operator import BaseOperator, BaseOperatorLink
     from airflow.utils.decorators import apply_defaults
 
 

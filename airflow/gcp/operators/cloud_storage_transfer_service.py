@@ -32,7 +32,7 @@ from airflow.gcp.hooks.cloud_storage_transfer_service import (
     SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
     TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, GcpTransferJobsStatus, GCPTransferServiceHook,
 )
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 try:

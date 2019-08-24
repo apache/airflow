@@ -24,7 +24,7 @@ from urllib.parse import unquote, urlparse
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_build import CloudBuildHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 REGEX_REPO_PATH = re.compile(r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)")

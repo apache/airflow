@@ -25,7 +25,7 @@ import unicodecsv as csv
 
 from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

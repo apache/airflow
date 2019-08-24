@@ -22,7 +22,7 @@
 from airflow.dag.serialization.enum import DagAttributeTypes as DAT
 from airflow.dag.serialization.json_schema import make_operator_schema
 from airflow.dag.serialization.serialization import Serialization
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 
 
 class SerializedBaseOperator(BaseOperator, Serialization):

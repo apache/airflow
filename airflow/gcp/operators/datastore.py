@@ -25,7 +25,7 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

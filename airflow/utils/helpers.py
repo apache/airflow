@@ -144,9 +144,9 @@ def as_flattened_list(iterable):
 
 def chain(*tasks):
     r"""
-    Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
-    If you want to chain between two List[airflow.models.BaseOperator], have to
+    Given a number of tasks, builds a dependency chain. Support mix
+    airflow.operators.base_operator.BaseOperator and List[airflow.operators.base_operator.BaseOperator].
+    If you want to chain between two List[airflow.operators.base_operator.BaseOperator], have to
     make sure they have same length.
 
     chain(t1, [t2, t3], [t4, t5], t6)
@@ -164,10 +164,11 @@ def chain(*tasks):
     t4.set_downstream(t6)
     t5.set_downstream(t6)
 
-    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
-    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
+    :param tasks: List of tasks or List[airflow.operators.base_operator.BaseOperator] to set dependencies
+    :type tasks: List[airflow.operators.base_operator.BaseOperator] or
+        airflow.operators.base_operator.BaseOperator
     """
-    from airflow.models import BaseOperator
+    from airflow.operators.base_operator import BaseOperator
 
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
@@ -212,9 +213,9 @@ def cross_downstream(from_tasks, to_tasks):
     t3.set_downstream(t6)
 
     :param from_tasks: List of tasks to start from.
-    :type from_tasks: List[airflow.models.BaseOperator]
+    :type from_tasks: List[airflow.operators.base_operator.BaseOperator]
     :param to_tasks: List of tasks to set as downstream dependencies.
-    :type to_tasks: List[airflow.models.BaseOperator]
+    :type to_tasks: List[airflow.operators.base_operator.BaseOperator]
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)

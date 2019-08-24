@@ -26,7 +26,7 @@ from typing import Any, List
 import pkg_resources
 
 from airflow import settings
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.operators.base_operator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log

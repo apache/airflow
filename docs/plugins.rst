@@ -158,8 +158,7 @@ definitions in Airflow.
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
-    from airflow.models import BaseOperator
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.operators.base_operator import BaseOperator, BaseOperatorLink
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.executors.base_executor import BaseExecutor
 
@@ -268,8 +267,8 @@ will automatically load the registered plugins from the entrypoint list.
 
     # my_package/my_plugin.py
     from airflow.plugins_manager import AirflowPlugin
-    from airflow.models import BaseOperator
     from airflow.hooks.base_hook import BaseHook
+    from airflow.operators.base_operator import BaseOperator
 
     class MyOperator(BaseOperator):
       pass

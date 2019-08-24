@@ -28,7 +28,7 @@ from googleapiclient.errors import HttpError
 from airflow import AirflowException
 from airflow.gcp.hooks.functions import GcfHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator, GcpFieldValidationException
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 

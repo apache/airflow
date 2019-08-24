@@ -19,7 +19,8 @@
 
 import pendulum
 
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import SkipMixin
+from airflow.operators.base_operator import BaseOperator
 
 
 class LatestOnlyOperator(BaseOperator, SkipMixin):

@@ -30,7 +30,7 @@ from airflow import AirflowException
 from airflow.gcp.hooks.compute import GceHook
 from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

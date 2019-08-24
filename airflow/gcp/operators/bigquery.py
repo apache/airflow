@@ -29,8 +29,8 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
+from airflow.operators.base_operator import BaseOperator, BaseOperatorLink
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.utils.decorators import apply_defaults
 

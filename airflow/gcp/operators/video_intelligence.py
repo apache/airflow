@@ -27,7 +27,7 @@ from google.cloud.videointelligence_v1.types import VideoContext
 from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):

@@ -20,7 +20,8 @@
 
 from typing import Dict, Iterable, Union
 
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import SkipMixin
+from airflow.operators.base_operator import BaseOperator
 
 
 class BaseBranchOperator(BaseOperator, SkipMixin):

@@ -31,8 +31,9 @@ import pendulum
 import airflow
 from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
 from airflow.models.connection import Connection
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
 

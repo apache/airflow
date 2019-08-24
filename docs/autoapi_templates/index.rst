@@ -23,7 +23,7 @@ Python API Reference
 Operators
 ---------
 Operators allow for generation of certain types of tasks that become nodes in
-the DAG when instantiated. All operators derive from :class:`~airflow.models.BaseOperator` and
+the DAG when instantiated. All operators derive from :class:`~airflow.operators.base_operator.BaseOperator` and
 inherit many attributes and methods that way.
 
 There are 3 main types of operators:
@@ -39,16 +39,16 @@ There are 3 main types of operators:
 
 BaseOperator
 ''''''''''''
-All operators are derived from :class:`~airflow.models.BaseOperator` and acquire much
+All operators are derived from :class:`~airflow.operators.base_operator.BaseOperator` and acquire much
 functionality through inheritance. Since this is the core of the engine,
-it's worth taking the time to understand the parameters of :class:`~airflow.models.BaseOperator`
+it's worth taking the time to understand the parameters of :class:`~airflow.operators.base_operator.BaseOperator`
 to understand the primitive features that can be leveraged in your
 DAGs.
 
 BaseSensorOperator
 ''''''''''''''''''
 All sensors are derived from :class:`~airflow.sensors.base_sensor_operator.BaseSensorOperator`. All sensors inherit
-the :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.models.BaseOperator`
+the :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base_sensor_operator.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.operators.base_operator.BaseOperator`
 attributes.
 
 Operators packages

@@ -22,7 +22,7 @@ This module contains operator for uploading local file to GCS.
 import warnings
 
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

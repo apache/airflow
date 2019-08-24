@@ -25,7 +25,7 @@ from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, Output
 from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.cloud_memorystore import CloudMemorystoreHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

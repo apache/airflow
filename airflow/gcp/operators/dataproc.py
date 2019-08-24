@@ -33,7 +33,7 @@ from typing import Dict, List, Optional, Set
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.dataproc import DataProcHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version

@@ -25,7 +25,7 @@ from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

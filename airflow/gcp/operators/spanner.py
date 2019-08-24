@@ -23,7 +23,7 @@ from typing import List, Optional
 
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import CloudSpannerHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

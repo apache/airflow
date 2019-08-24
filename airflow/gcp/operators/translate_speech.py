@@ -27,7 +27,7 @@ from google.protobuf.json_format import MessageToDict
 from airflow import AirflowException
 from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
 from airflow.gcp.hooks.translate import CloudTranslateHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

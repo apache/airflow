@@ -21,7 +21,7 @@
 from uuid import uuid4
 
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

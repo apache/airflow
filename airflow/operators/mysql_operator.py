@@ -19,7 +19,7 @@
 from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

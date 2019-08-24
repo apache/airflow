@@ -54,7 +54,7 @@ from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
+    from airflow.operators.base_operator import BaseOperator  # Avoid circular dependency
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 

@@ -26,10 +26,13 @@ from unittest import mock
 import jinja2
 from parameterized import parameterized
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
+from airflow.operators.base_operator import BaseOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from tests.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestOperator(BaseOperator):

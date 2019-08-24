@@ -29,7 +29,7 @@ from google.cloud.tasks_v2 import enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]

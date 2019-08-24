@@ -29,7 +29,7 @@ from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.models import BaseOperator
+from airflow.operators.base_operator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 SETTINGS = 'settings'
