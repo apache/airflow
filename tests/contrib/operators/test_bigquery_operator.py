@@ -35,8 +35,9 @@ from airflow.contrib.operators.bigquery_to_bigquery import \
 from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
 from airflow.contrib.operators.bigquery_to_mysql_operator import BigQueryToMySqlOperator
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskFail, TaskInstance
+from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.settings import Session
+from airflow.utils.db import provide_session
 from tests.compat import mock
 
 TASK_ID = 'test-bq-create-table-operator'
@@ -434,14 +435,32 @@ class TestBigQueryOperator(unittest.TestCase):
         ti.render_templates()
         self.assertTrue(isinstance(ti.task.sql, str))
 
+    @provide_session
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
-    def test_bigquery_operator_extra_link(self, mock_hook):
+    def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, session):
         bigquery_task = BigQueryOperator(
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
             dag=self.dag,
         )
         self.dag.clear()
+        session.query(XCom).delete()
+
+        self.assertEqual(
+            '',
+            bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
+        )
+
+    @provide_session
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, session):
+        bigquery_task = BigQueryOperator(
+            task_id=TASK_ID,
+            sql='SELECT * FROM test_table',
+            dag=self.dag,
+        )
+        self.dag.clear()
+        session.query(XCom).delete()
 
         ti = TaskInstance(
             task=bigquery_task,
@@ -459,6 +478,40 @@ class TestBigQueryOperator(unittest.TestCase):
         self.assertEqual(
             '',
             bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
+        )
+
+    @provide_session
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, session):
+        bigquery_task = BigQueryOperator(
+            task_id=TASK_ID,
+            sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
+            dag=self.dag,
+        )
+        self.dag.clear()
+        session.query(XCom).delete()
+
+        ti = TaskInstance(
+            task=bigquery_task,
+            execution_date=DEFAULT_DATE,
+        )
+
+        job_id = ['123', '45']
+        ti.xcom_push(key='job_id', value=job_id)
+
+        self.assertEqual(
+            {'BigQuery Console #1', 'BigQuery Console #2'},
+            bigquery_task.operator_extra_link_dict.keys()
+        )
+
+        self.assertEqual(
+            'https://console.cloud.google.com/bigquery?j=123',
+            bigquery_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #1'),
+        )
+
+        self.assertEqual(
+            'https://console.cloud.google.com/bigquery?j=45',
+            bigquery_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #2'),
         )
 
 
