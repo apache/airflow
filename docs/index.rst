@@ -88,7 +88,7 @@ Content
     plugins
     security
     timezone
-    usage-rest-api
+    Using the CLI <usage-cli>
     integration
     metrics
     errors
