@@ -62,18 +62,21 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     :type pickle_dags: bool
     :param dag_id_white_list: If specified, only look at these DAG ID's
     :type dag_id_white_list: list[unicode]
+    :param zombies: zombie task instances to kill
+    :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
     """
 
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list):
+    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
         self._file_path = file_path
 
         # The process that was launched to process the given .
         self._process = None
         self._dag_id_white_list = dag_id_white_list
         self._pickle_dags = pickle_dags
+        self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
         self._result = None
         # Whether the process is done running.
@@ -94,7 +97,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                             file_path,
                             pickle_dags,
                             dag_id_white_list,
-                            thread_name):
+                            thread_name,
+                            zombies):
         """
         Process the given file.
 
@@ -112,6 +116,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type thread_name: unicode
         :return: the process that was launched
         :rtype: multiprocessing.Process
+        :param zombies: zombie task instances to kill
+        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
         """
         # This helper runs in the newly created process
         log = logging.getLogger("airflow.processor")
@@ -139,7 +145,9 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             log.info("Started process (PID=%s) to work on %s",
                      os.getpid(), file_path)
             scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
-            result = scheduler_job.process_file(file_path, pickle_dags)
+            result = scheduler_job.process_file(file_path,
+                                                zombies,
+                                                pickle_dags)
             result_channel.send(result)
             end_time = time.time()
             log.info(
@@ -170,6 +178,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 self._pickle_dags,
                 self._dag_id_white_list,
                 "DagFileProcessor{}".format(self._instance_id),
+                self._zombies
             ),
             name="DagFileProcessor{}-Process".format(self._instance_id)
         )
@@ -1285,10 +1294,11 @@ class SchedulerJob(BaseJob):
         known_file_paths = list_py_file_paths(self.subdir)
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
-        def processor_factory(file_path):
+        def processor_factory(file_path, zombies):
             return DagFileProcessor(file_path,
                                     pickle_dags,
-                                    self.dag_ids)
+                                    self.dag_ids,
+                                    zombies)
 
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
@@ -1465,7 +1475,7 @@ class SchedulerJob(BaseJob):
         return dags
 
     @provide_session
-    def process_file(self, file_path, pickle_dags=False, session=None):
+    def process_file(self, file_path, zombies, pickle_dags=False, session=None):
         """
         Process a Python file containing Airflow DAGs.
 
@@ -1484,6 +1494,8 @@ class SchedulerJob(BaseJob):
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: unicode
+        :param zombies: zombie task instances to kill.
+        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
@@ -1567,7 +1579,7 @@ class SchedulerJob(BaseJob):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            dagbag.kill_zombies()
+            dagbag.kill_zombies(zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 

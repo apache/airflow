@@ -25,7 +25,7 @@ import sys
 import textwrap
 import zipfile
 from collections import namedtuple
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy import or_
@@ -41,7 +41,6 @@ from airflow.utils.dag_processing import correct_maybe_zipped, list_py_file_path
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 
@@ -273,43 +272,34 @@ class DagBag(BaseDagBag, LoggingMixin):
         return found_dags
 
     @provide_session
-    def kill_zombies(self, session=None):
+    def kill_zombies(self, zombies, session=None):
         """
-        Fail zombie tasks, which are tasks that haven't
+        Fail given zombie tasks, which are tasks that haven't
         had a heartbeat for too long, in the current DagBag.
 
+        :param zombies: zombie task instances to kill.
+        :type zombies: airflow.utils.dag_processing.SimpleTaskInstance
         :param session: DB session.
         :type session: sqlalchemy.orm.session.Session
         """
-        # Avoid circular import
-        from airflow.models.taskinstance import TaskInstance as TI
-        from airflow.jobs import LocalTaskJob as LJ
+        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        limit_dttm = timezone.utcnow() - timedelta(seconds=self.SCHEDULER_ZOMBIE_TASK_THRESHOLD)
-        self.log.debug("Failing jobs without heartbeat after %s", limit_dttm)
-
-        tis = (
-            session.query(TI)
-            .join(LJ, TI.job_id == LJ.id)
-            .filter(TI.state == State.RUNNING)
-            .filter(TI.dag_id.in_(self.dags))
-            .filter(
-                or_(
-                    LJ.state != State.RUNNING,
-                    LJ.latest_heartbeat < limit_dttm,
-                )
-            ).all()
-        )
-        for ti in tis:
-            self.log.info("Detected zombie job with dag_id %s, task_id %s, and execution date %s",
-                          ti.dag_id, ti.task_id, ti.execution_date.isoformat())
-            ti.test_mode = self.UNIT_TEST_MODE
-            ti.task = self.dags[ti.dag_id].get_task(ti.task_id)
-            ti.handle_failure("{} detected as zombie".format(ti),
-                              ti.test_mode, ti.get_template_context())
-            self.log.info('Marked zombie job %s as %s', ti, ti.state)
-            Stats.incr('zombies_killed')
+        for zombie in zombies:
+            if zombie.dag_id in self.dags:
+                dag = self.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TaskInstance(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
+                    ti.test_mode = self.UNIT_TEST_MODE
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
+                    Stats.incr('zombies_killed')
         session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):

@@ -28,7 +28,9 @@ import sys
 import time
 import zipfile
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
+from collections import defaultdict
+from collections import namedtuple
+from datetime import datetime, timedelta
 from importlib import import_module
 from typing import Iterable, NamedTuple, Optional
 
@@ -47,6 +49,8 @@ from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
+from sqlalchemy import or_
 
 
 class SimpleDag(BaseDag):
@@ -751,6 +755,9 @@ class DagFileProcessorManager(LoggingMixin):
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler',
                                                 'print_stats_interval')
+        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
+        self._zombie_threshold_secs = (
+            conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
         # Map from file path to the processor
         self._processors = {}
 
@@ -1230,11 +1237,13 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._file_path_queue.extend(files_paths_to_queue)
 
+        zombies = self._find_zombies()
+
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and
                len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path)
+            processor = self._processor_factory(file_path, zombies)
             Stats.incr('dag_processing.processes')
 
             processor.start()
@@ -1248,6 +1257,45 @@ class DagFileProcessorManager(LoggingMixin):
         self._heartbeat_count += 1
 
         return simple_dags
+
+    @provide_session
+    def _find_zombies(self, session):
+        """
+        Find zombie task instances, which are tasks haven't heartbeated for too long.
+        :return: Zombie task instances in SimpleTaskInstance format.
+        """
+        now = timezone.utcnow()
+        zombies = []
+        if (now - self._last_zombie_query_time).total_seconds() \
+                > self._zombie_query_interval:
+            # to avoid circular imports
+            from airflow.jobs import LocalTaskJob as LJ
+            self.log.info("Finding 'running' jobs without a recent heartbeat")
+            TI = airflow.models.TaskInstance
+            limit_dttm = timezone.utcnow() - timedelta(
+                seconds=self._zombie_threshold_secs)
+            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
+
+            tis = (
+                session.query(TI)
+                .join(LJ, TI.job_id == LJ.id)
+                .filter(TI.state == State.RUNNING)
+                .filter(
+                    or_(
+                        LJ.state != State.RUNNING,
+                        LJ.latest_heartbeat < limit_dttm,
+                    )
+                ).all()
+            )
+            self._last_zombie_query_time = timezone.utcnow()
+            for ti in tis:
+                sti = SimpleTaskInstance(ti)
+                self.log.info(
+                    "Detected zombie job with dag_id %s, task_id %s, and execution date %s",
+                    sti.dag_id, sti.task_id, sti.execution_date.isoformat())
+                zombies.append(sti)
+
+        return zombies
 
     def _kill_timed_out_processors(self):
         """
