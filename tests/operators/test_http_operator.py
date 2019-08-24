@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class SimpleHttpOpTests(unittest.TestCase):
+class TestSimpleHttpOp(unittest.TestCase):
     def setUp(self):
         os.environ['AIRFLOW_CONN_HTTP_EXAMPLE'] = 'http://www.example.com'
 

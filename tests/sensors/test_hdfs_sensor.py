@@ -29,7 +29,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HdfsSensorTests(unittest.TestCase):
+class TestHdfsSensor(unittest.TestCase):
 
     def setUp(self):
         self.hook = FakeHDFSHook

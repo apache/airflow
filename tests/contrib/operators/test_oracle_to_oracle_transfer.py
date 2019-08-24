@@ -23,7 +23,7 @@ from airflow.contrib.operators.oracle_to_oracle_transfer \
 from tests.compat import MagicMock
 
 
-class OracleToOracleTransferTest(unittest.TestCase):
+class TestOracleToOracleTransfer(unittest.TestCase):
 
     @staticmethod
     def test_execute():

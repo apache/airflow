@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
 import json
 import time
 import markdown
 import re
+from typing import Any, Optional
 import zipfile
 import os
 import io
@@ -103,11 +105,11 @@ def generate_pages(current_page, num_of_pages,
 </li>""")
 
     previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lsaquo;</a>
 </li>""")
 
     next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&rsaquo;</a>
 </li>""")
 
     last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
@@ -372,6 +374,34 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_python_source(x: Any) -> Optional[str]:
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+    return source_code
 
 
 class UtcAwareFilterMixin:

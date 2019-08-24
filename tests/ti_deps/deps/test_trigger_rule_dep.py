@@ -27,7 +27,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 
 
-class TriggerRuleDepTest(unittest.TestCase):
+class TestTriggerRuleDep(unittest.TestCase):
 
     def _get_task_instance(self, trigger_rule=TriggerRule.ALL_SUCCESS,
                            state=None, upstream_task_ids=None):

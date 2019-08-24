@@ -27,7 +27,7 @@ from airflow.operators.druid_check_operator import DruidCheckOperator
 from tests.compat import mock
 
 
-class DruidCheckOperatorTest(unittest.TestCase):
+class TestDruidCheckOperator(unittest.TestCase):
 
     def setUp(self):
         self.task_id = 'test_task'

@@ -34,7 +34,7 @@ TMP_FILE_FOR_TESTS = 'test_file.txt'
 SFTP_CONNECTION_USER = "root"
 
 
-class SFTPHookTest(unittest.TestCase):
+class TestSFTPHook(unittest.TestCase):
 
     @provide_session
     def update_connection(self, login, session=None):

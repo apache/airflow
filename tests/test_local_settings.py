@@ -64,7 +64,7 @@ class SettingsContext:
         sys.path.remove(self.settings_root)
 
 
-class LocalSettingsTest(unittest.TestCase):
+class TestLocalSettings(unittest.TestCase):
     # Make sure that the configure_logging is not cached
     def setUp(self):
         self.old_modules = dict(sys.modules)

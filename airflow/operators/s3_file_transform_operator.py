@@ -20,6 +20,7 @@
 from tempfile import NamedTemporaryFile
 import subprocess
 import sys
+from typing import Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
@@ -46,6 +47,12 @@ class S3FileTransformOperator(BaseOperator):
 
     :param source_s3_key: The key to be retrieved from S3. (templated)
     :type source_s3_key: str
+    :param dest_s3_key: The key to be written from S3. (templated)
+    :type dest_s3_key: str
+    :param transform_script: location of the executable transformation script
+    :type transform_script: str
+    :param select_expression: S3 Select expression
+    :type select_expression: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -61,16 +68,13 @@ class S3FileTransformOperator(BaseOperator):
 
         This is also applicable to ``dest_verify``.
     :type source_verify: bool or str
-    :param dest_s3_key: The key to be written from S3. (templated)
-    :type dest_s3_key: str
     :param dest_aws_conn_id: destination s3 connection
     :type dest_aws_conn_id: str
+    :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
+        See: ``source_verify``
+    :type dest_verify: bool or str
     :param replace: Replace dest S3 key if it already exists
     :type replace: bool
-    :param transform_script: location of the executable transformation script
-    :type transform_script: str
-    :param select_expression: S3 Select expression
-    :type select_expression: str
     """
 
     template_fields = ('source_s3_key', 'dest_s3_key')
@@ -80,16 +84,16 @@ class S3FileTransformOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            source_s3_key,
-            dest_s3_key,
-            transform_script=None,
+            source_s3_key: str,
+            dest_s3_key: str,
+            transform_script: str = None,
             select_expression=None,
-            source_aws_conn_id='aws_default',
-            source_verify=None,
-            dest_aws_conn_id='aws_default',
-            dest_verify=None,
-            replace=False,
-            *args, **kwargs):
+            source_aws_conn_id: str = 'aws_default',
+            source_verify: Union[bool, str] = None,
+            dest_aws_conn_id: str = 'aws_default',
+            dest_verify: Union[bool, str] = None,
+            replace: bool = False,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id

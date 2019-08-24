@@ -273,7 +273,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # return a set of all dags that the user could access
         return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
-    def has_access(self, permission, view_name, user=None):
+    def has_access(self, permission, view_name, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
@@ -344,7 +344,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
-        deleted_count = pvms.delete()
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for pvm in pvms:
+            sesh.delete(pvm)
+            deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)
@@ -489,7 +496,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -508,7 +515,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

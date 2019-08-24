@@ -26,7 +26,7 @@ from airflow.models import crypto, Variable
 from tests.test_utils.config import conf_vars
 
 
-class VariableTest(unittest.TestCase):
+class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
 

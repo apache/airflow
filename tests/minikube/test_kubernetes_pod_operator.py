@@ -42,7 +42,7 @@ except Exception as e:
         )
 
 
-class KubernetesPodOperatorTest(unittest.TestCase):
+class TestKubernetesPodOperator(unittest.TestCase):
 
     @staticmethod
     def test_config_path_move():

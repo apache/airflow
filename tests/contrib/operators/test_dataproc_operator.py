@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# pylint: disable=too-many-lines
 
 import datetime
 import re
@@ -27,6 +28,8 @@ from typing import Dict
 import time
 
 from copy import deepcopy
+
+from mock import PropertyMock
 
 from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
@@ -59,6 +62,7 @@ TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 CUSTOM_IMAGE = 'test-custom-image'
+CUSTOM_IMAGE_PROJECT_ID = 'test-custom-image-project-id'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
@@ -112,7 +116,7 @@ def _assert_dataproc_job_id(mock_hook, dataproc_task):
     assert dataproc_task.dataproc_job_id == DATAPROC_JOB_ID
 
 
-class DataprocClusterCreateOperatorTest(unittest.TestCase):
+class TestDataprocClusterCreateOperator(unittest.TestCase):
     # Unit test for the DataprocClusterCreateOperator
     def setUp(self):
         # instantiate two different test cases with different labels.
@@ -322,6 +326,27 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
                          expected_custom_image_url)
 
+    def test_init_with_custom_image_with_custom_image_project_id(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=GCE_ZONE,
+            dag=self.dag,
+            custom_image=CUSTOM_IMAGE,
+            custom_image_project_id=CUSTOM_IMAGE_PROJECT_ID
+        )
+
+        cluster_data = dataproc_operator._build_cluster_data()
+        expected_custom_image_url = \
+            'https://www.googleapis.com/compute/beta/projects/' \
+            '{}/global/images/{}'.format(CUSTOM_IMAGE_PROJECT_ID, CUSTOM_IMAGE)
+        self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
+                         expected_custom_image_url)
+        self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
+                         expected_custom_image_url)
+
     def test_build_single_node_cluster(self):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
@@ -415,6 +440,73 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     'labels': {'airflow-version': mock.ANY}})
             hook.wait.assert_called_once_with(self.operation)
 
+    def test_create_cluster_with_multiple_masters(self):
+        # Setup service.projects().regions().clusters().create()
+        #              .execute()
+
+        # pylint:disable=attribute-defined-outside-init
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_clusters = Mock()
+        self.mock_clusters.create.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.clusters.return_value = self.mock_clusters
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        # pylint:enable=attribute-defined-outside-init
+
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.wait.return_value = None
+            num_masters = 3
+
+            dataproc_task = DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                cluster_name=CLUSTER_NAME,
+                num_masters=num_masters,
+                project_id=GCP_PROJECT_ID,
+                num_workers=NUM_WORKERS,
+                zone=GCE_ZONE,
+                dag=self.dag
+            )
+            dataproc_task.execute(None)
+
+            project_uri = 'https://www.googleapis.com/compute/v1/projects/test-project-id'
+            machine_type_uri = project_uri + '/zones/us-central1-a/machineTypes/n1-standard-4'
+            zone_uri = project_uri + '/zones/us-central1-a'
+
+            self.mock_clusters.create.assert_called_once_with(
+                region=GCP_REGION,
+                projectId=GCP_PROJECT_ID,
+                requestId=mock.ANY,
+                body={
+                    'projectId': 'test-project-id',
+                    'clusterName': 'test-cluster-name',
+                    'config': {
+                        'gceClusterConfig':
+                            {'zoneUri': zone_uri},
+                        'masterConfig': {
+                            'numInstances': num_masters,
+                            'machineTypeUri': machine_type_uri,
+                            'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 1024}},
+                        'workerConfig': {
+                            'numInstances': 123,
+                            'machineTypeUri': machine_type_uri,
+                            'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 1024}},
+                        'secondaryWorkerConfig': {},
+                        'softwareConfig': {},
+                        'lifecycleConfig': {},
+                        'encryptionConfig': {},
+                        'autoscalingConfig': {},
+                    },
+                    'labels': {'airflow-version': mock.ANY}})
+            hook.wait.assert_called_once_with(self.operation)
+
     def test_build_cluster_data_internal_ip_only_without_subnetwork(self):
 
         def create_cluster_with_invalid_internal_ip_only_setup():
@@ -439,7 +531,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                          "Set internal_ip_only to true only when you pass a subnetwork_uri.")
 
 
-class DataprocClusterScaleOperatorTest(unittest.TestCase):
+class TestDataprocClusterScaleOperator(unittest.TestCase):
     # Unit test for the DataprocClusterScaleOperator
     def setUp(self):
         # Setup service.projects().regions().clusters().patch()
@@ -502,7 +594,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataprocClusterDeleteOperatorTest(unittest.TestCase):
+class TestDataprocClusterDeleteOperator(unittest.TestCase):
     # Unit test for the DataprocClusterDeleteOperator
     def setUp(self):
         # Setup service.projects().regions().clusters().delete()
@@ -551,7 +643,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataProcJobBaseOperatorTest(unittest.TestCase):
+class TestDataProcJobBaseOperator(unittest.TestCase):
 
     def setUp(self):
         self.dag = DAG(
@@ -590,15 +682,19 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
             mock_hook.cancel.assert_called_once_with(mock.ANY, job_id, GCP_REGION)
 
 
-class DataProcHadoopOperatorTest(unittest.TestCase):
+class TestDataProcHadoopOperator(unittest.TestCase):
     # Unit test for the DataProcHadoopOperator
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID
+    )
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
     @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
-    def test_correct_job_definition(self, mock_hook, mock_uuid):
+    def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['hadoopJob'] = {'mainClass': None}
-        job_definition['job']['reference']['projectId'] = None
         job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
 
         # Prepare job using operator
@@ -635,15 +731,19 @@ class DataProcHadoopOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcHiveOperatorTest(unittest.TestCase):
+class TestDataProcHiveOperator(unittest.TestCase):
     # Unit test for the DataProcHiveOperator
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID
+    )
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
     @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
-    def test_correct_job_definition(self, mock_hook, mock_uuid):
+    def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['hiveJob'] = {'queryFileUri': None}
-        job_definition['job']['reference']['projectId'] = None
         job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
 
         # Prepare job using operator
@@ -680,14 +780,18 @@ class DataProcHiveOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcPigOperatorTest(unittest.TestCase):
+class TestDataProcPigOperator(unittest.TestCase):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID
+    )
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
     @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
-    def test_correct_job_definition(self, mock_hook, mock_uuid):
+    def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['pigJob'] = {'queryFileUri': None}
-        job_definition['job']['reference']['projectId'] = None
         job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
 
         # Prepare job using operator
@@ -728,15 +832,19 @@ class DataProcPigOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcPySparkOperatorTest(unittest.TestCase):
+class TestDataProcPySparkOperator(unittest.TestCase):
     # Unit test for the DataProcPySparkOperator
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID
+    )
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
     @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
-    def test_correct_job_definition(self, mock_hook, mock_uuid):
+    def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['pysparkJob'] = {'mainPythonFileUri': 'main_class'}
-        job_definition['job']['reference']['projectId'] = None
         job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
 
         # Prepare job using operator
@@ -776,15 +884,19 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataProcSparkOperatorTest(unittest.TestCase):
+class TestDataProcSparkOperator(unittest.TestCase):
     # Unit test for the DataProcSparkOperator
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID
+    )
     @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
     @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
-    def test_correct_job_definition(self, mock_hook, mock_uuid):
+    def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
         job_definition['job']['sparkJob'] = {'mainClass': 'main_class'}
-        job_definition['job']['reference']['projectId'] = None
         job_definition['job']['reference']['jobId'] = DATAPROC_JOB_ID + "_test"
 
         # Prepare job using operator
@@ -822,7 +934,7 @@ class DataProcSparkOperatorTest(unittest.TestCase):
             _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
-class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
     def setUp(self):
         # Setup service.projects().regions().workflowTemplates().instantiate().execute()
         self.operation = {'name': 'operation', 'done': True}
@@ -869,7 +981,7 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
             hook.wait.assert_called_once_with(self.operation)
 
 
-class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
     def setUp(self):
         # Setup service.projects().regions().workflowTemplates().instantiateInline()
         #              .execute()

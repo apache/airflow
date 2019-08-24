@@ -112,7 +112,7 @@ def fetch_celery_task_state(celery_task):
 
 
 def send_task_to_executor(task_tuple):
-    key, simple_ti, command, queue, task = task_tuple
+    key, _, command, queue, task = task_tuple
     try:
         with timeout(seconds=2):
             result = task.apply_async(args=[command], queue=queue)
@@ -189,7 +189,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send = []
 
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue,
                                         execute_command))

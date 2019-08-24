@@ -37,7 +37,6 @@ def fail():
 def success(ti=None, *args, **kwargs):
     if ti.execution_date != DEFAULT_DATE + timedelta(days=1):
         fail()
-    return
 
 
 # DAG tests that tasks ignore all dependencies

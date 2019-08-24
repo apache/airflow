@@ -28,7 +28,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
-class NotInReschedulePeriodDepTest(unittest.TestCase):
+class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state):
         dag = DAG('test_dag')

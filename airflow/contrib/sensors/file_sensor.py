@@ -60,7 +60,7 @@ class FileSensor(BaseSensorOperator):
         self.log.info('Poking for file %s', full_path)
         try:
             if stat.S_ISDIR(os.stat(full_path).st_mode):
-                for root, dirs, files in os.walk(full_path):
+                for _, _, files in os.walk(full_path):
                     if len(files):
                         return True
             else:

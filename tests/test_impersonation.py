@@ -38,7 +38,7 @@ TEST_USER = 'airflow_test_user'
 logger = logging.getLogger(__name__)
 
 
-class ImpersonationTest(unittest.TestCase):
+class TestImpersonation(unittest.TestCase):
 
     @staticmethod
     def grant_permissions():

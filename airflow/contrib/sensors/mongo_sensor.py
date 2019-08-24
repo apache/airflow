@@ -30,22 +30,19 @@ class MongoSensor(BaseSensorOperator):
     ...                            query={"key": "value"},
     ...                            mongo_conn_id="mongo_default",
     ...                            task_id="mongo_sensor")
+
+    :param collection: Target MongoDB collection.
+    :type collection: str
+    :param query: The query to find the target document.
+    :type query: dict
+    :param mongo_conn_id: The connection ID to use
+        when connecting to MongoDB.
+    :type mongo_conn_id: str
     """
     template_fields = ('collection', 'query')
 
     @apply_defaults
     def __init__(self, collection, query, mongo_conn_id="mongo_default", *args, **kwargs):
-        """
-        Create a new MongoSensor
-
-        :param collection: Target MongoDB collection.
-        :type collection: str
-        :param query: The query to find the target document.
-        :type query: dict
-        :param mongo_conn_id: The connection ID to use
-                              when connecting to MongoDB.
-        :type mongo_conn_id: str
-        """
         super().__init__(*args, **kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection

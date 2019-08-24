@@ -47,14 +47,19 @@
   <div>
     {% set base_date_arg = request.args.get('base_date') %}
     {% set num_runs_arg = request.args.get('num_runs') %}
+    {% if execution_date is defined %}
+         {% set execution_date_arg = execution_date %}
+    {% else %}
+        {% set execution_date_arg = request.args.get('execution_date') %}
+    {% endif %}
     <ul class="nav nav-pills">
       {% if dag.parent_dag is defined and dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
+          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
       <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
@@ -76,7 +81,7 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
           <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
           <i class="icon-align-left"></i>
           Gantt
