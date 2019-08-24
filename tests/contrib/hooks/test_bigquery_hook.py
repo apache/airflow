@@ -50,6 +50,7 @@ class TestPandasGbqPrivateKey(unittest.TestCase):
 
         with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq',
                         new=lambda *args, **kwargs: kwargs['private_key']):
+
             self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_path)
 
     def test_key_json_provided(self):
@@ -57,12 +58,12 @@ class TestPandasGbqPrivateKey(unittest.TestCase):
         self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
 
         with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
-                                                                                   **kwargs: kwargs['private_key']):
+                        **kwargs: kwargs['private_key']):
             self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_json)
 
     def test_no_key_provided(self):
         with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
-                                                                                   **kwargs: kwargs['private_key']):
+                        **kwargs: kwargs['private_key']):
             self.assertEqual(self.instance.get_pandas_df('select 1'), None)
 
 
@@ -353,7 +354,10 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaises(ValueError):
             # This config should raise a value error.
             src_fmt_configs = {"test_config_unknown": "val"}
-            _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs, backward_compatibility_configs)
+            _validate_src_fmt_configs(source_format,
+                                      src_fmt_configs,
+                                      valid_configs,
+                                      backward_compatibility_configs)
 
         src_fmt_configs = {"test_config_known": "val"}
         src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
@@ -629,7 +633,6 @@ class TestLabelsInRunJob(unittest.TestCase):
             self.assertEqual(
                 config['labels'], {'label1': 'test1', 'label2': 'test2'}
             )
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -645,6 +648,7 @@ class TestLabelsInRunJob(unittest.TestCase):
 class TestDatasetsOperations(unittest.TestCase):
 
     def test_create_empty_dataset_no_dataset_id_err(self):
+
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
@@ -683,7 +687,7 @@ class TestDatasetsOperations(unittest.TestCase):
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         with mock.patch.object(bq_hook.service, 'datasets') as MockService:
             MockService.return_value.get(datasetId=dataset_id,
-                                         projectId=project_id).execute. \
+                                         projectId=project_id).execute.\
                 return_value = expected_result
             result = bq_hook.get_dataset(dataset_id=dataset_id,
                                          project_id=project_id)
@@ -800,7 +804,6 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         def run_with_config(config):
             self.assertIsNone(config['load'].get('timePartitioning'))
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -833,7 +836,6 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                     'expirationMs': 1000
                 }
             )
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -852,7 +854,6 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         def run_with_config(config):
             self.assertIsNone(config['query'].get('timePartitioning'))
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -873,7 +874,6 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                     'expirationMs': 1000
                 }
             )
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -915,7 +915,6 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         def run_with_config(config):
             self.assertIsNone(config['load'].get('clustering'))
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -938,7 +937,6 @@ class TestClusteringInRunJob(unittest.TestCase):
                     'fields': ['field1', 'field2']
                 }
             )
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -958,7 +956,6 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         def run_with_config(config):
             self.assertIsNone(config['query'].get('clustering'))
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
@@ -977,7 +974,6 @@ class TestClusteringInRunJob(unittest.TestCase):
                     'fields': ['field1', 'field2']
                 }
             )
-
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
