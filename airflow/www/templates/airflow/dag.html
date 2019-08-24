@@ -486,7 +486,7 @@ function updateQueryStringParameter(uri, key, value) {
 
       if (extra_links && extra_links.length > 0){
         var markupArr = [];
-
+        extra_links.sort();
         $.each(extra_links, function(i, link){
           var url = "{{ url_for('Airflow.extra_links') }}" +
                   "?task_id=" + encodeURIComponent(task_id) +
