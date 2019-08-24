@@ -502,19 +502,12 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         if source_format in src_fmt_to_param_mapping.keys():
-
             valid_configs = src_fmt_to_configs_mapping[
                 src_fmt_to_param_mapping[source_format]
             ]
 
-            for k, v in backward_compatibility_configs.items():
-                if k not in src_fmt_configs and k in valid_configs:
-                    src_fmt_configs[k] = v
-
-            for k, v in src_fmt_configs.items():
-                if k not in valid_configs:
-                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                                     .format(k, source_format))
+            src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                        backward_compatibility_configs)
 
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
@@ -878,8 +871,8 @@ class BigQueryBaseCursor(LoggingMixin):
                 'createDisposition': create_disposition,
             })
 
-        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
-                'queryParameters' in configuration['query']:
+        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and \
+            'queryParameters' in configuration['query']:
             raise ValueError("Query parameters are not allowed "
                              "when using legacy SQL")
 
@@ -896,14 +889,14 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.run_with_configuration(configuration)
 
     def run_extract(  # noqa
-            self,
-            source_project_dataset_table,
-            destination_cloud_storage_uris,
-            compression='NONE',
-            export_format='CSV',
-            field_delimiter=',',
-            print_header=True,
-            labels=None):
+        self,
+        source_project_dataset_table,
+        destination_cloud_storage_uris,
+        compression='NONE',
+        export_format='CSV',
+        field_delimiter=',',
+        print_header=True,
+        labels=None):
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -1004,9 +997,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type encryption_configuration: dict
         """
         source_project_dataset_tables = ([
-            source_project_dataset_tables
-        ] if not isinstance(source_project_dataset_tables, list) else
-            source_project_dataset_tables)
+                                             source_project_dataset_tables
+                                         ] if not isinstance(source_project_dataset_tables, list) else
+                                         source_project_dataset_tables)
 
         source_project_dataset_tables_fixup = []
         for source_project_dataset_table in source_project_dataset_tables:
@@ -1016,11 +1009,11 @@ class BigQueryBaseCursor(LoggingMixin):
                                  var_name='source_project_dataset_table')
             source_project_dataset_tables_fixup.append({
                 'projectId':
-                source_project,
+                    source_project,
                 'datasetId':
-                source_dataset,
+                    source_dataset,
                 'tableId':
-                source_table
+                    source_table
             })
 
         destination_project, destination_dataset, destination_table = \
@@ -1180,11 +1173,11 @@ class BigQueryBaseCursor(LoggingMixin):
             'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
         ]
         if not set(allowed_schema_update_options).issuperset(
-                set(schema_update_options)):
+            set(schema_update_options)):
             raise ValueError(
                 "{0} contains invalid schema update options."
                 "Please only use one or more of the following options: {1}"
-                .format(schema_update_options, allowed_schema_update_options))
+                    .format(schema_update_options, allowed_schema_update_options))
 
         destination_project, destination_dataset, destination_table = \
             _split_tablename(table_input=destination_project_dataset_table,
@@ -1265,14 +1258,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'quote': quote_character,
                                           'allowQuotedNewlines': allow_quoted_newlines}
 
-        for k, v in backward_compatibility_configs.items():
-            if k not in src_fmt_configs and k in valid_configs:
-                src_fmt_configs[k] = v
-
-        for k, v in src_fmt_configs.items():
-            if k not in valid_configs:
-                raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                                 .format(k, source_format))
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
 
         configuration['load'].update(src_fmt_configs)
 
@@ -1322,7 +1309,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 else:
                     raise Exception(
                         'BigQuery job status check failed. Final error was: {}'.
-                        format(err.resp.status))
+                            format(err.resp.status))
 
         return self.running_job_id
 
@@ -1377,7 +1364,7 @@ class BigQueryBaseCursor(LoggingMixin):
             else:
                 raise Exception(
                     'BigQuery job status check failed. Final error was: {}'.
-                    format(err.resp.status))
+                        format(err.resp.status))
         return False
 
     def cancel_query(self):
@@ -1386,7 +1373,7 @@ class BigQueryBaseCursor(LoggingMixin):
         """
         jobs = self.service.jobs()
         if (self.running_job_id and
-                not self.poll_job_complete(self.running_job_id)):
+            not self.poll_job_complete(self.running_job_id)):
             self.log.info('Attempting to cancel job : %s, %s', self.project_id,
                           self.running_job_id)
             if self.location:
@@ -1537,10 +1524,10 @@ class BigQueryBaseCursor(LoggingMixin):
                         body=table_resource).execute(num_retries=self.num_retries)
             # If there is a next page, we need to check the next page.
             if 'nextPageToken' in tables_list_resp:
-                tables_list_resp = self.service.tables()\
+                tables_list_resp = self.service.tables() \
                     .list(projectId=project_id,
                           datasetId=dataset_id,
-                          pageToken=tables_list_resp['nextPageToken'])\
+                          pageToken=tables_list_resp['nextPageToken']) \
                     .execute(num_retries=self.num_retries)
             # If there is no next page, then the table doesn't exist.
             else:
@@ -1824,12 +1811,12 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             dataset = (
                 self.service.datasets()
-                .patch(
+                    .patch(
                     datasetId=dataset_id,
                     projectId=dataset_project_id,
                     body=dataset_resource,
                 )
-                .execute(num_retries=self.num_retries)
+                    .execute(num_retries=self.num_retries)
             )
             self.log.info("Dataset successfully patched: %s", dataset)
         except HttpError as err:
@@ -1870,12 +1857,12 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             dataset = (
                 self.service.datasets()
-                .update(
+                    .update(
                     datasetId=dataset_id,
                     projectId=dataset_project_id,
                     body=dataset_resource,
                 )
-                .execute(num_retries=self.num_retries)
+                    .execute(num_retries=self.num_retries)
             )
             self.log.info("Dataset successfully updated: %s", dataset)
         except HttpError as err:
@@ -2171,7 +2158,6 @@ def _bq_cast(string_field, bq_type):
 
 
 def _split_tablename(table_input, default_project_id, var_name=None):
-
     if '.' not in table_input:
         raise ValueError(
             'Expected target table name in the format of '
@@ -2189,7 +2175,7 @@ def _split_tablename(table_input, default_project_id, var_name=None):
     if table_input.count('.') + table_input.count(':') > 3:
         raise Exception(('{var}Use either : or . to specify project '
                          'got {input}').format(
-                             var=var_print(var_name), input=table_input))
+            var=var_print(var_name), input=table_input))
     cmpt = table_input.rsplit(':', 1)
     project_id = None
     rest = table_input
@@ -2203,7 +2189,7 @@ def _split_tablename(table_input, default_project_id, var_name=None):
     else:
         raise Exception(('{var}Expect format of (<project:)<dataset>.<table>, '
                          'got {input}').format(
-                             var=var_print(var_name), input=table_input))
+            var=var_print(var_name), input=table_input))
 
     cmpt = rest.split('.')
     if len(cmpt) == 3:
@@ -2264,3 +2250,30 @@ def _api_resource_configs_duplication_check(key, value, config_dict,
                          "in `query` config and {param_name} was also provided "
                          "with arg to run_query() method. Please remove duplicates."
                          .format(param_name=key, dict_name=config_dict_name))
+
+
+def _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs, backward_compatibility_configs={}):
+    """
+    Validates the given src_fmt_configs against a valid configuration for the source format.
+    Adds the backward compatiblity config to the src_fmt_configs.
+
+    :param source_format: File format to export.
+    :type source_format: str
+    :param src_fmt_configs: Configure optional fields specific to the source format.
+    :type src_fmt_configs: dict
+    :param valid_configs: Valid configuration specific to the source format
+    :type valid_configs: List[str]
+    :param backward_compatibility_configs: The top-level params for backward-compatibility
+    :type backward_compatibility_configs: dict
+    """
+
+    for k, v in backward_compatibility_configs.items():
+        if k not in src_fmt_configs and k in valid_configs:
+            src_fmt_configs[k] = v
+
+    for k, v in src_fmt_configs.items():
+        if k not in valid_configs:
+            raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
+                             .format(k, source_format))
+
+    return src_fmt_configs
