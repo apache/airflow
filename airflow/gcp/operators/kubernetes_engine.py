@@ -208,14 +208,14 @@ class GKEPodOperator(KubernetesPodOperator):
         For more detail about application authentication have a look at the reference:
         https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
 
-    :param project_id: The Google Developers Console project id
-    :type project_id: str
     :param location: The name of the Google Kubernetes Engine zone in which the
         cluster resides, e.g. 'us-central1-a'
     :type location: str
     :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
         should be spawned in
     :type cluster_name: str
+    :param project_id: The Google Developers Console project id
+    :type project_id: str
     :param gcp_conn_id: The google cloud connection id to use. This allows for
         users to specify a service account.
     :type gcp_conn_id: str
@@ -225,9 +225,9 @@ class GKEPodOperator(KubernetesPodOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  location: str,
                  cluster_name: str,
+                 project_id: str = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args,
                  **kwargs):
@@ -245,11 +245,19 @@ class GKEPodOperator(KubernetesPodOperator):
             )
 
     def execute(self, context):
+        hook = GoogleCloudBaseHook(gcp_conn_id=self.gcp_conn_id)
+        self.project_id = self.project_id or hook.project_id
+
+        if not self.project_id:
+            raise AirflowException("The project id must be passed either as "
+                                   "keyword project_id parameter or as project_id extra "
+                                   "in GCP connection definition. Both are not set!")
+
         # Write config to a temp file and set the environment variable to point to it.
         # This is to avoid race conditions of reading/writing a single file
         with tempfile.NamedTemporaryFile() as conf_file:
             os.environ[KUBE_CONFIG_ENV_VAR] = conf_file.name
-            hook = GoogleCloudBaseHook(gcp_conn_id=self.gcp_conn_id)
+
             with hook.provide_gcp_credential_file_as_context():
                 # Attempt to get/update credentials
                 # We call gcloud directly instead of using google-cloud-python api
