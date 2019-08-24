@@ -502,19 +502,12 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         if source_format in src_fmt_to_param_mapping.keys():
-
             valid_configs = src_fmt_to_configs_mapping[
                 src_fmt_to_param_mapping[source_format]
             ]
 
-            for k, v in backward_compatibility_configs.items():
-                if k not in src_fmt_configs and k in valid_configs:
-                    src_fmt_configs[k] = v
-
-            for k, v in src_fmt_configs.items():
-                if k not in valid_configs:
-                    raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                                     .format(k, source_format))
+            src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                        backward_compatibility_configs)
 
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
@@ -1243,7 +1236,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-
         src_fmt_to_configs_mapping = {
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
@@ -1266,14 +1258,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'quote': quote_character,
                                           'allowQuotedNewlines': allow_quoted_newlines}
 
-        for k, v in backward_compatibility_configs.items():
-            if k not in src_fmt_configs and k in valid_configs:
-                src_fmt_configs[k] = v
-
-        for k, v in src_fmt_configs.items():
-            if k not in valid_configs:
-                raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                                 .format(k, source_format))
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
 
         configuration['load'].update(src_fmt_configs)
 
@@ -2265,3 +2251,34 @@ def _api_resource_configs_duplication_check(key, value, config_dict,
                          "in `query` config and {param_name} was also provided "
                          "with arg to run_query() method. Please remove duplicates."
                          .format(param_name=key, dict_name=config_dict_name))
+
+
+def _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                              backward_compatibility_configs=None):
+    """
+    Validates the given src_fmt_configs against a valid configuration for the source format.
+    Adds the backward compatiblity config to the src_fmt_configs.
+
+    :param source_format: File format to export.
+    :type source_format: str
+    :param src_fmt_configs: Configure optional fields specific to the source format.
+    :type src_fmt_configs: dict
+    :param valid_configs: Valid configuration specific to the source format
+    :type valid_configs: List[str]
+    :param backward_compatibility_configs: The top-level params for backward-compatibility
+    :type backward_compatibility_configs: dict
+    """
+
+    if backward_compatibility_configs is None:
+        backward_compatibility_configs = {}
+
+    for k, v in backward_compatibility_configs.items():
+        if k not in src_fmt_configs and k in valid_configs:
+            src_fmt_configs[k] = v
+
+    for k, v in src_fmt_configs.items():
+        if k not in valid_configs:
+            raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
+                             .format(k, source_format))
+
+    return src_fmt_configs
