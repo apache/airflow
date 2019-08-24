@@ -963,7 +963,9 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.log.info("Datasets obtained.")
 
         self.xcom_push(
-            context, key="dataset_id_list", value=[hook.extract_object_id(d) for d in result]
+            context,
+            key="dataset_id_list",
+            value=[hook.extract_object_id(d) for d in result],
         )
         return result
 

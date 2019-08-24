@@ -20,7 +20,7 @@
 """
 This module contains a Google AutoML hook.
 """
-from typing import Dict, Sequence, Tuple, Union, List
+from typing import Dict, Sequence, Tuple, Union, List, Optional
 from cached_property import cached_property
 
 from google.api_core.retry import Retry
@@ -51,12 +51,14 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to=None):
+    def __init__(
+        self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None
+    ):
         super().__init__(gcp_conn_id, delegate_to)
-        self._client = None
+        self._client = None  # type: Optional[AutoMlClient]
 
     @staticmethod
-    def extract_object_id(obj: dict) -> str:
+    def extract_object_id(obj: Dict) -> str:
         """
         Returns unique id of the object.
         """
@@ -71,8 +73,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         """
         if self._client is None:
             self._client = AutoMlClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._client
 
@@ -85,8 +86,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
         """
         return PredictionServiceClient(
-            credentials=self._get_credentials(),
-            client_info=self.client_info
+            credentials=self._get_credentials(), client_info=self.client_info
         )
 
     @GoogleCloudBaseHook.catch_http_exception

@@ -34,10 +34,9 @@ from airflow.gcp.operators.automl import (
 )
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-# For now only this location is supported
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
 GCP_AUTOML_SENTIMENT_BUCKET = os.environ.get(
-    "GCP_AUTOML_SENTIMENT_BUCKET", "gs://"  # TODO override
+    "GCP_AUTOML_SENTIMENT_BUCKET", "gs://"
 )
 
 # Example values

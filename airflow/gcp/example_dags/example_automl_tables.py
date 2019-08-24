@@ -44,7 +44,6 @@ from airflow.gcp.operators.automl import (
 )
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-# For now only this location is supported
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
 GCP_AUTOML_DATASET_BUCKET = os.environ.get(
     "GCP_AUTOML_DATASET_BUCKET", "gs://cloud-ml-tables-data/bank-marketing.csv"
@@ -291,7 +290,7 @@ with models.DAG(
     predict_task = AutoMLPredictOperator(
         task_id="predict_task",
         model_id=MODEL_ID,
-        payload={},  # TODO Add your own payload, the used model_id must be deployed
+        payload={},  # Add your own payload, the used model_id must be deployed
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
@@ -301,8 +300,8 @@ with models.DAG(
     batch_predict_task = AutoMLBatchPredictOperator(
         task_id="batch_predict_task",
         model_id=MODEL_ID,
-        input_config={},  # TODO Add your config
-        output_config={},  # TODO Add your config
+        input_config={},  # Add your config
+        output_config={},  # Add your config
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )

@@ -976,11 +976,7 @@ Google Natural Language
     Delete Google Cloud AutoML model.
 
 :class:`airflow.gcp.operators.automl.AutoMLDeployModelOperator`
-    Deploys a model. If a model is already deployed, deploying it with the same parameters
-    has no effect. Deploying with different parametrs (as e.g. changing node_number) will
-    reset the deployment state without pausing the model_id’s availability.
-    Only applicable for Text Classification, Image Object Detection and Tables; all other
-    domains manage deployment automatically.
+    Deploys a model.
 
 They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
 
