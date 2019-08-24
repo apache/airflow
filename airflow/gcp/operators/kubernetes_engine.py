@@ -26,10 +26,10 @@ import subprocess
 import tempfile
 from typing import Union, Dict, Optional
 
-from google.auth.environment_vars import CREDENTIALS
 from google.cloud.container_v1.types import Cluster
 
 from airflow import AirflowException
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.models import BaseOperator
@@ -187,8 +187,7 @@ class GKEPodOperator(KubernetesPodOperator):
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
     Engine cluster
 
-    This Operator assumes that the system has gcloud installed and either
-    has working default application credentials or has configured a
+    This Operator assumes that the system has gcloud installed and has configured a
     connection id with a service account.
 
     The **minimum** required to define a cluster to create are the variables
@@ -238,87 +237,32 @@ class GKEPodOperator(KubernetesPodOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
 
+        if self.gcp_conn_id is None:
+            raise AirflowException(
+                "The gcp_conn_id parameter has become required. If you want to use Application Default "
+                "Credentials (ADC) strategy for authorization, create an empty connection "
+                "called `google_cloud_default`.",
+            )
+
     def execute(self, context):
-        # Specifying a service account file allows the user to using non default
-        # authentication for creating a Kubernetes Pod. This is done by setting the
-        # environment variable `GOOGLE_APPLICATION_CREDENTIALS` that gcloud looks at.
-        key_file = None
-
-        # If gcp_conn_id is not specified gcloud will use the default
-        # service account credentials.
-        if self.gcp_conn_id:
-            from airflow.hooks.base_hook import BaseHook
-            # extras is a deserialized json object
-            extras = BaseHook.get_connection(self.gcp_conn_id).extra_dejson
-            # key_file only gets set if a json file is created from a JSON string in
-            # the web ui, else none
-            key_file = self._set_env_from_extras(extras=extras)
-
         # Write config to a temp file and set the environment variable to point to it.
         # This is to avoid race conditions of reading/writing a single file
         with tempfile.NamedTemporaryFile() as conf_file:
             os.environ[KUBE_CONFIG_ENV_VAR] = conf_file.name
-            # Attempt to get/update credentials
-            # We call gcloud directly instead of using google-cloud-python api
-            # because there is no way to write kubernetes config to a file, which is
-            # required by KubernetesPodOperator.
-            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-            # the kubernetes config file.
-            subprocess.check_call(
-                ["gcloud", "container", "clusters", "get-credentials",
-                 self.cluster_name,
-                 "--zone", self.location,
-                 "--project", self.project_id])
+            hook = GoogleCloudBaseHook(gcp_conn_id=self.gcp_conn_id)
+            with hook.provide_gcp_credential_file_as_context():
+                # Attempt to get/update credentials
+                # We call gcloud directly instead of using google-cloud-python api
+                # because there is no way to write kubernetes config to a file, which is
+                # required by KubernetesPodOperator.
+                # The gcloud command looks at the env variable `KUBECONFIG` for where to save
+                # the kubernetes config file.
+                subprocess.check_call(
+                    ["gcloud", "container", "clusters", "get-credentials",
+                     self.cluster_name,
+                     "--zone", self.location,
+                     "--project", self.project_id])
 
-            # Since the key file is of type mkstemp() closing the file will delete it from
-            # the file system so it cannot be accessed after we don't need it anymore
-            if key_file:
-                key_file.close()
-
-            # Tell `KubernetesPodOperator` where the config file is located
-            self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-            return super().execute(context)
-
-    def _set_env_from_extras(self, extras):
-        """
-        Sets the environment variable `GOOGLE_APPLICATION_CREDENTIALS` with either:
-
-        - The path to the keyfile from the specified connection id
-        - A generated file's path if the user specified JSON in the connection id. The
-            file is assumed to be deleted after the process dies due to how mkstemp()
-            works.
-
-        The environment variable is used inside the gcloud command to determine correct
-        service account to use.
-        """
-        key_path = self._get_field(extras, 'key_path', False)
-        keyfile_json_str = self._get_field(extras, 'keyfile_dict', False)
-
-        if not key_path and not keyfile_json_str:
-            self.log.info('Using gcloud with application default credentials.')
-            return None
-        elif key_path:
-            os.environ[CREDENTIALS] = key_path
-            return None
-        else:
-            # Write service account JSON to secure file for gcloud to reference
-            service_key = tempfile.NamedTemporaryFile(delete=False)
-            service_key.write(keyfile_json_str.encode('utf-8'))
-            os.environ[CREDENTIALS] = service_key.name
-            # Return file object to have a pointer to close after use,
-            # thus deleting from file system.
-            return service_key
-
-    def _get_field(self, extras, field, default=None):
-        """
-        Fetches a field from extras, and returns it. This is some Airflow
-        magic. The google_cloud_platform hook type adds custom UI elements
-        to the hook page, which allow admins to specify service_account,
-        key_path, etc. They get formatted as shown below.
-        """
-        long_f = 'extra__google_cloud_platform__{}'.format(field)
-        if long_f in extras:
-            return extras[long_f]
-        else:
-            self.log.info('Field %s not found in extras.', field)
-            return default
+                # Tell `KubernetesPodOperator` where the config file is located
+                self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
+                return super().execute(context)
