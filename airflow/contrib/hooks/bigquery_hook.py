@@ -63,10 +63,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         Returns a BigQuery PEP 249 connection object.
         """
         service = self.get_service()
-        project = self._get_field('project')
         return BigQueryConnection(
             service=service,
-            project_id=project,
+            project_id=self.project_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
             num_retries=self.num_retries
@@ -112,7 +111,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
         return read_gbq(sql,
-                        project_id=self._get_field('project'),
+                        project_id=self.project_id,
                         dialect=dialect,
                         verbose=False,
                         private_key=private_key)

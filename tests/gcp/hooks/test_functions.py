@@ -24,8 +24,7 @@ from airflow.gcp.hooks.functions import GcfHook
 
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock
-from tests.compat import mock
-
+from tests.compat import mock, PropertyMock
 
 GCF_LOCATION = 'location'
 GCF_FUNCTION = 'function'
@@ -38,9 +37,16 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_no_default_project_id):
             self.gcf_function_hook_no_project_id = GcfHook(gcp_conn_id='test', api_version='v1')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
     @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
-    def test_create_new_function_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_new_function_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         create_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.create
         execute_method = create_method.return_value.execute
@@ -76,9 +82,16 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('requests.put')
     @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    def test_upload_function_zip_missing_project_id(self, get_conn, requests_put):
+    def test_upload_function_zip_missing_project_id(
+        self, get_conn, requests_put, mock_project_id
+    ):
         mck = mock.mock_open()
         with mock.patch('builtins.open', mck):
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \

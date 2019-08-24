@@ -28,6 +28,7 @@ from googleapiclient.errors import HttpError
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
     _validate_value, _api_resource_configs_duplication_check
+from tests.compat import PropertyMock
 
 bq_available = True
 
@@ -43,22 +44,35 @@ class TestPandasGbqPrivateKey(unittest.TestCase):
         if not bq_available:
             self.instance.extras['extra__google_cloud_platform__project'] = 'mock_project'
 
-    def test_key_path_provided(self):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    def test_key_path_provided(self, mock_read_gbq, mock_project_id):
         private_key_path = '/Fake/Path'
         self.instance.extras['extra__google_cloud_platform__key_path'] = private_key_path
 
-        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq',
-                        new=lambda *args, **kwargs: kwargs['private_key']):
+        self.instance.get_pandas_df('select 1')
 
-            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_path)
+        args, kwargs = mock_read_gbq.call_args
+        self.assertEqual(kwargs['private_key'], private_key_path)
 
-    def test_key_json_provided(self):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    def test_key_json_provided(self, mock_read_gbq, mock_project_id):
         private_key_json = 'Fake Private Key'
         self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
 
-        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
-                        **kwargs: kwargs['private_key']):
-            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_json)
+        self.instance.get_pandas_df('select 1')
+
+        args, kwargs = mock_read_gbq.call_args
+        self.assertEqual(kwargs['private_key'], private_key_json)
 
     def test_no_key_provided(self):
         with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
