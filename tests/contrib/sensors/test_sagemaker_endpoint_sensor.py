@@ -57,7 +57,7 @@ DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
 class TestSageMakerEndpointSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_endpoint')
-    def test_sensor_with_failure(self, mock_describe, mock_client):
+    def test_sensor_with_failure(self, mock_describe, mock_get_conn):
         mock_describe.side_effect = [DESCRIBE_ENDPOINT_FAILED_RESPONSE]
         sensor = SageMakerEndpointSensor(
             task_id='test_task',
@@ -71,7 +71,7 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_endpoint')
-    def test_sensor(self, mock_describe, hook_init, mock_client):
+    def test_sensor(self, mock_describe, hook_init, mock_get_conn):
         hook_init.return_value = None
 
         mock_describe.side_effect = [

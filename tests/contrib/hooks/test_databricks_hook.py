@@ -69,7 +69,7 @@ NOTEBOOK_PARAMS = {
     "oldest-time-to-consider": "1457570074236"
 }
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None
+RESULT_STATE = None  # type: None
 
 
 def run_now_endpoint(host):
@@ -153,7 +153,7 @@ def setup_mock_requests(mock_requests,
             [side_effect] * error_count + [create_valid_response_mock(response_content)]
 
 
-class DatabricksHookTest(unittest.TestCase):
+class TestDatabricksHook(unittest.TestCase):
     """
     Tests for DatabricksHook.
     """
@@ -390,7 +390,7 @@ class DatabricksHookTest(unittest.TestCase):
             timeout=self.hook.timeout_seconds)
 
 
-class DatabricksHookTokenTest(unittest.TestCase):
+class TestDatabricksHookToken(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with token.
     """
@@ -400,7 +400,8 @@ class DatabricksHookTokenTest(unittest.TestCase):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
             .first()
-        conn.extra = json.dumps({'token': TOKEN})
+        conn.extra = json.dumps({'token': TOKEN, 'host': HOST})
+
         session.commit()
 
         self.hook = DatabricksHook()
@@ -423,7 +424,7 @@ class DatabricksHookTokenTest(unittest.TestCase):
         self.assertEqual(kwargs['auth'].token, TOKEN)
 
 
-class RunStateTest(unittest.TestCase):
+class TestRunState(unittest.TestCase):
     def test_is_terminal_true(self):
         terminal_states = ['TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
         for state in terminal_states:

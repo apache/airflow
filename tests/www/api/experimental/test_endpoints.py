@@ -48,7 +48,7 @@ class TestApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestApiExperimental, cls).setUpClass()
+        super().setUpClass()
         session = Session()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
@@ -292,7 +292,7 @@ class TestPoolApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestPoolApiExperimental, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()

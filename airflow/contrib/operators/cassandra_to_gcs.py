@@ -16,15 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This module contains operator for copying
+data from Cassandra to Google cloud storage in JSON format.
+"""
 import json
+import warnings
 from base64 import b64encode
-from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 from datetime import datetime
 from decimal import Decimal
-from six import text_type, binary_type
 from tempfile import NamedTemporaryFile
 from uuid import UUID
+
+from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
@@ -60,8 +64,12 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     :type approx_max_file_size_bytes: long
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
     :type cassandra_conn_id: str
-    :param google_cloud_storage_conn_id: Reference to a specific Google
-        cloud storage hook.
+    :param gzip: Option to compress file for upload
+    :type gzip: bool
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
@@ -79,20 +87,30 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
                  filename,
                  schema_filename=None,
                  approx_max_file_size_bytes=1900000000,
+                 gzip=False,
                  cassandra_conn_id='cassandra_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.cql = cql
         self.bucket = bucket
         self.filename = filename
         self.schema_filename = schema_filename
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.cassandra_conn_id = cassandra_conn_id
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.gzip = gzip
 
         self.hook = None
 
@@ -199,10 +217,10 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
 
     def _upload_to_gcs(self, files_to_upload):
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
-            hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
+            hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json', self.gzip)
 
     @classmethod
     def generate_data_dict(cls, names, values):
@@ -215,9 +233,9 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     def convert_value(cls, name, value):
         if not value:
             return value
-        elif isinstance(value, (text_type, int, float, bool, dict)):
+        elif isinstance(value, (str, int, float, bool, dict)):
             return value
-        elif isinstance(value, binary_type):
+        elif isinstance(value, bytes):
             return b64encode(value).decode('ascii')
         elif isinstance(value, UUID):
             return b64encode(value.bytes).decode('ascii')

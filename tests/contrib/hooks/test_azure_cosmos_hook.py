@@ -56,61 +56,61 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         )
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_create_database(self, cosmos_mock):
+    def test_create_database(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.create_database(self.test_database_name)
         expected_calls = [mock.call().CreateDatabase({'id': self.test_database_name})]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_create_database_exception(self, cosmos_mock):
+    def test_create_database_exception(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.assertRaises(AirflowException, self.cosmos.create_database, None)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_create_container_exception(self, cosmos_mock):
+    def test_create_container_exception(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.assertRaises(AirflowException, self.cosmos.create_collection, None)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_create_container(self, cosmos_mock):
+    def test_create_container(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.create_collection(self.test_collection_name, self.test_database_name)
         expected_calls = [mock.call().CreateContainer(
             'dbs/test_database_name',
             {'id': self.test_collection_name})]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_create_container_default(self, cosmos_mock):
+    def test_create_container_default(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.create_collection(self.test_collection_name)
         expected_calls = [mock.call().CreateContainer(
             'dbs/test_database_default',
             {'id': self.test_collection_name})]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_upsert_document_default(self, cosmos_mock):
+    def test_upsert_document_default(self, mock_cosmos):
         test_id = str(uuid.uuid4())
-        cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}
+        mock_cosmos.return_value.CreateItem.return_value = {'id': test_id}
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         returned_item = self.cosmos.upsert_document({'id': test_id})
         expected_calls = [mock.call().CreateItem(
             'dbs/' + self.test_database_default + '/colls/' + self.test_collection_default,
             {'id': test_id})]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
         logging.getLogger().info(returned_item)
         self.assertEqual(returned_item['id'], test_id)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_upsert_document(self, cosmos_mock):
+    def test_upsert_document(self, mock_cosmos):
         test_id = str(uuid.uuid4())
-        cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}
+        mock_cosmos.return_value.CreateItem.return_value = {'id': test_id}
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         returned_item = self.cosmos.upsert_document(
             {'data1': 'somedata'},
@@ -122,13 +122,13 @@ class TestAzureCosmosDbHook(unittest.TestCase):
             'dbs/' + self.test_database_name + '/colls/' + self.test_collection_name,
             {'data1': 'somedata', 'id': test_id})]
 
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
         logging.getLogger().info(returned_item)
         self.assertEqual(returned_item['id'], test_id)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_insert_documents(self, cosmos_mock):
+    def test_insert_documents(self, mock_cosmos):
         test_id1 = str(uuid.uuid4())
         test_id2 = str(uuid.uuid4())
         test_id3 = str(uuid.uuid4())
@@ -150,42 +150,42 @@ class TestAzureCosmosDbHook(unittest.TestCase):
                 'dbs/' + self.test_database_default + '/colls/' + self.test_collection_default,
                 {'data': 'data3', 'id': test_id3})]
         logging.getLogger().info(returned_item)
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_delete_database(self, cosmos_mock):
+    def test_delete_database(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.delete_database(self.test_database_name)
         expected_calls = [mock.call().DeleteDatabase('dbs/test_database_name')]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_delete_database_exception(self, cosmos_mock):
+    def test_delete_database_exception(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.assertRaises(AirflowException, self.cosmos.delete_database, None)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_delete_container_exception(self, cosmos_mock):
+    def test_delete_container_exception(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.assertRaises(AirflowException, self.cosmos.delete_collection, None)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_delete_container(self, cosmos_mock):
+    def test_delete_container(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.delete_collection(self.test_collection_name, self.test_database_name)
         expected_calls = [mock.call().DeleteContainer('dbs/test_database_name/colls/test_collection_name')]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
-    def test_delete_container_default(self, cosmos_mock):
+    def test_delete_container_default(self, mock_cosmos):
         self.cosmos = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.cosmos.delete_collection(self.test_collection_name)
         expected_calls = [mock.call().DeleteContainer('dbs/test_database_default/colls/test_collection_name')]
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
-        cosmos_mock.assert_has_calls(expected_calls)
+        mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        mock_cosmos.assert_has_calls(expected_calls)
 
 
 if __name__ == '__main__':

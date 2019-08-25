@@ -26,21 +26,17 @@ class RedisPubSubSensor(BaseSensorOperator):
 
     """
     Redis sensor for reading a message from pub sub channels
+
+    :param channels: The channels to be subscribed to (templated)
+    :type channels: str or list of str
+    :param redis_conn_id: the redis connection id
+    :type redis_conn_id: str
     """
     template_fields = ('channels',)
     ui_color = '#f0eee4'
 
     @apply_defaults
     def __init__(self, channels, redis_conn_id, *args, **kwargs):
-        """
-        Create a new RedisPubSubSensor and subscribe to the channels
-
-        :param channels: The channels to be subscribed to (templated)
-        :type channels: str or list of str
-        :param redis_conn_id: the redis connection id
-        :type redis_conn_id: str
-        """
-
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id

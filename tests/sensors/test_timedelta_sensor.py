@@ -29,7 +29,7 @@ DEV_NULL = '/dev/null'
 TEST_DAG_ID = 'unit_tests'
 
 
-class TimedeltaSensorTest(unittest.TestCase):
+class TestTimedeltaSensor(unittest.TestCase):
     def setUp(self):
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)

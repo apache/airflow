@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG using GoogleCloudStorageToBigQueryOperator.
+"""
 
 from typing import Any
 
@@ -32,7 +35,7 @@ except ImportError:
 
 if gcs_to_bq is not None:
     args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'start_date': airflow.utils.dates.days_ago(2)
     }
 

@@ -29,14 +29,14 @@ import unittest
 from airflow.utils import compression
 
 
-class Compression(unittest.TestCase):
+class TestCompression(unittest.TestCase):
 
     def setUp(self):
         self.fn = {}
         try:
-            header = "Sno\tSome,Text \n".encode()
-            line1 = "1\tAirflow Test\n".encode()
-            line2 = "2\tCompressionUtil\n".encode()
+            header = b"Sno\tSome,Text \n"
+            line1 = b"1\tAirflow Test\n"
+            line2 = b"2\tCompressionUtil\n"
             self.tmp_dir = tempfile.mkdtemp(prefix='test_utils_compression_')
             # create sample txt, gz and bz2 files
             with tempfile.NamedTemporaryFile(mode='wb+',

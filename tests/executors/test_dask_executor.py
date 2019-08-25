@@ -50,7 +50,7 @@ SKIP_DASK = True
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class BaseDaskTest(unittest.TestCase):
+class TestBaseDask(unittest.TestCase):
 
     def assert_tasks_on_executor(self, executor):
         # start the executor
@@ -84,7 +84,7 @@ class BaseDaskTest(unittest.TestCase):
         self.assertTrue(fail_future.exception() is not None)
 
 
-class DaskExecutorTest(BaseDaskTest):
+class TestDaskExecutor(TestBaseDask):
 
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
@@ -113,7 +113,7 @@ class DaskExecutorTest(BaseDaskTest):
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
 
-        for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
+        for dag in sorted(dags, key=lambda d: d.dag_id):
             job = BackfillJob(
                 dag=dag,
                 start_date=DEFAULT_DATE,
@@ -127,7 +127,7 @@ class DaskExecutorTest(BaseDaskTest):
         self.cluster.close(timeout=5)
 
 
-class DaskExecutorTLSTest(BaseDaskTest):
+class TestDaskExecutorTLS(TestBaseDask):
 
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
@@ -136,7 +136,7 @@ class DaskExecutorTLSTest(BaseDaskTest):
     def test_tls(self):
         with dask_testing_cluster(
                 worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (s, workers):
+                scheduler_kwargs={'security': tls_security()}) as (s, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production

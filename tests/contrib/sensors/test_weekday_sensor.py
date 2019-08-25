@@ -34,7 +34,7 @@ TEST_DAG_ID = 'weekday_sensor_dag'
 DEV_NULL = '/dev/null'
 
 
-class DayOfWeekSensorTests(unittest.TestCase):
+class TestDayOfWeekSensor(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag(

@@ -28,14 +28,12 @@ import socket
 import traceback
 from collections import defaultdict
 from datetime import timedelta
-from urllib.parse import quote
 
 import markdown
 import pendulum
 import sqlalchemy as sqla
-from flask import (
-    redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, url_for)
+from flask import (Markup, Response, flash, jsonify, make_response, redirect,
+                   render_template, request, url_for)
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
@@ -43,32 +41,32 @@ from flask_babel import lazy_gettext
 import lazy_object_proxy
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-import six
 from sqlalchemy import or_, desc, and_, union_all
+from urllib.parse import quote
 from wtforms import SelectField, validators
 
 import airflow
 from airflow import configuration as conf
-from airflow import models, jobs
+from airflow import jobs, models
 from airflow import settings
-from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
-                                                        set_dag_run_state_to_failed)
-from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
+from airflow._vendor import nvd3
+from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_failed,
+                                                        set_dag_run_state_to_success)
+from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, \
+    errors
+from airflow.ti_deps.dep_context import DepContext, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
-from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
-from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
-                               DateTimeWithNumRunsWithDagRunsForm,
-                               DagRunForm, ConnectionForm)
+from airflow.www.forms import (ConnectionForm, DagRunForm, DateTimeForm,
+                               DateTimeWithNumRunsForm,
+                               DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.widgets import AirflowModelListWidget
-
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
@@ -168,8 +166,7 @@ class AirflowBaseView(BaseView):
 
 class Airflow(AirflowBaseView):
     @expose('/health')
-    @provide_session
-    def health(self, session=None):
+    def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
@@ -259,7 +256,7 @@ class Airflow(AirflowBaseView):
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
-                "error")
+                "dag_import_error")
 
         from airflow.plugins_manager import import_errors as plugin_import_errors
         for filename, stacktrace in plugin_import_errors.items():
@@ -444,7 +441,7 @@ class Airflow(AirflowBaseView):
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
-        except IOError as e:
+        except OSError as e:
             html_code = str(e)
 
         return self.render_template(
@@ -728,7 +725,7 @@ class Airflow(AirflowBaseView):
                 "(e.g. cleared in the UI)<br/>" if ti.state == State.NONE else ""))]
 
         # Use the scheduler's context to figure out which dependencies are not met
-        dep_context = DepContext(SCHEDULER_DEPS)
+        dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
         failed_dep_reasons = [(dep.dep_name, dep.reason) for dep in
                               ti.get_failed_dep_statuses(
                                   dep_context=dep_context)]
@@ -834,7 +831,7 @@ class Airflow(AirflowBaseView):
 
         # Make sure the task instance can be queued
         dep_context = DepContext(
-            deps=QUEUE_DEPS,
+            deps=SCHEDULER_QUEUED_DEPS,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state)
@@ -1268,14 +1265,14 @@ class Airflow(AirflowBaseView):
         # expand/collapse functionality. After 5,000 nodes we stop and fall
         # back on a quick DFS search for performance. See PR #320.
         node_count = [0]
-        node_limit = 5000 / max(1, len(dag.roots))
+        node_limit = 5000 / max(1, len(dag.leaves))
 
         def recurse_nodes(task, visited):
             visited.add(task)
             node_count[0] += 1
 
             children = [
-                recurse_nodes(t, visited) for t in task.upstream_list
+                recurse_nodes(t, visited) for t in task.downstream_list
                 if node_count[0] < node_limit or t not in visited]
 
             # D3 tree uses children vs _children to define what is
@@ -1303,7 +1300,7 @@ class Airflow(AirflowBaseView):
                     }
                     for d in dates],
                 children_key: children,
-                'num_dep': len(task.upstream_list),
+                'num_dep': len(task.downstream_list),
                 'operator': task.task_type,
                 'retries': task.retries,
                 'owner': task.owner,
@@ -1372,18 +1369,18 @@ class Airflow(AirflowBaseView):
                 }
             })
 
-        def get_upstream(task):
-            for t in task.upstream_list:
+        def get_downstream(task):
+            for t in task.downstream_list:
                 edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
+                    'source_id': task.task_id,
+                    'target_id': t.task_id,
                 }
                 if edge not in edges:
                     edges.append(edge)
-                    get_upstream(t)
+                    get_downstream(t)
 
         for t in dag.roots:
-            get_upstream(t)
+            get_downstream(t)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
@@ -2043,12 +2040,27 @@ class XComModelView(AirflowModelView):
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
+    formatters_columns = {
+        'task_id': wwwutils.task_instance_link,
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'timestamp': wwwutils.datetime_f('timestamp'),
+        'dag_id': wwwutils.dag_link,
+    }
+
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?",
             single=False)
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
+
+    def pre_add(self, item):
+        item.execution_date = timezone.make_aware(item.execution_date)
+        item.value = XCom.serialize_value(item.value)
+
+    def pre_update(self, item):
+        item.execution_date = timezone.make_aware(item.execution_date)
+        item.value = XCom.serialize_value(item.value)
 
 
 class ConnectionModelView(AirflowModelView):
@@ -2177,13 +2189,14 @@ class VariableModelView(AirflowModelView):
     route_base = '/variable'
 
     list_template = 'airflow/variable_list.html'
+    edit_template = 'airflow/variable_edit.html'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val', 'is_encrypted']
+    add_columns = ['key', 'val']
     edit_columns = ['key', 'val']
     search_columns = ['key', 'val']
 
@@ -2251,7 +2264,7 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    models.Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+                    models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
 import atexit
 import logging
 import os
@@ -24,9 +25,12 @@ import pendulum
 import sys
 
 from sqlalchemy import create_engine, exc
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy.orm.session import Session as SASession
 
+import airflow
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.kubernetes.pod import Pod
 from airflow.logging_config import configure_logging
@@ -63,13 +67,13 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('core', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
 
-SQL_ALCHEMY_CONN = None
-DAGS_FOLDER = None
-PLUGINS_FOLDER = None
-LOGGING_CLASS_PATH = None
+SQL_ALCHEMY_CONN = None  # type: Optional[str]
+DAGS_FOLDER = None  # type: Optional[str]
+PLUGINS_FOLDER = None  # type: Optional[str]
+LOGGING_CLASS_PATH = None  # type: Optional[str]
 
-engine = None
-Session = None
+engine = None  # type: Optional[Engine]
+Session = None  # type: Optional[SASession]
 
 
 def policy(task_instance):
@@ -309,4 +313,4 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
 
 # Used by DAG context_managers
-CONTEXT_MANAGER_DAG = None
+CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]

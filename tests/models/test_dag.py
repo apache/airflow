@@ -18,17 +18,16 @@
 # under the License.
 
 import datetime
+import io
 import logging
 import os
 import re
 import unittest
-from unittest.mock import patch
-import uuid
 from tempfile import NamedTemporaryFile
+from unittest import mock
+from unittest.mock import patch
 
-import jinja2
 import pendulum
-import six
 
 from airflow import models, settings, configuration
 from airflow.exceptions import AirflowException, AirflowDagCycleException
@@ -41,7 +40,20 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 
 
-class DagTest(unittest.TestCase):
+class TestDag(unittest.TestCase):
+
+    def _occur_before(self, a, b, list_):
+        """
+        Assert that a occurs before b in the list.
+        """
+        a_index = -1
+        b_index = -1
+        for i, e in enumerate(list_):
+            if e.task_id == a:
+                a_index = i
+            if e.task_id == b:
+                b_index = i
+        return 0 <= a_index and 0 <= b_index and a_index < b_index
 
     def test_params_not_passed_is_empty_dict(self):
         """
@@ -127,6 +139,39 @@ class DagTest(unittest.TestCase):
         self.assertEqual(op7.dag, dag)
         self.assertEqual(op8.dag, dag)
         self.assertEqual(op9.dag, dag2)
+
+    def test_dag_topological_sort_include_subdag_tasks(self):
+        child_dag = DAG(
+            'parent_dag.child_dag',
+            schedule_interval='@daily',
+            start_date=DEFAULT_DATE,
+        )
+
+        with child_dag:
+            DummyOperator(task_id='a_child')
+            DummyOperator(task_id='b_child')
+
+        parent_dag = DAG(
+            'parent_dag',
+            schedule_interval='@daily',
+            start_date=DEFAULT_DATE,
+        )
+
+        # a_parent -> child_dag -> (a_child | b_child) -> b_parent
+        with parent_dag:
+            op1 = DummyOperator(task_id='a_parent')
+            op2 = SubDagOperator(task_id='child_dag', subdag=child_dag)
+            op3 = DummyOperator(task_id='b_parent')
+
+            op1 >> op2 >> op3
+
+        topological_list = parent_dag.topological_sort(include_subdag_tasks=True)
+
+        self.assertTrue(self._occur_before('a_parent', 'child_dag', topological_list))
+        self.assertTrue(self._occur_before('child_dag', 'a_child', topological_list))
+        self.assertTrue(self._occur_before('child_dag', 'b_child', topological_list))
+        self.assertTrue(self._occur_before('a_child', 'b_parent', topological_list))
+        self.assertTrue(self._occur_before('b_child', 'b_parent', topological_list))
 
     def test_dag_topological_sort(self):
         dag = DAG(
@@ -261,7 +306,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -287,7 +332,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -313,7 +358,7 @@ class DagTest(unittest.TestCase):
                     for prev_task in pipeline[d - 1]:
                         current_task.set_upstream(prev_task)
 
-            for task in six.itervalues(dag.task_dict):
+            for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
@@ -387,229 +432,25 @@ class DagTest(unittest.TestCase):
         )
         session.close()
 
-    def test_render_template_field(self):
-        """Tests if render_template from a field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        result = task.render_template('', '{{ foo }}', dict(foo='bar'))
-        self.assertEqual(result, 'bar')
-
-    def test_render_template_field_undefined(self):
-        """Tests if render_template from a field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        result = task.render_template('', '{{ foo }}', {})
-        self.assertEqual(result, '')
-
-    def test_render_template_field_undefined_strict(self):
-        """Tests if render_template from a field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  template_undefined=jinja2.StrictUndefined)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        with self.assertRaises(jinja2.UndefinedError):
-            task.render_template('', '{{ foo }}', {})
-
-    def test_render_template_list_field(self):
-        """Tests if render_template from a list field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        self.assertListEqual(
-            task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'}),
-            ['bar_1', 'bar_2']
-        )
-
-    def test_render_template_tuple_field(self):
-        """Tests if render_template from a tuple field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        # tuple is replaced by a list
-        self.assertListEqual(
-            task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
-            ['bar_1', 'bar_2']
-        )
-
-    def test_render_template_dict_field(self):
-        """Tests if render_template from a dict field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        self.assertDictEqual(
-            task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'}),
-            {'key1': 'bar_1', 'key2': 'bar_2'}
-        )
-
-    def test_render_template_dict_field_with_templated_keys(self):
-        """Tests if render_template from a dict field works as expected:
-        dictionary keys are not templated"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        self.assertDictEqual(
-            task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'}),
-            {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}
-        )
-
-    def test_render_template_date_field(self):
-        """Tests if render_template from a date field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        self.assertEqual(
-            task.render_template('', datetime.date(2018, 12, 6), {'foo': 'bar'}),
-            datetime.date(2018, 12, 6)
-        )
-
-    def test_render_template_datetime_field(self):
-        """Tests if render_template from a datetime field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        self.assertEqual(
-            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), {'foo': 'bar'}),
-            datetime.datetime(2018, 12, 6, 10, 55)
-        )
-
-    def test_render_template_UUID_field(self):
-        """Tests if render_template from a UUID field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        random_uuid = uuid.uuid4()
-        self.assertIs(
-            task.render_template('', random_uuid, {'foo': 'bar'}),
-            random_uuid
-        )
-
-    def test_render_template_object_field(self):
-        """Tests if render_template from an object field works"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE)
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        test_object = object()
-        self.assertIs(
-            task.render_template('', test_object, {'foo': 'bar'}),
-            test_object
-        )
-
-    def test_render_template_field_macro(self):
-        """ Tests if render_template from a field works,
-            if a custom filter was defined"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  user_defined_macros=dict(foo='bar'))
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        result = task.render_template('', '{{ foo }}', dict())
-        self.assertEqual(result, 'bar')
-
-    def test_render_template_numeric_field(self):
-        """ Tests if render_template from a field works,
-            if a custom filter was defined"""
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  user_defined_macros=dict(foo='bar'))
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        result = task.render_template('', 1, dict())
-        self.assertEqual(result, 1)
-
     def test_user_defined_filters(self):
         def jinja_udf(name):
             return 'Hello %s' % name
 
-        dag = models.DAG('test-dag',
-                         start_date=DEFAULT_DATE,
-                         user_defined_filters=dict(hello=jinja_udf))
+        dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
         jinja_env = dag.get_template_env()
 
         self.assertIn('hello', jinja_env.filters)
         self.assertEqual(jinja_env.filters['hello'], jinja_udf)
 
-    def test_render_template_field_filter(self):
-        """ Tests if render_template from a field works,
-            if a custom filter was defined"""
-
-        def jinja_udf(name):
-            return 'Hello %s' % name
-
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  user_defined_filters=dict(hello=jinja_udf))
-
-        with dag:
-            task = DummyOperator(task_id='op1')
-
-        result = task.render_template('', "{{ 'world' | hello}}", dict())
-        self.assertEqual(result, 'Hello world')
-
     def test_resolve_template_files_value(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
 
-            dag = DAG('test-dag',
-                      start_date=DEFAULT_DATE,
-                      template_searchpath=template_dir)
-
-            with dag:
+            with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = template_file
@@ -623,16 +464,12 @@ class DagTest(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.template') as f:
             f = NamedTemporaryFile(suffix='.template')
-            f.write('{{ ds }}'.encode('utf8'))
+            f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
 
-            dag = DAG('test-dag',
-                      start_date=DEFAULT_DATE,
-                      template_searchpath=template_dir)
-
-            with dag:
+            with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
@@ -1011,3 +848,44 @@ class DagTest(unittest.TestCase):
 
         dag = DAG('DAG', default_args=default_args)
         self.assertEqual(dag.timezone.name, local_tz.name)
+
+    def test_roots(self):
+        """Verify if dag.roots returns the root tasks of a DAG."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t4 = DummyOperator(task_id="t4")
+            t5 = DummyOperator(task_id="t5")
+            [t1, t2] >> t3 >> [t4, t5]
+
+            self.assertCountEqual(dag.roots, [t1, t2])
+
+    def test_leaves(self):
+        """Verify if dag.leaves returns the leaf tasks of a DAG."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t4 = DummyOperator(task_id="t4")
+            t5 = DummyOperator(task_id="t5")
+            [t1, t2] >> t3 >> [t4, t5]
+
+            self.assertCountEqual(dag.leaves, [t4, t5])
+
+    def test_tree_view(self):
+        """Verify correctness of dag.tree_view()."""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id="t1")
+            t2 = DummyOperator(task_id="t2")
+            t3 = DummyOperator(task_id="t3")
+            t1 >> t2 >> t3
+
+            with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+                dag.tree_view()
+                stdout = mock_stdout.getvalue()
+
+            stdout_lines = stdout.split("\n")
+            self.assertIn('t1', stdout_lines[0])
+            self.assertIn('t2', stdout_lines[1])
+            self.assertIn('t3', stdout_lines[2])

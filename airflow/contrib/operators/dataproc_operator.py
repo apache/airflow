@@ -20,7 +20,7 @@
 """
 This module contains Google Dataproc operators.
 """
-# pylint: disable=too-many-lines
+# pylint: disable=C0302
 
 import ntpath
 import os
@@ -110,6 +110,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     :param custom_image: custom Dataproc image for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image: str
+    :param custom_image_project_id: project id for the custom Dataproc image, for more info see
+        https://cloud.google.com/dataproc/docs/guides/dataproc-images
+    :type custom_image_project_id: str
     :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
         including projectid and location (region) are valid. Example:
         ``projects/[projectId]/locations/[dataproc_region]/autoscalingPolicies/[policy_id]``
@@ -118,6 +121,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
+    :param num_masters: The # of master nodes to spin up
+    :type num_masters: int
     :param master_machine_type: Compute engine machine type to use for the master node
     :type master_machine_type: str
     :param master_disk_type: Type of the boot disk for the master node
@@ -199,9 +204,11 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                  init_action_timeout="10m",
                  metadata=None,
                  custom_image=None,
+                 custom_image_project_id=None,
                  image_version=None,
                  autoscaling_policy=None,
                  properties=None,
+                 num_masters=1,
                  master_machine_type='n1-standard-4',
                  master_disk_type='pd-standard',
                  master_disk_size=1024,
@@ -222,6 +229,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
         super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
+        self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
         self.storage_bucket = storage_bucket
@@ -229,6 +237,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         self.init_action_timeout = init_action_timeout
         self.metadata = metadata
         self.custom_image = custom_image
+        self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
         self.properties = properties or dict()
         self.master_machine_type = master_machine_type
@@ -345,7 +354,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'gceClusterConfig': {
                 },
                 'masterConfig': {
-                    'numInstances': 1,
+                    'numInstances': self.num_masters,
                     'machineTypeUri': master_type_uri,
                     'diskConfig': {
                         'bootDiskType': self.master_disk_type,
@@ -392,8 +401,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
 
         elif self.custom_image:
+            project_id = self.custom_image_project_id if (self.custom_image_project_id) else self.project_id
             custom_image_url = 'https://www.googleapis.com/compute/beta/projects/' \
-                               '{}/global/images/{}'.format(self.project_id,
+                               '{}/global/images/{}'.format(project_id,
                                                             self.custom_image)
             cluster_data['config']['masterConfig']['imageUri'] = custom_image_url
             if not self.single_node:
@@ -633,6 +643,10 @@ class DataProcJobBaseOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
+        and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
+        characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
+    :type labels: dict
     :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param job_error_states: Job states that should be considered error states.
@@ -658,6 +672,7 @@ class DataProcJobBaseOperator(BaseOperator):
                  dataproc_jars=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 labels=None,
                  region='global',
                  job_error_states=None,
                  *args,
@@ -665,6 +680,7 @@ class DataProcJobBaseOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.labels = labels
         self.job_name = job_name
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
@@ -684,8 +700,9 @@ class DataProcJobBaseOperator(BaseOperator):
         """
         self.job_template = self.hook.create_job_template(self.task_id, self.cluster_name, self.job_type,
                                                           self.dataproc_properties)
-        self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.set_job_name(self.job_name)
+        self.job_template.add_jar_file_uris(self.dataproc_jars)
+        self.job_template.add_labels(self.labels)
 
     def execute(self, context):
         if self.job_template:
@@ -791,7 +808,7 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
-    template_ext = ('.q',)
+    template_ext = ('.q', '.hql',)
     ui_color = '#0273d4'
     job_type = 'hiveJob'
 
@@ -808,6 +825,8 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()
@@ -850,6 +869,8 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
+        if self.query is not None and self.query_uri is not None:
+            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
 
     def execute(self, context):
         self.create_job_template()

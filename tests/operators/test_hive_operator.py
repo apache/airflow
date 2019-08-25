@@ -35,7 +35,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class HiveEnvironmentTest(unittest.TestCase):
+class TestHiveEnvironment(unittest.TestCase):
 
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -57,7 +57,7 @@ class HiveEnvironmentTest(unittest.TestCase):
         """
 
 
-class HiveCliTest(unittest.TestCase):
+class TestHiveCli(unittest.TestCase):
 
     def setUp(self):
         self.nondefault_schema = "nondefault"
@@ -82,7 +82,7 @@ class HiveCliTest(unittest.TestCase):
         self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
 
 
-class HiveOperatorConfigTest(HiveEnvironmentTest):
+class HiveOperatorConfigTest(TestHiveEnvironment):
 
     def test_hive_airflow_default_config_queue(self):
         t = HiveOperator(
@@ -112,7 +112,7 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
         self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
 
 
-class HiveOperatorTest(HiveEnvironmentTest):
+class HiveOperatorTest(TestHiveEnvironment):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
@@ -159,7 +159,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     import airflow.hooks.hive_hooks
     import airflow.operators.presto_to_mysql
 
-    class HivePrestoTest(HiveEnvironmentTest):
+    class TestHivePresto(TestHiveEnvironment):
 
         def test_hive(self):
             t = HiveOperator(

@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.sensors.s3_key_sensor import S3KeySensor
 
 
-class S3KeySensorTests(unittest.TestCase):
+class TestS3KeySensor(unittest.TestCase):
 
     def test_bucket_name_None_and_bucket_key_as_relative_path(self):
         """

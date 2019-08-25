@@ -33,23 +33,20 @@ class CassandraRecordSensor(BaseSensorOperator):
     ...                                          keys={"p1": "v1", "p2": "v2"},
     ...                                          cassandra_conn_id="cassandra_default",
     ...                                          task_id="cassandra_sensor")
+
+    :param table: Target Cassandra table.
+        Use dot notation to target a specific keyspace.
+    :type table: str
+    :param keys: The keys and their values to be monitored
+    :type keys: dict
+    :param cassandra_conn_id: The connection ID to use
+        when connecting to Cassandra cluster
+    :type cassandra_conn_id: str
     """
     template_fields = ('table', 'keys')
 
     @apply_defaults
     def __init__(self, table, keys, cassandra_conn_id, *args, **kwargs):
-        """
-        Create a new CassandraRecordSensor
-
-        :param table: Target Cassandra table.
-                      Use dot notation to target a specific keyspace.
-        :type table: str
-        :param keys: The keys and their values to be monitored
-        :type keys: dict
-        :param cassandra_conn_id: The connection ID to use
-                                  when connecting to Cassandra cluster
-        :type cassandra_conn_id: str
-        """
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

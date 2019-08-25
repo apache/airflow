@@ -76,16 +76,15 @@ class TriggerRuleDep(BaseTIDep):
         )
 
         successes, skipped, failed, upstream_failed, done = qry.first()
-        for dep_status in self._evaluate_trigger_rule(
-                ti=ti,
-                successes=successes,
-                skipped=skipped,
-                failed=failed,
-                upstream_failed=upstream_failed,
-                done=done,
-                flag_upstream_failed=dep_context.flag_upstream_failed,
-                session=session):
-            yield dep_status
+        yield from self._evaluate_trigger_rule(
+            ti=ti,
+            successes=successes,
+            skipped=skipped,
+            failed=failed,
+            upstream_failed=upstream_failed,
+            done=done,
+            flag_upstream_failed=dep_context.flag_upstream_failed,
+            session=session)
 
     @provide_session
     def _evaluate_trigger_rule(
@@ -105,15 +104,15 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: airflow.models.TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: bool
+        :type successes: int
         :param skipped: Number of skipped upstream tasks
-        :type skipped: bool
+        :type skipped: int
         :param failed: Number of failed upstream tasks
-        :type failed: bool
+        :type failed: int
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: bool
+        :type upstream_failed: int
         :param done: Number of completed upstream tasks
-        :type done: bool
+        :type done: int
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
@@ -212,7 +211,7 @@ class TriggerRuleDep(BaseTIDep):
                     .format(tr, num_failures, upstream_tasks_state,
                             task.upstream_task_ids))
         elif tr == TR.NONE_SKIPPED:
-            if skipped > 0:
+            if not upstream_done or (skipped > 0):
                 yield self._failing_status(
                     reason="Task's trigger rule '{0}' requires all upstream "
                     "tasks to not have been skipped, but found {1} task(s) skipped. "

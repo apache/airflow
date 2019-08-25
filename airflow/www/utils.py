@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
 import json
 import time
 import markdown
 import re
+from typing import Any, Optional
 import zipfile
 import os
 import io
@@ -103,11 +105,11 @@ def generate_pages(current_page, num_of_pages,
 </li>""")
 
     previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lsaquo;</a>
 </li>""")
 
     next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&rsaquo;</a>
 </li>""")
 
     last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
@@ -374,6 +376,34 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
+def get_python_source(x: Any) -> Optional[str]:
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+    return source_code
+
+
 class UtcAwareFilterMixin:
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
@@ -420,11 +450,11 @@ class CustomSQLAInterface(SQLAInterface):
 
         def clean_column_names():
             if self.list_properties:
-                self.list_properties = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
+                self.list_properties = {
+                    k.lstrip('_'): v for k, v in self.list_properties.items()}
             if self.list_columns:
-                self.list_columns = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
+                self.list_columns = {
+                    k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
 

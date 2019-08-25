@@ -104,7 +104,7 @@ class SchedulerMetricsJob(SchedulerJob):
         """
         Override the scheduler heartbeat to determine when the test is complete
         """
-        super(SchedulerMetricsJob, self).heartbeat()
+        super().heartbeat()
         session = settings.Session()
         # Get all the relevant task instances
         TI = TaskInstance

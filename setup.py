@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Setup for the Airflow library."""
 
 import importlib
@@ -25,14 +24,17 @@ import logging
 import os
 import subprocess
 import sys
+import unittest
+from typing import List
 
 from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
+# noinspection PyUnresolvedReferences
 spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+# noinspection PyUnresolvedReferences
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 version = mod.version
@@ -47,31 +49,11 @@ except FileNotFoundError:
     long_description = ''
 
 
-class Tox(TestCommand):
-    """
-    Command class to run Tox via setup.py.
-    Registered as cmdclass in setup() so it can be called with ``python setup.py test``.
-    """
-
-    user_options = [('tox-args=', None, "Arguments to pass to tox")]
-
-    def __init__(self, dist, **kw):
-        super().__init__(dist, **kw)
-        self.test_suite = True
-        self.test_args = []
-        self.tox_args = ''
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import tox
-        errno = tox.cmdline(args=self.tox_args.split())
-        sys.exit(errno)
+def airflow_test_suite():
+    """Test suite for Airflow tests"""
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    return test_suite
 
 
 class CleanCommand(Command):
@@ -81,7 +63,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -89,6 +71,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
@@ -101,7 +84,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -109,6 +92,7 @@ class CompileAssets(Command):
     def finalize_options(self):
         """Set final values for options."""
 
+    # noinspection PyMethodMayBeStatic
     def run(self):
         """Run a command to compile and build assets."""
         subprocess.call('./airflow/www/compile_assets.sh')
@@ -129,12 +113,13 @@ def git_version(version_: str) -> str:
     """
     try:
         import git
-        repo = git.Repo('.git')
+        try:
+            repo = git.Repo('.git')
+        except git.NoSuchPathError:
+            logger.warning('.git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
-        return ''
-    except git.exc.NoSuchPathError:
-        logger.warning('.git directory not found: Cannot compute the git version')
         return ''
     if repo:
         sha = repo.head.commit.hexsha
@@ -194,7 +179,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=1.2.3',
+    'sphinx>=2.1.2',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
 docker = ['docker~=3.0']
@@ -209,12 +194,14 @@ gcp = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-cloud-bigtable==0.33.0',
     'google-cloud-container>=0.1.1',
+    'google-cloud-dlp>=0.11.0',
     'google-cloud-language>=1.1.1',
-    'google-cloud-spanner>=1.7.1',
+    'google-cloud-spanner>=1.9.0, <1.10.0',
     'google-cloud-storage~=1.16',
-    'google-cloud-translate>=1.3.3',
+    'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
+    'google-cloud-tasks==1.1.0',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
@@ -273,14 +260,15 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
-    + cassandra + mongo
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'flake8>=3.6.0',
+    'flake8-colors',
     'freezegun',
+    'ipdb',
     'jira',
     'mongomock',
     'moto==1.3.5',
@@ -289,12 +277,14 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
-    'pylint~=2.3.1',  # Ensure the same version as in .travis.yml
+    'pre-commit',
+    'pylint~=2.3.1',
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
-    'requests_mock'
+    'requests_mock',
+    'yamllint'
 ]
 
 if PY3:
@@ -335,19 +325,19 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=1.0, <2.0',
+            'argcomplete~=1.10',
             'cached_property~=1.5',
-            'configparser>=3.5.0, <3.6.0',
+            'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
-            'flask>=1.0, <2.0',
+            'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
-            'gitpython>=2.0.2',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
@@ -365,15 +355,18 @@ def do_setup():
             'sqlalchemy~=1.3',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
+            'termcolor==1.1.0',
             'text-unidecode==1.2',
             'typing;python_version<"3.5"',
             'thrift>=0.9.2',
-            'tzlocal>=1.4',
+            'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
+            'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
         setup_requires=[
             'docutils>=0.14, <1.0',
+            'gitpython>=2.0.2',
         ],
         extras_require={
             'all': devel_all,
@@ -429,7 +422,6 @@ def do_setup():
             'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
-            'virtualenv': virtualenv,
             'webhdfs': webhdfs,
             'winrm': winrm,
         },
@@ -451,10 +443,10 @@ def do_setup():
         download_url=(
             'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
-            'test': Tox,
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
+        test_suite='setup.airflow_test_suite',
         python_requires='~=3.5',
     )
 

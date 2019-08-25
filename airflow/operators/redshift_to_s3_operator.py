@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Union, List
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.hooks.S3_hook import S3Hook
@@ -61,17 +62,17 @@ class RedshiftToS3Transfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            schema,
-            table,
-            s3_bucket,
-            s3_key,
-            redshift_conn_id='redshift_default',
-            aws_conn_id='aws_default',
-            verify=None,
-            unload_options=tuple(),
-            autocommit=False,
-            include_header=False,
-            *args, **kwargs):
+            schema: str,
+            table: str,
+            s3_bucket: str,
+            s3_key: str,
+            redshift_conn_id: str = 'redshift_default',
+            aws_conn_id: str = 'aws_default',
+            verify: Union[bool, str] = None,
+            unload_options: List = None,
+            autocommit: bool = False,
+            include_header: bool = False,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.table = table
@@ -80,13 +81,12 @@ class RedshiftToS3Transfer(BaseOperator):
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.unload_options = unload_options
+        self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
 
-        if self.include_header and \
-           'PARALLEL OFF' not in [uo.upper().strip() for uo in unload_options]:
-            self.unload_options = list(unload_options) + ['PARALLEL OFF', ]
+        if self.include_header and 'PARALLEL OFF' not in [uo.upper().strip() for uo in self.unload_options]:
+            self.unload_options = list(self.unload_options) + ['PARALLEL OFF', ]
 
     def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)

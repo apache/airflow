@@ -18,6 +18,7 @@
 # under the License.
 
 import json
+from typing import Union, List, Dict, Iterable
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
@@ -48,20 +49,14 @@ class DockerOperator(BaseOperator):
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
     :type api_version: str
-    :param auto_remove: Auto-removal of the container on daemon side when the
-        container's process exits.
-        The default is False.
-    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
+    :param container_name: Name of the container. Optional (templated)
+    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
-    :param dns: Docker custom DNS servers
-    :type dns: list[str]
-    :param dns_search: Docker custom DNS search domain
-    :type dns_search: list[str]
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -109,48 +104,58 @@ class DockerOperator(BaseOperator):
     :type xcom_all: bool
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
+    :param dns: Docker custom DNS servers
+    :type dns: list[str]
+    :param dns_search: Docker custom DNS search domain
+    :type dns_search: list[str]
+    :param auto_remove: Auto-removal of the container on daemon side when the
+        container's process exits.
+        The default is False.
+    :type auto_remove: bool
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :type shm_size: int
     """
-    template_fields = ('command', 'environment',)
+    template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
     def __init__(
             self,
-            image,
-            api_version=None,
-            command=None,
-            cpus=1.0,
-            docker_url='unix://var/run/docker.sock',
-            environment=None,
-            force_pull=False,
-            mem_limit=None,
-            host_tmp_dir=None,
-            network_mode=None,
-            tls_ca_cert=None,
-            tls_client_cert=None,
-            tls_client_key=None,
-            tls_hostname=None,
-            tls_ssl_version=None,
-            tmp_dir='/tmp/airflow',
-            user=None,
-            volumes=None,
-            working_dir=None,
-            xcom_all=False,
-            docker_conn_id=None,
-            dns=None,
-            dns_search=None,
-            auto_remove=False,
-            shm_size=None,
+            image: str,
+            api_version: str = None,
+            command: Union[str, List[str]] = None,
+            container_name: str = None,
+            cpus: float = 1.0,
+            docker_url: str = 'unix://var/run/docker.sock',
+            environment: Dict = None,
+            force_pull: bool = False,
+            mem_limit: Union[float, str] = None,
+            host_tmp_dir: str = None,
+            network_mode: str = None,
+            tls_ca_cert: str = None,
+            tls_client_cert: str = None,
+            tls_client_key: str = None,
+            tls_hostname: Union[str, bool] = None,
+            tls_ssl_version: str = None,
+            tmp_dir: str = '/tmp/airflow',
+            user: Union[str, int] = None,
+            volumes: Iterable[str] = None,
+            working_dir: str = None,
+            xcom_all: bool = False,
+            docker_conn_id: str = None,
+            dns: List[str] = None,
+            dns_search: List[str] = None,
+            auto_remove: bool = False,
+            shm_size: int = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
+        self.container_name = container_name
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
@@ -187,33 +192,18 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config()
         )
 
-    def execute(self, context):
+    def _run_image(self):
+        """
+        Run a Docker container with the provided image
+        """
         self.log.info('Starting docker container from image %s', self.image)
 
-        tls_config = self.__get_tls_config()
-
-        if self.docker_conn_id:
-            self.cli = self.get_hook().get_conn()
-        else:
-            self.cli = APIClient(
-                base_url=self.docker_url,
-                version=self.api_version,
-                tls=tls_config
-            )
-
-        if self.force_pull or len(self.cli.images(name=self.image)) == 0:
-            self.log.info('Pulling docker image %s', self.image)
-            for l in self.cli.pull(self.image, stream=True):
-                output = json.loads(l.decode('utf-8').strip())
-                if 'status' in output:
-                    self.log.info("%s", output['status'])
-
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
                 command=self.get_command(),
+                name=self.container_name,
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
                     auto_remove=self.auto_remove,
@@ -249,8 +239,33 @@ class DockerOperator(BaseOperator):
                 return self.cli.logs(container=self.container['Id']) \
                     if self.xcom_all else line.encode('utf-8')
 
+    def execute(self, context):
+
+        tls_config = self.__get_tls_config()
+
+        if self.docker_conn_id:
+            self.cli = self.get_hook().get_conn()
+        else:
+            self.cli = APIClient(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
+            )
+
+        # Pull the docker image if `force_pull` is set or image does not exist locally
+        if self.force_pull or len(self.cli.images(name=self.image)) == 0:
+            self.log.info('Pulling docker image %s', self.image)
+            for l in self.cli.pull(self.image, stream=True):
+                output = json.loads(l.decode('utf-8').strip())
+                if 'status' in output:
+                    self.log.info("%s", output['status'])
+
+        self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+
+        self._run_image()
+
     def get_command(self):
-        if self.command is not None and self.command.strip().find('[') == 0:
+        if isinstance(self.command, str) and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command
