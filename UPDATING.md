@@ -39,6 +39,12 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Airflow Master
 
+### Changes to SQLSensor
+
+SQLSensor now keeps poking after receiving `NULL`. Previously `NULL` response
+has been treated as success criteria. Previous behaviour is still achievable
+setting param `success` to `lambda x: str(x) == 'None'`.
+
 ### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
 
 ImapHook:
