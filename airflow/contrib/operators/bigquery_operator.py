@@ -31,6 +31,8 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
 
+BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
+
 
 class BigQueryConsoleLink(BaseOperatorLink):
     """
@@ -41,8 +43,7 @@ class BigQueryConsoleLink(BaseOperatorLink):
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
         job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        return 'https://console.cloud.google.com/bigquery?j={job_id}'.format(
-            job_id=job_id) if job_id else ''
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
@@ -66,7 +67,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         if len(job_ids) < self.index:
             return None
         job_id = job_ids[self.index]
-        return 'https://console.cloud.google.com/bigquery?j={job_id}'.format(job_id=job_id)
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 # pylint: disable=too-many-instance-attributes
