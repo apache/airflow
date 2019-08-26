@@ -1099,23 +1099,23 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-    :param parameters: a map of parameters for Dataproc Template in key-value format: 
+    :param parameters: a map of parameters for Dataproc Template in key-value format:
         map (key: string, value: string)
         Example: { "date_from": "2019-08-01", "date_to": "2019-08-02"}.
-        Values may not exceed 100 characters.
-        Please refer to:
+        Values may not exceed 100 characters. Please refer to:
         https://cloud.google.com/dataproc/docs/concepts/workflows/workflow-parameters
-    :type parameters: map    
+    :type parameters: Dict[str, str]
     """
 
     template_fields = ['template_id']
 
     @apply_defaults
-    def __init__(self, template_id, *args, **kwargs):
+    def __init__(self, template_id, parameters, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.template_id = template_id
+        self.parameters = parameters
 
-    def start(self, parameters):
+    def start(self):
         """
         Instantiate a WorkflowTemplate on Google Cloud Dataproc with given parameters.
         """
@@ -1125,7 +1125,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
             .instantiate(
                 name=('projects/%s/regions/%s/workflowTemplates/%s' %
                       (self.project_id, self.region, self.template_id)),
-                body={'requestId': str(uuid.uuid4()), 'parameters': parameters})
+                body={'requestId': str(uuid.uuid4()), 'parameters': self.parameters})
             .execute())
 
 
