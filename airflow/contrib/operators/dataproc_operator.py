@@ -1099,12 +1099,12 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-    :param parameters: a map of parameters for Dataproc Template in key-value format: 
+    :param parameters: a map of parameters for Dataproc Template in key-value format:
         map (key: string, value: string)
         Example: { "date_from": "2019-08-01", "date_to": "2019-08-02"}.
         Values may not exceed 100 characters. Please refer to:
         https://cloud.google.com/dataproc/docs/concepts/workflows/workflow-parameters
-    :type parameters: Dict[str, str]  
+    :type parameters: Dict[str, str]
     """
 
     template_fields = ['template_id']
