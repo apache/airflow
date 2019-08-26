@@ -696,6 +696,7 @@ In airflow we have the following checks:
 
 ```text
 check-hooks-apply                Check hooks apply to the repository
+check-apache-license             Checks compatibility with Apache License requirements
 check-merge-conflict             Checks if merge conflict is being committed
 check-executables-have-shebangs  Check that executables have shebang
 check-xml                        Check XML files with xmllint
@@ -712,6 +713,13 @@ pylint                           Run pylint
 shellcheck                       Check shell files with shellcheck
 yamllint                         Check yaml files with yamllint
 ```
+
+The check-apache-licence check is normally skipped for commits unless `.pre-commit-config.yaml` file
+is changed. This check always run for the full set of files and if you want to run it locally you need to
+specify `--all-files` flag of pre-commit. For example:
+
+`pre-commit run check-apache-licenses --all-files`
+
 ## Using pre-commit hooks
 
 After installing pre-commit hooks are run automatically when you commit the code, but you can
