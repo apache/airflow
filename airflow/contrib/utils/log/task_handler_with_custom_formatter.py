@@ -38,7 +38,7 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
 
     def set_context(self, ti):
         """
-
+        Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
         :param ti:
         :return:
         """
