@@ -40,6 +40,7 @@ docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
        --env AIRFLOW_CI_SILENT \
        --env HOST_USER_ID="$(id -ur)" \
        --env HOST_GROUP_ID="$(id -gr)" \
+       --rm \
        "${AIRFLOW_CHECKLICENCE_IMAGE}"
 
 script_end

@@ -16,9 +16,27 @@
     under the License.
 
 
+Using the Command Line Interface
+================================
+
+This document is meant to give an overview of all common tasks while using the CLI.
+
+
+Set Up connection to a remote Airflow instance
+----------------------------------------------
+
+For some functions the CLI can use :doc:`the REST API <rest-api-ref>`. To configure the CLI to use the API
+when available configure as follows:
+
+.. code-block:: ini
+
+    [cli]
+    api_client = airflow.api.client.json_client
+    endpoint_url = http://<WEBSERVER>:<PORT>
+
 
 Set Up Bash/Zsh Completion
-==========================
+--------------------------
 
 When using bash (or ``zsh``) as your shell, ``airflow`` can use
 `argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
@@ -41,7 +59,7 @@ For one-time activation of argcomplete for airflow only, use:
 
   eval "$(register-python-argcomplete airflow)"
 
-.. image:: ../img/cli_completion.gif
+.. image:: img/cli_completion.gif
 
 If you’re using ``zsh``, add the following to your ``.zshrc``:
 

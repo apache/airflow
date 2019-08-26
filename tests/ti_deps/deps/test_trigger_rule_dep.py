@@ -343,6 +343,19 @@ class TestTriggerRuleDep(unittest.TestCase):
             self.assertEqual(len(dep_statuses), 1)
             self.assertFalse(dep_statuses[0].passed)
 
+            # Fail until all upstream tasks have completed execution
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=0,
+                upstream_failed=0,
+                done=0,
+                flag_upstream_failed=False,
+                session=session))
+            self.assertEqual(len(dep_statuses), 1)
+            self.assertFalse(dep_statuses[0].passed)
+
     def test_unknown_tr(self):
         """
         Unknown trigger rules should cause this dep to fail

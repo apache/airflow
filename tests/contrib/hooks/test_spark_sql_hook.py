@@ -93,12 +93,12 @@ class TestSparkSqlHook(unittest.TestCase):
         with patch.object(hook.log, 'debug') as mock_debug:
             with patch.object(hook.log, 'info') as mock_info:
                 hook.run_query()
-                mock_debug.assert_called_with(
+                mock_debug.assert_called_once_with(
                     'Spark-Sql cmd: %s',
                     ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
                      '--queue', 'default']
                 )
-                mock_info.assert_called_with(
+                mock_info.assert_called_once_with(
                     'Spark-sql communicates using stdout'
                 )
 

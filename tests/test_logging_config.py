@@ -171,7 +171,7 @@ class TestLoggingSettings(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     configure_logging()
 
-                mock_info.assert_called_with(
+                mock_info.assert_called_once_with(
                     'Unable to load the config, contains a configuration error.'
                 )
 
@@ -183,7 +183,7 @@ class TestLoggingSettings(unittest.TestCase):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
-                mock_info.assert_called_with(
+                mock_info.assert_called_once_with(
                     'Successfully imported user-defined logging config from %s',
                     'etc.airflow.config.{}.LOGGING_CONFIG'.format(
                         SETTINGS_DEFAULT_NAME
@@ -196,7 +196,7 @@ class TestLoggingSettings(unittest.TestCase):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
-                mock_info.assert_called_with(
+                mock_info.assert_called_once_with(
                     'Successfully imported user-defined logging config from %s',
                     '{}.LOGGING_CONFIG'.format(
                         SETTINGS_DEFAULT_NAME
@@ -234,7 +234,7 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.logging_config import configure_logging, log
         with patch.object(log, 'debug') as mock_info:
             configure_logging()
-            mock_info.assert_called_with(
+            mock_info.assert_called_once_with(
                 'Unable to load custom logging, using default config instead'
             )
 

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from typing import Optional
-from typing_extensions import Protocol
+from airflow.typing import Protocol
 import sys
 import re
 from datetime import datetime

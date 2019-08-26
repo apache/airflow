@@ -91,7 +91,7 @@ function save_to_file {
 }
 
 
-function build_image {
+function build_python_image {
     NAME="${1}"
     MY_IMAGE_TAG="${2}"
     TARGET_IMAGE="${3}"
@@ -101,7 +101,7 @@ function build_image {
     HOME="${7:-/home/airflow}"
 
     echo "Build ${NAME} image: ${MY_IMAGE_TAG}"
-    echo "Base image: ${PYTHON_BASE_IMAGE}"
+    echo "Python base image: ${PYTHON_BASE_IMAGE}"
 
     set +u
     if [[ "${MY_IMAGE_TAG}" == "${AIRFLOW_CI_IMAGE}" ]]; then
@@ -327,6 +327,9 @@ echo "The build optimised for CI: ${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}"
 # Base python image for the build
 export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-stretch
 
+# Base image for checklicence image
+export CHECKLICENCE_BASE_IMAGE=debian:stretch-slim
+
 if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
     export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}-ci-slim"
     export AIRFLOW_SLIM_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-ci-slim"
@@ -366,6 +369,7 @@ if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     echo
     start_step "Removing images"
     docker rmi "${PYTHON_BASE_IMAGE}" || true
+    docker rmi "${CHECKLICENCE_BASE_IMAGE}" || true
     docker rmi "${AIRFLOW_SLIM_CI_IMAGE}" || true
     docker rmi "${AIRFLOW_CI_IMAGE}" || true
     docker rmi "${AIRFLOW_CHECKLICENCE_IMAGE}" || true
@@ -394,16 +398,19 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
         if [[ ${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL} == "true" ]]; then
             echo
-            echo "Skip force-pulling the base python image."
+            echo "Skip force-pulling the base images."
             echo
         else
-            echo
-            echo "Force-pull base python image. This forces to get the most recent versions from DockerHub."
-            echo
             set -x
-            docker pull "${PYTHON_BASE_IMAGE}"
-            set +x
             echo
+            echo "Force pull base python image."
+            echo
+            docker pull "${PYTHON_BASE_IMAGE}"
+            echo "Force pull base checklicence image."
+            echo
+            docker pull "${CHECKLICENCE_BASE_IMAGE}"
+            echo
+            set +x
         fi
     fi
     IMAGES_TO_PULL=""
@@ -598,7 +605,7 @@ start_step "Build Airflow CI slim image"
 if [[ "${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}" == "true" ]]; then
     echo "Skip building the Airflow CI slim image"
 else
-    build_image "Airflow" \
+    build_python_image "Airflow" \
                 "${AIRFLOW_SLIM_CI_IMAGE}" \
                 "main" \
                 "airflow-apt-deps-ci-slim"
@@ -624,7 +631,7 @@ if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
     echo "Skip building the CI full Airflow image"
 else
     start_step "Build Airflow CI full image"
-    build_image "Airflow CI" \
+    build_python_image "Airflow CI" \
                 "${AIRFLOW_CI_IMAGE}" \
                 "main" \
                 "airflow-apt-deps-ci" \

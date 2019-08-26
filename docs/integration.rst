@@ -106,7 +106,7 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
 :class:`airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator`
     Lists the files located in a specified Azure Data Lake path.
 
-:class:`airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
+:class:`airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
     Copies files from an Azure Data Lake path to a Google Cloud Storage bucket.
 
 
@@ -579,7 +579,7 @@ They also use :class:`airflow.gcp.hooks.mlengine.MLEngineHook` to communicate wi
 Cloud Storage
 '''''''''''''
 
-:class:`airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator`
+:class:`airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator`
     Uploads a file to Google Cloud Storage.
 
 :class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
@@ -603,10 +603,10 @@ Cloud Storage
 :class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
     Copies objects from a bucket to another, with renaming if requested.
 
-:class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
     Copy data from any MySQL Database to Google cloud storage in JSON format.
 
-:class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
     Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
 
 :class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor`
@@ -936,6 +936,49 @@ Google Cloud Tasks
 
 They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
 
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.gcp.operators.automl.AutoMLTrainModelOperator`
+    Creates Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLPredictOperator`
+    Runs prediction operation on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLBatchPredictOperator`
+    Perform a batch prediction on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLCreateDatasetOperator`
+    Creates a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLListDatasetOperator`
+    Lists AutoML Datasets in project.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteDatasetOperator`
+    Deletes a dataset and all of its contents.
+
+:class:`airflow.gcp.operators.automl.AutoMLImportDataOperator`
+    Imports data to a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListColumnSpecsOperator`
+    Lists column specs in a table.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListTableSpecsOperator`
+    Lists table specs in a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesUpdateDatasetOperator`
+    Updates a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLGetModelOperator`
+    Get Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteModelOperator`
+    Delete Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeployModelOperator`
+    Deploys a model.
+
+They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
 
 .. _Qubole:
 

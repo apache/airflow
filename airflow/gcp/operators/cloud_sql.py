@@ -230,7 +230,7 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     :type validate_body: bool
     """
     # [START gcp_sql_create_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
     # [END gcp_sql_create_template_fields]
 
     @apply_defaults
@@ -304,7 +304,7 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
     :type api_version: str
     """
     # [START gcp_sql_patch_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
     # [END gcp_sql_patch_template_fields]
 
     @apply_defaults
@@ -405,7 +405,7 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
     :type validate_body: bool
     """
     # [START gcp_sql_db_create_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
     # [END gcp_sql_db_create_template_fields]
 
     @apply_defaults
@@ -477,7 +477,7 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     :type validate_body: bool
     """
     # [START gcp_sql_db_patch_template_fields]
-    template_fields = ('project_id', 'instance', 'database', 'gcp_conn_id',
+    template_fields = ('project_id', 'instance', 'body', 'database', 'gcp_conn_id',
                        'api_version')
     # [END gcp_sql_db_patch_template_fields]
 
@@ -609,7 +609,7 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
     :type validate_body: bool
     """
     # [START gcp_sql_export_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
     # [END gcp_sql_export_template_fields]
 
     @apply_defaults
@@ -685,7 +685,7 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
     :type validate_body: bool
     """
     # [START gcp_sql_import_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
     # [END gcp_sql_import_template_fields]
 
     @apply_defaults

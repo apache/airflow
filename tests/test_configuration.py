@@ -51,7 +51,6 @@ class TestConf(unittest.TestCase):
     def setUpClass(cls):
         os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
         os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
-        os.environ['AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY'] = 'nested'
         conf.set('core', 'percent', 'with%%inside')
 
     @classmethod
@@ -83,6 +82,13 @@ class TestConf(unittest.TestCase):
                 configuration.get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
+    def test_case_sensitivity(self):
+        # section and key are case insensitive for get method
+        # note: this is not the case for as_dict method
+        self.assertEqual(conf.get("core", "percent"), "with%inside")
+        self.assertEqual(conf.get("core", "PERCENT"), "with%inside")
+        self.assertEqual(conf.get("CORE", "PERCENT"), "with%inside")
+
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
@@ -92,10 +98,13 @@ class TestConf(unittest.TestCase):
 
         self.assertTrue(conf.has_option('testsection', 'testkey'))
 
+        os.environ['AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY'] = 'nested'
         opt = conf.get('kubernetes_environment_variables', 'AIRFLOW__TESTSECTION__TESTKEY')
         self.assertEqual(opt, 'nested')
+        del os.environ['AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY']
 
     def test_conf_as_dict(self):
+        os.environ['AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY'] = 'nested'
         cfg_dict = conf.as_dict()
 
         # test that configs are picked up
@@ -106,8 +115,9 @@ class TestConf(unittest.TestCase):
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
         self.assertEqual(
-            cfg_dict['kubernetes_environment_variables']['airflow__testsection__testkey'],
+            cfg_dict['kubernetes_environment_variables']['AIRFLOW__TESTSECTION__TESTKEY'],
             '< hidden >')
+        del os.environ['AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY']
 
     def test_conf_as_dict_source(self):
         # test display_source
@@ -316,6 +326,24 @@ key3 = value3
                 ('testkey', 'testvalue'),
                 ('testpercent', 'with%percent')]),
             test_conf.getsection('testsection')
+        )
+
+    def test_kubernetes_environment_variables_section(self):
+        TEST_CONFIG = '''
+[kubernetes_environment_variables]
+key1 = hello
+AIRFLOW_HOME = /root/airflow
+'''
+        TEST_CONFIG_DEFAULT = '''
+[kubernetes_environment_variables]
+'''
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+
+        self.assertEqual(
+            OrderedDict([('key1', 'hello'), ('AIRFLOW_HOME', '/root/airflow')]),
+            test_conf.getsection('kubernetes_environment_variables')
         )
 
     def test_broker_transport_options(self):

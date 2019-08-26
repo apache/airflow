@@ -23,7 +23,7 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.contrib.operators.mysql_to_gcs import \
+from airflow.operators.mysql_to_gcs import \
     MySqlToGoogleCloudStorageOperator
 from tests.compat import mock
 
@@ -100,8 +100,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
             op.convert_type(value, schema_type),
             expected)
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_json(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for JSON"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -132,8 +132,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         mysql_hook_mock_class.assert_called_once_with(mysql_conn_id=MYSQL_CONN_ID)
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -165,8 +165,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         mysql_hook_mock_class.assert_called_once_with(mysql_conn_id=MYSQL_CONN_ID)
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv_ensure_utc(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -199,8 +199,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         mysql_hook_mock_class.assert_called_once_with(mysql_conn_id=MYSQL_CONN_ID)
         mysql_hook_mock.get_conn().cursor().execute.assert_has_calls([mock.call(TZ_QUERY), mock.call(SQL)])
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_exec_success_csv_with_delimiter(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV with a field delimiter"""
         op = MySqlToGoogleCloudStorageOperator(
@@ -233,8 +233,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         mysql_hook_mock_class.assert_called_once_with(mysql_conn_id=MYSQL_CONN_ID)
         mysql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_file_splitting(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
         mysql_hook_mock = mysql_hook_mock_class.return_value
@@ -264,8 +264,8 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
             approx_max_file_size_bytes=len(expected_upload[JSON_FILENAME.format(0)]))
         op.execute(None)
 
-    @mock.patch('airflow.contrib.operators.mysql_to_gcs.MySqlHook')
-    @mock.patch('airflow.contrib.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
     def test_schema_file(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test writing schema files."""
         mysql_hook_mock = mysql_hook_mock_class.return_value

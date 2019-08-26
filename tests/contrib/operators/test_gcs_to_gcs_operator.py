@@ -304,7 +304,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         with patch.object(operator.log, 'warning') as mock_warn:
             operator.execute(None)
-            mock_warn.assert_called_with(
+            mock_warn.assert_called_once_with(
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',
                 TEST_BUCKET
             )

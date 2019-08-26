@@ -43,10 +43,10 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
         result = op.poke(context)
 
-        mock_tool.return_value.list_transfer_operations.assert_called_with(
+        mock_tool.return_value.list_transfer_operations.assert_called_once_with(
             request_filter={'project_id': 'project-id', 'job_names': ['job-name']}
         )
-        mock_tool.operations_contain_expected_statuses.assert_called_with(
+        mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
         self.assertTrue(result)
@@ -66,7 +66,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         result = op.poke(context)
 
-        mock_tool.operations_contain_expected_statuses.assert_called_with(
+        mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=mock.ANY, expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
         self.assertTrue(result)
@@ -94,7 +94,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         result = op.poke(context)
         self.assertFalse(result)
 
-        mock_tool.operations_contain_expected_statuses.assert_called_with(
+        mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations_set[0], expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
         mock_tool.operations_contain_expected_statuses.reset_mock()
@@ -102,7 +102,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         result = op.poke(context)
         self.assertTrue(result)
 
-        mock_tool.operations_contain_expected_statuses.assert_called_with(
+        mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations_set[1], expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
 
@@ -136,6 +136,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         result = op.poke(context)
         self.assertFalse(result)
 
-        mock_tool.operations_contain_expected_statuses.assert_called_with(
+        mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses=received_status
         )

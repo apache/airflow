@@ -2196,7 +2196,7 @@ class VariableModelView(AirflowModelView):
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val', 'is_encrypted']
+    add_columns = ['key', 'val']
     edit_columns = ['key', 'val']
     search_columns = ['key', 'val']
 

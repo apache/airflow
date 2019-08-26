@@ -20,6 +20,20 @@ default_language_version:
   # force all unspecified python hooks to run python3
   python: python3
 repos:
+  - repo: local
+    hooks:
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/ci_build.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: check-apache-license
+        name: Check if licences are OK for Apache
+        entry: ./scripts/ci/ci_check_license.sh
+        language: system
+        always_run: true
+        pass_filenames: false
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.6
     hooks:
@@ -142,23 +156,20 @@ repos:
         language: system
         entry: ./scripts/ci/ci_mypy.sh
         files: \.py$
-        require_serial: true
+        exclude: ^airflow/_vendor/.*$
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: ./scripts/ci/ci_pylint_main.sh
         files: \.py$
-        exclude: ^tests/.*\.py$
-        require_serial: true
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
       - id: pylint
         name: Run pylint for tests
         language: system
         entry: ./scripts/ci/ci_pylint_tests.sh
         files: ^tests/.*\.py$
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
         entry: ./scripts/ci/ci_flake8.sh
         files: \.py$
-        require_serial: true

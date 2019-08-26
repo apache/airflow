@@ -62,8 +62,8 @@ class TestPubSubHook(unittest.TestCase):
 
         create_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.create)
-        create_method.assert_called_with(body={}, name=EXPANDED_TOPIC)
-        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        create_method.assert_called_once_with(body={}, name=EXPANDED_TOPIC)
+        create_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_topic(self, mock_service):
@@ -71,8 +71,8 @@ class TestPubSubHook(unittest.TestCase):
 
         delete_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.delete)
-        delete_method.assert_called_with(topic=EXPANDED_TOPIC)
-        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        delete_method.assert_called_once_with(topic=EXPANDED_TOPIC)
+        delete_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
@@ -117,9 +117,8 @@ class TestPubSubHook(unittest.TestCase):
             'topic': EXPANDED_TOPIC,
             'ackDeadlineSeconds': 10
         }
-        create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
-                                         body=expected_body)
-        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        create_method.assert_called_once_with(name=EXPANDED_SUBSCRIPTION, body=expected_body)
+        create_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -137,9 +136,8 @@ class TestPubSubHook(unittest.TestCase):
             'topic': EXPANDED_TOPIC,
             'ackDeadlineSeconds': 10
         }
-        create_method.assert_called_with(name=expected_subscription,
-                                         body=expected_body)
-        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        create_method.assert_called_once_with(name=expected_subscription, body=expected_body)
+        create_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -148,8 +146,8 @@ class TestPubSubHook(unittest.TestCase):
 
         delete_method = (mock_service.return_value.projects
                          .return_value.subscriptions.return_value.delete)
-        delete_method.assert_called_with(subscription=EXPANDED_SUBSCRIPTION)
-        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        delete_method.assert_called_once_with(subscription=EXPANDED_SUBSCRIPTION)
+        delete_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_subscription_failifnotexists(self,
@@ -181,9 +179,8 @@ class TestPubSubHook(unittest.TestCase):
         }
         expected_name = EXPANDED_SUBSCRIPTION.replace(
             TEST_SUBSCRIPTION, 'sub-%s' % TEST_UUID)
-        create_method.assert_called_with(name=expected_name,
-                                         body=expected_body)
-        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        create_method.assert_called_once_with(name=expected_name, body=expected_body)
+        create_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual('sub-%s' % TEST_UUID, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -198,9 +195,8 @@ class TestPubSubHook(unittest.TestCase):
             'topic': EXPANDED_TOPIC,
             'ackDeadlineSeconds': 30
         }
-        create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
-                                         body=expected_body)
-        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
+        create_method.assert_called_once_with(name=EXPANDED_SUBSCRIPTION, body=expected_body)
+        create_method.return_value.execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -236,7 +232,7 @@ class TestPubSubHook(unittest.TestCase):
 
         publish_method = (mock_service.return_value.projects.return_value
                           .topics.return_value.publish)
-        publish_method.assert_called_with(
+        publish_method.assert_called_once_with(
             topic=EXPANDED_TOPIC, body={'messages': TEST_MESSAGES})
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -250,7 +246,7 @@ class TestPubSubHook(unittest.TestCase):
             'receivedMessages': pulled_messages}
 
         response = self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
-        pull_method.assert_called_with(
+        pull_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             body={'maxMessages': 10, 'returnImmediately': False})
         self.assertEqual(pulled_messages, response)
@@ -263,7 +259,7 @@ class TestPubSubHook(unittest.TestCase):
             'receivedMessages': []}
 
         response = self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
-        pull_method.assert_called_with(
+        pull_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             body={'maxMessages': 10, 'returnImmediately': False})
         self.assertListEqual([], response)
@@ -277,7 +273,7 @@ class TestPubSubHook(unittest.TestCase):
 
         with self.assertRaises(Exception):
             self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
-            pull_method.assert_called_with(
+            pull_method.assert_called_once_with(
                 subscription=EXPANDED_SUBSCRIPTION,
                 body={'maxMessages': 10, 'returnImmediately': False})
 
@@ -287,7 +283,7 @@ class TestPubSubHook(unittest.TestCase):
                       .subscriptions.return_value.acknowledge)
         self.pubsub_hook.acknowledge(
             TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3'])
-        ack_method.assert_called_with(
+        ack_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             body={'ackIds': ['1', '2', '3']})
 
@@ -301,7 +297,7 @@ class TestPubSubHook(unittest.TestCase):
         with self.assertRaises(Exception) as e:
             self.pubsub_hook.acknowledge(
                 TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3'])
-            ack_method.assert_called_with(
+            ack_method.assert_called_once_with(
                 subscription=EXPANDED_SUBSCRIPTION,
                 body={'ackIds': ['1', '2', '3']})
             print(e)

@@ -56,35 +56,35 @@ class TestDockerOperator(unittest.TestCase):
                                   host_tmp_dir='/host/airflow', container_name='test_container')
         operator.execute(None)
 
-        client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
-                                             version='1.19')
+        client_class_mock.assert_called_once_with(base_url='unix://var/run/docker.sock', tls=None,
+                                                  version='1.19')
 
-        client_mock.create_container.assert_called_with(command='env',
-                                                        name='test_container',
-                                                        environment={
-                                                            'AIRFLOW_TMP_DIR': '/tmp/airflow',
-                                                            'UNIT': 'TEST'
-                                                        },
-                                                        host_config=host_config,
-                                                        image='ubuntu:latest',
-                                                        user=None,
-                                                        working_dir='/container/path'
-                                                        )
-        client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
-                                                                 '/mkdtemp:/tmp/airflow'],
-                                                          network_mode='bridge',
-                                                          shm_size=1000,
-                                                          cpu_shares=1024,
-                                                          mem_limit=None,
-                                                          auto_remove=False,
-                                                          dns=None,
-                                                          dns_search=None)
-        mkdtemp_mock.assert_called_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
-        client_mock.images.assert_called_with(name='ubuntu:latest')
-        client_mock.attach.assert_called_with(container='some_id', stdout=True,
-                                              stderr=True, stream=True)
-        client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
-        client_mock.wait.assert_called_with('some_id')
+        client_mock.create_container.assert_called_once_with(command='env',
+                                                             name='test_container',
+                                                             environment={
+                                                                 'AIRFLOW_TMP_DIR': '/tmp/airflow',
+                                                                 'UNIT': 'TEST'
+                                                             },
+                                                             host_config=host_config,
+                                                             image='ubuntu:latest',
+                                                             user=None,
+                                                             working_dir='/container/path'
+                                                             )
+        client_mock.create_host_config.assert_called_once_with(binds=['/host/path:/container/path',
+                                                                      '/mkdtemp:/tmp/airflow'],
+                                                               network_mode='bridge',
+                                                               shm_size=1000,
+                                                               cpu_shares=1024,
+                                                               mem_limit=None,
+                                                               auto_remove=False,
+                                                               dns=None,
+                                                               dns_search=None)
+        mkdtemp_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
+        client_mock.images.assert_called_once_with(name='ubuntu:latest')
+        client_mock.attach.assert_called_once_with(container='some_id', stdout=True,
+                                                   stderr=True, stream=True)
+        client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
+        client_mock.wait.assert_called_once_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
     @mock.patch('airflow.operators.docker_operator.APIClient')
@@ -106,12 +106,12 @@ class TestDockerOperator(unittest.TestCase):
                                   tls_ca_cert='ca.pem', tls_client_key='key.pem')
         operator.execute(None)
 
-        tls_class_mock.assert_called_with(assert_hostname=None, ca_cert='ca.pem',
-                                          client_cert=('cert.pem', 'key.pem'),
-                                          ssl_version=None, verify=True)
+        tls_class_mock.assert_called_once_with(assert_hostname=None, ca_cert='ca.pem',
+                                               client_cert=('cert.pem', 'key.pem'),
+                                               ssl_version=None, verify=True)
 
-        client_class_mock.assert_called_with(base_url='https://127.0.0.1:2376',
-                                             tls=tls_mock, version=None)
+        client_class_mock.assert_called_once_with(base_url='https://127.0.0.1:2376',
+                                                  tls=tls_mock, version=None)
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_unicode_logs(self, client_class_mock):
@@ -162,7 +162,7 @@ class TestDockerOperator(unittest.TestCase):
 
         operator.on_kill()
 
-        client_mock.stop.assert_called_with('some_id')
+        client_mock.stop.assert_called_once_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):

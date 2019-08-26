@@ -43,15 +43,9 @@ services:
       - ../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../run-tests:/opt/airflow/run-tests:cached
-      - ../../run-tests-complete:/root/run-tests-complete:cached
       - ../../logs:/root/airflow/logs:cached
       - ../../logs:/opt/airflow/logs:cached
       - ../../tmp:/opt/airflow/tmp:cached
-      - ../../.bash_completion.d:/root/.bash_completion.d:cached
-      - ../../.bash_completion:/root/.bash_completion:cached
-      - ../../.bash_history:/root/.bash_history:cached
-      - ../../.bash_aliases:/root/.bash_aliases:cached
-      - ../../.inputrc:/root/.inputrc:cached
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID

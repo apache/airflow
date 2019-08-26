@@ -19,7 +19,7 @@
 """Default authentication backend - everything is allowed"""
 from typing import Optional
 from functools import wraps
-from typing_extensions import Protocol
+from airflow.typing import Protocol
 
 
 class ClientAuthProtocol(Protocol):

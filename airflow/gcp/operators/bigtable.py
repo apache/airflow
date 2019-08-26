@@ -122,12 +122,13 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
         self.cluster_storage_type = cluster_storage_type
         self.timeout = timeout
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
+        self.gcp_conn_id = gcp_conn_id
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        instance = self.hook.get_instance(project_id=self.project_id,
-                                          instance_id=self.instance_id)
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id,
+                                     instance_id=self.instance_id)
         if instance:
             # Based on Instance.__eq__ instance with the same ID and client is
             # considered as equal.
@@ -138,7 +139,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
             )
             return
         try:
-            self.hook.create_instance(
+            hook.create_instance(
                 project_id=self.project_id,
                 instance_id=self.instance_id,
                 main_cluster_id=self.main_cluster_id,
@@ -186,13 +187,14 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.project_id = project_id
         self.instance_id = instance_id
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
+        self.gcp_conn_id = gcp_conn_id
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
         try:
-            self.hook.delete_instance(project_id=self.project_id,
-                                      instance_id=self.instance_id)
+            hook.delete_instance(project_id=self.project_id,
+                                 instance_id=self.instance_id)
         except google.api_core.exceptions.NotFound:
             self.log.info(
                 "The instance '%s' does not exist in project '%s'. "
@@ -249,13 +251,11 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self.initial_split_keys = initial_split_keys or list()
         self.column_families = column_families or dict()
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
-        self.instance = None
+        self.gcp_conn_id = gcp_conn_id
         super().__init__(*args, **kwargs)
 
-    def _compare_column_families(self):
-        table_column_families = self.hook.get_column_families_for_table(self.instance,
-                                                                        self.table_id)
+    def _compare_column_families(self, hook, instance):
+        table_column_families = hook.get_column_families_for_table(instance, self.table_id)
         if set(table_column_families.keys()) != set(self.column_families.keys()):
             self.log.error("Table '%s' has different set of Column Families",
                            self.table_id)
@@ -278,21 +278,21 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         return True
 
     def execute(self, context):
-        self.instance = self.hook.get_instance(project_id=self.project_id,
-                                               instance_id=self.instance_id)
-        if not self.instance:
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        if not instance:
             raise AirflowException(
                 "Dependency: instance '{}' does not exist in project '{}'.".
                 format(self.instance_id, self.project_id))
         try:
-            self.hook.create_table(
-                instance=self.instance,
+            hook.create_table(
+                instance=instance,
                 table_id=self.table_id,
                 initial_split_keys=self.initial_split_keys,
                 column_families=self.column_families
             )
         except google.api_core.exceptions.AlreadyExists:
-            if not self._compare_column_families():
+            if not self._compare_column_families(hook, instance):
                 raise AirflowException(
                     "Table '{}' already exists with different Column Families.".
                     format(self.table_id))
@@ -337,18 +337,19 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
         self.table_id = table_id
         self.app_profile_id = app_profile_id
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
+        self.gcp_conn_id = gcp_conn_id
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        instance = self.hook.get_instance(project_id=self.project_id,
-                                          instance_id=self.instance_id)
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id,
+                                     instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(
                 self.instance_id))
 
         try:
-            self.hook.delete_table(
+            hook.delete_table(
                 project_id=self.project_id,
                 instance_id=self.instance_id,
                 table_id=self.table_id,
@@ -399,18 +400,19 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
         self.cluster_id = cluster_id
         self.nodes = nodes
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
+        self.gcp_conn_id = gcp_conn_id
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        instance = self.hook.get_instance(project_id=self.project_id,
-                                          instance_id=self.instance_id)
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id,
+                                     instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(
                 self.instance_id))
 
         try:
-            self.hook.update_cluster(
+            hook.update_cluster(
                 instance=instance,
                 cluster_id=self.cluster_id,
                 nodes=self.nodes

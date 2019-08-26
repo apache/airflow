@@ -33,7 +33,7 @@ class TestVariable(unittest.TestCase):
     def tearDown(self):
         crypto._fernet = None
 
-    @conf_vars({('core', 'FERNET_KEY'): ''})
+    @conf_vars({('core', 'fernet_key'): ''})
     def test_variable_no_encryption(self):
         """
         Test variables without encryption
@@ -44,7 +44,7 @@ class TestVariable(unittest.TestCase):
         self.assertFalse(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @conf_vars({('core', 'FERNET_KEY'): Fernet.generate_key().decode()})
+    @conf_vars({('core', 'fernet_key'): Fernet.generate_key().decode()})
     def test_variable_with_encryption(self):
         """
         Test variables with encryption
@@ -62,7 +62,7 @@ class TestVariable(unittest.TestCase):
         key1 = Fernet.generate_key()
         key2 = Fernet.generate_key()
 
-        with conf_vars({('core', 'FERNET_KEY'): key1.decode()}):
+        with conf_vars({('core', 'fernet_key'): key1.decode()}):
             Variable.set('key', 'value')
             session = settings.Session()
             test_var = session.query(Variable).filter(Variable.key == 'key').one()
@@ -71,7 +71,7 @@ class TestVariable(unittest.TestCase):
             self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
 
         # Test decrypt of old value with new key
-        with conf_vars({('core', 'FERNET_KEY'): ','.join([key2.decode(), key1.decode()])}):
+        with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
             crypto._fernet = None
             self.assertEqual(test_var.val, 'value')
 
