@@ -1104,7 +1104,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
         Example: { "date_from": "2019-08-01", "date_to": "2019-08-02"}.
         Values may not exceed 100 characters. Please refer to:
         https://cloud.google.com/dataproc/docs/concepts/workflows/workflow-parameters
-    :type parameters: map   
+    :type parameters: Dict[str, str]  
     """
 
     template_fields = ['template_id']
