@@ -29,7 +29,6 @@ from airflow.utils.helpers import parse_template_string
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
     """
-
     Custom implementation of StreamHandler, a class which writes logging records for Airflow
     """
     def __init__(self, stream):
