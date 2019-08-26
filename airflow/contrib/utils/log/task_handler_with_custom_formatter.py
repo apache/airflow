@@ -39,7 +39,8 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
         """
         Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
 
-        :param ti:
+
+         :param ti:
         :return:
         """
         if ti.raw:
