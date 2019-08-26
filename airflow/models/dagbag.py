@@ -423,8 +423,6 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         dag_folder = correct_maybe_zipped(dag_folder)
 
-        dags_by_name = {}
-
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
@@ -438,7 +436,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 td = timezone.utcnow() - ts
                 td = td.total_seconds() + (
                     float(td.microseconds) / 1000000)
-                dags_by_name[dag_id_names] = dag_ids
                 stats.append(FileLoadStat(
                     filepath.replace(settings.DAGS_FOLDER, ''),
                     td,
@@ -451,13 +448,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
         for file_stat in self.dagbag_stats:
-            dag_ids = dags_by_name[file_stat.dags]
-            if file_stat.dag_num >= 1:
-                # if we found multiple dags per file, the stat is 'dag_id1 _ dag_id2'
-                dag_names = '_'.join(dag_ids)
-                Stats.timing('dag.loading-duration.{}'.
-                             format(dag_names),
-                             file_stat.duration)
+            # file_stat.file similar format: /subdir/dag_name.py
+            filename = file_stat.file.split('/')[-1].replace('.py', '')
+            Stats.timing('dag.loading-duration.{}'.format(filename), file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
