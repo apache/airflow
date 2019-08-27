@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
-
-from airflow.gcp.example_dags.example_dataproc import OUTPUT_PATH
 
 from tests.contrib.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
@@ -29,9 +28,23 @@ from tests.contrib.operators.test_dataproc_operator_system_helper import (
     DataprocTestHelper,
 )
 
+OUTPUT_BUCKET = os.environ.get("GCP_DATAPROC_OUTPUT_BUCKET", "system-tests-outputs")
+
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAPROC_KEY), SKIP_TEST_WARNING)
-class DataprocPigOperatorExampleDagsTest(TestDagGcpSystem):
+class DataprocExampleDagsTest(TestDagGcpSystem):
+    def setUp(self):
+        super().setUp()
+        self.gcp_authenticator.gcp_authenticate()
+        self.helper.create_test_bucket(OUTPUT_BUCKET)
+        self.gcp_authenticator.gcp_revoke_authentication()
+
+    def tearDown(self):
+        self.gcp_authenticator.gcp_authenticate()
+        self.helper.delete_gcs_bucket_elements(OUTPUT_BUCKET)
+        self.gcp_authenticator.gcp_revoke_authentication()
+        super().tearDown()
+
     def __init__(self, method_name="runTest"):
         super().__init__(
             method_name, dag_id="example_gcp_dataproc", gcp_key=GCP_DATAPROC_KEY
@@ -40,7 +53,3 @@ class DataprocPigOperatorExampleDagsTest(TestDagGcpSystem):
 
     def test_run_example_dag(self):
         self._run_dag()
-
-    def tearDown(self):
-        self.helper.delete_gcs_bucket_elements(OUTPUT_PATH)
-        super().tearDown()

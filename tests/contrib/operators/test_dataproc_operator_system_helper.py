@@ -21,5 +21,8 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 
 class DataprocTestHelper(LoggingCommandExecutor):
+    def create_test_bucket(self, bucket: str):
+        self.execute_cmd(["gsutil", "mb", "gs://{bucket}/".format(bucket=bucket)], True)
+
     def delete_gcs_bucket_elements(self, bucket: str):
-        self.execute_cmd(["gsutil", "rm", "-r", "{path}/*".format(path=bucket)], True)
+        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}/".format(bucket=bucket)], True)

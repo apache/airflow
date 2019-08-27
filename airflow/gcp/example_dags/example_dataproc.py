@@ -40,9 +40,9 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-project")
 REGION = os.environ.get("GCP_LOCATION", "europe-west1")
 ZONE = os.environ.get("GCP_REGION", "europe-west-1b")
-OUTPUT_BUCKET = os.environ.get("GCP_DATAPROC_OUTPUT_BUCKET", "gs://system-tests-outputs")
+OUTPUT_BUCKET = os.environ.get("GCP_DATAPROC_OUTPUT_BUCKET", "system-tests-outputs")
 OUTPUT_FOLDER = "wordcount"
-OUTPUT_PATH = os.path.join(OUTPUT_BUCKET, OUTPUT_FOLDER) + os.sep
+OUTPUT_PATH = "gs://{}/{}/".format(OUTPUT_BUCKET, OUTPUT_FOLDER)
 
 PYSPARK_MAIN = os.environ.get(
     "PYSPARK_MAIN",
