@@ -18,16 +18,29 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from airflow.gcp.example_dags.example_dataproc import OUTPUT_PATH
+
+from tests.contrib.utils.base_gcp_system_test_case import (
+    SKIP_TEST_WARNING,
+    TestDagGcpSystem,
+)
 from tests.contrib.utils.gcp_authenticator import GCP_DATAPROC_KEY
+from tests.contrib.operators.test_dataproc_operator_system_helper import (
+    DataprocTestHelper,
+)
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAPROC_KEY), SKIP_TEST_WARNING)
 class DataprocPigOperatorExampleDagsTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
         super().__init__(
-            method_name, dag_id="example_gcp_dataproc_pig_operator", gcp_key=GCP_DATAPROC_KEY
+            method_name, dag_id="example_gcp_dataproc", gcp_key=GCP_DATAPROC_KEY
         )
+        self.helper = DataprocTestHelper()
 
     def test_run_example_dag(self):
         self._run_dag()
+
+    def tearDown(self):
+        self.helper.delete_gcs_bucket_elements(OUTPUT_PATH)
+        super().tearDown()
