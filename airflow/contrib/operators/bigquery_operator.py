@@ -725,6 +725,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
+    :param location: (Optional) The geographic location where the dataset should reside.
+        There is no default value but the dataset will be created in US if nothing is provided.
+    :type location: str
     :param dataset_reference: Dataset reference that could be provided with request body.
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -754,6 +757,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                  dataset_id,
                  project_id=None,
                  dataset_reference=None,
+                 location=None,
                  gcp_conn_id='google_cloud_default',
                  bigquery_conn_id=None,
                  delegate_to=None,
@@ -767,6 +771,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
@@ -786,7 +791,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         cursor.create_empty_dataset(
             project_id=self.project_id,
             dataset_id=self.dataset_id,
-            dataset_reference=self.dataset_reference)
+            dataset_reference=self.dataset_reference,
+            location=self.location)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):

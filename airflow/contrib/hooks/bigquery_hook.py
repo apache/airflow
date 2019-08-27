@@ -1615,7 +1615,7 @@ class BigQueryBaseCursor(LoggingMixin):
             return source_dataset_resource
 
     def create_empty_dataset(self, dataset_id="", project_id="",
-                             dataset_reference=None):
+                             location=None, dataset_reference=None):
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -1626,6 +1626,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :param dataset_id: The id of dataset. Don't need to provide,
             if datasetId in dataset_reference.
         :type dataset_id: str
+        :param location: (Optional) The geographic location where the dataset should reside.
+            There is no default value but the dataset will be created in US if nothing is provided.
+        :type location: str
         :param dataset_reference: Dataset reference that could be provided
             with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -1661,6 +1664,14 @@ class BigQueryBaseCursor(LoggingMixin):
                 _api_resource_configs_duplication_check(
                     param_name, param,
                     dataset_reference['datasetReference'], 'dataset_reference')
+
+        if location:
+            if 'location' not in dataset_reference:
+                dataset_reference.update({'location': location})
+            else:
+                _api_resource_configs_duplication_check(
+                    'location', location,
+                    dataset_reference, 'dataset_reference')
 
         dataset_id = dataset_reference.get("datasetReference").get("datasetId")
         dataset_project_id = dataset_reference.get("datasetReference").get(

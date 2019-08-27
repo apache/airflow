@@ -629,7 +629,6 @@ class TestLabelsInRunJob(unittest.TestCase):
 class TestDatasetsOperations(unittest.TestCase):
 
     def test_create_empty_dataset_no_dataset_id_err(self):
-
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
@@ -644,6 +643,59 @@ class TestDatasetsOperations(unittest.TestCase):
                     "datasetReference":
                         {"datasetId": "test_dataset",
                          "projectId": "project_test2"}})
+
+    def test_create_empty_dataset_with_location_duplicates_call_err(self):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test", location="EU",
+                dataset_reference={
+                    "location": "US",
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test"}})
+
+    def test_create_empty_dataset_with_location(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
+
+    def test_create_empty_dataset_with_location_duplicates_call_no_err(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+        dataset_reference = {"location": "EU"}
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location,
+                                    dataset_reference=dataset_reference)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
 
     def test_get_dataset_without_dataset_id(self):
         with mock.patch.object(hook.BigQueryHook, 'get_service'):
