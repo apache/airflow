@@ -656,7 +656,7 @@ class BaseOperator(LoggingMixin):
 
     def _do_render_template_fields(
         self, parent: Any, template_fields: Iterable[str], context: Dict, jinja_env: jinja2.Environment,
-        seen_oids: Optional[Set] = None
+        seen_oids: Set
     ) -> None:
         for attr_name in template_fields:
             content = getattr(parent, attr_name)
