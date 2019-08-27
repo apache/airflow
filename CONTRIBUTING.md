@@ -662,7 +662,6 @@ insert-license                   Add licences for most file types
 lint-dockerfile                  Lint dockerfile
 mixed-line-ending                Detects if mixed line ending is used (\r vs. \r\n)
 mypy                             Run mypy
-pylint                           Run pylint
 shellcheck                       Check shell files with shellcheck
 yamllint                         Check yaml files with yamllint
 ```
@@ -688,10 +687,10 @@ run pre-commit hooks manually as needed.
 `pre-commit run mypy --all-files`
 
 *You can run all checks manually on all files by running:*
-`SKIP=pylint pre-commit run --all-files`
+`pre-commit run --all-files`
 
 *You can skip one or more of the checks by specifying comma-separated list of checks to skip in SKIP variable:*
-`SKIP=pylint,mypy pre-commit run --all-files`
+`SKIP=flake8,mypy pre-commit run --all-files`
 
 ## Skipping pre-commit hooks
 

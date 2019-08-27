@@ -594,7 +594,7 @@ function run_docker_lint() {
             --rm \
             hadolint/hadolint /bin/hadolint Dockerfile*
         echo
-        echo "Docker pylint completed with no errors"
+        echo "Docker lint completed with no errors"
         echo
     else
         echo
@@ -606,20 +606,7 @@ function run_docker_lint() {
             --rm \
             hadolint/hadolint /bin/hadolint "$@"
         echo
-        echo "Docker pylint completed with no errors"
+        echo "Docker lint completed with no errors"
         echo
     fi
-}
-
-function filter_out_files_from_pylint_todo_list() {
-  FILTERED_FILES=()
-  set +e
-  for FILE in "$@"
-  do
-      if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
-          FILTERED_FILES+=("${FILE}")
-      fi
-  done
-  set -e
-  export FILTERED_FILES
 }
