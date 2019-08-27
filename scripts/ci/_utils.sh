@@ -468,7 +468,7 @@ function cleanup_ci_slim_image() {
 }
 
 #
-# Rebuilds the image for static checks if needed.
+# Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
