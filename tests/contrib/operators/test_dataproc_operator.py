@@ -21,11 +21,12 @@
 
 import datetime
 import re
-import time
 import unittest
-from copy import deepcopy
-from typing import Dict
 from unittest.mock import MagicMock, Mock, patch
+from typing import Dict
+
+import time
+from copy import deepcopy
 
 from mock import PropertyMock
 
