@@ -34,7 +34,7 @@ echo
 
 sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${AIRFLOW_SOURCES}/logs"
 
-# This is the target of a symlink in airflow/www/static/docs -
+# This is the target of a symlink in airflow/www_rbac/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
 sudo mkdir -p docs/_build/html/
 

@@ -55,6 +55,29 @@ echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
 echo
 
+CLEAN_FILES=${CLEAN_FILES:=false}
+
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules" && "${CLEAN_FILES}" == "false" ]]; then
+    echo
+    echo "Installing NPM modules as they are not yet installed (sources are mounted from the host)"
+    echo
+    pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/"
+    npm ci
+    echo
+    popd
+fi
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" && ${CLEAN_FILES} == "false" ]]; then
+    pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/"
+    echo
+    echo "Building production version of javascript files (sources are mounted from the host)"
+    echo
+    echo
+    npm run prod
+    echo
+    echo
+    popd
+fi
+
 ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
@@ -167,7 +190,7 @@ if [[ "${ENV}" == "docker" ]]; then
 
     if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
         echo
-        echo "ERROR! There was a problem communicating with kerberos"
+        echo "ERROR:  There was a problem communicating with kerberos"
         echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
         echo
         echo "Action! Please restart the environment!"
@@ -201,7 +224,7 @@ if [[ ${#ARGS} == 0 ]]; then
           "--cover-erase"
           "--cover-html"
           "--cover-package=airflow"
-          "--cover-html-dir=airflow/www/static/coverage"
+          "--cover-html-dir=airflow/www_rbac/static/coverage"
           "--with-ignore-docstrings"
           "--rednose"
           "--with-xunit"

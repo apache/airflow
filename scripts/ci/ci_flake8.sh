@@ -32,7 +32,7 @@ force_python_3_5
 
 script_start
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_slim_image_if_needed
 
 run_flake8 "$@"
 
