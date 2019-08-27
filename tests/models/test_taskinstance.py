@@ -361,8 +361,8 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
 
         task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
-                             executor_config={'bar': 'baz'},
-                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+                              executor_config={'bar': 'baz'},
+                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
