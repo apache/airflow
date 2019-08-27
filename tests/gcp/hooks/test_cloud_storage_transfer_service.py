@@ -225,8 +225,8 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, 'name': job_name})
 
         calls = [
-            mock.call(request_filter={'project_id': TEST_PROJECT_ID, 'job_names': [job_name]}),
-            mock.call(request_filter={'project_id': TEST_PROJECT_ID, 'job_names': [job_name]})
+            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
+            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]})
         ]
         mock_list.assert_has_calls(calls)
 
