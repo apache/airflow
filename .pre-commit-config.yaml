@@ -95,6 +95,7 @@ repos:
         name: Add licence for shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [shell]
+        files: ^breeze$|^breeze-complete$
         args:
           - --comment-style
           - "|#|"
@@ -165,6 +166,7 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
+        files: ^breeze$|^breeze-complete$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system

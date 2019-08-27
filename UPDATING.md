@@ -432,7 +432,7 @@ FAB has built-in authentication support for DB, OAuth, OpenID, LDAP, and REMOTE_
 
 For any other authentication type (OAuth, OpenID, LDAP, REMOTE_USER), see the [Authentication section of FAB docs](http://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-methods) for how to configure variables in webserver_config.py file.
 
-Once you modify your config file, run `airflow initdb` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
+Once you modify your config file, run `airflow db init` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
 
 #### Creating an Admin Account
 
