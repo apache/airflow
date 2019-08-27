@@ -34,7 +34,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = GCPTransferServiceWaitForJobStatusSensor(
             task_id='task-id',
-            operation_name='operation-name',
             job_name='job-name',
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
@@ -56,7 +55,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = GCPTransferServiceWaitForJobStatusSensor(
             task_id='task-id',
-            operation_name='operation-name',
             job_name='job-name',
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
@@ -83,7 +81,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = GCPTransferServiceWaitForJobStatusSensor(
             task_id='task-id',
-            operation_name='operation-name',
             job_name='job-name',
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
@@ -125,7 +122,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = GCPTransferServiceWaitForJobStatusSensor(
             task_id='task-id',
-            operation_name='operation-name',
             job_name='job-name',
             project_id='project-id',
             expected_statuses=expected_status,
