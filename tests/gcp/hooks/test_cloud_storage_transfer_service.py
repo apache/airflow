@@ -228,7 +228,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
             mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
             mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]})
         ]
-        mock_list.assert_has_calls(calls)
+        mock_list.assert_has_calls(calls, any_order=True)
 
         mock_sleep.assert_called_once_with(TIME_TO_SLEEP_IN_SECONDS)
 
