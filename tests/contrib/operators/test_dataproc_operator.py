@@ -43,7 +43,7 @@ from airflow.contrib.operators.dataproc_operator import \
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.timezone import make_aware
 from airflow.version import version
-from tests.compat import mock
+from tests.compat import mock, PropertyMock
 
 from copy import deepcopy
 
@@ -524,14 +524,14 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
 
     def test_render_template(self):
         task = DataprocClusterScaleOperator(
-                task_id=TASK_ID,
-                region=GCP_REGION_TEMPLATED,
-                project_id=GCP_PROJECT_TEMPLATED,
-                cluster_name=CLUSTER_NAME_TEMPLATED,
-                num_workers=NUM_WORKERS,
-                num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
-                dag=self.dag
-            )
+            task_id=TASK_ID,
+            region=GCP_REGION_TEMPLATED,
+            project_id=GCP_PROJECT_TEMPLATED,
+            cluster_name=CLUSTER_NAME_TEMPLATED,
+            num_workers=NUM_WORKERS,
+            num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
+            dag=self.dag
+        )
 
         self.assertEqual(task.template_fields,
                          ['cluster_name', 'project_id', 'region'])
@@ -624,16 +624,23 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_dataproc_job_base(self):
-        task = DataProcJobBaseOperator(
-            task_id=TASK_ID,
-            cluster_name="cluster-1",
-            region=GCP_REGION,
-            dag=self.dag
-        )
-        task.create_job_template()
+        with patch(
+            'airflow.contrib.operators.dataproc_operator.DataProcHook.project_id',
+                new_callable=PropertyMock) as mock_project_id:
+            mock_project_id.return_value = GCP_PROJECT_ID
+            task = DataProcJobBaseOperator(
+                task_id=TASK_ID,
+                cluster_name="cluster-1",
+                region=GCP_REGION,
+                dag=self.dag,
+            )
 
-        self.assertIsInstance(task.job_template, _DataProcJobBuilder)
-        self.assertEqual({'clusterName': task.cluster_name}, task.job_template.build()['job']['placement'])
+            task.create_job_template()
+
+            self.assertIsInstance(task.job_template, _DataProcJobBuilder)
+            job_dict = task.job_template.build()
+            self.assertDictEqual({'clusterName': task.cluster_name}, job_dict['job']['placement'])
+            self.assertEqual(GCP_PROJECT_ID, job_dict['job']['reference']['projectId'])
 
     def test_timeout_kills_job(self):
         def submit_side_effect(_1, _2, _3, _4):
@@ -753,9 +760,6 @@ class DataProcHiveOperatorTest(unittest.TestCase):
             )
 
             _assert_dataproc_job_id(mock_hook, dataproc_task)
-
-    def test_template_fields(self):
-        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides',))
 
     def test_render_template(self):
         task = DataProcHiveOperator(
@@ -900,8 +904,6 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
             dataproc_pyspark_properties={},
             dag=self.dag,
         )
-
-        task.create_job_template()
 
         self.assertEqual(
             task.template_fields, ['arguments', 'job_name', 'cluster_name',
