@@ -36,7 +36,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 
@@ -238,6 +238,32 @@ class TaskInstanceTest(unittest.TestCase):
             task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    @provide_session
+    def test_ti_updates_with_task(self, session=None):
+        """
+        test that updating the executor_config propogates to the TaskInstance DB
+        """
+        dag = models.DAG(dag_id='test_run_pooling_task')
+        task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                             executor_config={'foo': 'bar'},
+                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=timezone.utcnow())
+
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
+
+        task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                              executor_config={'bar': 'baz'},
+                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(
+            task=task2, execution_date=timezone.utcnow())
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'bar': 'baz'}, tis[1].executor_config)
 
     @patch.object(TI, 'pool_full')
     def test_run_pooling_task_with_mark_success(self, mock_pool_full):
