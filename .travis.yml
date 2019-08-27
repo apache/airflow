@@ -58,15 +58,12 @@ jobs:
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0 KUBERNETES_MODE=git_mode
       python: "2.7"
       stage: test
-    - name: "Static checks (no pylint, no licence check)"
+    - name: "Static checks (no licence check)"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests_except_licence.sh
     - name: "Check licence compliance for Apache"
       stage: pre-test
       script: ./scripts/ci/ci_check_license.sh
-    - name: "Pylint checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
     - name: "Build documentation"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
