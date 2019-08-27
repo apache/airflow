@@ -33,7 +33,8 @@ repos:
         entry: ./scripts/ci/ci_check_license.sh
         language: system
         always_run: true
-        pass_filenames: false
+        files: ^\.pre-commit-config\.yaml$
+        pass_filenames: true
   - repo: https://github.com/potiuk/pre-commit-hooks
     rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
     hooks:

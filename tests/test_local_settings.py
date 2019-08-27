@@ -124,7 +124,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         from airflow import settings
         settings.import_local_settings()
-        log_mock.assert_called_with("Failed to import airflow_local_settings.", exc_info=True)
+        log_mock.assert_called_once_with("Failed to import airflow_local_settings.", exc_info=True)
 
     def test_policy_function(self):
         """

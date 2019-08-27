@@ -101,11 +101,11 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
         try:
-            return self._hook.create_product_set(
+            return hook.create_product_set(
                 location=self.location,
                 project_id=self.project_id,
                 product_set=self.product_set,
@@ -175,10 +175,10 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.get_product_set(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.get_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
             project_id=self.project_id,
@@ -264,10 +264,10 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.update_product_set(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.update_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
             project_id=self.project_id,
@@ -334,10 +334,10 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        self._hook.delete_product_set(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
             project_id=self.project_id,
@@ -414,11 +414,11 @@ class CloudVisionProductCreateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
         try:
-            return self._hook.create_product(
+            return hook.create_product(
                 location=self.location,
                 product=self.product,
                 project_id=self.project_id,
@@ -491,10 +491,10 @@ class CloudVisionProductGetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.get_product(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.get_product(
             location=self.location,
             product_id=self.product_id,
             project_id=self.project_id,
@@ -591,10 +591,10 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.update_product(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.update_product(
             product=self.product,
             location=self.location,
             product_id=self.product_id,
@@ -666,10 +666,10 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        self._hook.delete_product(
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_product(
             location=self.location,
             product_id=self.product_id,
             project_id=self.project_id,

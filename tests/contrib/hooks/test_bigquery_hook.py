@@ -273,7 +273,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         bq_hook.cancel_query()
 
-        mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
+        mock_jobs.cancel.assert_called_once_with(projectId=project_id, jobId=running_job_id)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_sql_dialect_default(self, run_with_config):
@@ -368,8 +368,12 @@ class TestTableDataOperations(unittest.TestCase):
         }
         cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
         cursor.insert_all(project_id, dataset_id, table_id, rows)
-        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
-                                  tableId=table_id, body=body)
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
 
     def test_insert_all_fail(self):
         project_id = 'bq-project'

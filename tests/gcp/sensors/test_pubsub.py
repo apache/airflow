@@ -67,7 +67,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         generated_messages = self._generate_messages(5)
         mock_hook.return_value.pull.return_value = generated_messages
         self.assertEqual(generated_messages, operator.poke(None))
-        mock_hook.return_value.acknowledge.assert_called_with(
+        mock_hook.return_value.acknowledge.assert_called_once_with(
             TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3', '4', '5']
         )
 
@@ -79,7 +79,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         generated_messages = self._generate_messages(5)
         mock_hook.return_value.pull.return_value = generated_messages
         response = operator.execute(None)
-        mock_hook.return_value.pull.assert_called_with(
+        mock_hook.return_value.pull.assert_called_once_with(
             TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)
         self.assertEqual(response, generated_messages)
 
@@ -91,5 +91,5 @@ class TestPubSubPullSensor(unittest.TestCase):
         mock_hook.return_value.pull.return_value = []
         with self.assertRaises(AirflowSensorTimeout):
             operator.execute(None)
-            mock_hook.return_value.pull.assert_called_with(
+            mock_hook.return_value.pull.assert_called_once_with(
                 TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)

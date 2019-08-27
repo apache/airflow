@@ -85,23 +85,31 @@ import argparse
 import base64
 import json
 import os
+import dill
 
 import apache_beam as beam
-import dill
 
 
 class JsonCoder:
+    """
+    JSON encoder/decoder.
+    """
     @staticmethod
     def encode(x):
+        """JSON encoder."""
         return json.dumps(x)
 
     @staticmethod
     def decode(x):
+        """JSON decoder."""
         return json.loads(x)
 
 
 @beam.ptransform_fn
 def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
+    """
+    Summary PTransofrm used in Dataflow.
+    """
     return (
         pcoll |
         "ApplyMetricFnPerInstance" >> beam.Map(metric_fn) |
@@ -115,6 +123,9 @@ def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
 
 
 def run(argv=None):
+    """
+    Helper for obtaining prediction summary.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--prediction_path", required=True,
@@ -145,10 +156,10 @@ def run(argv=None):
     metric_keys = known_args.metric_keys.split(",")
 
     with beam.Pipeline(
-        options=beam.pipeline.PipelineOptions(pipeline_args)) as p:
+        options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
         # This is apache-beam ptransform's convention
         # pylint: disable=no-value-for-parameter
-        _ = (p
+        _ = (pipe
              | "ReadPredictionResult" >> beam.io.ReadFromText(
                  os.path.join(known_args.prediction_path,
                               "prediction.results-*-of-*"),
