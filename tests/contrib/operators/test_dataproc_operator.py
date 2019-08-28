@@ -69,6 +69,7 @@ STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 CUSTOM_IMAGE = 'test-custom-image'
 CUSTOM_IMAGE_PROJECT_ID = 'test-custom-image-project-id'
+OPTIONAL_COMPONENTS = ['COMPONENT1', 'COMPONENT2']
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
@@ -353,6 +354,17 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                          expected_custom_image_url)
         self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
                          expected_custom_image_url)
+
+    def test_build_cluster_data_with_optional_components(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            optional_components=OPTIONAL_COMPONENTS,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(cluster_data['config']['softwareConfig']['optionalComponents'], OPTIONAL_COMPONENTS)
 
     def test_build_single_node_cluster(self):
         dataproc_operator = DataprocClusterCreateOperator(
