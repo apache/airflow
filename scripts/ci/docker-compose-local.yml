@@ -54,8 +54,8 @@ services:
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../run-tests:/opt/airflow/run-tests:cached
       - ../../logs:/root/airflow/logs:cached
-      - ../../logs:/opt/airflow/logs:cached
       - ../../tmp:/opt/airflow/tmp:cached
+      - ../../files:/files:cached
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID

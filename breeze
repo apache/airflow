@@ -679,8 +679,12 @@ if ! PYTHON_BIN=$(command -v python3); then
 fi
 
 BUILD_CACHE_DIR="${MY_DIR}/.build"
+FILES_DIR="${MY_DIR}/files"
+TMP_DIR="${MY_DIR}/tmp"
 
 mkdir -pv "${BUILD_CACHE_DIR}"
+mkdir -pv "${TMP_DIR}"
+mkdir -pv "${FILES_DIR}"
 
 CMDNAME="$(basename -- "$0")"
 

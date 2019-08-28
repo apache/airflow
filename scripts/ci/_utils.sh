@@ -117,6 +117,7 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
       "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
       "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
+      "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "--env" "PYTHONDONTWRITEBYTECODE" \
     )
