@@ -63,6 +63,6 @@ Project Management Committee (PMC) of the project, in this case Apache Airflow, 
 
 **Resources**
 
-- [Google Analytics Cookie Usage](https://developers.google.com/analytics/devguides/collection/analyticsjs/cookie-usage)
-- [Google - Safeguarding your data[(https://support.google.com/analytics/answer/6004245)
-- [ASF Privacy Policy](https://www.apache.org/foundation/policies/privacy.html)
+- `Google Analytics Cookie Usage <https://developers.google.com/analytics/devguides/collection/analyticsjs/cookie-usage>`__
+- `Google - Safeguarding your data <https://support.google.com/analytics/answer/6004245>`__
+- `ASF Privacy Policy <https://www.apache.org/foundation/policies/privacy.html>`__
