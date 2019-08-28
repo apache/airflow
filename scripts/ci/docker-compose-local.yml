@@ -45,6 +45,10 @@ services:
       - ../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../CHANGELOG.txt:/opt/airflow/CHANGELOG:cached
       - ../../.github:/opt/airflow/.github:cached
+      - ../../.bash_completion.d:/root/.bash_completion.d:cached
+      - ../../.bash_history:/root/.bash_history:cached
+      - ../../.bash_aliases:/root/.bash_aliases:cached
+      - ../../.inputrc:/root/.inputrc:cached
       - ../../.flake8:/opt/airflow/.flake8:cached
       - ../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached

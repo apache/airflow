@@ -104,6 +104,10 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
       "-v" "${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached" \
       "-v" "${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_history:/root/.bash_history:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_completion.d:/root/.bash_completion.d:cached" \
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
