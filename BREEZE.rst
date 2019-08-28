@@ -232,13 +232,13 @@ For example, in order to just execute the "core" unit tests, run the following:
 
 .. code-block:: bash
 
-   run-tests tests.core:CoreTest -- -s --logging-level=DEBUG
+   run-tests tests.core:TestCore -- -s --logging-level=DEBUG
 
 or a single test method:
 
 .. code-block:: bash
 
-   run-tests tests.core:CoreTest.test_check_operators -- -s --logging-level=DEBUG
+   run-tests tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
 
 
 The tests will run ``airflow db reset`` and ``airflow db init`` the first time you
@@ -252,7 +252,7 @@ the database.
 
 .. code-block:: bash
 
-   run-tests --with-db-init tests.core:CoreTest.test_check_operators -- -s --logging-level=DEBUG
+   run-tests --with-db-init tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
 
 Debugging with ipdb
 -------------------
@@ -490,7 +490,7 @@ You can also specify individual tests or group of tests:
 
 .. code-block:: bash
 
-    ./breeze --test-target tests.core:CoreTest
+    ./breeze --test-target tests.core:TestCore
 
 Running commands inside Docker
 ------------------------------
