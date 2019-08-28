@@ -72,6 +72,8 @@ class TestBaseOperator(unittest.TestCase):
             (datetime.datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime.datetime(2018, 12, 6, 10, 55)),
             (TestNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, TestNamedTuple("bar_1", "bar_2")),
             ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
+            # By default, Jinja2 drops one (single) trailing newline
+            ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
         ]
     )
     def test_render_template(self, content, context, expected_output):
@@ -141,3 +143,23 @@ class TestBaseOperator(unittest.TestCase):
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         self.assertEqual(mock_jinja_env.call_count, 1)
+
+    def test_set_jinja_env_additional_option(self):
+        """Test render_template given various input types."""
+        with DAG("test-dag",
+                 start_date=DEFAULT_DATE,
+                 jinja_environment_kwargs={'keep_trailing_newline': True}):
+            task = DummyOperator(task_id="op1")
+
+        result = task.render_template("{{ foo }}\n\n", {"foo": "bar"})
+        self.assertEqual(result, "bar\n\n")
+
+    def test_override_jinja_env_option(self):
+        """Test render_template given various input types."""
+        with DAG("test-dag",
+                 start_date=DEFAULT_DATE,
+                 jinja_environment_kwargs={'cache_size': 50}):
+            task = DummyOperator(task_id="op1")
+
+        result = task.render_template("{{ foo }}", {"foo": "bar"})
+        self.assertEqual(result, "bar")

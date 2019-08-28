@@ -205,6 +205,7 @@ class DAG(BaseDag, LoggingMixin):
         params: Optional[Dict] = None,
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
+        jinja_environment_kwargs: Optional[Dict] = None
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -292,6 +293,8 @@ class DAG(BaseDag, LoggingMixin):
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
+
+        self.jinja_environment_kwargs = jinja_environment_kwargs
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -727,12 +730,17 @@ class DAG(BaseDag, LoggingMixin):
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(searchpath),
-            undefined=self.template_undefined,
-            extensions=["jinja2.ext.do"],
-            cache_size=0,
-        )
+        # Default values (for backward compatibility)
+        jinja_env_options = {
+            'loader': jinja2.FileSystemLoader(searchpath),
+            'undefined': self.template_undefined,
+            'extensions': ["jinja2.ext.do"],
+            'cache_size': 0
+        }
+        if self.jinja_environment_kwargs:
+            jinja_env_options.update(self.jinja_environment_kwargs)
+
+        env = jinja2.Environment(**jinja_env_options)  # type: ignore
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
