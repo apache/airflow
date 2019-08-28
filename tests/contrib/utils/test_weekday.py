@@ -37,6 +37,6 @@ class TestWeekDay(unittest.TestCase):
             self.assertEqual(e.name, weekday)
             self.assertTrue(e in WeekDay)
             self.assertTrue(0 < e < 8)
-            self.assertTrue(type(e) is WeekDay)
+            self.assertTrue(isinstance(e, WeekDay))
             self.assertTrue(isinstance(e, int))
             self.assertTrue(isinstance(e, Enum))
