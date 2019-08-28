@@ -21,7 +21,7 @@ Privacy Notice
 ==============
 
 Website Usage Privacy Policy
-------------------------------------
+----------------------------
 
 Information about your use of this website is collected using server access logs and a tracking cookie. The collected information consists of the following:
 
@@ -37,7 +37,7 @@ We use the gathered information to help us make our site more useful to visitors
 By using this website, you consent to the collection of this data in the manner and for the purpose described above.
 
 Privacy FAQ
-------------------------------------
+-----------
 
 **What is Google Analytics?**
 
@@ -51,7 +51,7 @@ We use GA solely to gather the information that helps to make the site more usef
 
 GA provides us with information on the following 3 categories:
 
-- Audience reports: includes information about active users (interactions with the site in the last 1, 7, 14, or 30 days), where users come from (geographical location) and what language they speak (language of the bowser), as well as the insight on the percentages of new and returning visitors. 
+- Audience reports: includes information about active users (interactions with the site in the last 1, 7, 14, or 30 days), where users come from (geographical location) and what language they speak (language of the bowser), as well as the insight on the percentages of new and returning visitors.
 - Acquisition reports: includes information about how users are finding the website with detailed understanding of traffic and bounce rate. Website owners are able to see their main traffic categories, such as organic search, referral and direct, as well as the information about how many pages users view and how much time they spend on the website.
 - Behaviour reports: includes information on granulated metrics such as the average time a user spends on a webpage, total number of pageviews and the site’s  bounce rate, site’s most visited pages, and the most popular pages through which a user enters and exits your site (landing pages and exit pages), as well as insight on how quickly the website loads.
 
