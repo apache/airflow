@@ -224,7 +224,7 @@ class TestGKEClusterHook(unittest.TestCase):
         self.gke_hook._append_label(mock_proto, key, val)
         mock_proto.resource_labels.update.assert_called_once_with({key: 'test-val-this'})
 
-    @mock.patch("time.sleep")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.time.sleep")
     def test_wait_for_response_done(self, time_mock):
         from google.cloud.container_v1.gapic.enums import Operation
         mock_op = mock.Mock()
@@ -232,7 +232,7 @@ class TestGKEClusterHook(unittest.TestCase):
         self.gke_hook.wait_for_operation(mock_op)
         self.assertEqual(time_mock.call_count, 1)
 
-    @mock.patch("time.sleep")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.time.sleep")
     def test_wait_for_response_exception(self, time_mock):
         from google.cloud.container_v1.gapic.enums import Operation
         from google.cloud.exceptions import GoogleCloudError
@@ -245,7 +245,7 @@ class TestGKEClusterHook(unittest.TestCase):
             self.assertEqual(time_mock.call_count, 1)
 
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.get_operation")
-    @mock.patch("time.sleep")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.time.sleep")
     def test_wait_for_response_running(self, time_mock, operation_mock):
         from google.cloud.container_v1.gapic.enums import Operation
 

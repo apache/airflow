@@ -212,7 +212,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         resume_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
 
-    @mock.patch('time.sleep')
+    @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.time.sleep')
     @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.'
                 'GCPTransferServiceHook.list_transfer_operations')
     def test_wait_for_transfer_job(self, mock_list, mock_sleep):
@@ -232,7 +232,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 
         mock_sleep.assert_called_once_with(TIME_TO_SLEEP_IN_SECONDS)
 
-    @mock.patch('time.sleep')
+    @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.time.sleep')
     @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook.get_conn')
     def test_wait_for_transfer_job_failed(self, get_conn, mock_sleep):  # pylint: disable=unused-argument
         list_method = get_conn.return_value.transferOperations.return_value.list
@@ -249,7 +249,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
             self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, NAME: 'transferJobs/test-job'})
             self.assertTrue(list_method.called)
 
-    @mock.patch('time.sleep')
+    @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.time.sleep')
     @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook.get_conn')
     def test_wait_for_transfer_job_expect_failed(self,
                                                  get_conn,
