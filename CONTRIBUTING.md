@@ -1,22 +1,21 @@
 <!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 -->
-
 # Contributing
 
 Contributions are welcome and are greatly appreciated! Every
@@ -40,23 +39,21 @@ little bit helps, and credit will always be given.
 - [Integration test development environment](#integration-test-development-environment)
   - [Prerequisites](#prerequisites)
   - [Using the Docker Compose environment](#using-the-docker-compose-environment)
-    - [Entering bash shell in Docker Compose environment](#entering-bash-shell-in-docker-compose-environment)
-    - [Running individual tests within the container](#running-individual-tests-within-the-container)
-    - [Running static code analysis](#running-static-code-analysis)
-      - [Running static code analysis from the host](#running-static-code-analysis-from-the-host)
-      - [Running static code analysis in the docker compose environment](#running-static-code-analysis-in-the-docker-compose-environment)
-      - [Running static code analysis on selected files/modules](#running-static-code-analysis-on-selected-filesmodules)
+  - [Running static code analysis](#running-static-code-analysis)
   - [Docker images](#docker-images)
+  - [Default behaviour for user interaction](#default-behaviour-for-user-interaction)
   - [Local Docker Compose scripts](#local-docker-compose-scripts)
-    - [Running the whole suite of tests](#running-the-whole-suite-of-tests)
-    - [Stopping the environment](#stopping-the-environment)
-    - [Fixing file/directory ownership](#fixing-filedirectory-ownership)
-    - [Building the images](#building-the-images)
-    - [Force pulling the images](#force-pulling-the-images)
   - [Cleaning up cached Docker images/containers](#cleaning-up-cached-docker-imagescontainers)
   - [Troubleshooting](#troubleshooting)
 - [Pylint checks](#pylint-checks)
-- [Git hooks](#git-hooks)
+- [Pre-commit hooks](#pre-commit-hooks)
+  - [Installing pre-commit hooks](#installing-pre-commit-hooks)
+  - [Docker images for pre-commit hooks](#docker-images-for-pre-commit-hooks)
+  - [Prerequisites for pre-commit hooks](#prerequisites-for-pre-commit-hooks)
+  - [Pre-commit hooks installed](#pre-commit-hooks-installed)
+  - [Using pre-commit hooks](#using-pre-commit-hooks)
+  - [Skipping pre-commit hooks](#skipping-pre-commit-hooks)
+  - [Advanced pre-commit usage](#advanced-pre-commit-usage)
 - [Pull Request Guidelines](#pull-request-guidelines)
 - [Testing on Travis CI](#testing-on-travis-ci)
   - [Travis CI GitHub App (new version)](#travis-ci-github-app-new-version)
@@ -66,10 +63,6 @@ little bit helps, and credit will always be given.
 - [Setting up the node / npm javascript environment](#setting-up-the-node--npm-javascript-environment)
   - [Node/npm versions](#nodenpm-versions)
   - [Using npm to generate bundled files](#using-npm-to-generate-bundled-files)
-    - [npm](#npm)
-    - [npm packages](#npm-packages)
-    - [Upgrading npm packages](#upgrading-npm-packages)
-    - [Javascript Style Guide](#javascript-style-guide)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -142,13 +135,16 @@ environment and you can easily debug the code locally. You can also have access 
 contains all the necessary requirements and use it in your local IDE - this aids autocompletion, and
 running tests directly from within the IDE.
 
+It is **STRONGLY** encouraged to also install and use [Pre commit hooks](#pre-commit-hooks) for your local
+development environment. They will speed up your development cycle speed a lot.
+
 The disadvantage is that you have to maintain your dependencies and local environment consistent with
 other development environments that you have on your local machine.
 
 Another disadvantage is that you you cannot run tests that require
 external components - mysql, postgres database, hadoop, mongo, cassandra, redis etc..
 The tests in Airflow are a mixture of unit and integration tests and some of them
-require those components to be setup. Only real unit tests can be run bu default in local environment.
+require those components to be setup. Only real unit tests can be run by default in local environment.
 
 If you want to run integration tests, you need to configure and install the dependencies on your own.
 
@@ -163,7 +159,7 @@ managers like yum, apt-get for Linux, or Homebrew for Mac OS at first.
 Refer to the [Dockerfile](Dockerfile) for a comprehensive list of required packages.
 
 In order to use your IDE you need you can use the virtual environment. Ideally
-you should setup virtualenv for all python versions that Airflow supports (2.7, 3.5, 3.6).
+you should setup virtualenv for all python versions that Airflow supports (3.5, 3.6).
 An easy way to create the virtualenv is to use
 [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/) - it allows
 you to easily switch between virtualenvs using `workon` command and mange
@@ -174,7 +170,34 @@ mkvirtualenv <ENV_NAME> --python=python<VERSION>
 ```
 
 Then you need to install python PIP requirements. Typically it can be done with:
-`pip install -e ".[devel]"`. Then you need to run `airflow db init` to create sqlite database.
+`pip install -e ".[devel]"`.
+
+Note - if you have trouble installing mysql client on MacOS and you have an error similar to
+```
+ld: library not found for -lssl
+```
+
+you should set LIBRARY_PATH before running `pip install`:
+
+```
+export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
+```
+
+After creating the virtualenv, run this command to create the Airflow sqlite database:
+```
+airflow db init
+```
+
+This can be automated if you do it within a virtualenv.
+The [./breeze](./breeze) script has a flag
+(-e or --initialize-local-virtualenv) that automatically installs dependencies
+in the virtualenv you are logged in and resets the sqlite database as described below.
+
+After the virtualenv is created, you must initialize it. Simply enter the environment
+(using `workon`) and once you are in it run:
+```
+./breeze --initialize-local-virtualenv
+````
 
 Once initialization is done, you should select the virtualenv you initialized as the
 project's default virtualenv in your IDE and run tests efficiently.
@@ -223,13 +246,13 @@ For example, in order to just execute the "core" unit tests and add ipdb set_tra
 run the following command:
 
 ```bash
-./run-tests tests.core:CoreTest --nocapture --verbose
+./run-tests tests.core:TestCore --nocapture --verbose
 ```
 
 or a single test method without colors or debug logs:
 
 ```bash
-./run-tests tests.core:CoreTest.test_check_operators
+./run-tests tests.core:TestCore.test_check_operators
 ```
 Note that `./run_tests` script runs tests but the first time it runs, it performs database initialisation.
 If you run further tests without leaving the environment, the database will not be initialized, but you
@@ -267,8 +290,8 @@ IMPORTANT!!! : Mac OS Docker default Disk size settings
 
 When you develop on Mac OS you usually have not enough disk space for Docker if you start using it seriously.
 You should increase disk space available before starting to work with the environment. Usually you have weird
-stops of docker containers when you run out of Disk space. It might not be obvious that space is an issue.
-If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
+problems with docker containers when you run out of Disk space. It might not be obvious that space is an
+issue. If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
 
 See [Docker for Mac - Space](https://docs.docker.com/docker-for-mac/space/) for details of increasing
 disk space available for Docker on Mac.
@@ -295,12 +318,6 @@ If you use zsh, you should run this command:
 ```bash
 echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
 . ~/.zprofile
-
-If you use zsh, you should run this command:
-
-```bash
-echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
-. ~/.zprofile
 ```
 
 if you use zsh
@@ -313,25 +330,38 @@ If you are on Linux:
 
 ## Using the Docker Compose environment
 
-### Entering bash shell in Docker Compose environment
+Airflow has a super-easy-to-use integration test environment managed via
+[Docker Compose](https://docs.docker.com/compose/) and used by Airflow's CI Travis tests.
 
-Default environment settings (python 3.6, sqlite backend, docker environment)
-```bash
- ./scripts/ci/local_ci_enter_environment.sh
-```
+It's called **Airflow Breeze** as in "_It's a breeze to develop Airflow_"
 
-Overriding default environment settings:
+All details about using and running Airflow Breeze can be found in [BREEZE.rst](BREEZE.rst)
 
-```bash
-PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_enter_environment.sh
-```
+The advantage of the Airflow Breeze Integration Tests environment is that it is a full environment
+including external components - mysql database, hadoop, mongo, cassandra, redis etc. Some of the tests in
+Airflow require those external components. Integration test environment provides preconfigured environment
+where all those services are running and can be used by tests automatically.
+
+Another advantage is that the Airflow Breeze environment is pretty much the same
+as used in [Travis CI](https://travis-ci.com/) automated builds, and if the tests run in
+your local environment they will most likely work on Travis as well.
+
+The disadvantage of Airflow Breeze is that it is fairly complex and requires time to setup. However it is all
+automated and easy to setup. Another disadvantage is that it takes a lot of space in your local Docker cache.
+There is a separate environment for different python versions and airflow versions and each of the images take
+around 3GB in total. Building and preparing the environment by default uses pre-built images from DockerHub
+(requires time to download and extract those GB of images) and less than 10 minutes per python version
+to build.
+
+Note that those images are not supposed to be used in production environments. They are optimised
+for repeatability of tests, maintainability and speed of building rather than performance
 
 ### Running individual tests within the container
 
 Once you are inside the environment you can run individual tests as described in
 [Running individual tests](#running-individual-tests).
 
-### Running static code analysis
+## Running static code analysis
 
 We have a number of static code checks that are run in Travis CI but you can run them locally as well.
 All the scripts are available in [scripts/ci](scripts/ci) folder.
@@ -348,20 +378,22 @@ they should give the same results as the tests run in TravisCI without special e
 You can trigger the static checks from the host environment, without entering Docker container. You
 do that by running appropriate scripts (The same is done in TravisCI)
 
-* [ci_docs.sh](scripts/ci/ci_docs.sh) - checks that documentation can be built without warnings.
-* [ci_flake8.sh](scripts/ci/ci_flake8.sh) - runs flake8 source code style guide enforcement tool
-* [ci_mypy.sh](scripts/ci/ci_mypy.sh) - runs mypy type annotation consistency check
-* [ci_pylint.sh](scripts/ci/ci_pylint.sh) - runs pylint static code checker
-* [ci_lint_dockerfile.sh](scripts/ci/ci_lint_dockerfile.sh) - runs lint checker for the Dockerfile
-* [ci_check_license.sh](scripts/ci/ci_check_license.sh) - checks if all licences are present in the sources
+* [scripts/ci/ci_check_license.sh](scripts/ci/ci_check_license.sh) - checks if all licences are present in the sources
+* [scripts/ci/ci_docs.sh](scripts/ci/ci_docs.sh) - checks that documentation can be built without warnings.
+* [scripts/ci/ci_flake8.sh](scripts/ci/ci_flake8.sh) - runs flake8 source code style guide enforcement tool
+* [scripts/ci/ci_lint_dockerfile.sh](scripts/ci/ci_lint_dockerfile.sh) - runs lint checker for the Dockerfile
+* [scripts/ci/ci_mypy.sh](scripts/ci/ci_mypy.sh) - runs mypy type annotation consistency check
+* [scripts/ci/ci_pylint_main.sh](scripts/ci/ci_pylint_main.sh) - runs pylint static code checker for main files
+* [scripts/ci/ci_pylint_tests.sh](scripts/ci/ci_pylint_tests.sh) - runs pylint static code checker for tests
 
-Those scripts are optimised for time of rebuilds of docker image. The image will be automatically
-rebuilt when needed (for example when dependencies change).
+The scripts will fail by default when image rebuild is needed (for example when dependencies change)
+and provide instruction on how to rebuild the images. You can control the default behaviour as explained in
+[Default behaviour for user interaction](#default-behaviour-for-user-interaction)
 
-You can also force rebuilding of the image by deleting [.build](./build)
-directory which keeps cached information about the images built.
+You can force rebuilding of the images by deleting [.build](./build) directory. This directory keeps cached
+information about the images already built and you can safely delete it if you want to start from the scratch.
 
-Documentation after it is built, is available in [docs/_build/html](docs/_build/html) folder.
+After Documentation is built, the html results are available in [docs/_build/html](docs/_build/html) folder.
 This folder is mounted from the host so you can access those files in your host as well.
 
 #### Running static code analysis in the docker compose environment
@@ -370,7 +402,8 @@ If you are already in the [Docker Compose Environment](#entering-bash-shell-in-d
 you can also run the same static checks from within container:
 
 * Mypy: `./scripts/ci/in_container/run_mypy.sh airflow tests`
-* Pylint: `./scripts/ci/in_container/run_pylint.sh`
+* Pylint for main files: `./scripts/ci/in_container/run_pylint_main.sh`
+* Pylint for test files: `./scripts/ci/in_container/run_pylint_tests.sh`
 * Flake8: `./scripts/ci/in_container/run_flake8.sh`
 * Licence check: `./scripts/ci/in_container/run_check_licence.sh`
 * Documentation: `./scripts/ci/in_container/run_docs_build.sh`
@@ -400,35 +433,67 @@ And similarly for other scripts.
 
 ## Docker images
 
-
-For all development related tasks related to integration tests and static code checks we are using Docker
+For all development tasks related integration tests and static code checks we are using Docker
 images that are maintained in Dockerhub under `apache/airflow` repository.
 
-There are two images that we currently manage:
+There are three images that we currently manage:
 
-* Slim CI image that is used for static code checks (size around 500MB) - labelled following the pattern
-  of <BRANCH>-python<PYTHON_VERSION>-ci-slim (for example master-python3.6-ci-slim)
+* Slim CI image that is used for static code checks (size around 500MB) - tag follows the pattern
+  of `<BRANCH>-python<PYTHON_VERSION>-ci-slim` (for example `master-python3.6-ci-slim`). The image is built
+  using the [Dockerfile](Dockerfile) dockerfile.
 * Full CI image that is used for testing - containing a lot more test-related installed software
-  (size around 1GB)  - labelled following the pattern of <BRANCH>-python<PYTHON_VERSION>-ci
-  (for example master-python3.6-ci)
+  (size around 1GB)  - tag follows the pattern of `<BRANCH>-python<PYTHON_VERSION>-ci`
+  (for example `master-python3.6-ci`). The image is built using the [Dockerfile](Dockerfile) dockerfile.
+* Checklicence image - an image that is used during licence check using Apache RAT tool. It does not
+  require any of the dependencies that the two CI images need so it is built using different Dockerfile
+  [Dockerfile-checklicence](Dockerfile-checklicence) and only contains Java + Apache RAT tool. The image is
+  labeled with `checklicence` image.
 
-When you run tests or enter environment or run local static checks, the first time you do it,
-the necessary local images will be pulled and built for you automatically from DockerHub. Then
-the scripts will check automatically if the image needs to be re-built if needed and will do that
-automatically for you.
+We also use a very small [Dockerfile-context](Dockerfile-context) dockerfile in order to fix file permissions
+for an obscure permission problem with Docker caching but it is not stored in `apache/airflow` registry.
+
+Before you run tests or enter environment or run local static checks, the necessary local images should be
+pulled and built from DockerHub. This happens automatically for the test environment but you need to
+manually trigger it for static checks as described in
+[Building the images](#building-the-images) and
+[Force pulling and building the images](#force-pulling-the-images)). The static checks will fail and inform
+what to do if the image is not yet built.
 
 Note that building image first time pulls the pre-built version of images from Dockerhub might take a bit
 of time - but this wait-time will not repeat for any subsequent source code change.
 However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild
 that might take more time (but it is highly optimised to only rebuild what's needed)
 
-You can also [Build the images](#building-the-images) or
-[Force pull and build the images](#force-pulling-the-images)) manually at any time.
+In most cases re-building an image requires connectivity to network (for example to download new
+dependencies). In case you work offline and do not want to rebuild the images when needed - you might set
+`ASSUME_NO_TO_ALL_QUESTIONS` variable to `true` as described in the
+[Default behaviour for user interaction](#default-behaviour-for-user-interaction) chapter.
 
 See [Troubleshooting section](#troubleshooting) for steps you can make to clean the environment.
 
-Once you performed the first build, the images are rebuilt locally rather than pulled - unless you
-force pull the images. But you can force it using the scripts described below.
+## Default behaviour for user interaction
+
+Sometimes during the build user is asked whether to perform an action, skip it, or quit. This happens in case
+of image rebuilding and image removal - they can take a lot of time and they are potentially destructive.
+For automation scripts, you can export one of the three variables to control the default behaviour.
+```
+export ASSUME_YES_TO_ALL_QUESTIONS="true"
+```
+If `ASSUME_YES_TO_ALL_QUESTIONS` is set to `true`, the images will automatically rebuild when needed.
+Images are deleted without asking.
+
+```
+export ASSUME_NO_TO_ALL_QUESTIONS="true"
+```
+If `ASSUME_NO_TO_ALL_QUESTIONS` is set to `true`, the old images are used even if re-building is needed.
+This is useful when you work offline. Deleting images is aborted.
+
+```
+export ASSUME_QUIT_TO_ALL_QUESTIONS="true"
+```
+If `ASSUME_QUIT_TO_ALL_QUESTIONS` is set to `true`, the whole script is aborted. Deleting images is aborted.
+
+If more than one variable is set, YES takes precedence over NO which take precedence over QUIT.
 
 ## Local Docker Compose scripts
 
@@ -458,7 +523,7 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
   ./scripts/ci/local_ci_run_airflow_testing.sh
 ```
 
-* PYTHON_VERSION might be one of 3.5/3.6
+* PYTHON_VERSION might be one of 3.5/3.6/3.7
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
 * KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
@@ -466,13 +531,13 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 
 The following environments are possible:
 
- * The "docker" environment (default): starts all dependencies required by full integration test-suite
+ * The `docker` environment (default): starts all dependencies required by full integration test-suite
    (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to
    [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
    and can slow down your machine.
- * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
+ * The `kubernetes` environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
    and KUBERNETES_MODE variables).
- * The "bare" environment:  runs airflow in docker without any external dependencies.
+ * The `bare` environment:  runs airflow in docker without any external dependencies.
    It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
    enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute
    `local_ci_run_airflow_testing.sh` with it.
@@ -485,7 +550,6 @@ might require some host-network configuration.
 Docker-compose environment starts a number of docker containers and keep them running.
 You can tear them down by running
 [/scripts/ci/local_ci_stop_environment.sh](scripts/ci/local_ci_stop_environment.sh)
-
 
 ### Fixing file/directory ownership
 
@@ -500,6 +564,12 @@ you can fix the ownership of those files by running
 
 You can manually trigger building of the local images using
 [scripts/ci/local_ci_build.sh](scripts/ci/local_ci_build.sh).
+
+The scripts that build the images are optimised to minimise the time needed to rebuild the image when
+the source code of Airflow evolves. This means that if you already had the image locally downloaded and built,
+the scripts will determine, the rebuild is needed in the first place. Then it will make sure that minimal
+number of steps are executed to rebuild the parts of image (for example PIP dependencies) that will give
+you an image consistent with the one used during Continuous Integration.
 
 ### Force pulling the images
 
@@ -547,17 +617,17 @@ post it in [Airflow Slack](https://apache-airflow-slack.herokuapp.com/) #trouble
 
 Note that for pylint we are in the process of fixing pylint code checks for the whole Airflow code. This is
 a huge task so we implemented an incremental approach for the process. Currently most of the code is
-excluded from pylint checks via [pylint_todo.txt](scripts/ci/pylint_todo.txt). We have an open JIRA
+excluded from pylint checks via [scripts/ci/pylint_todo.txt](scripts/ci/pylint_todo.txt). We have an open JIRA
 issue [AIRFLOW-4364](https://issues.apache.org/jira/browse/AIRFLOW-4364) which has a number of
 sub-tasks for each of the modules that should be made compatible. Fixing pylint problems is one of
 straightforward and easy tasks to do (but time-consuming) so if you are a first-time contributor to
 Airflow you can choose one of the sub-tasks as your first issue to fix. The process to fix the issue looks
 as follows:
 
-1) Remove module/modules from the [pylint_todo.txt](scripts/ci/pylint_todo.txt)
-2) Run [ci_pylint.sh](scripts/ci/ci_pylint.sh)
+1) Remove module/modules from the [scripts/ci/pylint_todo.txt](scripts/ci/pylint_todo.txt)
+2) Run [scripts/ci/ci_pylint.sh](scripts/ci/ci_pylint.sh)
 3) Fix all the issues reported by pylint
-4) Re-run [ci_pylint.sh](scripts/ci/ci_pylint.sh)
+4) Re-run [scripts/ci/ci_pylint.sh](scripts/ci/ci_pylint.sh)
 5) If you see "success" - submit PR following [Pull Request guidelines](#pull-request-guidelines)
 
 There are following guidelines when fixing pylint errors:
@@ -583,67 +653,124 @@ class LoginForm(Form):
 # pylint: enable=too-few-public-methods
 ```
 
-# Git hooks
+# Pre-commit hooks
 
-Another great way of automating linting and testing is to use
- [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a
-`pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be
-triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
-This "in theory" has the advantage that you can not commit any code that fails that again reduces the
-errors in the Travis CI Pipelines.
+Pre-commit hooks are fantastic way of speeding up your local development cycle. Those pre-commit checks will
+only check the files that you are currently working on which make them fast. Yet they are using exactly
+the same environment as the CI checks are using, so you can be pretty sure your modifications
+will be ok for CI if they pass pre-commit checks.
 
-Since there are a lot of tests the script would last very long so you probably only should test your
- new
-feature locally.
+You are *STRONGLY* encouraged to install pre-commit hooks as they speed up your development and place less
+burden on the CI infrastructure.
 
-The following example of a `pre-commit` file allows you..
-- to lint your code via flake8
-- to test your code via nosetests in a docker container based on python 2
-- to test your code via nosetests in a docker container based on python 3
+We have integrated the fantastic [pre-commit](https://pre-commit.com/) framework in our development workflow.
+You need to have python 3.6 installed in your host in order to install and use it. It's best to run your
+commits when you have your local virtualenv for Airflow activated (then pre-commit and other
+dependencies are automatically installed). You can also install pre-commit manually using `pip install`.
 
-```
-#!/bin/sh
+The pre-commit hooks require Docker Engine to be configured as the static checks static checks are
+executed in docker environment. You should build the images locally before installing pre-commit checks as
+described in [Building the images](#building-the-images). In case you do not have your local images built
+the pre-commit hooks fail and provide instructions on what needs to be done.
 
-GREEN='\033[0;32m'
-NO_COLOR='\033[0m'
-
-setup_python_env() {
-    local venv_path=${1}
-
-    echo -e "${GREEN}Activating python virtual environment ${venv_path}..${NO_COLOR}"
-    source ${venv_path}
-}
-run_linting() {
-    local project_dir=$(git rev-parse --show-toplevel)
-
-    echo -e "${GREEN}Running flake8 over directory ${project_dir}..${NO_COLOR}"
-    flake8 ${project_dir}
-}
-run_testing_in_docker() {
-    local feature_path=${1}
-    local airflow_py2_container=${2}
-    local airflow_py3_container=${3}
-
-    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 2 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ ${airflow_py2_container} nosetests -v ${feature_path}
-    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 3 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ ${airflow_py3_container} nosetests -v ${feature_path}
-}
-
-set -e
-# NOTE: Before running this make sure you have set the function arguments correctly.
-setup_python_env /Users/feluelle/venv/bin/activate
-run_linting
-run_testing_in_docker tests/contrib/hooks/test_imap_hook.py dazzling_chatterjee quirky_stallman
+## Installing pre-commit hooks
 
 ```
+pre-commit install
+```
 
-For more information on how to run a subset of the tests, take a look at the
-nosetests docs.
+Running the command by default turns on pre-commit checks for `commit` operations in git.
 
-See also the list of test classes and methods in `tests/core.py`.
+You can also decide to install the checks also for `pre-push` operation:
 
-Feel free to customize based on the extras available in [setup.py](./setup.py)
+```
+pre-commit install -t pre-push
+```
+
+You can see advanced usage of the install method via
+
+```
+pre-commit install --help
+```
+
+## Docker images for pre-commit hooks
+
+Before running the pre-commit hooks you must first build the docker images locally as described in
+[Building the images](#building-the-images) chapter.
+
+Sometimes your image is outdated (when dependencies change) and needs to be rebuilt because some
+dependencies have been changed. In such case the docker build pre-commit will fail and inform
+you that you should rebuild the image with REBUILD="true" environment variable set.
+
+## Prerequisites for pre-commit hooks
+
+The pre-commit hooks use several external linters that need to be installed before pre-commit are run.
+Most of the linters are installed by running `pip install -e .[devel]` in the airflow sources as they
+are python-only, however there are some that should be installed locally using different methods.
+In Linux you typically install them with `sudo apt install` on MacOS with `brew install`.
+
+The current list of prerequisites:
+
+* xmllint: Linux - install via `sudo apt install xmllint`, MacOS - install via `brew install xmllint`
+* yamllint: install via `pip install yamllint`
+
+## Pre-commit hooks installed
+
+In airflow we have the following checks:
+
+```text
+check-hooks-apply                Check hooks apply to the repository
+check-apache-license             Checks compatibility with Apache License requirements
+check-merge-conflict             Checks if merge conflict is being committed
+check-executables-have-shebangs  Check that executables have shebang
+check-xml                        Check XML files with xmllint
+doctoc                           Refresh table-of-contents for md files
+detect-private-key               Detects if private key is added to the repository
+end-of-file-fixer                Make sure that there is an empty line at the end
+flake8                           Run flake8
+forbid-tabs                      Fails if tabs are used in the project
+insert-license                   Add licences for most file types
+lint-dockerfile                  Lint dockerfile
+mixed-line-ending                Detects if mixed line ending is used (\r vs. \r\n)
+mypy                             Run mypy
+pylint                           Run pylint
+shellcheck                       Check shell files with shellcheck
+yamllint                         Check yaml files with yamllint
+```
+
+The check-apache-licence check is normally skipped for commits unless `.pre-commit-config.yaml` file
+is changed. This check always run for the full set of files and if you want to run it locally you need to
+specify `--all-files` flag of pre-commit. For example:
+
+`pre-commit run check-apache-licenses --all-files`
+
+## Using pre-commit hooks
+
+After installing pre-commit hooks are run automatically when you commit the code, but you can
+run pre-commit hooks manually as needed.
+
+*You can run all checks on your staged files by running:*
+`pre-commit run`
+
+*You can run only one mypy check on your staged files by running:*
+`pre-commit run mypy`
+
+*You can run only one mypy checks manually on all files by running:*
+`pre-commit run mypy --all-files`
+
+*You can run all checks manually on all files by running:*
+`SKIP=pylint pre-commit run --all-files`
+
+*You can skip one or more of the checks by specifying comma-separated list of checks to skip in SKIP variable:*
+`SKIP=pylint,mypy pre-commit run --all-files`
+
+## Skipping pre-commit hooks
+
+You can always skip running the tests by providing `--no-verify` flag to `git commit` command.
+
+## Advanced pre-commit usage
+
+You can check other usages of pre-commit framework at [Pre-commit website](https://pre-commit.com/)
 
 # Pull Request Guidelines
 
@@ -670,8 +797,8 @@ are often sufficient.  Make sure to follow the Sphinx compatible standards.
 1. The pull request should work for Python 3.5 and 3.6.
 1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python
 community guidelines. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a
-few other linting rules - described in [Running linting and tests](#running-linting-and-tests). It's a good
-idea to run tests locally before opening PR.
+few other linting rules - described in [Running static code analysis locally](#running-static-code-analysis-locally).
+It's a good idea to run tests locally before opening PR.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and
 adhere to them. It makes the lives of those who come after you a lot easier.
 

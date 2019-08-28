@@ -273,7 +273,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         bq_hook.cancel_query()
 
-        mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
+        mock_jobs.cancel.assert_called_once_with(projectId=project_id, jobId=running_job_id)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_sql_dialect_default(self, run_with_config):
@@ -368,8 +368,12 @@ class TestTableDataOperations(unittest.TestCase):
         }
         cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
         cursor.insert_all(project_id, dataset_id, table_id, rows)
-        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
-                                  tableId=table_id, body=body)
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
 
     def test_insert_all_fail(self):
         project_id = 'bq-project'
@@ -702,6 +706,76 @@ class TestDatasetsOperations(unittest.TestCase):
                 mocked, "test_create_empty_dataset").get_datasets_list(
                 project_id=project_id)
             self.assertEqual(result, expected_result['datasets'])
+
+    def test_delete_dataset(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        delete_contents = True
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.delete
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.delete_dataset(project_id, dataset_id, delete_contents)
+
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id,
+                                       deleteContents=delete_contents)
+
+    def test_patch_dataset(self):
+        dataset_resource = {
+            "access": [
+                {
+                    "role": "WRITER",
+                    "groupByEmail": "cloud-logs@google.com"
+                }
+            ]
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
+
+    def test_update_dataset(self):
+        dataset_resource = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "your-project:dataset_2_test",
+            "datasetReference": {
+                "projectId": "your-project",
+                "datasetId": "dataset_2_test"
+            }
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.update)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.update_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
 
 
 class TestTimePartitioningInRunJob(unittest.TestCase):

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import importlib
 import logging
 import multiprocessing
 import os
@@ -34,7 +35,6 @@ from typing import Optional
 
 import psutil
 from setproctitle import setproctitle
-from six.moves import reload_module
 from tabulate import tabulate
 
 # To avoid circular imports
@@ -288,7 +288,7 @@ def correct_maybe_zipped(fileloc):
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def list_py_file_paths(directory, safe_mode=True,
+def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
                        include_examples=None):
     """
     Traverse a directory and look for Python files.
@@ -296,7 +296,9 @@ def list_py_file_paths(directory, safe_mode=True,
     :param directory: the directory to traverse
     :type directory: unicode
     :param safe_mode: whether to use a heuristic to determine whether a file
-        contains Airflow DAG definitions
+        contains Airflow DAG definitions. If not provided, use the
+        core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
+        to safe.
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -584,8 +586,8 @@ class DagFileProcessorAgent(LoggingMixin):
         os.environ['AIRFLOW__CORE__COLORED_CONSOLE_LOG'] = 'False'
         # Replicating the behavior of how logging module was loaded
         # in logging_config.py
-        reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
-        reload_module(airflow.settings)
+        importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
+        importlib.reload(airflow.settings)
         airflow.settings.initialize()
         del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
         processor_manager = DagFileProcessorManager(dag_directory,
@@ -674,7 +676,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :return:
         """
         if not self._process:
-            self.log.warn('Ending without manager process.')
+            self.log.warning('Ending without manager process.')
             return
         reap_process_group(self._process.pid, log=self.log)
         self._parent_signal_conn.close()

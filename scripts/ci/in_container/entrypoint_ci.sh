@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
-#  distributed with this work for additional information
-#  regarding copyright ownership.  The ASF licenses this file
-#  to you under the Apache License, Version 2.0 (the
-#  "License"); you may not use this file except in compliance
-#  with the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing,
-#  software distributed under the License is distributed on an
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#  KIND, either express or implied.  See the License for the
-#  specific language governing permissions and limitations
-#  under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
+#
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
@@ -25,7 +25,7 @@ if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=./_in_container_utils.sh
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/_in_container_utils.sh"
 
 in_container_basic_sanity_check
@@ -54,6 +54,29 @@ echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
 echo
+
+CLEAN_FILES=${CLEAN_FILES:=false}
+
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" && "${CLEAN_FILES}" == "false" ]]; then
+    echo
+    echo "Installing NPM modules as they are not yet installed (sources are mounted from the host)"
+    echo
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    npm ci
+    echo
+    popd
+fi
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" && ${CLEAN_FILES} == "false" ]]; then
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    echo
+    echo "Building production version of javascript files (sources are mounted from the host)"
+    echo
+    echo
+    npm run prod
+    echo
+    echo
+    popd
+fi
 
 ARGS=( "$@" )
 
@@ -118,11 +141,11 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
     java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
-        >"${AIRFLOW_HOME}"/logs/minicluster.log 2>&1 &
+        >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
     echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa \
-        >"${AIRFLOW_HOME}"/logs/ssh-keygen.log 2>&1
+        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
     ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
@@ -150,10 +173,32 @@ if [[ "${ENV}" == "docker" ]]; then
 
     sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
 
+    set +e
     echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" >/dev/null 2>&1
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" >/dev/null 2>&1
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" >/dev/null 2>&1
+        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
+    RES_1=$?
+
+    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
+    RES_2=$?
+
+    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
+          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_3.log" >/dev/null
+    RES_3=$?
+    set -e
+
+    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+        echo
+        echo "ERROR:  There was a problem communicating with kerberos"
+        echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
+        echo
+        echo "Action! Please restart the environment!"
+        echo "Run './scripts/ci/local_ci_stop_environment.sh' and re-enter the environment"
+        echo
+        exit 1
+    fi
+
     sudo chmod 0644 "${KRB5_KTNAME}"
 fi
 
@@ -204,7 +249,6 @@ if [[ -z "${KUBERNETES_VERSION}" ]]; then
     echo "Running CI tests with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
-    codecov -e "py${PYTHON_VERSION}-backend_${BACKEND}-env_${ENV}"
 else
     export KUBERNETES_VERSION
     export MINIKUBE_IP
@@ -219,8 +263,6 @@ else
     echo "Running CI tests with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" tests.minikube "${ARGS[@]}"
-    codecov -e \
-    "py${PYTHON_VERSION}-backend_${BACKEND}-env_${ENV}-mode_${KUBERNETES_MODE}-version_${KUBERNETES_VERSION}"
 fi
 
 in_container_script_end

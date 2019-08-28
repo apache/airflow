@@ -43,7 +43,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class HiveEnvironmentTest(unittest.TestCase):
+class TestHiveEnvironment(unittest.TestCase):
 
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -138,7 +138,11 @@ class TestHiveCliHook(unittest.TestCase):
             "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
-        mock_run_cli.assert_called_with(query)
+        calls = [
+            mock.call(';'),
+            mock.call(query)
+        ]
+        mock_run_cli.assert_has_calls(calls, any_order=True)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
@@ -222,7 +226,7 @@ class TestHiveCliHook(unittest.TestCase):
         assertEqualIgnoreMultipleSpaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
-class TestHiveMetastoreHook(HiveEnvironmentTest):
+class TestHiveMetastoreHook(TestHiveEnvironment):
     VALID_FILTER_MAP = {'key2': 'value2'}
 
     def test_get_max_partition_from_empty_part_specs(self):
@@ -415,7 +419,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
 
         HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
-        mock_connect.assert_called_with(
+        mock_connect.assert_called_once_with(
             host='localhost',
             port=10000,
             auth='LDAP',

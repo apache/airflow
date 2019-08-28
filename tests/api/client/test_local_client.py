@@ -19,9 +19,9 @@
 
 import json
 import unittest
+from unittest.mock import patch
 
 from freezegun import freeze_time
-from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow import models

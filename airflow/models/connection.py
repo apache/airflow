@@ -143,7 +143,7 @@ class Connection(Base, LoggingMixin):
             if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query)))
+            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
     def get_password(self):
         if self._password and self.is_encrypted:
@@ -264,7 +264,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.mongo_hook import MongoHook
             return MongoHook(conn_id=self.conn_id)
         elif self.conn_type == 'gcpcloudsql':
-            from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
+            from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook
             return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook

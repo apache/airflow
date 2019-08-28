@@ -273,7 +273,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # return a set of all dags that the user could access
         return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
-    def has_access(self, permission, view_name, user=None):
+    def has_access(self, permission, view_name, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
@@ -496,7 +496,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -515,7 +515,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

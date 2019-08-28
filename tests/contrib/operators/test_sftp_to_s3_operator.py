@@ -58,7 +58,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SFTPToS3OperatorTest(unittest.TestCase):
+class TestSFTPToS3Operator(unittest.TestCase):
 
     @mock_s3
     def setUp(self):

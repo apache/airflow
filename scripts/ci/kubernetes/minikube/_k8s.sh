@@ -17,9 +17,7 @@
 # under the License.
 
 # This script was based on one made by @kimoonkim for kubernetes-hdfs
-
 # Helper bash functions.
-
 # Wait for Kubernetes resources to be up and ready.
 function _wait_for_ready () {
   local COUNT="$1"

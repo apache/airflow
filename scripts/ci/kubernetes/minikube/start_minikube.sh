@@ -44,7 +44,8 @@ export CHANGE_MINIKUBE_NONE_USER=true
 
 cd "${_MY_DIR}"
 
-source _k8s.sh
+# shellcheck source=scripts/ci/kubernetes/minikube/_k8s.sh
+source "_k8s.sh"
 
 rm -rf tmp
 mkdir -p bin tmp

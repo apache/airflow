@@ -49,7 +49,7 @@ def get_minikube_host():
     return host
 
 
-class KubernetesExecutorTest(unittest.TestCase):
+class TestKubernetesExecutor(unittest.TestCase):
     @staticmethod
     def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()

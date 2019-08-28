@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from six import StringIO
+import io
 import sys
 import unittest
 from unittest.mock import patch, Mock, MagicMock
@@ -201,12 +199,11 @@ class TestCLI(unittest.TestCase):
 
         saved_stdout = sys.stdout
         try:
-            sys.stdout = out = StringIO()
+            sys.stdout = out = io.StringIO()
             cli.test(args)
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
-            self.assertIn('end_date', output)
             self.assertIn("'example_python_operator__print_the_context__20180101'", output)
         finally:
             sys.stdout = saved_stdout
@@ -283,7 +280,7 @@ class TestCLI(unittest.TestCase):
             'dags', 'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -301,7 +298,7 @@ class TestCLI(unittest.TestCase):
         mock_run.reset_mock()
         dag = self.dagbag.get_dag('example_bash_operator')
 
-        with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.backfill(self.parser.parse_args([
                 'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
@@ -327,7 +324,7 @@ class TestCLI(unittest.TestCase):
             'dags', 'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -367,7 +364,7 @@ class TestCLI(unittest.TestCase):
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=run_date,
             end_date=run_date,
             conf=None,
@@ -406,7 +403,7 @@ class TestCLI(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,
             conf=None,
@@ -442,7 +439,7 @@ class TestCLI(unittest.TestCase):
                  NAIVE_DATE.isoformat()]
 
         cli.run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_with(
+        mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,

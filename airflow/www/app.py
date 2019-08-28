@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Optional
 import logging
 import socket
 
@@ -36,7 +37,7 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any
-appbuilder = None
+appbuilder = None  # type: Optional[AppBuilder]
 csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)
@@ -203,10 +204,19 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         @app.context_processor
         def jinja_globals():  # pylint: disable=unused-variable
-            return {
+
+            globals = {
                 'hostname': socket.getfqdn(),
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
+
+            if 'analytics_tool' in conf.getsection('webserver'):
+                globals.update({
+                    'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
+                    'analytics_id': conf.get('webserver', 'ANALYTICS_ID')
+                })
+
+            return globals
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable

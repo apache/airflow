@@ -39,7 +39,7 @@ except ImportError:
     mock_s3 = None
 
 
-class S3ToHiveTransferTest(unittest.TestCase):
+class TestS3ToHiveTransfer(unittest.TestCase):
 
     def setUp(self):
         self.fn = {}

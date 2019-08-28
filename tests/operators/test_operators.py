@@ -32,7 +32,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class MySqlTest(unittest.TestCase):
+class TestMySql(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -180,7 +180,7 @@ class MySqlTest(unittest.TestCase):
             assert "Unknown database 'foobar'" in str(e)
 
 
-class PostgresTest(unittest.TestCase):
+class TestPostgres(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
@@ -289,7 +289,7 @@ class PostgresTest(unittest.TestCase):
             assert 'database "foobar" does not exist' in str(e)
 
 
-class TransferTests(unittest.TestCase):
+class TestTransfer(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
