@@ -20,7 +20,9 @@ import io
 import os
 import tempfile
 import unittest
+from datetime import datetime
 
+import dateutil
 from google.cloud import storage
 from google.cloud import exceptions
 
@@ -116,6 +118,24 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         # Then
         self.assertFalse(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_is_updated_after(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob\
+            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_updated_after(
+            bucket_name=test_bucket, object_name=test_object,
+            ts=datetime(2018, 1, 1, 1, 1, 1)
+        )
+
+        # Then
+        self.assertTrue(response)
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
