@@ -246,13 +246,13 @@ For example, in order to just execute the "core" unit tests and add ipdb set_tra
 run the following command:
 
 ```bash
-./run-tests tests.core:CoreTest --nocapture --verbose
+./run-tests tests.core:TestCore --nocapture --verbose
 ```
 
 or a single test method without colors or debug logs:
 
 ```bash
-./run-tests tests.core:CoreTest.test_check_operators
+./run-tests tests.core:TestCore.test_check_operators
 ```
 Note that `./run_tests` script runs tests but the first time it runs, it performs database initialisation.
 If you run further tests without leaving the environment, the database will not be initialized, but you
