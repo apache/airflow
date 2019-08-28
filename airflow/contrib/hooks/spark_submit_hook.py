@@ -342,7 +342,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                            universal_newlines=True,
                                            **kwargs)
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout.readline, ''))
+        self._process_spark_submit_log(iter(self._submit_sp.stdout))
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -496,7 +496,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                               bufsize=-1,
                                               universal_newlines=True)
 
-            self._process_spark_status_log(iter(status_process.stdout.readline, ''))
+            self._process_spark_status_log(iter(status_process.stdout))
             returncode = status_process.wait()
 
             if returncode:

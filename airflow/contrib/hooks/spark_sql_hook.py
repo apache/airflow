@@ -146,7 +146,7 @@ class SparkSqlHook(BaseHook):
                                     stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        for line in iter(self._sp.stdout.readline, ''):
+        for line in iter(self._sp.stdout):
             self.log.info(line)
 
         returncode = self._sp.wait()
