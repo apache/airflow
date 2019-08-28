@@ -290,8 +290,8 @@ IMPORTANT!!! : Mac OS Docker default Disk size settings
 
 When you develop on Mac OS you usually have not enough disk space for Docker if you start using it seriously.
 You should increase disk space available before starting to work with the environment. Usually you have weird
-stops of docker containers when you run out of Disk space. It might not be obvious that space is an issue.
-If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
+problems with docker containers when you run out of Disk space. It might not be obvious that space is an
+issue. If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
 
 See [Docker for Mac - Space](https://docs.docker.com/docker-for-mac/space/) for details of increasing
 disk space available for Docker on Mac.
@@ -531,13 +531,13 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 
 The following environments are possible:
 
- * The "docker" environment (default): starts all dependencies required by full integration test-suite
+ * The `docker` environment (default): starts all dependencies required by full integration test-suite
    (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to
    [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
    and can slow down your machine.
- * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
+ * The `kubernetes` environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
    and KUBERNETES_MODE variables).
- * The "bare" environment:  runs airflow in docker without any external dependencies.
+ * The `bare` environment:  runs airflow in docker without any external dependencies.
    It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
    enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute
    `local_ci_run_airflow_testing.sh` with it.

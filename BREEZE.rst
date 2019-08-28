@@ -25,6 +25,7 @@ Table of Contents
 
 * `Airflow Breeze <#airflow-breeze>`_
 * `Installation <#installation>`_
+* `Resource usage <#resource-usage>`_
 * `Setting up autocomplete <#setting-up-autocomplete>`_
 * `Using the Airflow Breeze environment <#using-the-airflow-breeze-environment>`_
     - `Entering the environment <#entering-the-environment>`_
@@ -80,15 +81,34 @@ Prerequisites for the installation:
 *
   If you are on MacOS you need gnu ``getopt`` and ``gstat`` to get Airflow Breeze running. Typically
   you need to run ``brew install gnu-getopt coreutils`` and then follow instructions (you need
-  to link the gnu getopt version to become first on the PATH).
+  to link the gnu getopt version to become first on the PATH). Make sure to re-login after you
+  make the suggested changes.
 
 *
   Latest stable Docker Community Edition installed and on the PATH. It should be
-  configured to be able to run ``docker`` commands directly and not only via root user
+  configured to be able to run ``docker`` commands directly and not only via root user. You user
+  should be in the ``docker`` group. See `Docker installation guide <https://docs.docker.com/install/>`_
 
 
-  * your user should be in ``docker`` group.
-    See `Docker installation guide <https://docs.docker.com/install/>`_
+*
+  When you develop on Mac OS you usually have not enough disk space for Docker if you start using it
+  seriously. You should increase disk space available before starting to work with the environment.
+  Usually you have weird problems of docker containers when you run out of Disk space. It might not be
+  obvious that space is an issue.
+
+  If you get into weird behaviour try
+  `Cleaning Up Docker <CONTRIBUTING.md#cleaning-up-cached-docker-imagescontainers>`_
+
+  See `Docker for Mac - Space <https://docs.docker.com/docker-for-mac/space>`_ for details of increasing
+  disk space available for Docker on Mac.
+
+  At least 128 GB of Disk space is recommended. You can also get by with smaller space but you should more
+  often clean the docker disk space periodically.
+
+*
+  On MacOS, the default 2GB of RAM available for your docker containers, but more memory is recommended
+  (4GB should be comfortable). For details see
+  `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_
 
 *
   Latest stable Docker Compose installed and on the PATH. It should be
@@ -108,6 +128,31 @@ It will pull latest Airflow CI images from `Apache Airflow DockerHub <https://hu
 and use them to build your local docker images. It will use latest sources from your source code.
 Further on ``breeze`` uses md5sum calculation and Docker caching mechanisms to only rebuild what is needed.
 Airflow Breeze will detect if Docker images need to be rebuilt and ask you for confirmation.
+
+Resource usage
+==============
+
+You can choose environment when you run Breeze with ``--env`` flag.
+Running the default ``docker`` environment takes considerable amount of resources. You can run a slimmed-down
+version of the environment - just the Apache Airflow container - by choosing ``bare`` environment instead.
+
+The following environments are available:
+
+ * The ``docker`` environment (default): starts all dependencies required by full integration test-suite
+   (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to
+   [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
+   and can slow down your machine.
+ * The ``kubernetes`` environment: Runs airflow tests within a kubernetes cluster (requires
+   ``KUBERNETES_VERSION`` and ``KUBERNETES_MODE`` variables).
+ * The ``bare`` environment:  runs airflow in docker without any external dependencies.
+   It will only work for non-dependent tests. You can only run it with sqlite backend.
+
+After starting up, the environment runs in the background and takes resources. You can always stop
+it via
+
+.. code-block:: bash
+
+    breeze --stop-environment
 
 Setting up autocomplete
 =======================
