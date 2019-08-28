@@ -63,11 +63,10 @@ export PYTHON_VERSION
 
 if [[ ${PYTHON_VERSION} == 2.* ]]; then
     echo 2>&1
-    echo 2>&1 " Warning! You have python 2.7 as default on your path"
-    echo 2>&1 " Switching to python 3"
+    echo 2>&1 " You have python 2.7 on your path but python 2 is not supported any more."
+    echo 2>&1 " Switching to python 3.5"
     echo 2>&1
-    PYTHON_VERSION=$(python3 -c \
-        'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')
+    PYTHON_VERSION=3.5
     export PYTHON_VERSION
 fi
 
@@ -373,10 +372,11 @@ function rebuild_image_if_needed() {
     export PYTHON_VERSION
     if [[ ${PYTHON_VERSION} == 2.* ]]; then
         echo 2>&1
-        echo 2>&1 " Warning! You have python 2.7 on your path"
-        echo 2>&1 " Switching to python 3.6"
+        echo 2>&1 " You have python 2.7 on your path but python 2 is not supported any more."
+        echo 2>&1 " Switching to python 3.5"
         echo 2>&1
-        export PYTHON_VERSION=3.6
+        PYTHON_VERSION=3.5
+        export PYTHON_VERSION
     fi
 
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
