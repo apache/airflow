@@ -49,7 +49,8 @@ class TestPodLauncher(unittest.TestCase):
                 follow=True,
                 name=mock.sentinel.name,
                 namespace=mock.sentinel.namespace,
-                tail_lines=10
+                tail_lines=10,
+                _request_timeout=20
             ),
             mock.call(
                 _preload_content=False,
@@ -57,7 +58,8 @@ class TestPodLauncher(unittest.TestCase):
                 follow=True,
                 name=mock.sentinel.name,
                 namespace=mock.sentinel.namespace,
-                tail_lines=10
+                tail_lines=10,
+                _request_timeout=20
             )
         ])
 
@@ -86,8 +88,8 @@ class TestPodLauncher(unittest.TestCase):
         pod_info = self.pod_launcher.read_pod(mock.sentinel)
         self.assertEqual(mock.sentinel.pod_info, pod_info)
         self.mock_kube_client.read_namespaced_pod.assert_has_calls([
-            mock.call(mock.sentinel.name, mock.sentinel.namespace),
-            mock.call(mock.sentinel.name, mock.sentinel.namespace)
+            mock.call(mock.sentinel.name, mock.sentinel.namespace, _request_timeout=20),
+            mock.call(mock.sentinel.name, mock.sentinel.namespace, _request_timeout=20)
         ])
 
     def test_read_pod_retries_fails(self):
