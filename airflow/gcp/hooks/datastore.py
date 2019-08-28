@@ -62,7 +62,8 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         return self.connection
 
-    def allocate_ids(self, partial_keys):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def allocate_ids(self, partial_keys, project_id=None):
         """
         Allocate IDs for incomplete keys.
 
@@ -71,6 +72,8 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param partial_keys: a list of partial keys.
         :type partial_keys: list
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: a list of full keys.
         :rtype: list
         """
@@ -78,18 +81,21 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         resp = (conn  # pylint:disable=no-member
                 .projects()
-                .allocateIds(projectId=self.project_id, body={'keys': partial_keys})
+                .allocateIds(projectId=project_id, body={'keys': partial_keys})
                 .execute(num_retries=self.num_retries))
 
         return resp['keys']
 
-    def begin_transaction(self):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def begin_transaction(self, project_id=None):
         """
         Begins a new transaction.
 
         .. seealso::
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
 
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: a transaction handle.
         :rtype: str
         """
@@ -97,12 +103,13 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         resp = (conn  # pylint:disable=no-member
                 .projects()
-                .beginTransaction(projectId=self.project_id, body={})
+                .beginTransaction(projectId=project_id, body={})
                 .execute(num_retries=self.num_retries))
 
         return resp['transaction']
 
-    def commit(self, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def commit(self, body, project_id=None):
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
 
@@ -111,6 +118,8 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param body: the body of the commit request.
         :type body: dict
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: the response body of the commit request.
         :rtype: dict
         """
@@ -118,12 +127,13 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         resp = (conn  # pylint:disable=no-member
                 .projects()
-                .commit(projectId=self.project_id, body=body)
+                .commit(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
 
         return resp
 
-    def lookup(self, keys, read_consistency=None, transaction=None):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def lookup(self, keys, read_consistency=None, transaction=None, project_id=None):
         """
         Lookup some entities by key.
 
@@ -137,6 +147,8 @@ class DatastoreHook(GoogleCloudBaseHook):
         :type read_consistency: str
         :param transaction: the transaction to use, if any.
         :type transaction: str
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: the response body of the lookup request.
         :rtype: dict
         """
@@ -149,12 +161,13 @@ class DatastoreHook(GoogleCloudBaseHook):
             body['transaction'] = transaction
         resp = (conn  # pylint:disable=no-member
                 .projects()
-                .lookup(projectId=self.project_id, body=body)
+                .lookup(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
 
         return resp
 
-    def rollback(self, transaction):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def rollback(self, transaction, project_id=None):
         """
         Roll back a transaction.
 
@@ -163,14 +176,17 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param transaction: the transaction to roll back.
         :type transaction: str
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         """
         conn = self.get_conn()
 
         conn.projects().rollback(  # pylint:disable=no-member
-            projectId=self.project_id, body={'transaction': transaction}
+            projectId=project_id, body={'transaction': transaction}
         ).execute(num_retries=self.num_retries)
 
-    def run_query(self, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def run_query(self, body, project_id=None):
         """
         Run a query for entities.
 
@@ -179,6 +195,8 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param body: the body of the query request.
         :type body: dict
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: the batch of query results.
         :rtype: dict
         """
@@ -186,7 +204,7 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         resp = (conn  # pylint:disable=no-member
                 .projects()
-                .runQuery(projectId=self.project_id, body=body)
+                .runQuery(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
 
         return resp['batch']
@@ -257,7 +275,9 @@ class DatastoreHook(GoogleCloudBaseHook):
             else:
                 return result
 
-    def export_to_storage_bucket(self, bucket, namespace=None, entity_filter=None, labels=None):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def export_to_storage_bucket(self, bucket, namespace=None, entity_filter=None,
+                                 labels=None, project_id=None):
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
 
@@ -275,6 +295,8 @@ class DatastoreHook(GoogleCloudBaseHook):
         :type entity_filter: dict
         :param labels: Client-assigned labels.
         :type labels: dict of str
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: a resource operation instance.
         :rtype: dict
         """
@@ -292,12 +314,14 @@ class DatastoreHook(GoogleCloudBaseHook):
         }
         resp = (admin_conn  # pylint:disable=no-member
                 .projects()
-                .export(projectId=self.project_id, body=body)
+                .export(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
 
         return resp
 
-    def import_from_storage_bucket(self, bucket, file, namespace=None, entity_filter=None, labels=None):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def import_from_storage_bucket(self, bucket, file, namespace=None,
+                                   entity_filter=None, labels=None, project_id=None):
         """
         Import a backup from Cloud Storage to Cloud Datastore.
 
@@ -317,6 +341,8 @@ class DatastoreHook(GoogleCloudBaseHook):
         :type entity_filter: dict
         :param labels: Client-assigned labels.
         :type labels: dict of str
+        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :type project_id: str
         :return: a resource operation instance.
         :rtype: dict
         """
@@ -334,7 +360,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         }
         resp = (admin_conn  # pylint:disable=no-member
                 .projects()
-                .import_(projectId=self.project_id, body=body)
+                .import_(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
 
         return resp
