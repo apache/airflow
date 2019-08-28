@@ -124,12 +124,12 @@ class DynamoDBToS3Operator(BaseOperator):
                 _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
             f.close()
 
-    def _scan_dynamodb_and_upload_to_s3(self, f, scan_kwargs, table):
+    def _scan_dynamodb_and_upload_to_s3(self, temp_file, scan_kwargs, table):
         while True:
             response = table.scan(**scan_kwargs)
             items = response['Items']
             for item in items:
-                f.write(self.process_func(item))
+                temp_file.write(self.process_func(item))
 
             if 'LastEvaluatedKey' not in response:
                 # no more items to scan
@@ -139,8 +139,9 @@ class DynamoDBToS3Operator(BaseOperator):
             scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
 
             # Upload the file to S3 if reach file size limit
-            if getsize(f.name) >= self.file_size:
-                _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
-                f.close()
-                f = NamedTemporaryFile()
-        return f
+            if getsize(temp_file.name) >= self.file_size:
+                _upload_file_to_s3(temp_file, self.s3_bucket_name,
+                                   self.s3_key_prefix)
+                temp_file.close()
+                temp_file = NamedTemporaryFile()
+        return temp_file
