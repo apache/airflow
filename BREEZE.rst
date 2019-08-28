@@ -86,7 +86,7 @@ Prerequisites for the installation:
 
 *
   Latest stable Docker Community Edition installed and on the PATH. It should be
-  configured to be able to run ``docker`` commands directly and not only via root user. You user
+  configured to be able to run ``docker`` commands directly and not only via root user. Your user
   should be in the ``docker`` group. See `Docker installation guide <https://docs.docker.com/install/>`_
 
 
