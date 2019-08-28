@@ -523,7 +523,7 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
   ./scripts/ci/local_ci_run_airflow_testing.sh
 ```
 
-* PYTHON_VERSION might be one of 3.5/3.6
+* PYTHON_VERSION might be one of 3.5/3.6/3.7
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
 * KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
