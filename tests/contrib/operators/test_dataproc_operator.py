@@ -658,6 +658,8 @@ class DataProcJobBaseOperatorTest(unittest.TestCase):
                 dag=self.dag
             )
 
+            task.create_job_template()
+
             with self.assertRaises(AirflowTaskTimeout):
                 task.run(start_date=make_aware(DEFAULT_DATE), end_date=make_aware(DEFAULT_DATE))
             mock_hook.cancel.assert_called_once_with(mock.ANY, job_id, GCP_REGION)
@@ -1021,8 +1023,8 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
 
             dataproc_task.execute(None)
             template_name = (
-                'projects/test-project-id/regions/test-region/'
-                'workflowTemplates/template-id')
+                'projects/test-project-id/regions/{}/'
+                'workflowTemplates/template-id'.format(GCP_REGION))
             self.mock_workflows.instantiate.assert_called_once_with(
                 name=template_name,
                 body=mock.ANY)
@@ -1089,7 +1091,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
 
             dataproc_task.execute(None)
             self.mock_workflows.instantiateInline.assert_called_once_with(
-                parent='projects/test-project-id/regions/test-region',
+                parent='projects/test-project-id/regions/{}'.format(GCP_REGION),
                 requestId=mock.ANY,
                 body=template)
             hook.wait.assert_called_once_with(self.operation)
