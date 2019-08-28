@@ -217,6 +217,10 @@ embedded in the container - and changes to those sources will not be persistent.
 
 Once you enter the environment you are dropped into bash shell and you can run tests immediately.
 
+After you run Breeze for the first time you will have an empty directory ``files`` in your source code
+that will be mapped to ``/files`` in your docker container. You can pass any files there you need
+to configure and run docker and they will not be removed between docker runs.
+
 Running tests in Airflow Breeze
 -------------------------------
 
