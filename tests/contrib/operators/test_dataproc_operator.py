@@ -22,13 +22,11 @@
 import datetime
 import re
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch, PropertyMock
 from typing import Dict
 
 import time
 from copy import deepcopy
-
-from mock import PropertyMock
 
 from airflow import DAG, AirflowException
 from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJobBuilder
@@ -491,7 +489,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
                 requestId=mock.ANY,
                 body={
                     'projectId': 'test-project-id',
-                    'clusterName': 'test-cluster-name',
+                    'clusterName': CLUSTER_NAME,
                     'config': {
                         'gceClusterConfig':
                             {'zoneUri': zone_uri},
@@ -749,16 +747,23 @@ class TestDataProcJobBaseOperator(unittest.TestCase):
             mock_hook.cancel.assert_called_once_with(mock.ANY, job_id, GCP_REGION)
 
     def test_dataproc_job_base(self):
-        task = DataProcJobBaseOperator(
-            task_id=TASK_ID,
-            cluster_name="cluster-1",
-            region=GCP_REGION,
-            dag=self.dag
-        )
-        task.create_job_template()
+        with patch(
+            'airflow.contrib.operators.dataproc_operator.DataProcHook.project_id',
+                new_callable=PropertyMock) as mock_project_id:
+            mock_project_id.return_value = GCP_PROJECT_ID
+            task = DataProcJobBaseOperator(
+                task_id=TASK_ID,
+                cluster_name="cluster-1",
+                region=GCP_REGION,
+                dag=self.dag,
+            )
 
-        self.assertIsInstance(task.job_template, _DataProcJobBuilder)
-        self.assertEqual({'clusterName': task.cluster_name}, task.job_template.build()['job']['placement'])
+            task.create_job_template()
+
+            self.assertIsInstance(task.job_template, _DataProcJobBuilder)
+            job_dict = task.job_template.build()
+            self.assertDictEqual({'clusterName': task.cluster_name}, job_dict['job']['placement'])
+            self.assertEqual(GCP_PROJECT_ID, job_dict['job']['reference']['projectId'])
 
 
 class TestDataProcHadoopOperator(unittest.TestCase):
@@ -827,8 +832,8 @@ class TestDataProcHadoopOperator(unittest.TestCase):
             job_name=GCP_PROJECT_TEMPLATED,
             cluster_name=CLUSTER_NAME_TEMPLATED,
             region=GCP_REGION_TEMPLATED,
-            dataproc_hadoop_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
-            dataproc_hadoop_properties={},
+            dataproc_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
+            dataproc_properties={},
             dag=self.dag,
         )
 
@@ -909,8 +914,8 @@ class TestDataProcHiveOperator(unittest.TestCase):
             task_id=TASK_ID,
             query="select * from {{ dag.dag_id }}",
             variables={},
-            dataproc_hive_properties={},
-            dataproc_hive_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
+            dataproc_properties={},
+            dataproc_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
             job_name=GCP_PROJECT_TEMPLATED,
             cluster_name=CLUSTER_NAME_TEMPLATED,
             region=GCP_REGION_TEMPLATED,
@@ -987,8 +992,8 @@ class TestDataProcPigOperator(unittest.TestCase):
             task_id=TASK_ID,
             query="select * from {{ dag.dag_id }}",
             variables={},
-            dataproc_pig_properties={},
-            dataproc_pig_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
+            dataproc_properties={},
+            dataproc_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
             job_name=GCP_PROJECT_TEMPLATED,
             cluster_name=CLUSTER_NAME_TEMPLATED,
             region=GCP_REGION_TEMPLATED,
@@ -1090,12 +1095,10 @@ class TestDataProcPySparkOperator(unittest.TestCase):
             job_name=GCP_PROJECT_TEMPLATED,
             cluster_name=CLUSTER_NAME_TEMPLATED,
             region=GCP_REGION_TEMPLATED,
-            dataproc_pyspark_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
-            dataproc_pyspark_properties={},
+            dataproc_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
+            dataproc_properties={},
             dag=self.dag,
         )
-
-        task.create_job_template()
 
         self.assertEqual(
             task.template_fields, ['arguments', 'job_name', 'cluster_name',
@@ -1178,8 +1181,8 @@ class TestDataProcSparkOperator(unittest.TestCase):
             job_name=GCP_PROJECT_TEMPLATED,
             cluster_name=CLUSTER_NAME_TEMPLATED,
             region=GCP_REGION_TEMPLATED,
-            dataproc_spark_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
-            dataproc_spark_properties={},
+            dataproc_jars=['gs://test-bucket/{{ dag.dag_id }}/test.jar'],
+            dataproc_properties={},
             dag=self.dag,
         )
 
@@ -1237,8 +1240,8 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
 
             dataproc_task.execute(None)
             template_name = (
-                'projects/test-project-id/regions/test-region/'
-                'workflowTemplates/template-id')
+                'projects/test-project-id/regions/{}/'
+                'workflowTemplates/template-id'.format(GCP_REGION))
             self.mock_workflows.instantiate.assert_called_once_with(
                 name=template_name,
                 body=mock.ANY)
@@ -1305,7 +1308,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
 
             dataproc_task.execute(None)
             self.mock_workflows.instantiateInline.assert_called_once_with(
-                parent='projects/test-project-id/regions/test-region',
+                parent='projects/test-project-id/regions/{}'.format(GCP_REGION),
                 requestId=mock.ANY,
                 body=template)
             hook.wait.assert_called_once_with(self.operation)
