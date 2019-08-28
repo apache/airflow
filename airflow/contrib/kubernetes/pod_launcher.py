@@ -48,6 +48,7 @@ class PodLauncher(LoggingMixin):
         super(PodLauncher, self).__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster,
                                                       cluster_context=cluster_context)
+        self.kube_api_timeout_seconds = 20
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
         self.kube_req_factory = pod_factory.ExtractXcomPodRequestFactory(
@@ -69,7 +70,7 @@ class PodLauncher(LoggingMixin):
     def delete_pod(self, pod):
         try:
             self._client.delete_namespaced_pod(
-                pod.name, pod.namespace, body=client.V1DeleteOptions())
+                pod.name, pod.namespace, body=client.V1DeleteOptions(), _request_timeout=self.kube_api_timeout_seconds)
         except ApiException as e:
             # If the pod is already deleted
             if e.status != 404:
@@ -171,7 +172,7 @@ class PodLauncher(LoggingMixin):
     )
     def read_pod(self, pod):
         try:
-            return self._client.read_namespaced_pod(pod.name, pod.namespace, _request_timeout=20)
+            return self._client.read_namespaced_pod(pod.name, pod.namespace, _request_timeout=self.kube_api_timeout_seconds)
         except BaseHTTPError as e:
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)
