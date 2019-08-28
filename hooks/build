@@ -260,7 +260,7 @@ AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_
 
 pwd
 # Determine version of the Airflow from version.py
-AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | ${PYTHON_BINARY}
+AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
 )
