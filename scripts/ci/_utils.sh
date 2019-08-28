@@ -61,16 +61,6 @@ PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
     'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
 export PYTHON_VERSION
 
-if [[ ${PYTHON_VERSION} == 2.* ]]; then
-    echo 2>&1
-    echo 2>&1 " Warning! You have python 2.7 as default on your path"
-    echo 2>&1 " Switching to python 3"
-    echo 2>&1
-    PYTHON_VERSION=$(python3 -c \
-        'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')
-    export PYTHON_VERSION
-fi
-
 export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
 
 #
