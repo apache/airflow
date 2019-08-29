@@ -238,14 +238,15 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
     @mock.patch(  # type: ignore
         MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file',
-        **{'reutnr_value.project_id': "PROJECT_ID"}
+        **{'return_value.project_id': "PROJECT_ID"}
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': "KEY_PATH.json"
         }
-        self.instance._get_credentials_and_project_id()
+        result = self.instance._get_credentials_and_project_id()
         mock_from_service_account_file.assert_called_once_with('KEY_PATH.json', scopes=self.instance.scopes)
+        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
 
     @mock.patch(MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file')
     def test_get_credentials_and_project_id_with_service_account_file_and_p12_key(
@@ -280,8 +281,9 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         self.instance.extras = {
             'extra__google_cloud_platform__keyfile_dict': json.dumps(service_account)
         }
-        self.instance._get_credentials_and_project_id()
+        result = self.instance._get_credentials_and_project_id()
         mock_from_service_account_file.assert_called_once_with(service_account, scopes=self.instance.scopes)
+        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
 
     @mock.patch(MODULE_NAME + '.google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
