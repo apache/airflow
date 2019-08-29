@@ -38,6 +38,7 @@ GCP_DLP_KEY = 'gcp_dlp.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
+GCP_GKE_KEY = "gcp_gke.json"
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
 
