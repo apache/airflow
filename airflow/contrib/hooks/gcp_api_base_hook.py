@@ -172,6 +172,16 @@ class GoogleCloudBaseHook(BaseHook):
         return self._get_field('project')
 
     @property
+    def num_retries(self) -> int:
+        """
+        Returns num_retries from Connection.
+
+        :return: the number of times each API request should be retried
+        :rtype: int
+        """
+        return self._get_field('num_retries') or 5
+
+    @property
     def client_info(self) -> ClientInfo:
         """
         Return client information used to generate a user-agent for API calls.

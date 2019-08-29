@@ -53,7 +53,7 @@ class _DataProcJob(LoggingMixin):
         job: Dict,
         region: str = 'global',
         job_error_states: Iterable[str] = None,
-        num_retries: int = None
+        num_retries: int = 5
     ) -> None:
         self.dataproc_api = dataproc_api
         self.project_id = project_id
@@ -451,7 +451,6 @@ class DataProcHook(GoogleCloudBaseHook):
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)   # type: int
 
     def get_conn(self):
         """

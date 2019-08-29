@@ -56,7 +56,6 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
-        self.num_retries = self._get_field('num_retries', 5) or 5
 
     def get_conn(self):
         """

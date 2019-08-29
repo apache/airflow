@@ -46,7 +46,6 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to=delegate_to)
-        self.num_retries = self._get_field('num_retries', 5)  # type: int
 
     def get_conn(self):
         """
