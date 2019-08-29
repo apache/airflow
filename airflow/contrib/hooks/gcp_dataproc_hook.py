@@ -30,7 +30,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class _DataProcJob(LoggingMixin):
     def __init__(self, dataproc_api, project_id, job, region='global',
-                 job_error_states=None, num_retries=None):
+                 job_error_states=None, num_retries=5):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
         self.region = region
@@ -290,7 +290,6 @@ class DataProcHook(GoogleCloudBaseHook):
                  api_version='v1beta2'):
         super(DataProcHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """Returns a Google Cloud Dataproc service object."""

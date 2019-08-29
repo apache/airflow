@@ -161,6 +161,16 @@ class GoogleCloudBaseHook(BaseHook):
     def project_id(self):
         return self._get_field('project')
 
+    @property
+    def num_retries(self):
+        """
+        Returns num_retries from Connection.
+
+        :return: the number of times each API request should be retried
+        :rtype: int
+        """
+        return self._get_field('num_retries') or 5
+
     @staticmethod
     def catch_http_exception(func):
         """

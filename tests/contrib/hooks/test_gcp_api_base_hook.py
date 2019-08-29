@@ -191,3 +191,14 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
             self.assertEqual(file_content, string_file.getvalue())
 
         assert_gcp_credential_file_in_env(self.instance)
+
+    @mock.patch("airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.get_connection")
+    def test_num_retries_is_not_none_by_default(self, get_con_mock):
+        """
+        Verify that if 'num_retires' in extras is not set, the default value
+        should not be None
+        """
+        get_con_mock.return_value.extra_dejson = {
+            "extra__google_cloud_platform__num_retries": None
+        }
+        self.assertEqual(self.instance.num_retries, 5)
