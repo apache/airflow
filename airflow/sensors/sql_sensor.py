@@ -71,7 +71,7 @@ class SqlSensor(BaseSensorOperator):
         self.allow_null = allow_null
         super().__init__(*args, **kwargs)
 
-    def poke(self, context):
+    def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
@@ -80,7 +80,10 @@ class SqlSensor(BaseSensorOperator):
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +
                                    "Supported connection types: {}".format(list(allowed_conn_type)))
-        hook = conn.get_hook()
+        return conn.get_hook()
+
+    def poke(self, context):
+        hook = self._get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)
         records = hook.get_records(self.sql, self.parameters)
