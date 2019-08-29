@@ -173,10 +173,21 @@ def configure_orm(disable_connection_pool=False):
         except conf.AirflowConfigException:
             pool_recycle = 1800
 
+        # Check connection at the start of each connection pool checkout.
+        # Typically, this is a simple statement like “SELECT 1”, but may also make use
+        # of some DBAPI-specific method to test the connection for liveness.
+        # More information here:
+        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        try:
+            pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING')
+        except conf.AirflowConfigException:
+            pool_pre_ping = False
+
         log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
                  "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
+        engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default
