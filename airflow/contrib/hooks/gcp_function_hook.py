@@ -44,7 +44,6 @@ class GcfHook(GoogleCloudBaseHook):
                  delegate_to=None):
         super(GcfHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
 
     @staticmethod
     def _full_location(project_id, location):

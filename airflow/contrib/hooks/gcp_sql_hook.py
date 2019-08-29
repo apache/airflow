@@ -78,7 +78,6 @@ class CloudSqlHook(GoogleCloudBaseHook):
                  delegate_to=None):
         super(CloudSqlHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
