@@ -23,7 +23,7 @@ This module contains a Google Cloud Dataproc hook.
 
 import time
 import uuid
-from typing import Dict, List, Optional, Any, Iterable
+from typing import Any, Dict, Iterable, List, Optional
 
 from googleapiclient.discovery import build
 from zope.deprecation import deprecation

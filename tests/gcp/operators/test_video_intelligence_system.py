@@ -18,9 +18,7 @@
 # under the License.
 import unittest
 
-from tests.gcp.operators.test_video_intelligence_system_helper import (
-    GCPVideoIntelligenceHelper,
-)
+from tests.gcp.operators.test_video_intelligence_system_helper import GCPVideoIntelligenceHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
 

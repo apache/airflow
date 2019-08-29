@@ -21,18 +21,13 @@ This module contains a Google Cloud Vision Hook.
 """
 
 from copy import deepcopy
-from typing import Callable, Dict, Sequence, Tuple, Union, Any, Optional, List
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
 from google.api_core.retry import Retry
-from google.cloud.vision_v1 import ProductSearchClient, ImageAnnotatorClient
+from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
 from google.cloud.vision_v1.types import (
-    AnnotateImageRequest,
-    FieldMask,
-    Image,
-    Product,
-    ProductSet,
-    ReferenceImage,
+    AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
 )
 from google.protobuf.json_format import MessageToDict
 

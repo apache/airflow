@@ -17,13 +17,11 @@
 
 import datetime
 import unittest
-
-from unittest.mock import ANY
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from airflow import DAG
-from airflow.gcp.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
+from airflow.gcp.utils import mlengine_operator_utils
 from airflow.version import version
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)

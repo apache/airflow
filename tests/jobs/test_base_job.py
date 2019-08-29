@@ -23,8 +23,8 @@ import unittest
 
 from airflow.jobs import BaseJob
 from airflow.utils import timezone
-from airflow.utils.state import State
 from airflow.utils.db import create_session
+from airflow.utils.state import State
 
 
 class TestBaseJob(unittest.TestCase):

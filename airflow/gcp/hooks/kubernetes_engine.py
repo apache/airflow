@@ -23,12 +23,11 @@ This module contains a Google Kubernetes Engine Hook.
 
 import time
 import warnings
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
-
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster

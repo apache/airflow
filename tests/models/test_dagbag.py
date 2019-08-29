@@ -17,25 +17,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timezone, timedelta
 import inspect
 import os
 import shutil
 import textwrap
 import unittest
-from unittest.mock import patch, ANY
-from tempfile import mkdtemp, NamedTemporaryFile
+from datetime import datetime, timedelta, timezone
+from tempfile import NamedTemporaryFile, mkdtemp
+from unittest.mock import ANY, patch
 
+import airflow.example_dags
 from airflow import models
 from airflow.configuration import conf
 from airflow.jobs import LocalTaskJob as LJ
-from airflow.models import DagModel, DagBag, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
-from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
+from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
-import airflow.example_dags
 
 
 class TestDagBag(unittest.TestCase):

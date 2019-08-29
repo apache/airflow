@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
-
-from airflow.stats import SafeStatsdLogger, AllowListValidator
 from unittest.mock import Mock
+
+from airflow.stats import AllowListValidator, SafeStatsdLogger
 
 
 class TestStats(unittest.TestCase):

@@ -20,10 +20,10 @@
 import unittest
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import ParseDict, MessageToDict
+from google.protobuf.json_format import MessageToDict, ParseDict
 
-from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from tests.compat import mock
 
 TASK_ID = 'test-task-id'

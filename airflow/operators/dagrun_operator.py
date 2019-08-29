@@ -18,14 +18,13 @@
 # under the License.
 
 import datetime
-from typing import Callable, Union, Optional, Dict
+import json
+from typing import Callable, Dict, Optional, Union
 
+from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-
-import json
 
 
 class DagRunOrder:

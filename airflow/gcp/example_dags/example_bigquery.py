@@ -26,22 +26,14 @@ from urllib.parse import urlparse
 import airflow
 from airflow import models
 from airflow.gcp.operators.bigquery import (
-    BigQueryOperator,
-    BigQueryCreateEmptyTableOperator,
-    BigQueryCreateEmptyDatasetOperator,
-    BigQueryGetDatasetOperator,
-    BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
-    BigQueryDeleteDatasetOperator,
-    BigQueryCreateExternalTableOperator,
-    BigQueryGetDataOperator,
-    BigQueryTableDeleteOperator,
-    BigQueryGetDatasetTablesOperator
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator, BigQueryGetDataOperator, BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator, BigQueryOperator, BigQueryPatchDatasetOperator,
+    BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
 )
-
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
-from airflow.operators.bash_operator import BashOperator
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address
 WALLET_ADDRESS = os.environ.get("GCP_ETH_WALLET_ADDRESS", "0x06012c8cf97BEaD5deAe237070F9587f8E7A266d")

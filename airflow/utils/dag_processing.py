@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import enum
 import importlib
 import logging
 import multiprocessing
@@ -29,8 +30,7 @@ import zipfile
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from importlib import import_module
-import enum
-from typing import Optional, NamedTuple, Iterable
+from typing import Iterable, NamedTuple, Optional
 
 import psutil
 from setproctitle import setproctitle
@@ -44,8 +44,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.helpers import reap_process_group
 from airflow.utils.db import provide_session
+from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

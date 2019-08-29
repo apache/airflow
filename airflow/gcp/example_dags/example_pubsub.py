@@ -24,13 +24,9 @@ import os
 
 import airflow
 from airflow import models
-
 from airflow.gcp.operators.pubsub import (
-    PubSubTopicCreateOperator,
-    PubSubSubscriptionDeleteOperator,
-    PubSubSubscriptionCreateOperator,
-    PubSubPublishOperator,
-    PubSubTopicDeleteOperator,
+    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
+    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
 from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from airflow.operators.bash_operator import BashOperator

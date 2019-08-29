@@ -21,8 +21,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from airflow import settings
-from airflow import models
+from airflow import models, settings
 
 
 def include_object(_, name, type_, *args):

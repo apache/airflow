@@ -33,8 +33,7 @@ from airflow import AirflowException, models, settings
 from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
-    TaskInstance as TI, errors
+from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -42,13 +41,12 @@ from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_p
 from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
-from tests.compat import MagicMock, Mock, PropertyMock, patch
-from tests.compat import mock
+from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
-from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
-
+from tests.test_utils.db import (
+    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
+)
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1

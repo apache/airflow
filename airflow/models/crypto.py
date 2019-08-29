@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.typing import Protocol
 from typing import Optional
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.typing import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

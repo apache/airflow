@@ -23,7 +23,7 @@ from google.cloud.container_v1.types import Cluster
 
 from airflow import AirflowException
 from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
-from tests.compat import mock, PropertyMock
+from tests.compat import PropertyMock, mock
 
 TASK_ID = 'test-gke-cluster-operator'
 CLUSTER_NAME = 'test-cluster'

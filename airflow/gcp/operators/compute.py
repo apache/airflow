@@ -21,10 +21,10 @@ This module contains Google Compute Engine operators.
 """
 
 from copy import deepcopy
-from typing import Dict, Optional, List, Any
-from json_merge_patch import merge
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.errors import HttpError
+from json_merge_patch import merge
 
 from airflow import AirflowException
 from airflow.gcp.hooks.compute import GceHook

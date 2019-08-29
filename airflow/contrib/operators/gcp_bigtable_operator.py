@@ -25,12 +25,8 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.bigtable import (  # noqa
-    BigtableClusterUpdateOperator,
-    BigtableInstanceCreateOperator,
-    BigtableInstanceDeleteOperator,
-    BigtableTableCreateOperator,
-    BigtableTableDeleteOperator,
-    BigtableValidationMixin,
+    BigtableClusterUpdateOperator, BigtableInstanceCreateOperator, BigtableInstanceDeleteOperator,
+    BigtableTableCreateOperator, BigtableTableDeleteOperator, BigtableValidationMixin,
 )
 from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor  # noqa
 

@@ -19,6 +19,7 @@
 #
 
 import unittest
+
 from airflow import DAG, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay

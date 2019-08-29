@@ -24,9 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.kubernetes_engine import (  # noqa
-    GKEClusterCreateOperator,
-    GKEClusterDeleteOperator,
-    GKEPodOperator
+    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
 
 warnings.warn(

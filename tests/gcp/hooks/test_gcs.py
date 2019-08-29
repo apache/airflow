@@ -17,20 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=too-many-lines
+import copy
+import gzip as gz
 import io
 import os
 import tempfile
 import unittest
-import copy
 from datetime import datetime
-import gzip as gz
 
 import dateutil
-from google.cloud import storage
-from google.cloud import exceptions
+from google.cloud import exceptions, storage
 
-from airflow.gcp.hooks import gcs
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks import gcs
 from airflow.version import version
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id

@@ -20,7 +20,7 @@
 import unittest
 from configparser import DuplicateSectionError
 
-from airflow.configuration import conf, AirflowConfigException
+from airflow.configuration import AirflowConfigException, conf
 from airflow.lineage.backend.atlas import AtlasBackend
 from airflow.lineage.datasets import File
 from airflow.models import DAG, TaskInstance as TI

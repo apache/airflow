@@ -27,7 +27,6 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-
 log = LoggingMixin().log
 
 

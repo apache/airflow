@@ -20,19 +20,19 @@
 """
 This module contains a Google Cloud Storage hook.
 """
+import gzip as gz
 import os
+import shutil
+import warnings
+from io import BytesIO
 from os import path
 from typing import Optional, Set, Tuple, Union
-import gzip as gz
-import shutil
-from io import BytesIO
-import warnings
-
 from urllib.parse import urlparse
+
 from google.cloud import storage
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.version import version
 
 

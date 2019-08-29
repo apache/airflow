@@ -17,19 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
-from airflow.typing import Protocol
 import sys
-
 from math import pow
 from random import randint
 from time import sleep
-
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from typing import Optional
 
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.typing import Protocol
+from airflow.utils.decorators import apply_defaults
 
 
 class BatchProtocol(Protocol):

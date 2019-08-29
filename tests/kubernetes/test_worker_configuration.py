@@ -19,8 +19,10 @@
 import unittest
 import uuid
 from datetime import datetime
+
 from tests.compat import mock
 from tests.test_utils.config import conf_vars
+
 try:
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.executors.kubernetes_executor import KubeConfig

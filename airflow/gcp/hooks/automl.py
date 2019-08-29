@@ -20,24 +20,14 @@
 """
 This module contains a Google AutoML hook.
 """
-from typing import Dict, Sequence, Tuple, Union, List, Optional
-from cached_property import cached_property
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from cached_property import cached_property
 from google.api_core.retry import Retry
-from google.cloud.automl_v1beta1 import PredictionServiceClient, AutoMlClient
+from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 from google.cloud.automl_v1beta1.types import (
-    BatchPredictInputConfig,
-    BatchPredictOutputConfig,
-    Model,
-    ExamplePayload,
-    Dataset,
-    FieldMask,
-    ImageObjectDetectionModelDeploymentMetadata,
-    PredictResponse,
-    ColumnSpec,
-    Operation,
-    TableSpec,
-    InputConfig,
+    BatchPredictInputConfig, BatchPredictOutputConfig, ColumnSpec, Dataset, ExamplePayload, FieldMask,
+    ImageObjectDetectionModelDeploymentMetadata, InputConfig, Model, Operation, PredictResponse, TableSpec,
 )
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook

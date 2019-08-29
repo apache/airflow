@@ -19,18 +19,17 @@
 """
 Tests for Google Cloud Build Hook
 """
-from typing import Optional
 import unittest
+from typing import Optional
 from unittest import mock
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_build import CloudBuildHook
 from tests.compat import PropertyMock
 from tests.gcp.utils.base_gcp_mock import (
-    mock_base_gcp_hook_default_project_id,
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
-    GCP_PROJECT_ID_HOOK_UNIT_TEST)
-
+)
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},

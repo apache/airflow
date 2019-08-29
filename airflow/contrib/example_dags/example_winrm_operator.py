@@ -37,7 +37,6 @@ from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
-
 default_args = {
     'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)

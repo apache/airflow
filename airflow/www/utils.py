@@ -19,22 +19,22 @@
 
 import functools
 import inspect
-import json
-import time
-import markdown
-import re
-from typing import Any, Optional
-import zipfile
-import os
 import io
+import json
+import os
+import re
+import time
+import zipfile
+from typing import Any, Optional
+from urllib.parse import urlencode
 
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+import markdown
+import sqlalchemy as sqla
+from flask import Markup, Response, request, url_for
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.models.sqla.interface import SQLAInterface
-import flask_appbuilder.models.sqla.filters as fab_sqlafilters
-import sqlalchemy as sqla
-from urllib.parse import urlencode
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator

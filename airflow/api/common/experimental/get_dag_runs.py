@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG runs APIs."""
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from flask import url_for
 

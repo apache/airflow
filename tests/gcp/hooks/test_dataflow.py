@@ -23,12 +23,7 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.gcp.hooks.dataflow import (
-    DataFlowHook,
-    _Dataflow,
-    _DataflowJob,
-    DataflowJobStatus
-)
+from airflow.gcp.hooks.dataflow import DataFlowHook, DataflowJobStatus, _Dataflow, _DataflowJob
 from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'

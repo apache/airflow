@@ -28,8 +28,8 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.utils.decorators import apply_defaults
 from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):

@@ -23,19 +23,18 @@ implementation for BigQuery.
 """
 
 import time
-from copy import deepcopy
-from typing import Any, NoReturn, Mapping, Union, Iterable, Dict, List, Optional, Tuple, Type
 import warnings
+from copy import deepcopy
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas import DataFrame
-from pandas_gbq.gbq import \
-    _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import \
-    _test_google_api_imports as gbq_test_google_api_imports
-from pandas_gbq.gbq import GbqConnector
+from pandas_gbq.gbq import (
+    GbqConnector, _check_google_client_version as gbq_check_google_client_version,
+    _test_google_api_imports as gbq_test_google_api_imports,
+)
 
 from airflow import AirflowException
 from airflow.gcp.hooks.base import GoogleCloudBaseHook

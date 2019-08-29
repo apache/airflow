@@ -21,10 +21,11 @@ import unittest
 
 from airflow import AirflowException
 from airflow.gcp.hooks.functions import GcfHook
-
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock
-from tests.compat import mock, PropertyMock
+from tests.compat import PropertyMock, mock
+from tests.gcp.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock, mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 GCF_LOCATION = 'location'
 GCF_FUNCTION = 'function'

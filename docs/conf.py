@@ -281,7 +281,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
-import sphinx_rtd_theme  # pylint: disable=wrong-import-position,wrong-import-order
+import sphinx_rtd_theme  # isort:skip pylint: disable=wrong-import-position,wrong-import-order
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 

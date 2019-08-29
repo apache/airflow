@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default authentication backend - everything is allowed"""
-from typing import Optional
 from functools import wraps
+from typing import Optional
+
 from airflow.typing import Protocol
 
 

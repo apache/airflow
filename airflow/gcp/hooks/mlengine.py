@@ -21,10 +21,10 @@ This module contains a Google ML Engine Hook.
 
 import random
 import time
-from typing import Dict, Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
-from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin

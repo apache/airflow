@@ -15,13 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import unittest
 from unittest import mock
-from urllib.parse import urlparse, parse_qsl
+from urllib.parse import parse_qsl, urlparse
 
-import json
 import requests
-
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import build_from_document
 from googleapiclient.errors import HttpError

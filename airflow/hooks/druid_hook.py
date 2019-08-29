@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import requests
 import time
 
+import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException

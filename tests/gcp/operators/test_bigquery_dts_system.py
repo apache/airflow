@@ -19,21 +19,12 @@
 
 import unittest
 
-from tests.gcp.operators.test_bigquery_dts_system_helper import (
-    GcpBigqueryDtsTestHelper,
-)
-from tests.gcp.utils.base_gcp_system_test_case import (
-    SKIP_TEST_WARNING,
-    TestDagGcpSystem,
-)
-from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-
 from airflow.gcp.example_dags.example_bigquery_dts import (
-    GCP_PROJECT_ID,
-    GCP_DTS_BQ_DATASET,
-    GCP_DTS_BQ_TABLE,
-    BUCKET_URI
+    BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
+from tests.gcp.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_BIGQUERY_KEY), SKIP_TEST_WARNING)

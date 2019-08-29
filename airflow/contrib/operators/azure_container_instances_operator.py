@@ -17,27 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
-from typing import Sequence, Dict
-from time import sleep
 import re
+from collections import namedtuple
+from time import sleep
+from typing import Dict, Sequence
+
+from azure.mgmt.containerinstance.models import (
+    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
+)
+from msrestazure.azure_exceptions import CloudError
 
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.contrib.hooks.azure_container_registry_hook import AzureContainerRegistryHook
 from airflow.contrib.hooks.azure_container_volume_hook import AzureContainerVolumeHook
-
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from azure.mgmt.containerinstance.models import (EnvironmentVariable,
-                                                 VolumeMount,
-                                                 ResourceRequests,
-                                                 ResourceRequirements,
-                                                 Container,
-                                                 ContainerGroup)
-from msrestazure.azure_exceptions import CloudError
-
 
 Volume = namedtuple(
     'Volume',

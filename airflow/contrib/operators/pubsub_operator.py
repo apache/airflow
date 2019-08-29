@@ -22,11 +22,8 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.pubsub import (  # noqa
-    PubSubPublishOperator,
-    PubSubSubscriptionCreateOperator,
-    PubSubSubscriptionDeleteOperator,
-    PubSubTopicCreateOperator,
-    PubSubTopicDeleteOperator,
+    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
+    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
 
 warnings.warn(

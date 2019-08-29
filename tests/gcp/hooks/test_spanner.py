@@ -21,9 +21,11 @@ import unittest
 
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import CloudSpannerHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id
-from tests.compat import mock, PropertyMock
+from tests.compat import PropertyMock, mock
+from tests.gcp.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 SPANNER_INSTANCE = 'instance'
 SPANNER_CONFIGURATION = 'configuration'

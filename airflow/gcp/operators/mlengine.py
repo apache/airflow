@@ -21,8 +21,8 @@ This module contains GCP MLEngine operators.
 import re
 from typing import List, Optional
 
-from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.log.logging_mixin import LoggingMixin

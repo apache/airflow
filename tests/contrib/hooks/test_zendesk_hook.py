@@ -19,11 +19,11 @@
 #
 
 import unittest
-
 from unittest import mock
 
-from airflow.hooks.zendesk_hook import ZendeskHook
 from zdesk import RateLimitError
+
+from airflow.hooks.zendesk_hook import ZendeskHook
 
 
 class TestZendeskHook(unittest.TestCase):

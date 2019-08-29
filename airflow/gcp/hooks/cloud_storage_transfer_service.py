@@ -25,7 +25,7 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Dict, List, Union, Set, Optional
+from typing import Dict, List, Optional, Set, Union
 
 from googleapiclient.discovery import build
 

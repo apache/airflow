@@ -16,14 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional  # noqa: W0611
 import json
 import os
 import subprocess
+from typing import Optional  # noqa: W0611
 
-from airflow import settings, AirflowException
+from airflow import AirflowException, settings
 from airflow.models import Connection
-
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 # Please keep these variables in alphabetical order.

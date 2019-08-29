@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
-import unittest
-import shutil
 import os
+import shutil
+import unittest
+from unittest import mock
+
 import pysftp
 
 from airflow.contrib.hooks.sftp_hook import SFTPHook

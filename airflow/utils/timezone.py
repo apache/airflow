@@ -18,10 +18,10 @@
 # under the License.
 #
 import datetime as dt
+
 import pendulum
 
 from airflow.settings import TIMEZONE
-
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.timezone('UTC')

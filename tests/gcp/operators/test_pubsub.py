@@ -20,9 +20,9 @@
 import unittest
 
 from airflow.gcp.operators.pubsub import (
+    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
-    PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
-    PubSubPublishOperator)
+)
 from tests.compat import mock
 
 TASK_ID = 'test-task-id'

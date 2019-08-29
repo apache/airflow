@@ -19,12 +19,9 @@
 
 import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import (
-    SKIP_TEST_WARNING,
-    TestDagGcpSystem,
-)
-from tests.gcp.utils.gcp_authenticator import GCP_DATASTORE_KEY
 from tests.gcp.operators.test_datastore_system_helper import GcpDatastoreSystemTestHelper
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_DATASTORE_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATASTORE_KEY), SKIP_TEST_WARNING)

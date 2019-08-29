@@ -19,7 +19,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 

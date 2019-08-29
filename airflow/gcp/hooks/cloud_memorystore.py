@@ -19,13 +19,13 @@
 """
 Hooks for Cloud Memorystore service
 """
-from typing import Dict, Sequence, Tuple, Union, Optional
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
+from google.cloud.redis_v1 import CloudRedisClient
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
-from google.cloud.redis_v1 import CloudRedisClient
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version

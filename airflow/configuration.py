@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode
-from collections import OrderedDict
 import copy
 import os
 import pathlib
@@ -26,8 +24,10 @@ import shlex
 import subprocess
 import sys
 import warnings
+from base64 import b64encode
+from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
-from configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError  # type: ignore
+from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 
 from zope.deprecation import deprecated
 

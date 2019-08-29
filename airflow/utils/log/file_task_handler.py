@@ -23,8 +23,7 @@ from typing import Optional
 
 import requests
 
-from airflow.configuration import conf
-from airflow.configuration import AirflowConfigException
+from airflow.configuration import AirflowConfigException, conf
 from airflow.models import TaskInstance
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string

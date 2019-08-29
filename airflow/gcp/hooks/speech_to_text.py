@@ -19,11 +19,11 @@
 """
 This module contains a Google Cloud Speech Hook.
 """
-from typing import Union, Dict, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
-from google.cloud.speech_v1.types import RecognitionConfig, RecognitionAudio
+from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 

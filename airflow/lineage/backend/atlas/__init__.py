@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from atlasclient.client import Atlas
+from atlasclient.exceptions import HttpError
+
 from airflow.configuration import conf
 from airflow.lineage import datasets
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.backend.atlas.typedefs import operator_typedef
 from airflow.utils.timezone import convert_to_utc
-
-from atlasclient.client import Atlas
-from atlasclient.exceptions import HttpError
 
 SERIALIZED_DATE_FORMAT_STR = "%Y-%m-%dT%H:%M:%S.%fZ"
 

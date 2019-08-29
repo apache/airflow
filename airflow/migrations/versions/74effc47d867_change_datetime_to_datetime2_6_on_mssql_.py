@@ -25,6 +25,7 @@ Create Date: 2019-08-01 15:19:57.585620
 """
 
 from collections import defaultdict
+
 from alembic import op
 from sqlalchemy.dialects import mssql
 

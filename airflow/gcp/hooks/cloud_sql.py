@@ -25,28 +25,26 @@ import errno
 import json
 import os
 import os.path
+import platform
 import random
 import re
 import shutil
+import socket
 import string
 import subprocess
-from subprocess import Popen, PIPE
-from typing import Dict, Union, Optional, Any, List
-from urllib.parse import quote_plus
-
-import socket
-import platform
 import time
 import uuid
-import requests
+from subprocess import PIPE, Popen
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import quote_plus
 
-from googleapiclient.errors import HttpError
+import requests
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException, LoggingMixin
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
-
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook

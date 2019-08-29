@@ -19,21 +19,14 @@
 """
 This module contains a Google Cloud Natural Language Hook.
 """
-from typing import Sequence, Tuple, Union, Dict, Optional
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import LanguageServiceClient
-
+from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
-    Document,
-    AnalyzeEntitiesResponse,
-    ClassifyTextResponse,
-    AnalyzeSyntaxResponse,
-    AnnotateTextResponse,
-    AnalyzeSentimentResponse,
-    AnalyzeEntitySentimentResponse
+    AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, AnalyzeSyntaxResponse,
+    AnnotateTextResponse, ClassifyTextResponse, Document,
 )
-from google.cloud.language_v1 import enums
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 

@@ -20,12 +20,12 @@
 import json
 from typing import Any
 
-from sqlalchemy import Column, Integer, String, Text, Boolean
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow.models.base import Base, ID_LEN
-from airflow.models.crypto import get_fernet, InvalidFernetToken
+from airflow.models.base import ID_LEN, Base
+from airflow.models.crypto import InvalidFernetToken, get_fernet
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 

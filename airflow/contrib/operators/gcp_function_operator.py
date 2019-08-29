@@ -21,10 +21,8 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.functions import (  # noqa
-    GcfFunctionDeleteOperator,
-    GcfFunctionDeployOperator,
-    ZipPathPreprocessor
+from airflow.gcp.operators.functions import (  # # noqa
+    GcfFunctionDeleteOperator, GcfFunctionDeployOperator, ZipPathPreprocessor,
 )
 
 warnings.warn(

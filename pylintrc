@@ -168,7 +168,8 @@ disable=print-statement,
         arguments-differ,  # Doesn't always raise valid messages
         import-error,  # Requires installing Airflow environment in CI task which takes long, therefore ignored. Tests should fail anyways if deps are missing. Possibly un-ignore in the future if we ever use pre-built Docker images for CI.
         fixme,  # There should be a good reason for adding a TODO
-        pointless-statement  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        pointless-statement,  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        ungrouped-imports  # Disabled to avoid conflict with flake8-isort import order rules, which is enabled in the project.
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

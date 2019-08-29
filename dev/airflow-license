@@ -19,8 +19,9 @@
 
 import os
 import re
-import slugify
 import string
+
+import slugify
 
 # order is important
 _licenses = {'MIT': ['Permission is hereby granted free of charge', 'The above copyright notice and this permission notice shall'],

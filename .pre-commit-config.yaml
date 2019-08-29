@@ -210,9 +210,19 @@ repos:
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
+      - id: isort
+        name: Run isort to sort imports
+        language: python
+        entry: isort
+        files: \.py$
+        # To keep consistent with the global isort skip config defined in setup.cfg
+        exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
+        additional_dependencies: ['isort']
       - id: flake8
         name: Run flake8
         language: system
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+        args:
+          - --isort-show-traceback

@@ -19,16 +19,16 @@
 """
 This module contains Google Cloud SQL operators.
 """
-from typing import Union, List, Optional, Iterable, Dict
+from typing import Dict, Iterable, List, Optional, Union
 
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_sql import CloudSqlHook, CloudSqlDatabaseHook
+from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.base_hook import BaseHook
 
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'

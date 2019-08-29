@@ -21,9 +21,9 @@ This module contains a Google Cloud Spanner Hook.
 """
 from typing import Callable, List, Optional
 
-from google.api_core.exceptions import GoogleAPICallError, AlreadyExists
-from google.cloud.spanner_v1.database import Database
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
+from google.cloud.spanner_v1.database import Database
 from google.cloud.spanner_v1.instance import Instance
 from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401

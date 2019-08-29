@@ -17,10 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from functools import wraps
-
-import os
 import contextlib
+import os
+from functools import wraps
 
 from airflow import settings
 from airflow.configuration import conf

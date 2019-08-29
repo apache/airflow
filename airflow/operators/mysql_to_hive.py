@@ -18,11 +18,11 @@
 # under the License.
 
 from collections import OrderedDict
+from tempfile import NamedTemporaryFile
 from typing import Dict, Optional
 
-import unicodecsv as csv
-from tempfile import NamedTemporaryFile
 import MySQLdb
+import unicodecsv as csv
 
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.hooks.mysql_hook import MySqlHook

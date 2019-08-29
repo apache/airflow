@@ -20,17 +20,15 @@
 """
 This module contains a BigQuery Hook.
 """
-from typing import Union, Sequence, Tuple, Optional
 from copy import copy
+from typing import Optional, Sequence, Tuple, Union
 
-from google.protobuf.json_format import MessageToDict, ParseDict
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
-    TransferConfig,
-    StartManualTransferRunsResponse,
-    TransferRun,
+    StartManualTransferRunsResponse, TransferConfig, TransferRun,
 )
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 

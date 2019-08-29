@@ -19,18 +19,17 @@
 """
 This module contains a Google Cloud Storage Bucket operator.
 """
+import subprocess
 import sys
 import warnings
-import subprocess
-from typing import Dict, Optional, Iterable, Union, List
 from tempfile import NamedTemporaryFile
+from typing import Dict, Iterable, List, Optional, Union
 
-
+from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.models.xcom import MAX_XCOM_SIZE
-from airflow import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleCloudStorageCreateBucketOperator(BaseOperator):

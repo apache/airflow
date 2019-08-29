@@ -26,21 +26,21 @@ import sys
 import traceback
 import warnings
 from collections import OrderedDict, defaultdict
-from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable, List, TYPE_CHECKING
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
+from sqlalchemy import Boolean, Column, Integer, String, Text, func, or_
 
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, AirflowDagCycleException
+from airflow.exceptions import AirflowDagCycleException, AirflowException
 from airflow.executors import LocalExecutor, get_default_executor
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -50,7 +50,7 @@ from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import UtcDateTime, Interval
+from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 
 if TYPE_CHECKING:

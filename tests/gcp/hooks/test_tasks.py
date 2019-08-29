@@ -18,14 +18,13 @@
 # under the License.
 #
 import unittest
-from typing import Dict, Any
+from typing import Any, Dict
 
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
-
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 PROJECT_ID = "test-project"

@@ -21,8 +21,8 @@
 """
 This module contains AWS Athena hook
 """
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
 
 
 class AwsDynamoDBHook(AwsHook):

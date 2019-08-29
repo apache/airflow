@@ -22,11 +22,11 @@ This module contains various GCP Cloud Tasks operators
 which allow you to perform basic operations using
 Cloud Tasks queues/tasks.
 """
-from typing import Tuple, Sequence, Union, Dict, Optional
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.tasks_v2.types import Queue, FieldMask, Task
 from google.cloud.tasks_v2 import enums
+from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
 from airflow.models import BaseOperator

@@ -23,16 +23,15 @@ import boto3
 from moto import mock_s3
 
 from airflow import models
+from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
+from airflow.hooks.S3_hook import S3Hook
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.hooks.S3_hook import S3Hook
 from tests.test_utils.config import conf_vars
-
 
 BUCKET = 'test-bucket'
 S3_KEY = 'test/test_1_file.csv'

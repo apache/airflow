@@ -19,13 +19,14 @@
 """
 This module contains a Google Cloud Text to Speech Hook.
 """
-from typing import Union, Dict, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1 import TextToSpeechClient
 from google.cloud.texttospeech_v1.types import (
-    AudioConfig, SynthesisInput, VoiceSelectionParams, SynthesizeSpeechResponse
+    AudioConfig, SynthesisInput, SynthesizeSpeechResponse, VoiceSelectionParams,
 )
+
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 

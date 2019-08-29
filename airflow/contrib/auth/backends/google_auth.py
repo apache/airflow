@@ -17,13 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import flask_login
-
+from flask import redirect, request, url_for
 # Need to expose these downstream
 # flake8: noqa: F401
-from flask_login import current_user, logout_user, login_required, login_user
-
-from flask import url_for, redirect, request
-
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_oauthlib.client import OAuth
 
 from airflow import models

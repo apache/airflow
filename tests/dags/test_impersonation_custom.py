@@ -19,8 +19,6 @@
 
 from datetime import datetime
 
-from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
 # AIRFLOW-1893 - Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
 # variable. This file includes a DAG that imports a custom package made available and if
@@ -29,6 +27,9 @@ from airflow.operators.python_operator import PythonOperator
 # This DAG is used to test that impersonation propagates the PYTHONPATH environment
 # variable correctly.
 from fake_datetime import FakeDatetime
+
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

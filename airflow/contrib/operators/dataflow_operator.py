@@ -22,9 +22,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.dataflow import (  # noqa
-    DataFlowJavaOperator,
-    DataFlowPythonOperator,
-    DataflowTemplateOperator
+    DataFlowJavaOperator, DataFlowPythonOperator, DataflowTemplateOperator,
 )
 
 warnings.warn(

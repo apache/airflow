@@ -20,16 +20,16 @@
 import unittest
 
 import google
-
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
-from tests.compat import mock, PropertyMock
-
 from airflow import AirflowException
 from airflow.gcp.hooks.bigtable import BigtableHook
+from tests.compat import PropertyMock, mock
+from tests.gcp.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 CBT_INSTANCE = 'instance'
 CBT_CLUSTER = 'cluster'

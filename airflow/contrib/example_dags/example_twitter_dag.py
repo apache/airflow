@@ -37,7 +37,6 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.hive_operator import HiveOperator
 from airflow.operators.python_operator import PythonOperator
 
-
 # --------------------------------------------------------------------------------
 # Create a few placeholder scripts. In practice these would be different python
 # script files, which are imported in this section with absolute or relative imports

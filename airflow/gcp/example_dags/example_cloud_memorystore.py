@@ -22,25 +22,20 @@ Example Airflow DAG for Google Cloud Memorystore service.
 import os
 from urllib.parse import urlparse
 
-from google.cloud.redis_v1.gapic.enums import Instance, FailoverInstanceRequest
+from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 
 from airflow import models
-from airflow.gcp.operators.gcs import GoogleCloudStorageBucketCreateAclEntryOperator
 from airflow.gcp.operators.cloud_memorystore import (
-    CloudMemorystoreCreateInstanceOperator,
-    CloudMemorystoreDeleteInstanceOperator,
-    CloudMemorystoreExportInstanceOperator,
-    CloudMemorystoreFailoverInstanceOperator,
-    CloudMemorystoreGetInstanceOperator,
-    CloudMemorystoreImportOperator,
-    CloudMemorystoreListInstancesOperator,
+    CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,
+    CloudMemorystoreDeleteInstanceOperator, CloudMemorystoreExportAndDeleteInstanceOperator,
+    CloudMemorystoreExportInstanceOperator, CloudMemorystoreFailoverInstanceOperator,
+    CloudMemorystoreGetInstanceOperator, CloudMemorystoreImportOperator,
+    CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
-    CloudMemorystoreCreateInstanceAndImportOperator,
-    CloudMemorystoreScaleInstanceOperator,
-    CloudMemorystoreExportAndDeleteInstanceOperator)
+)
+from airflow.gcp.operators.gcs import GoogleCloudStorageBucketCreateAclEntryOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import dates
-
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 

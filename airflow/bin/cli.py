@@ -17,57 +17,49 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import errno
-import importlib
-import logging
-
-import os
-import subprocess
-import textwrap
-import random
-import string
-from importlib import import_module
-import functools
-
-import getpass
-import reprlib
 import argparse
-from argparse import RawTextHelpFormatter
-
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.timezone import parse as parsedate
+import errno
+import functools
+import getpass
+import importlib
 import json
-from tabulate import tabulate
+import logging
+import os
+import random
+import re
+import reprlib
+import signal
+import string
+import subprocess
+import sys
+import textwrap
+import threading
+import time
+import traceback
+from argparse import RawTextHelpFormatter
+from importlib import import_module
+from typing import Any
+from urllib.parse import urlunparse
 
 import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-import signal
-import sys
-import threading
-import traceback
-import time
 import psutil
-import re
-from urllib.parse import urlunparse
-from typing import Any
+from daemon.pidfile import TimeoutPIDLockFile
+from sqlalchemy.orm import exc
+from tabulate import tabulate
 
 import airflow
-from airflow import api
-from airflow import jobs, settings
+from airflow import api, jobs, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import (
-    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
-)
-from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
+from airflow.models import DAG, Connection, DagBag, DagModel, DagPickle, DagRun, TaskInstance, Variable
+from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.dot_renderer import render_dag
+from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
 from airflow.utils.net import get_hostname
-from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
-                                             redirect_stdout)
-from airflow.www.app import cached_app, create_app, cached_appbuilder
-
-from sqlalchemy.orm import exc
+from airflow.utils.timezone import parse as parsedate
+from airflow.www.app import cached_app, cached_appbuilder, create_app
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any

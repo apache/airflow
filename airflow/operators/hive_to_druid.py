@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -21,28 +21,25 @@
 This module contains a Google Cloud API base hook.
 """
 
-import json
 import functools
+import json
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Any, Optional, Dict, Callable, TypeVar, Sequence
-
-import httplib2
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
 
 import google.auth
 import google.oauth2.service_account
-from google.api_core.gapic_v1.client_info import ClientInfo
-from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
-from google.auth.environment_vars import CREDENTIALS
-
 import google_auth_httplib2
+import httplib2
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, RetryError
+from google.api_core.gapic_v1.client_info import ClientInfo
+from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
 

@@ -25,11 +25,12 @@ functions in CloudDLPHook
 
 import unittest
 from typing import Any, Dict
+
 from google.cloud.dlp_v2.types import DlpJob
 
 from airflow import AirflowException
 from airflow.gcp.hooks.dlp import CloudDLPHook
-from tests.compat import mock, PropertyMock
+from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]

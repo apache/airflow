@@ -25,10 +25,9 @@ from sqlalchemy import or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {
     'Admin',

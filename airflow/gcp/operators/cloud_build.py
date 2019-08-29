@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrat with Google Cloud Build service."""
-from copy import deepcopy
 import re
-from typing import Dict, Iterable, Any, Optional
-from urllib.parse import urlparse, unquote
+from copy import deepcopy
+from typing import Any, Dict, Iterable, Optional
+from urllib.parse import unquote, urlparse
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_build import CloudBuildHook

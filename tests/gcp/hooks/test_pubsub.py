@@ -24,8 +24,8 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow.version import version
 from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook
+from airflow.version import version
 from tests.compat import mock
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'

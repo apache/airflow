@@ -19,9 +19,10 @@
 """
 This module contains a Google Cloud Translate Hook.
 """
-from typing import Union, List, Dict, Optional
+from typing import Dict, List, Optional, Union
 
 from google.cloud.translate_v2 import Client
+
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators for Google Cloud Memorystore service"""
-from typing import Dict, Sequence, Tuple, Union, Optional
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest

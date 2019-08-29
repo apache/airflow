@@ -22,15 +22,15 @@ import logging.config
 import os
 import unittest
 
-from airflow.models import TaskInstance, DAG, DagRun
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.utils.timezone import datetime
-from airflow.utils.log.logging_mixin import set_context
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.db import create_session
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'

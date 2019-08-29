@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import patch
 
 import requests
-from unittest.mock import patch
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout

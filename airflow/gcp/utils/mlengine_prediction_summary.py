@@ -86,9 +86,9 @@ import argparse
 import base64
 import json
 import os
-import dill
 
 import apache_beam as beam
+import dill  # pylint: disable=wrong-import-order
 
 
 class JsonCoder:

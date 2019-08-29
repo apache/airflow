@@ -20,10 +20,10 @@
 This module contains Google PubSub operators.
 """
 import warnings
-from typing import List, Optional, Sequence, Tuple, Dict, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.pubsub_v1.types import Duration, PushConfig, MessageStoragePolicy
+from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
 
 from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.models import BaseOperator

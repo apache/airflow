@@ -18,27 +18,26 @@
 # under the License.
 import contextlib
 import io
+import os
+import subprocess
 import sys
 import unittest
-from unittest.mock import patch, Mock, MagicMock
-
-from datetime import datetime, timedelta, time
+from argparse import Namespace
+from datetime import datetime, time, timedelta
 from time import sleep
+from unittest.mock import MagicMock, Mock, patch
+
 import psutil
 import pytz
-import subprocess
-from argparse import Namespace
-from airflow import settings
+
 import airflow.bin.cli as cli
-from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow import models, settings
+from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
 from airflow.models import TaskInstance
+from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.settings import Session
-from airflow import models
 from tests.compat import mock
-
-import os
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 

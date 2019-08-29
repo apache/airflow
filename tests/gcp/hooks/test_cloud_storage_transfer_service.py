@@ -25,26 +25,15 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    GCPTransferServiceHook,
-    TIME_TO_SLEEP_IN_SECONDS,
-    GcpTransferOperationStatus,
-    GcpTransferJobsStatus,
-    PROJECT_ID,
-    STATUS,
-    DESCRIPTION,
-    FILTER_PROJECT_ID,
-    FILTER_JOB_NAMES,
-    TRANSFER_JOBS,
-    OPERATIONS,
-    METADATA,
-    TRANSFER_JOB,
-    TRANSFER_JOB_FIELD_MASK,
+    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
+    TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS, GcpTransferJobsStatus,
+    GcpTransferOperationStatus, GCPTransferServiceHook,
 )
+from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
-    mock_base_gcp_hook_default_project_id,
-    GCP_PROJECT_ID_HOOK_UNIT_TEST)
-from tests.compat import mock, PropertyMock
+)
 
 NAME = "name"
 

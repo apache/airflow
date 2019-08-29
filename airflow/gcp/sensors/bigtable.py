@@ -21,12 +21,12 @@ This module contains Google Cloud Bigtable sensor.
 """
 
 import google.api_core.exceptions
-from google.cloud.bigtable_admin_v2 import enums
 from google.cloud.bigtable.table import ClusterState
+from google.cloud.bigtable_admin_v2 import enums
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.gcp.hooks.bigtable import BigtableHook
 from airflow.gcp.operators.bigtable import BigtableValidationMixin
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

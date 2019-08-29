@@ -25,10 +25,8 @@ templated.
 from datetime import timedelta
 
 import airflow
-
 from airflow.models import DAG
 from airflow.operators.papermill_operator import PapermillOperator
-
 
 default_args = {
     'owner': 'Airflow',

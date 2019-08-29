@@ -18,24 +18,17 @@
 # under the License.
 
 import unittest
-from unittest.mock import MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock
 
 from airflow import models
-from airflow.gcp.operators.bigquery import (
-    BigQueryCreateExternalTableOperator,
-    BigQueryCreateEmptyTableOperator,
-    BigQueryDeleteDatasetOperator,
-    BigQueryCreateEmptyDatasetOperator,
-    BigQueryOperator,
-    BigQueryConsoleLink,
-    BigQueryGetDatasetOperator,
-    BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
-    BigQueryTableDeleteOperator,
-    BigQueryGetDataOperator,
-    BigQueryGetDatasetTablesOperator)
 from airflow.exceptions import AirflowException
+from airflow.gcp.operators.bigquery import (
+    BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator, BigQueryGetDataOperator,
+    BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryOperator,
+    BigQueryPatchDatasetOperator, BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
+)
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.settings import Session
 from airflow.utils.db import provide_session

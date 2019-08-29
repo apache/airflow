@@ -17,25 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import unittest
 import copy
+import unittest
 
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.gcp.operators.automl import (
-    AutoMLTrainModelOperator,
-    AutoMLPredictOperator,
-    AutoMLBatchPredictOperator,
-    AutoMLCreateDatasetOperator,
-    AutoMLImportDataOperator,
-    AutoMLGetModelOperator,
-    AutoMLTablesListColumnSpecsOperator,
-    AutoMLDeployModelOperator,
-    AutoMLTablesUpdateDatasetOperator,
-    AutoMLTablesListTableSpecsOperator,
-    AutoMLListDatasetOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
+    AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
+    AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
+    AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
 )
 from tests.compat import mock
 

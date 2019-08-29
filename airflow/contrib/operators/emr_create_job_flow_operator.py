@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.contrib.hooks.emr_hook import EmrHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
 
 
 class EmrCreateJobFlowOperator(BaseOperator):

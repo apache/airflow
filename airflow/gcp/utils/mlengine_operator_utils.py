@@ -28,10 +28,10 @@ from urllib.parse import urlsplit
 
 import dill
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
-from airflow.gcp.operators.dataflow import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.operators.dataflow import DataFlowPythonOperator
+from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
 from airflow.operators.python_operator import PythonOperator
 
 

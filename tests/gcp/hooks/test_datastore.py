@@ -25,7 +25,6 @@ from airflow import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
 from tests.compat import mock
 
-
 GCP_PROJECT_ID = "test"
 
 

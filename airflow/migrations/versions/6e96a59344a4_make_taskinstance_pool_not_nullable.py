@@ -24,9 +24,9 @@ Create Date: 2019-06-13 21:51:32.878437
 
 """
 
-from alembic import op
 import dill
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import Column, Float, Integer, PickleType, String
 from sqlalchemy.ext.declarative import declarative_base
 

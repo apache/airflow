@@ -19,8 +19,7 @@
 
 import unittest
 
-from airflow.operators.adls_to_gcs import \
-    AdlsToGoogleCloudStorageOperator
+from airflow.operators.adls_to_gcs import AdlsToGoogleCloudStorageOperator
 from tests.compat import mock
 
 TASK_ID = 'test-adls-gcs-operator'

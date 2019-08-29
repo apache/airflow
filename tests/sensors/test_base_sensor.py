@@ -18,11 +18,14 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
+from time import sleep
 from unittest.mock import Mock
 
+from freezegun import freeze_time
+
 from airflow import DAG, settings
-from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
-                                AirflowRescheduleException)
+from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -30,9 +33,6 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from datetime import timedelta
-from time import sleep
-from freezegun import freeze_time
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'

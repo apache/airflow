@@ -17,19 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
-import elasticsearch
 import logging
 import sys
+
+# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
+import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
+from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.configuration import conf
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):

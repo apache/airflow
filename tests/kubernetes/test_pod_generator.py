@@ -17,12 +17,14 @@
 
 import unittest
 import unittest.mock as mock
+
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
-from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.pod_generator import PodGenerator, PodDefaults
-from airflow.kubernetes.pod import Resources
+
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes.pod import Resources
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.secret import Secret
 
 
 class TestPodGenerator(unittest.TestCase):

@@ -19,7 +19,7 @@
 """
 This module contains a Google BigQuery Data Transfer Service sensor.
 """
-from typing import Sequence, Tuple, Union, Set, Optional
+from typing import Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict

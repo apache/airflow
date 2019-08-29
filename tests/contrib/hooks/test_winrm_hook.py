@@ -19,7 +19,6 @@
 #
 
 import unittest
-
 from unittest.mock import patch
 
 from airflow import AirflowException

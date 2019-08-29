@@ -26,8 +26,8 @@ import os
 
 import sendgrid
 from sendgrid.helpers.mail import (
-    Attachment, Content, Email, Mail, Personalization, CustomArg, Category,
-    MailSettings, SandBoxMode)
+    Attachment, Category, Content, CustomArg, Email, Mail, MailSettings, Personalization, SandBoxMode,
+)
 
 from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin

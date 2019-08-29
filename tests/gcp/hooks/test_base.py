@@ -22,14 +22,13 @@ import os
 import unittest
 from io import StringIO
 
-from parameterized import parameterized
-
 import google.auth
+from google.api_core.exceptions import AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
-from google.api_core.exceptions import RetryError, AlreadyExists
 from google.cloud.exceptions import MovedPermanently
 from googleapiclient.errors import HttpError
+from parameterized import parameterized
 
 from airflow import AirflowException, LoggingMixin
 from airflow.gcp.hooks import base as hook

@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import gzip
 import functools
-import pendulum
+import gzip
 from io import BytesIO as IO
-from flask import after_this_request, flash, redirect, request, url_for, g
+
+import pendulum
+from flask import after_this_request, flash, g, redirect, request, url_for
+
 from airflow.models import Log
 from airflow.utils.db import create_session
 

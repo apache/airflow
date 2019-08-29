@@ -18,11 +18,10 @@
 # under the License.
 
 import unittest
+
 import mock
 
-from airflow.gcp.sensors.bigquery_dts import (
-    BigQueryDataTransferServiceTransferRunSensor,
-)
+from airflow.gcp.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 
 TRANSFER_CONFIG_ID = "config_id"
 RUN_ID = "run_id"

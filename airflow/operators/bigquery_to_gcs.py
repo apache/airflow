@@ -20,11 +20,11 @@
 This module contains Google BigQuery to Google CLoud Storage operator.
 """
 import warnings
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
+from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.gcp.hooks.bigquery import BigQueryHook
 
 
 class BigQueryToCloudStorageOperator(BaseOperator):

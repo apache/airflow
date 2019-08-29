@@ -19,16 +19,17 @@
 #
 
 import unittest
-from unittest import mock
 from typing import List, Optional
+from unittest import mock
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from airflow.gcp.hooks import bigquery as hook
-from airflow.gcp.hooks.bigquery import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check, \
-    _validate_src_fmt_configs
+from airflow.gcp.hooks.bigquery import (
+    _api_resource_configs_duplication_check, _cleanse_time_partitioning, _validate_src_fmt_configs,
+    _validate_value,
+)
 
 bq_available = True
 

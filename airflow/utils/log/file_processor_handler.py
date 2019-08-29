@@ -19,10 +19,10 @@
 
 import logging
 import os
+from datetime import datetime
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
-from datetime import datetime
 
 
 class FileProcessorHandler(logging.Handler):

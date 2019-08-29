@@ -16,11 +16,13 @@
 # under the License.
 import unittest
 import unittest.mock as mock
-from kubernetes.client import ApiClient
+
 import kubernetes.client.models as k8s
-from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.pod_generator import PodGenerator
+from kubernetes.client import ApiClient
+
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.secret import Secret
 
 
 class TestSecret(unittest.TestCase):

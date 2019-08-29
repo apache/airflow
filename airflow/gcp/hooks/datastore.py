@@ -22,8 +22,8 @@ This module contains Google Datastore hook.
 """
 
 import time
-from typing import Any, List, Dict, Union, Optional
 import warnings
+from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 

@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
 import io
 import json
 import multiprocessing
@@ -35,6 +34,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from tempfile import NamedTemporaryFile
 from time import sleep
+from typing import Optional
 from unittest import mock
 
 import sqlalchemy
@@ -42,24 +42,16 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import configuration, models
-from airflow import jobs, DAG, utils, settings, exceptions
+from airflow import DAG, configuration, exceptions, jobs, models, settings, utils
 from airflow.bin import cli
-from airflow.configuration import AirflowConfigException, run_command, conf
+from airflow.configuration import AirflowConfigException, conf, run_command
 from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
+from airflow.hooks import hdfs_hook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import (
-    BaseOperator,
-    Connection,
-    TaskFail,
-    DagBag,
-    DagRun,
-    Pool,
-    DagModel,
-    TaskInstance,
-    Variable,
+    BaseOperator, Connection, DagBag, DagModel, DagRun, Pool, TaskFail, TaskInstance, Variable,
 )
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -68,13 +60,9 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
 from airflow.utils import timezone
-from airflow.utils.dates import (
-    days_ago, infer_time_unit, round_time,
-    scale_time_units
-)
+from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.hooks import hdfs_hook
 from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'

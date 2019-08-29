@@ -19,14 +19,12 @@
 """
 This module contains Google BigQuery Data Transfer Service operators.
 """
-from typing import Sequence, Tuple, Optional
-from google.protobuf.json_format import MessageToDict
-from google.api_core.retry import Retry
+from typing import Optional, Sequence, Tuple
 
-from airflow.gcp.hooks.bigquery_dts import (
-    BiqQueryDataTransferServiceHook,
-    get_object_id,
-)
+from google.api_core.retry import Retry
+from google.protobuf.json_format import MessageToDict
+
+from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -22,18 +22,13 @@ operators to manage a cluster and submit jobs.
 """
 
 import os
+
 import airflow
 from airflow import models
 from airflow.gcp.operators.dataproc import (
-    DataprocClusterCreateOperator,
-    DataprocClusterDeleteOperator,
-    DataprocClusterScaleOperator,
-    DataProcSparkSqlOperator,
-    DataProcSparkOperator,
-    DataProcPySparkOperator,
-    DataProcPigOperator,
-    DataProcHiveOperator,
-    DataProcHadoopOperator,
+    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
+    DataProcHadoopOperator, DataProcHiveOperator, DataProcPigOperator, DataProcPySparkOperator,
+    DataProcSparkOperator, DataProcSparkSqlOperator,
 )
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")

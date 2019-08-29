@@ -18,12 +18,12 @@
 # under the License.
 
 import json
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.slack_hook import SlackHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.slack_hook import SlackHook
-from airflow.exceptions import AirflowException
 
 
 class SlackAPIOperator(BaseOperator):

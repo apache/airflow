@@ -33,10 +33,8 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
 import airflow
-
 from airflow import DAG
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
-
 
 default_args = {
     'owner': 'Airflow',

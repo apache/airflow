@@ -28,17 +28,12 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2 import DlpServiceClient
-from google.cloud.dlp_v2.types import (ByteContentItem, ContentItem,
-                                       DeidentifyConfig,
-                                       DeidentifyContentResponse,
-                                       DeidentifyTemplate, DlpJob, FieldMask,
-                                       InspectConfig, InspectContentResponse,
-                                       InspectJobConfig, InspectTemplate,
-                                       JobTrigger, ListInfoTypesResponse,
-                                       RedactImageRequest, RedactImageResponse,
-                                       ReidentifyContentResponse,
-                                       RiskAnalysisJobConfig, StoredInfoType,
-                                       StoredInfoTypeConfig)
+from google.cloud.dlp_v2.types import (
+    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyContentResponse, DeidentifyTemplate, DlpJob,
+    FieldMask, InspectConfig, InspectContentResponse, InspectJobConfig, InspectTemplate, JobTrigger,
+    ListInfoTypesResponse, RedactImageRequest, RedactImageResponse, ReidentifyContentResponse,
+    RiskAnalysisJobConfig, StoredInfoType, StoredInfoTypeConfig,
+)
 
 from airflow import AirflowException
 from airflow.gcp.hooks.base import GoogleCloudBaseHook

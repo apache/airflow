@@ -26,7 +26,7 @@ import types
 from inspect import signature
 from itertools import islice
 from textwrap import dedent
-from typing import Optional, Iterable, Dict, Callable, List
+from typing import Callable, Dict, Iterable, List, Optional
 
 import dill
 

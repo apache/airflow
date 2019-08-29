@@ -18,26 +18,25 @@
 # under the License.
 
 import errno
-
-import psutil
-
+import os
+import re
+import signal
+import subprocess
 from datetime import datetime
 from functools import reduce
+
+import psutil
+from jinja2 import Template
+
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Iterable
 except ImportError:
     # Preserve Python < 3.3 compatibility
     from collections import Iterable
-import os
-import re
-import signal
-import subprocess
-
-from jinja2 import Template
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.

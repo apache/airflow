@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
-from tests.compat import PropertyMock, Mock, patch, ANY
+from tests.compat import ANY, Mock, PropertyMock, patch
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"

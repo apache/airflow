@@ -17,18 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import logging
+import unittest
 
 from airflow.exceptions import AirflowException
+from tests.compat import mock
+
 try:
     from airflow.operators.docker_operator import DockerOperator
     from airflow.hooks.docker_hook import DockerHook
     from docker import APIClient
 except ImportError:
     pass
-
-from tests.compat import mock
 
 
 class TestDockerOperator(unittest.TestCase):

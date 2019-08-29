@@ -17,9 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import stat
-import pysftp
 import datetime
+import stat
+
+import pysftp
+
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
 

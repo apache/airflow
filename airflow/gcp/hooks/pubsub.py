@@ -21,19 +21,19 @@ This module contains a Google Pub/Sub Hook.
 """
 import warnings
 from base64 import b64decode
-from typing import List, Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
 from cached_property import cached_property
-from google.api_core.retry import Retry
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import Duration, PushConfig, MessageStoragePolicy
+from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
 from googleapiclient.errors import HttpError
 
-from airflow.version import version
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.version import version
 
 
 class PubSubException(Exception):

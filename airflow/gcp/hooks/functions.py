@@ -20,7 +20,7 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import requests
 from googleapiclient.discovery import build

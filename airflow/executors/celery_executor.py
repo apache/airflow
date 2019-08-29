@@ -24,11 +24,10 @@ import time
 import traceback
 from multiprocessing import Pool, cpu_count
 
-from celery import Celery
-from celery import states as celery_states
+from celery import Celery, states as celery_states
 
-from airflow.configuration import conf
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin

@@ -19,25 +19,23 @@
 """
 Base operator for all operators.
 """
-from abc import ABCMeta, abstractmethod
 import copy
 import functools
 import logging
 import sys
 import warnings
-from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
-
-from dateutil.relativedelta import relativedelta
-
-from cached_property import cached_property
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 
 import jinja2
+from cached_property import cached_property
+from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.lineage import prepare_lineage, apply_lineage, DataSet
+from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.dag import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances

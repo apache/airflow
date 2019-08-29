@@ -23,10 +23,11 @@ from typing import Dict, List, Optional
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.cluster import Cluster
-from google.cloud.bigtable.column_family import GarbageCollectionRule, ColumnFamily
+from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
-from google.cloud.bigtable.table import Table, ClusterState
+from google.cloud.bigtable.table import ClusterState, Table
 from google.cloud.bigtable_admin_v2 import enums
+
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 

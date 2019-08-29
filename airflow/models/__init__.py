@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.base import Base, ID_LEN  # noqa: F401
+from airflow.models.base import ID_LEN, Base  # noqa: F401
 from airflow.models.baseoperator import BaseOperator  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
 from airflow.models.dag import DAG, DagModel  # noqa: F401
@@ -25,13 +25,13 @@ from airflow.models.dagbag import DagBag  # noqa: F401
 from airflow.models.dagpickle import DagPickle  # noqa: F401
 from airflow.models.dagrun import DagRun  # noqa: F401
 from airflow.models.errors import ImportError  # noqa: F401, pylint:disable=redefined-builtin
-from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion  # noqa: F401
+from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
-from airflow.models.taskfail import TaskFail  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
-from airflow.models.taskinstance import clear_task_instances, TaskInstance  # noqa: F401
+from airflow.models.taskfail import TaskFail  # noqa: F401
+from airflow.models.taskinstance import TaskInstance, clear_task_instances  # noqa: F401
 from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
-from airflow.models.xcom import XCom, XCOM_RETURN_KEY  # noqa: F401
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401

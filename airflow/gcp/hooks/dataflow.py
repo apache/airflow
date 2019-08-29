@@ -26,7 +26,7 @@ import select
 import subprocess
 import time
 import uuid
-from typing import Dict, List, Callable, Any, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 

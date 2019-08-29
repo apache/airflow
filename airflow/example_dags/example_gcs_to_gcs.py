@@ -21,6 +21,7 @@ Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer op
 """
 
 import os
+
 import airflow
 from airflow import models
 from airflow.operators.gcs_to_gcs import GoogleCloudStorageSynchronizeBuckets
