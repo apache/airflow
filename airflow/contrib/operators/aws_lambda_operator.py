@@ -18,6 +18,10 @@
 # under the License.
 #
 
+"""
+Execute AWS Lambda functions.
+"""
+
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_lambda_hook import AwsLambdaHook
@@ -28,15 +32,11 @@ class AwsLambdaExecutionError(Exception):
     Raised when there is an error executing the function.
     """
 
-    pass
-
 
 class AwsLambdaPayloadError(Exception):
     """
     Raised when there is an error with the Payload object in the response.
     """
-
-    pass
 
 
 class AwsLambdaInvokeFunctionOperator(BaseOperator):
@@ -87,16 +87,31 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
     ):
         super().__init__(*args, **kwargs)
         self.function_name = function_name
+        self.region_name = region_name
         self.payload = payload
+        self.log_type = log_type
+        self.qualifier = qualifier
         self.check_success_function = check_success_function
-        self.aws_lambda_hook = AwsLambdaHook(
-            function_name, region_name, log_type, qualifier, aws_conn_id=aws_conn_id
+        self.aws_conn_id = aws_conn_id
+
+    def get_hook(self):
+        """
+        Initialises an AWS Lambda hook
+
+        :return: airflow.contrib.hooks.AwsLambdaHook
+        """
+        return AwsLambdaHook(
+            self.function_name,
+            self.region_name,
+            self.log_type,
+            self.qualifier,
+            aws_conn_id=self.aws_conn_id,
         )
 
     def execute(self, context):
-        self.log.info("AWS Lambda: invoking {}".format(self.function_name))
+        self.log.info("AWS Lambda: invoking %s", self.function_name)
 
-        response = self.aws_lambda_hook.invoke_lambda(self.payload)
+        response = self.get_hook().invoke_lambda(self.payload)
 
         try:
             self._validate_lambda_api_response(response)
@@ -105,7 +120,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
             self.log.error(response)
             raise e
 
-        self.log.info("AWS Lambda: {} succeeded!".format(self.function_name))
+        self.log.info("AWS Lambda: %s succeeded!", self.function_name)
 
     def _validate_lambda_api_response(self, response):
         """
@@ -128,4 +143,6 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         :return: None
         """
         if not self.check_success_function(response):
-            raise AwsLambdaPayloadError("AWS Lambda: {} failed!".format(self.function_name))
+            raise AwsLambdaPayloadError(
+                "AWS Lambda: error validating response payload!"
+            )
