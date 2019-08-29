@@ -90,6 +90,8 @@ class Pod:
     :type pod_runtime_info_envs: list[PodRuntimeEnv]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param scheduler_name: Specify a scheduler name for the pod
+    :type scheduler_name: str
     """
     def __init__(
             self,
@@ -118,7 +120,8 @@ class Pod:
             security_context=None,
             configmaps=None,
             pod_runtime_info_envs=None,
-            dnspolicy=None
+            dnspolicy=None,
+            scheduler_name=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -146,3 +149,4 @@ class Pod:
         self.configmaps = configmaps or []
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
+        self.scheduler_name = scheduler_name

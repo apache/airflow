@@ -189,6 +189,21 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_scheduler_name():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            hostnetwork=True,
+            scheduler_name="default-scheduler"
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_pod_node_selectors():
         node_selectors = {
             'beta.kubernetes.io/os': 'linux'

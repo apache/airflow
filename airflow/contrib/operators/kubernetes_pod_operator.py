@@ -102,6 +102,8 @@ class KubernetesPodOperator(BaseOperator):
     :type pod_runtime_info_envs: list[PodRuntimeEnv]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param scheduler_name: Specify a scheduler name for the pod
+    :type scheduler_name: str
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -143,6 +145,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.security_context = self.security_context
             pod.pod_runtime_info_envs = self.pod_runtime_info_envs
             pod.dnspolicy = self.dnspolicy
+            pod.scheduler_name = self.scheduler_name
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -204,6 +207,7 @@ class KubernetesPodOperator(BaseOperator):
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
+                 scheduler_name=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -240,3 +244,4 @@ class KubernetesPodOperator(BaseOperator):
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
+        self.scheduler_name = scheduler_name

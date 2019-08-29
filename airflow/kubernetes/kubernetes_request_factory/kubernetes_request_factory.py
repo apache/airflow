@@ -212,6 +212,11 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             req['spec']['dnsPolicy'] = pod.dnspolicy
 
     @staticmethod
+    def extract_scheduler_name(pod, req):
+        if pod.scheduler_name:
+            req['spec']['schedulerName'] = pod.scheduler_name
+
+    @staticmethod
     def extract_image_pull_secrets(pod, req):
         if pod.image_pull_secrets:
             req['spec']['imagePullSecrets'] = [{
