@@ -1150,6 +1150,21 @@ marked as template fields:
       ],
       dag=dag)
 
+You can pass custom options to the Jinja ``Environment`` when creating your DAG.
+One common usage is to avoid Jinja from dropping a trailing newline from a
+template string:
+
+.. code:: python
+
+  my_dag = DAG(dag_id='my-dag',
+               jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+               })
+
+See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+to find all available options.
+
 Packaged DAGs
 '''''''''''''
 While often you will specify DAGs in a single ``.py`` file it might sometimes

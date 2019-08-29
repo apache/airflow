@@ -173,6 +173,22 @@ class DAG(BaseDag, LoggingMixin):
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
     :type is_paused_upon_creation: bool or None
+    :param jinja_environment_kwargs: additional configuration options to be passed to Jinja
+        ``Environment`` for template rendering
+
+        **Example**: to avoid Jinja from removing a trailing newline from template strings ::
+
+            DAG(dag_id='my-dag',
+                jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+                }
+            )
+
+        **See**: `Jinja Environment documentation
+        <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+
+    :type jinja_environment_kwargs: dict
     """
 
     _comps = {
@@ -213,6 +229,7 @@ class DAG(BaseDag, LoggingMixin):
         params=None,  # type: Optional[Dict]
         access_control=None,  # type: Optional[Dict]
         is_paused_upon_creation=None,  # type: Optional[bool]
+        jinja_environment_kwargs=None,  # type: Optional[Dict]
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -300,6 +317,8 @@ class DAG(BaseDag, LoggingMixin):
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
+
+        self.jinja_environment_kwargs = jinja_environment_kwargs
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -735,12 +754,17 @@ class DAG(BaseDag, LoggingMixin):
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(searchpath),
-            undefined=self.template_undefined,
-            extensions=["jinja2.ext.do"],
-            cache_size=0,
-        )
+        # Default values (for backward compatibility)
+        jinja_env_options = {
+            'loader': jinja2.FileSystemLoader(searchpath),
+            'undefined': self.template_undefined,
+            'extensions': ["jinja2.ext.do"],
+            'cache_size': 0
+        }
+        if self.jinja_environment_kwargs:
+            jinja_env_options.update(self.jinja_environment_kwargs)
+
+        env = jinja2.Environment(**jinja_env_options)  # type: ignore
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
