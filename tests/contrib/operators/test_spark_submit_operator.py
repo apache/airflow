@@ -51,6 +51,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
         'principal': 'user/spark@airflow.org',
+        'proxy_user': 'sample_user',
         'name': '{{ task_instance.task_id }}',
         'num_executors': 10,
         'verbose': True,
@@ -102,6 +103,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'executor_memory': '22g',
             'keytab': 'privileged_user.keytab',
             'principal': 'user/spark@airflow.org',
+            'proxy_user': 'sample_user',
             'name': '{{ task_instance.task_id }}',
             'num_executors': 10,
             'verbose': True,
@@ -115,7 +117,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
                 '--end', '{{ ds }}',
                 '--with-spaces', 'args should keep embdedded spaces',
             ],
-            "spark_binary": "sparky"
+            'spark_binary': 'sparky'
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -135,6 +137,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
         self.assertEqual(expected_dict['keytab'], operator._keytab)
         self.assertEqual(expected_dict['principal'], operator._principal)
+        self.assertEqual(expected_dict['proxy_user'], operator._proxy_user)
         self.assertEqual(expected_dict['name'], operator._name)
         self.assertEqual(expected_dict['num_executors'], operator._num_executors)
         self.assertEqual(expected_dict['verbose'], operator._verbose)
@@ -161,7 +164,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
                                      '--with-spaces',
                                      'args should keep embdedded spaces',
                                      ]
-        expected_name = "spark_submit_job"
+        expected_name = 'spark_submit_job'
         self.assertListEqual(expected_application_args,
                              getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
