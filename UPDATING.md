@@ -44,7 +44,7 @@ assists users migrating to a new version.
 
 SQLSensor now keeps poking after receiving `NULL`. Previously `NULL` response
 has been treated as success criteria. Previous behaviour is still achievable
-setting param `success` to `lambda x: str(x) == 'None'`.
+setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
 ### Change dag loading duration metric name
 Change DAG file loading duration metric from 
