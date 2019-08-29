@@ -113,7 +113,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                 zip_path="/tmp/path.zip"
             )
             self.assertEqual("http://uploadHere", res)
-            generate_upload_url_method.assert_called_with(
+            generate_upload_url_method.assert_called_once_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
             requests_put.assert_called_once_with(
@@ -233,7 +233,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 zip_path="/tmp/path.zip"
             )
             self.assertEqual("http://uploadHere", res)
-            generate_upload_url_method.assert_called_with(
+            generate_upload_url_method.assert_called_once_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
             requests_put.assert_called_once_with(
@@ -259,7 +259,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 zip_path="/tmp/path.zip"
             )
             self.assertEqual("http://uploadHere", res)
-            generate_upload_url_method.assert_called_with(
+            generate_upload_url_method.assert_called_once_with(
                 parent='projects/new-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
             requests_put.assert_called_once_with(

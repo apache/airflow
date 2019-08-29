@@ -213,27 +213,24 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch('time.sleep')
-    @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook.get_conn')
-    def test_wait_for_transfer_job(self, get_conn, mock_sleep):
-        list_method = get_conn.return_value.transferOperations.return_value.list
-        list_execute_method = list_method.return_value.execute
-        list_execute_method.side_effect = [
-            {OPERATIONS: [{METADATA: {STATUS: GcpTransferOperationStatus.IN_PROGRESS}}]},
-            {OPERATIONS: [{METADATA: {STATUS: GcpTransferOperationStatus.SUCCESS}}]},
+    @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.'
+                'GCPTransferServiceHook.list_transfer_operations')
+    def test_wait_for_transfer_job(self, mock_list, mock_sleep):
+        mock_list.side_effect = [
+            [{METADATA: {STATUS: GcpTransferOperationStatus.IN_PROGRESS}}],
+            [{METADATA: {STATUS: GcpTransferOperationStatus.SUCCESS}}],
         ]
-        get_conn.return_value.transferOperations.return_value.list_next.return_value = None
 
-        self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, 'name': 'transferJobs/test-job'})
-        self.assertTrue(list_method.called)
+        job_name = 'transferJobs/test-job'
+        self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, 'name': job_name})
 
-        list_method.assert_called_with(name='transferOperations', filter=mock.ANY)
-        args, kwargs = list_method.call_args_list[0]
-        self.assertEqual(
-            json.loads(kwargs['filter']),
-            {FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: ["transferJobs/test-job"]},
-        )
+        calls = [
+            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
+            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]})
+        ]
+        mock_list.assert_has_calls(calls, any_order=True)
 
-        mock_sleep.assert_called_with(TIME_TO_SLEEP_IN_SECONDS)
+        mock_sleep.assert_called_once_with(TIME_TO_SLEEP_IN_SECONDS)
 
     @mock.patch('time.sleep')
     @mock.patch('airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook.get_conn')
@@ -383,7 +380,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         self.assertIsNotNone(res)
         self.assertEqual(res, [TEST_TRANSFER_JOB])
 
-        list_method.assert_called_with(filter=mock.ANY)
+        list_method.assert_called_once_with(filter=mock.ANY)
         args, kwargs = list_method.call_args_list[0]
         self.assertEqual(
             json.loads(kwargs['filter']),

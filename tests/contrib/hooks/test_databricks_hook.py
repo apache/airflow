@@ -249,7 +249,11 @@ class TestDatabricksHook(unittest.TestCase):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
                     self.assertEqual(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
-                    mock_sleep.assert_called_with(retry_delay)
+                    calls = [
+                        mock.call(retry_delay),
+                        mock.call(retry_delay)
+                    ]
+                    mock_sleep.assert_has_calls(calls)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):

@@ -188,6 +188,17 @@ After creating the virtualenv, run this command to create the Airflow sqlite dat
 airflow db init
 ```
 
+This can be automated if you do it within a virtualenv.
+The [./breeze](./breeze) script has a flag
+(-e or --initialize-local-virtualenv) that automatically installs dependencies
+in the virtualenv you are logged in and resets the sqlite database as described below.
+
+After the virtualenv is created, you must initialize it. Simply enter the environment
+(using `workon`) and once you are in it run:
+```
+./breeze --initialize-local-virtualenv
+````
+
 Once initialization is done, you should select the virtualenv you initialized as the
 project's default virtualenv in your IDE and run tests efficiently.
 
@@ -235,13 +246,13 @@ For example, in order to just execute the "core" unit tests and add ipdb set_tra
 run the following command:
 
 ```bash
-./run-tests tests.core:CoreTest --nocapture --verbose
+./run-tests tests.core:TestCore --nocapture --verbose
 ```
 
 or a single test method without colors or debug logs:
 
 ```bash
-./run-tests tests.core:CoreTest.test_check_operators
+./run-tests tests.core:TestCore.test_check_operators
 ```
 Note that `./run_tests` script runs tests but the first time it runs, it performs database initialisation.
 If you run further tests without leaving the environment, the database will not be initialized, but you
@@ -279,8 +290,8 @@ IMPORTANT!!! : Mac OS Docker default Disk size settings
 
 When you develop on Mac OS you usually have not enough disk space for Docker if you start using it seriously.
 You should increase disk space available before starting to work with the environment. Usually you have weird
-stops of docker containers when you run out of Disk space. It might not be obvious that space is an issue.
-If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
+problems with docker containers when you run out of Disk space. It might not be obvious that space is an
+issue. If you get into weird behaviour try [Cleaning Up Docker](#cleaning-up-cached-docker-imagescontainers)
 
 See [Docker for Mac - Space](https://docs.docker.com/docker-for-mac/space/) for details of increasing
 disk space available for Docker on Mac.
@@ -319,18 +330,31 @@ If you are on Linux:
 
 ## Using the Docker Compose environment
 
-### Entering bash shell in Docker Compose environment
+Airflow has a super-easy-to-use integration test environment managed via
+[Docker Compose](https://docs.docker.com/compose/) and used by Airflow's CI Travis tests.
 
-Default environment settings (python 3.6, sqlite backend, docker environment)
-```bash
- ./scripts/ci/local_ci_enter_environment.sh
-```
+It's called **Airflow Breeze** as in "_It's a breeze to develop Airflow_"
 
-Overriding default environment settings:
+All details about using and running Airflow Breeze can be found in [BREEZE.rst](BREEZE.rst)
 
-```bash
-PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_enter_environment.sh
-```
+The advantage of the Airflow Breeze Integration Tests environment is that it is a full environment
+including external components - mysql database, hadoop, mongo, cassandra, redis etc. Some of the tests in
+Airflow require those external components. Integration test environment provides preconfigured environment
+where all those services are running and can be used by tests automatically.
+
+Another advantage is that the Airflow Breeze environment is pretty much the same
+as used in [Travis CI](https://travis-ci.com/) automated builds, and if the tests run in
+your local environment they will most likely work on Travis as well.
+
+The disadvantage of Airflow Breeze is that it is fairly complex and requires time to setup. However it is all
+automated and easy to setup. Another disadvantage is that it takes a lot of space in your local Docker cache.
+There is a separate environment for different python versions and airflow versions and each of the images take
+around 3GB in total. Building and preparing the environment by default uses pre-built images from DockerHub
+(requires time to download and extract those GB of images) and less than 10 minutes per python version
+to build.
+
+Note that those images are not supposed to be used in production environments. They are optimised
+for repeatability of tests, maintainability and speed of building rather than performance
 
 ### Running individual tests within the container
 
@@ -499,7 +523,7 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
   ./scripts/ci/local_ci_run_airflow_testing.sh
 ```
 
-* PYTHON_VERSION might be one of 3.5/3.6
+* PYTHON_VERSION might be one of 3.5/3.6/3.7
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
 * KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
@@ -507,13 +531,13 @@ KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV
 
 The following environments are possible:
 
- * The "docker" environment (default): starts all dependencies required by full integration test-suite
+ * The `docker` environment (default): starts all dependencies required by full integration test-suite
    (postgres, mysql, celery, etc.). This option is resource intensive so do not forget to
    [Stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
    and can slow down your machine.
- * The "kubernetes" environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
+ * The `kubernetes` environment: Runs airflow tests within a kubernetes cluster (requires KUBERNETES_VERSION
    and KUBERNETES_MODE variables).
- * The "bare" environment:  runs airflow in docker without any external dependencies.
+ * The `bare` environment:  runs airflow in docker without any external dependencies.
    It will only work for non-dependent tests. You can only run it with sqlite backend. You can only
    enter the bare environment with `local_ci_enter_environment.sh` and run tests manually, you cannot execute
    `local_ci_run_airflow_testing.sh` with it.
@@ -696,6 +720,7 @@ In airflow we have the following checks:
 
 ```text
 check-hooks-apply                Check hooks apply to the repository
+check-apache-license             Checks compatibility with Apache License requirements
 check-merge-conflict             Checks if merge conflict is being committed
 check-executables-have-shebangs  Check that executables have shebang
 check-xml                        Check XML files with xmllint
@@ -712,6 +737,13 @@ pylint                           Run pylint
 shellcheck                       Check shell files with shellcheck
 yamllint                         Check yaml files with yamllint
 ```
+
+The check-apache-licence check is normally skipped for commits unless `.pre-commit-config.yaml` file
+is changed. This check always run for the full set of files and if you want to run it locally you need to
+specify `--all-files` flag of pre-commit. For example:
+
+`pre-commit run check-apache-licenses --all-files`
+
 ## Using pre-commit hooks
 
 After installing pre-commit hooks are run automatically when you commit the code, but you can

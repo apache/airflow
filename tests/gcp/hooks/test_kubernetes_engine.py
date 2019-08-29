@@ -47,12 +47,12 @@ class TestGKEClusterHookDelete(unittest.TestCase):
                                      retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_delete.assert_called_with(project_id=TEST_GCP_PROJECT_ID,
-                                         zone=GKE_ZONE,
-                                         cluster_id=CLUSTER_NAME,
-                                         retry=retry_mock,
-                                         timeout=timeout_mock)
-        wait_mock.assert_called_with(client_delete.return_value)
+        client_delete.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
+                                              zone=GKE_ZONE,
+                                              cluster_id=CLUSTER_NAME,
+                                              retry=retry_mock,
+                                              timeout=timeout_mock)
+        wait_mock.assert_called_once_with(client_delete.return_value)
         convert_mock.assert_not_called()
 
     @mock.patch(
@@ -107,11 +107,11 @@ class TestGKEClusterHookCreate(unittest.TestCase):
                                      retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_create.assert_called_with(project_id=TEST_GCP_PROJECT_ID,
-                                         zone=GKE_ZONE,
-                                         cluster=mock_cluster_proto,
-                                         retry=retry_mock, timeout=timeout_mock)
-        wait_mock.assert_called_with(client_create.return_value)
+        client_create.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
+                                              zone=GKE_ZONE,
+                                              cluster=mock_cluster_proto,
+                                              retry=retry_mock, timeout=timeout_mock)
+        wait_mock.assert_called_once_with(client_create.return_value)
         convert_mock.assert_not_called()
 
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
@@ -129,11 +129,11 @@ class TestGKEClusterHookCreate(unittest.TestCase):
                                      retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_create.assert_called_with(project_id=TEST_GCP_PROJECT_ID,
-                                         zone=GKE_ZONE,
-                                         cluster=proto_mock,
-                                         retry=retry_mock, timeout=timeout_mock)
-        wait_mock.assert_called_with(client_create.return_value)
+        client_create.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
+                                              zone=GKE_ZONE,
+                                              cluster=proto_mock,
+                                              retry=retry_mock, timeout=timeout_mock)
+        wait_mock.assert_called_once_with(client_create.return_value)
         self.assertEqual(convert_mock.call_args[1]['py_dict'], mock_cluster_dict)
 
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
@@ -180,10 +180,10 @@ class TestGKEClusterHookGet(unittest.TestCase):
                                   retry=retry_mock,
                                   timeout=timeout_mock)
 
-        client_get.assert_called_with(project_id=TEST_GCP_PROJECT_ID,
-                                      zone=GKE_ZONE,
-                                      cluster_id=CLUSTER_NAME,
-                                      retry=retry_mock, timeout=timeout_mock)
+        client_get.assert_called_once_with(project_id=TEST_GCP_PROJECT_ID,
+                                           zone=GKE_ZONE,
+                                           cluster_id=CLUSTER_NAME,
+                                           retry=retry_mock, timeout=timeout_mock)
 
 
 class TestGKEClusterHook(unittest.TestCase):
@@ -200,14 +200,14 @@ class TestGKEClusterHook(unittest.TestCase):
         self.gke_hook._client = None
         self.gke_hook.get_client()
         assert mock_get_credentials.called
-        mock_client.assert_called_with(
+        mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value)
 
     def test_get_operation(self):
         self.gke_hook._client.get_operation = mock.Mock()
         self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
-        self.gke_hook._client.get_operation.assert_called_with(
+        self.gke_hook._client.get_operation.assert_called_once_with(
             project_id=TEST_GCP_PROJECT_ID, zone=GKE_ZONE, operation_id='TEST_OP')
 
     def test_append_label(self):
@@ -215,14 +215,14 @@ class TestGKEClusterHook(unittest.TestCase):
         val = 'test-val'
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
-        mock_proto.resource_labels.update.assert_called_with({key: val})
+        mock_proto.resource_labels.update.assert_called_once_with({key: val})
 
     def test_append_label_replace(self):
         key = 'test-key'
         val = 'test.val+this'
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
-        mock_proto.resource_labels.update.assert_called_with({key: 'test-val-this'})
+        mock_proto.resource_labels.update.assert_called_once_with({key: 'test-val-this'})
 
     @mock.patch("time.sleep")
     def test_wait_for_response_done(self, time_mock):
@@ -273,5 +273,5 @@ class TestGKEClusterHook(unittest.TestCase):
 
         self.gke_hook._dict_to_proto(mock_dict, mock_proto)
 
-        dumps_mock.assert_called_with(mock_dict)
-        parse_mock.assert_called_with(dumps_mock(), mock_proto)
+        dumps_mock.assert_called_once_with(mock_dict)
+        parse_mock.assert_called_once_with(dumps_mock(), mock_proto)

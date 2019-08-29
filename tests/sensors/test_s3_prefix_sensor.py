@@ -34,7 +34,7 @@ class TestS3PrefixSensor(unittest.TestCase):
 
         mock_hook.return_value.check_for_prefix.return_value = False
         self.assertFalse(s.poke(None))
-        mock_hook.return_value.check_for_prefix.assert_called_with(
+        mock_hook.return_value.check_for_prefix.assert_called_once_with(
             prefix='prefix',
             delimiter='/',
             bucket_name='bucket')

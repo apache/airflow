@@ -2231,14 +2231,14 @@ class TestEmail(unittest.TestCase):
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
         res = utils.email.send_email('to', 'subject', 'content')
-        mock_send_email.assert_called_with('to', 'subject', 'content')
+        mock_send_email.assert_called_once_with('to', 'subject', 'content')
         self.assertEqual(mock_send_email.return_value, res)
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
         with conf_vars({('email', 'email_backend'): 'tests.core.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
-        send_email_test.assert_called_with(
+        send_email_test.assert_called_once_with(
             'to', 'subject', 'content', files=None, dryrun=False,
             cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
@@ -2302,16 +2302,16 @@ class TestEmailSmtp(unittest.TestCase):
         mock_smtp_ssl.return_value = mock.Mock()
         msg = MIMEMultipart()
         utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
-        mock_smtp.assert_called_with(
+        mock_smtp.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertTrue(mock_smtp.return_value.starttls.called)
-        mock_smtp.return_value.login.assert_called_with(
+        mock_smtp.return_value.login.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_USER'),
             configuration.conf.get('smtp', 'SMTP_PASSWORD'),
         )
-        mock_smtp.return_value.sendmail.assert_called_with('from', 'to', msg.as_string())
+        mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
         self.assertTrue(mock_smtp.return_value.quit.called)
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -2322,7 +2322,7 @@ class TestEmailSmtp(unittest.TestCase):
         with conf_vars({('smtp', 'smtp_ssl'): 'True'}):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
-        mock_smtp_ssl.assert_called_with(
+        mock_smtp_ssl.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
@@ -2338,7 +2338,7 @@ class TestEmailSmtp(unittest.TestCase):
         }):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
-        mock_smtp.assert_called_with(
+        mock_smtp.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )

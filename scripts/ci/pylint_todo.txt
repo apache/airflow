@@ -405,7 +405,7 @@
 ./tests/contrib/operators/test_ecs_operator.py
 ./tests/contrib/operators/test_emr_add_steps_operator.py
 ./tests/contrib/operators/test_emr_create_job_flow_operator.py
-./tests/contrib/operators/test_gcs_to_s3_operator.py
+./tests/operators/test_gcs_to_s3.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_oracle_to_azure_data_lake_transfer.py
 ./tests/contrib/operators/test_qubole_check_operator.py

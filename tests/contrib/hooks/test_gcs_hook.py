@@ -368,7 +368,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(sample_bucket.storage_class, test_storage_class)
         self.assertEqual(sample_bucket.labels, test_labels)
 
-        mock_service.return_value.bucket.return_value.create.assert_called_with(
+        mock_service.return_value.bucket.return_value.create.assert_called_once_with(
             project=test_project, location=test_location
         )
 
@@ -401,11 +401,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
         self.assertEqual(response, sample_bucket.id)
 
-        mock_service.return_value.bucket.return_value._patch_property.assert_called_with(
+        mock_service.return_value.bucket.return_value._patch_property.assert_called_once_with(
             name='versioning', value=test_versioning_enabled
         )
 
-        mock_service.return_value.bucket.return_value.create.assert_called_with(
+        mock_service.return_value.bucket.return_value.create.assert_called_once_with(
             project=test_project, location=test_location
         )
 

@@ -30,10 +30,10 @@ basic_sanity_checks
 
 script_start
 
-rebuild_image_if_needed_for_tests
+rebuild_ci_image_if_needed
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_slim_image_if_needed
 
-rebuild_image_if_needed_for_checklicence
+rebuild_checklicence_image_if_needed
 
 script_end

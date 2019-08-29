@@ -33,11 +33,11 @@ export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
 docker system prune --all --force
 
 if [[ ${TRAVIS_JOB_NAME} == "Tests"* ]]; then
-    rebuild_image_if_needed_for_tests
+    rebuild_ci_image_if_needed
 elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
-    rebuild_image_if_needed_for_checklicence
+    rebuild_checklicence_image_if_needed
 else
-    rebuild_image_if_needed_for_static_checks
+    rebuild_ci_slim_image_if_needed
 fi
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}

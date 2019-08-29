@@ -82,9 +82,11 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         launcher_mock.return_value = (State.SUCCESS, None)
         k.execute(None)
-        client_mock.assert_called_with(in_cluster=False,
-                                       cluster_context='default',
-                                       config_file=file_path)
+        client_mock.assert_called_once_with(
+            in_cluster=False,
+            cluster_context='default',
+            config_file=file_path
+        )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")

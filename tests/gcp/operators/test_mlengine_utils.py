@@ -86,7 +86,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             hook_instance = mock_mlengine_hook.return_value
             hook_instance.create_job.return_value = success_message
             result = pred.execute(None)
-            mock_mlengine_hook.assert_called_with('google_cloud_default', None)
+            mock_mlengine_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
                 'test-project',
                 {
@@ -100,7 +100,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             hook_instance = mock_dataflow_hook.return_value
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
-            mock_dataflow_hook.assert_called_with(
+            mock_dataflow_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
                 '{{task.task_id}}',

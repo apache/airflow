@@ -102,7 +102,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 task_id='test-prediction')
             prediction_output = prediction_task.execute(None)
 
-            mock_hook.assert_called_with('google_cloud_default', None)
+            mock_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
                 'test-project', {
                     'jobId': 'test_prediction',
@@ -141,8 +141,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 task_id='test-prediction')
             prediction_output = prediction_task.execute(None)
 
-            mock_hook.assert_called_with('google_cloud_default', None)
-            hook_instance.create_job.assert_called_with(
+            mock_hook.assert_called_once_with('google_cloud_default', None)
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', {
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_version
@@ -178,8 +178,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 task_id='test-prediction')
             prediction_output = prediction_task.execute(None)
 
-            mock_hook.assert_called_with('google_cloud_default', None)
-            hook_instance.create_job.assert_called_with(
+            mock_hook.assert_called_once_with('google_cloud_default', None)
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', {
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_uri
@@ -256,8 +256,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                     task_id='test-prediction')
                 prediction_task.execute(None)
 
-                mock_hook.assert_called_with('google_cloud_default', None)
-                hook_instance.create_job.assert_called_with(
+                mock_hook.assert_called_once_with('google_cloud_default', None)
+                hook_instance.create_job.assert_called_once_with(
                     'test-project', {
                         'jobId': 'test_prediction',
                         'predictionInput': input_with_model
@@ -316,11 +316,11 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
                 **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
-            mock_hook.assert_called_with(
+            mock_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None)
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
-            hook_instance.create_job.assert_called_with(
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', self.TRAINING_INPUT, ANY)
 
     def test_success_create_training_job_with_optional_args(self):
@@ -343,11 +343,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
                 **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
-            mock_hook.assert_called_with(gcp_conn_id='google_cloud_default',
-                                         delegate_to=None)
+            mock_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
-            hook_instance.create_job.assert_called_with(
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', training_input, ANY)
 
     def test_http_error(self):
@@ -366,11 +365,11 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
                     **self.TRAINING_DEFAULT_ARGS)
                 training_op.execute(None)
 
-            mock_hook.assert_called_with(
+            mock_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None)
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
-            hook_instance.create_job.assert_called_with(
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', self.TRAINING_INPUT, ANY)
             self.assertEqual(http_error_code, context.exception.resp.status)
 
@@ -388,11 +387,11 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
                     **self.TRAINING_DEFAULT_ARGS)
                 training_op.execute(None)
 
-            mock_hook.assert_called_with(
+            mock_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None)
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
-            hook_instance.create_job.assert_called_with(
+            hook_instance.create_job.assert_called_once_with(
                 'test-project', self.TRAINING_INPUT, ANY)
             self.assertEqual('A failure message', str(context.exception))
 
@@ -421,11 +420,10 @@ class TestMLEngineVersionOperator(unittest.TestCase):
                 **self.VERSION_DEFAULT_ARGS)
             training_op.execute(None)
 
-            mock_hook.assert_called_with(gcp_conn_id='google_cloud_default',
-                                         delegate_to=None)
+            mock_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
             # Make sure only 'create_version' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
-            hook_instance.create_version.assert_called_with(
+            hook_instance.create_version.assert_called_once_with(
                 'test-project', 'test-model', self.VERSION_INPUT)
 
 

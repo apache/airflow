@@ -23,18 +23,35 @@ set -euo pipefail
 
 CMDNAME="$(basename -- "$0")"
 
-AIRFLOW_ROOT="$(cd "${MY_DIR}" && pwd)"
-export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_ROOT}/tests/dags"
+if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    set -x
+fi
+
+if [[ -z "${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}" ]]; then
+    echo "AIRFLOW__CORE__SQL_ALCHEMY_CONN not set - using default" >&2
+fi
+
+# Update short and long options in the breeze-complete script
+# This way autocomplete will work automagically with all options
+# shellcheck source=run-tests-complete
+. "${MY_DIR}/run-tests-complete"
+
 
 # environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
-
-echo "Airflow home: ${AIRFLOW_HOME}"
-
+AIRFLOW_ROOT="$(cd "${MY_DIR}" && pwd)"
+export AIRFLOW_ROOT
+export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_ROOT}/tests/dags"
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
 # add test/test_utils to PYTHONPATH TODO: Do we need that ??? Looks fishy.
 export PYTHONPATH=${PYTHONPATH:=}:${AIRFLOW_ROOT}/tests/test_utils
+
+echo Airflow home: "${AIRFLOW_HOME}"
+echo Airflow root: "${AIRFLOW_ROOT}"
+echo Home of the user: "${HOME}"
+
+export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_ROOT}/tests/dags"
 
 usage() {
       echo """
@@ -50,6 +67,13 @@ Flags:
 
 -i, --with-db-init
         Forces database initialization before tests
+
+-x, --with-xunit
+        Dumps result of the tests to Xunit file
+
+-f, --xunit-file
+        The file where xunit results should be dumped. Default if not specified
+        is ${AIRFLOW_ROOT}/logs/all_tests.xml
 
 -s, --nocapture
         Don't capture stdout when running the tests. This is useful if you are
@@ -69,12 +93,11 @@ echo
 
 ####################  Parsing options/arguments
 if ! PARAMS=$(getopt \
-    -o "h i s v" \
-    -l "help with-db-init nocapture verbose" \
-    --name "${CMDNAME}" -- "$@")
+    -o "${_RUN_TESTS_GETOPT_SHORT_OPTIONS:=}" \
+    -l "${_RUN_TESTS_GETOPT_LONG_OPTIONS:=}" \
+    --name "$CMDNAME" -- "$@")
 then
     usage
-    exit 1
 fi
 
 eval set -- "${PARAMS}"
@@ -82,7 +105,9 @@ unset PARAMS
 
 WITH_DB_INIT="false"
 NOCAPTURE="false"
-VERBOSE="false"
+WITH_XUNIT="false"
+XUNIT_FILE="${AIRFLOW_ROOT}/logs/all_tests.xml"
+VERBOSE="${AIRFLOW_CI_VERBOSE}"
 
 # Parse Flags.
 # Please update short and long options in the run-tests-complete script
@@ -99,9 +124,15 @@ do
     -s|--nocapture)
       NOCAPTURE="true"
       shift ;;
+    -x|--with-xunit)
+      WITH_XUNIT="true"
+      shift ;;
     -v|--verbose)
       VERBOSE="true"
       shift;;
+    -f|--xunit-file)
+      XUNIT_FILE="$2"
+      shift; shift ;;
     --)
       shift ;
       break ;;
@@ -160,6 +191,13 @@ if [[ "${#NOSE_ARGS[@]}" == "0" ]]; then
             "--logging-level=DEBUG")
 fi
 
+if [[ "${WITH_XUNIT}" == "true" ]]; then
+    echo
+    echo "Dumping results to ${XUNIT_FILE}"
+    echo
+    NOSE_ARGS+=("--with-xunit" "--xunit-file=${XUNIT_FILE}")
+fi
+
 if [[ "${NOCAPTURE}" == "true" ]]; then
     echo
     echo "Stop capturing stdout"
@@ -178,4 +216,3 @@ echo
 echo "Starting the tests with arguments: ${NOSE_ARGS[*]}"
 echo
 nosetests "${NOSE_ARGS[@]}"
-set -u

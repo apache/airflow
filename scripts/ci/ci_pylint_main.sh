@@ -32,7 +32,7 @@ force_python_3_5
 
 script_start
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_slim_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
     filter_out_files_from_pylint_todo_list "$@"
