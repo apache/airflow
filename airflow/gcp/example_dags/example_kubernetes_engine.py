@@ -31,8 +31,8 @@ from airflow.gcp.operators.kubernetes_engine import (
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
+CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
 
-CLUSTER_NAME = "test-cluster"
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
