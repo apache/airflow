@@ -159,7 +159,7 @@ class PodLauncher(LoggingMixin):
                 follow=True,
                 tail_lines=10,
                 _preload_content=False,
-                _request_timeout=20
+                _request_timeout=self.kube_api_timeout_seconds
             )
         except BaseHTTPError as e:
             raise AirflowException(
