@@ -1037,6 +1037,19 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
         )
 
 
+class TestBigQueryHookWithNumRetries(unittest.TestCase):
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryHook.get_connection")
+    def test_num_retries_is_not_none_by_default(self, get_con_mock):
+        """
+        Verify that if 'num_retires' in extras is not set, the default value
+        should not be None
+        """
+        keyfile_dict = {"extra__google_cloud_platform__num_retries": None}
+        get_con_mock.return_value.extra_dejson = keyfile_dict
+        bq_hook = hook.BigQueryHook()
+        self.assertEqual(bq_hook.num_retries, 5)
+
+
 class TestBigQueryWithKMS(unittest.TestCase):
     def test_create_empty_table_with_kms(self):
         project_id = "bq-project"
