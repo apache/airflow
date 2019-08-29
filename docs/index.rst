@@ -98,3 +98,10 @@ Content
     faq
     macros
     _api/index
+    privacy_notice
+
+.. toctree::
+    :maxdepth: 1
+    :caption: References
+
+    Python API <_api/index>
