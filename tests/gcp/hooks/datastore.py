@@ -21,6 +21,7 @@
 import unittest
 from unittest.mock import call, patch
 
+from airflow import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
 from tests.compat import mock
 
@@ -64,6 +65,15 @@ class TestDatastoreHook(unittest.TestCase):
         self.assertEqual(keys, execute.return_value['keys'])
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_allocate_ids_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        partial_keys = []
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.allocate_ids(partial_keys=partial_keys)
+        self.assertIn("project_id", str(err.exception))
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_begin_transaction(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
 
@@ -76,6 +86,13 @@ class TestDatastoreHook(unittest.TestCase):
         execute = begin_transaction.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(transaction, execute.return_value['transaction'])
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_begin_transaction_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.begin_transaction()
+        self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_commit(self, mock_get_conn):
@@ -91,6 +108,15 @@ class TestDatastoreHook(unittest.TestCase):
         execute = commit.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_commit_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        body = {'item': 'a'}
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.commit(body=body)
+        self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_lookup(self, mock_get_conn):
@@ -119,6 +145,20 @@ class TestDatastoreHook(unittest.TestCase):
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_lookup_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        keys = []
+        read_consistency = 'ENUM'
+        transaction = 'transaction'
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.lookup(keys=keys,
+                                       read_consistency=read_consistency,
+                                       transaction=transaction,
+                                       )
+        self.assertIn("project_id", str(err.exception))
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_rollback(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         transaction = 'transaction'
@@ -134,6 +174,15 @@ class TestDatastoreHook(unittest.TestCase):
         execute.assert_called_once_with(num_retries=mock.ANY)
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_rollback_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        transaction = 'transaction'
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.rollback(transaction=transaction)
+        self.assertIn("project_id", str(err.exception))
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_run_query(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
         body = {'item': 'a'}
@@ -147,6 +196,15 @@ class TestDatastoreHook(unittest.TestCase):
         execute = run_query.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value['batch'])
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_run_query_no_project_id(self, mock_get_conn):
+        self.datastore_hook.connection = mock_get_conn.return_value
+        body = {'item': 'a'}
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.run_query(body=body)
+        self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_get_operation(self, mock_get_conn):
@@ -229,6 +287,22 @@ class TestDatastoreHook(unittest.TestCase):
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_export_to_storage_bucket_no_project_id(self, mock_get_conn):
+        self.datastore_hook.admin_connection = mock_get_conn.return_value
+        bucket = 'bucket'
+        namespace = None
+        entity_filter = {}
+        labels = {}
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.export_to_storage_bucket(bucket=bucket,
+                                                         namespace=namespace,
+                                                         entity_filter=entity_filter,
+                                                         labels=labels,
+                                                         )
+        self.assertIn("project_id", str(err.exception))
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
     def test_import_from_storage_bucket(self, mock_get_conn):
         self.datastore_hook.admin_connection = mock_get_conn.return_value
         bucket = 'bucket'
@@ -259,3 +333,21 @@ class TestDatastoreHook(unittest.TestCase):
         execute = import_.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
+
+    @patch('airflow.gcp.hooks.datastore.DatastoreHook.get_conn')
+    def test_import_from_storage_bucket_no_project_id(self, mock_get_conn):
+        self.datastore_hook.admin_connection = mock_get_conn.return_value
+        bucket = 'bucket'
+        file = 'file'
+        namespace = None
+        entity_filter = {}
+        labels = {}
+
+        with self.assertRaises(AirflowException) as err:
+            self.datastore_hook.import_from_storage_bucket(bucket=bucket,
+                                                           file=file,
+                                                           namespace=namespace,
+                                                           entity_filter=entity_filter,
+                                                           labels=labels,
+                                                           )
+        self.assertIn("project_id", str(err.exception))
