@@ -81,8 +81,9 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
     @mock.patch('google.cloud.storage.Client')
-    def test_storage_client_creation(self, mock_client,
-                                     mock_get_credentials_and_project_id,
+    def test_storage_client_creation(self,
+                                     mock_client,
+                                     mock_get_creds_and_project_id,
                                      mock_client_info):
         hook = gcs_hook.GoogleCloudStorageHook()
         result = hook.get_conn()
