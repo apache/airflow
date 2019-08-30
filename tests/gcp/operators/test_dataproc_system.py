@@ -28,7 +28,9 @@ from tests.contrib.operators.test_dataproc_operator_system_helper import (
     DataprocTestHelper,
 )
 
-OUTPUT_BUCKET = os.environ.get("GCP_DATAPROC_OUTPUT_BUCKET", "system-tests-outputs")
+BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
+PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAPROC_KEY), SKIP_TEST_WARNING)
@@ -36,12 +38,13 @@ class DataprocExampleDagsTest(TestDagGcpSystem):
     def setUp(self):
         super().setUp()
         self.gcp_authenticator.gcp_authenticate()
-        self.helper.create_test_bucket(OUTPUT_BUCKET)
+        self.helper.create_test_bucket(BUCKET)
+        self.helper.upload_test_file(PYSPARK_URI, PYSPARK_MAIN)
         self.gcp_authenticator.gcp_revoke_authentication()
 
     def tearDown(self):
         self.gcp_authenticator.gcp_authenticate()
-        self.helper.delete_gcs_bucket_elements(OUTPUT_BUCKET)
+        self.helper.delete_gcs_bucket_elements(BUCKET)
         self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 

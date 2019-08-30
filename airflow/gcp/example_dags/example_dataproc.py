@@ -40,14 +40,11 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-project")
 REGION = os.environ.get("GCP_LOCATION", "europe-west1")
 ZONE = os.environ.get("GCP_REGION", "europe-west-1b")
-OUTPUT_BUCKET = os.environ.get("GCP_DATAPROC_OUTPUT_BUCKET", "system-tests-outputs")
+BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 OUTPUT_FOLDER = "wordcount"
-OUTPUT_PATH = "gs://{}/{}/".format(OUTPUT_BUCKET, OUTPUT_FOLDER)
-
-PYSPARK_MAIN = os.environ.get(
-    "PYSPARK_MAIN",
-    "gs://dataproc-examples-2f10d78d114f6aaec76462e3c310f31f/src/pyspark/hello-world/hello-world.py",
-)
+OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
+PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
 with models.DAG(
     "example_gcp_dataproc",
@@ -94,7 +91,7 @@ with models.DAG(
 
     pyspark_task = DataProcPySparkOperator(
         task_id="pyspark_task",
-        main=PYSPARK_MAIN,
+        main=PYSPARK_URI,
         region=REGION,
         cluster_name=CLUSTER_NAME,
     )
