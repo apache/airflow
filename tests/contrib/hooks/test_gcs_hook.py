@@ -72,16 +72,23 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                 google_cloud_storage_conn_id='test')
 
     @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.client_info',
+        new_callable=mock.PropertyMock,
+        return_value="CLIENT_INFO"
+    )
+    @mock.patch(
         BASE_STRING.format("GoogleCloudBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
     @mock.patch('google.cloud.storage.Client')
-    def test_storage_client_creation(self, mock_client, mock_get_credentials_and_project_id):
+    def test_storage_client_creation(self, mock_client,
+                                     mock_get_credentials_and_project_id,
+                                     mock_client_info):
         hook = gcs_hook.GoogleCloudStorageHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
-            client_info=mock.ANY,
+            client_info="CLIENT_INFO",
             credentials="CREDENTIALS",
             project="PROJECT_ID")
         self.assertEqual(mock_client.return_value, result)
