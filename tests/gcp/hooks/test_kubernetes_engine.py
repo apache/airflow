@@ -19,6 +19,8 @@
 #
 import unittest
 
+from google.cloud.container_v1.types import Cluster
+
 from airflow import AirflowException
 from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
 from tests.compat import mock, PropertyMock
@@ -39,7 +41,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_delete_cluster(self, wait_mock, convert_mock, mock_project_id):
@@ -66,7 +68,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
     )
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.log")
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_delete_cluster_not_found(self, wait_mock, convert_mock, log_mock, mock_project_id):
@@ -85,7 +87,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_delete_cluster_error(self, wait_mock, convert_mock, mock_project_id):
@@ -108,7 +110,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_create_cluster_proto(self, wait_mock, convert_mock, mock_project_id):
@@ -138,7 +140,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_create_cluster_dict(self, wait_mock, convert_mock, mock_project_id):
@@ -158,9 +160,13 @@ class TestGKEClusterHookCreate(unittest.TestCase):
                                               cluster=proto_mock,
                                               retry=retry_mock, timeout=timeout_mock)
         wait_mock.assert_called_once_with(client_create.return_value)
-        self.assertEqual(convert_mock.call_args[1]['py_dict'], mock_cluster_dict)
+        convert_mock.assert_called_once_with(
+            {'name': 'test-cluster'},
+            Cluster()
+        )
 
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_create_cluster_error(self, wait_mock, convert_mock):
@@ -179,7 +185,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
     )
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.log")
-    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._dict_to_proto")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_create_cluster_already_exists(self, wait_mock, convert_mock, log_mock, mock_project_id):
@@ -291,16 +297,3 @@ class TestGKEClusterHook(unittest.TestCase):
         operation_mock.assert_any_call(running_op.name, project_id=TEST_GCP_PROJECT_ID)
         operation_mock.assert_any_call(pending_op.name, project_id=TEST_GCP_PROJECT_ID)
         self.assertEqual(operation_mock.call_count, 2)
-
-    @mock.patch("google.protobuf.json_format.Parse")
-    @mock.patch("json.dumps")
-    def test_dict_to_proto(self, dumps_mock, parse_mock):
-        mock_dict = {'name': 'test'}
-        mock_proto = mock.Mock()
-
-        dumps_mock.return_value = mock.Mock()
-
-        self.gke_hook._dict_to_proto(mock_dict, mock_proto)
-
-        dumps_mock.assert_called_once_with(mock_dict)
-        parse_mock.assert_called_once_with(dumps_mock(), mock_proto)
