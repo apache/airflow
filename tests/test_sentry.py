@@ -26,7 +26,7 @@ from sentry_sdk import configure_scope
 
 from airflow.models import TaskInstance
 from airflow.settings import Session
-from airflow.sentry import ConfiguredSentry, get_task_instances
+from airflow.sentry import ConfiguredSentry
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -102,13 +102,6 @@ class TestSentryHook(unittest.TestCase):
         with configure_scope() as scope:
             for key, value in scope._tags.items():
                 self.assertEqual(TEST_SCOPE[key], value)
-
-    def test_get_task_instance(self):
-        """
-        Test adding tags.
-        """
-        ti = get_task_instances(DAG_ID, [TASK_ID], EXECUTION_DATE, self.session)
-        self.assertEqual(ti[0], self.ti)
 
     @freeze_time(CRUMB_DATE.isoformat())
     def test_add_breadcrumbs(self):

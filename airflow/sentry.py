@@ -22,7 +22,6 @@
 
 from typing import Any
 from functools import wraps
-from sqlalchemy import or_
 
 from airflow import configuration as conf
 from airflow.utils.db import provide_session
@@ -57,39 +56,13 @@ class DummySentry:
         """
         return run
 
-
-@provide_session
-def get_task_instances(dag_id, task_ids, execution_date, session=None):
-    """
-    Retrieves task instance based on dag_id and execution_date.
-    """
-    from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
-    if session is None or not task_ids:
-        return []
-
-    TI = TaskInstance
-    return (
-        session.query(TI)
-        .filter(
-            TI.dag_id == dag_id,
-            TI.task_id.in_(task_ids),
-            TI.execution_date == execution_date,
-            or_(TI.state == State.SUCCESS, TI.state == State.FAILED),
-        )
-        .all()
-    )
-
-
 class ConfiguredSentry:
     """
     Configure Sentry SDK.
     """
 
     SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator"))
-    SCOPE_CRUMBS = frozenset(
-        ("dag_id", "task_id", "execution_date", "state", "operator", "duration")
-    )
+    SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
     def __init__(self):
         """
@@ -106,11 +79,9 @@ class ConfiguredSentry:
 
         if executor_name == "CeleryExecutor":
             from sentry_sdk.integrations.celery import CeleryIntegration
-            from sentry_sdk.integrations.tornado import TornadoIntegration
 
             sentry_celery = CeleryIntegration()
-            sentry_tornado = TornadoIntegration()
-            integrations += [sentry_celery, sentry_tornado]
+            integrations.append(sentry_celery)
 
         dsn = conf.get("sentry", "sentry_dsn")
         if dsn:
@@ -140,13 +111,14 @@ class ConfiguredSentry:
         """
         if session is None:
             return
-        dag_id = task_instance.dag_id
         execution_date = task_instance.execution_date
         task = task_instance.task
         dag = task.dag
-        task_ids = dag.task_ids
-        task_instances = get_task_instances(
-            dag_id, task_ids, execution_date, session=session
+        task_instances = dag.get_task_instances(
+            state={State.SUCCESS, State.FAILED},
+            end_date=execution_date,
+            start_date=execution_date,
+            session=session,
         )
 
         for ti in task_instances:
@@ -158,7 +130,7 @@ class ConfiguredSentry:
 
     def format_run_task(self, func):
         """
-        Function for formatting TaskInstance._run_raw_task.
+        Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs.
         """
 
         @wraps(func)
@@ -166,13 +138,13 @@ class ConfiguredSentry:
             # Wrapping the _run_raw_task function with push_scope to contain
             # tags and breadcrumbs to a specific Task Instance
             with push_scope():
-                self.add_tagging(task_instance)
-                self.add_breadcrumbs(task_instance, session=session)
                 try:
-                    func(task_instance, *args, session=session, **kwargs)
+                    return func(task_instance, *args, session=session, **kwargs)
                 except Exception as e:
+                    self.add_tagging(task_instance)
+                    self.add_breadcrumbs(task_instance, session=session)
                     capture_exception(e)
-                    raise e
+                    raise
 
         return wrapper
 
