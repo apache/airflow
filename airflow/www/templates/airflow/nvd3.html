@@ -164,7 +164,7 @@ body {
           $('#chart_body').html('<div class="alert alert-danger">' + payload.error + '</div>');
         }
         $("#sql_panel_body").html(payload.sql_html);
-        $("#label").html(payload.label);
+        $("#label").text(payload.label);
         if (payload.state == "SUCCESS") {
           {% if chart.chart_type != "datatable" %}
             $('#chart_body').css('width', '100%');
