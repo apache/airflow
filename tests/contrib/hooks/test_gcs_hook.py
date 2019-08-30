@@ -71,10 +71,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
                 google_cloud_storage_conn_id='test')
 
-    def test_storage_client_creation(self):
+    @mock.patch(BASE_STRING.format("GoogleCloudBaseHook._get_credentials"))
+    def test_storage_client_creation(self, get_con_mock):
+        get_con_mock.return_value = mock.ANY
         with mock.patch('google.cloud.storage.Client') as mock_client:
-            gcs_hook_1 = gcs_hook.GoogleCloudStorageHook()
-            gcs_hook_1.get_conn()
+            gcs_hook.GoogleCloudStorageHook().get_conn()
 
             # test that Storage Client is called with required arguments
             mock_client.assert_called_once_with(
