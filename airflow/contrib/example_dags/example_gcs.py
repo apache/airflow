@@ -23,6 +23,7 @@ Example Airflow DAG for Google Cloud Storage operators.
 import os
 import airflow
 from airflow import models
+from airflow.operators.bash_operator import BashOperator
 from airflow.contrib.operators.gcs_operator import (
     GoogleCloudStorageCreateBucketOperator,
 )
@@ -37,11 +38,11 @@ from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "test-gcs-23e-5v5143")
+BUCKET = os.environ.get("GCP_GCS_BUCKET", "test-gcs-example-bucket")
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 
-PATH_TO_FILE = os.environ.get("GCS_UPLOAD_FILE_PATH", "test_n9c8347r.txt")
-PATH_TO_SAVED_FILE = os.environ.get("PATH_TO_SAVED_FILE", "test_download_n9c8347r.txt")
+PATH_TO_FILE = os.environ.get("GCS_UPLOAD_FILE_PATH", "test-gcs-example.txt")
+PATH_TO_SAVED_FILE = os.environ.get("PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
 
 BUCKET_FILE_LOCATION = PATH_TO_FILE.rpartition("/")[-1]
 
@@ -55,13 +56,18 @@ with models.DAG(
 
     list_buckets = GoogleCloudStorageListOperator(task_id="list_buckets", bucket=BUCKET)
 
+    print_output = BashOperator(
+        task_id="print_output",
+        bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\""
+    )
+
     upload_file = FileToGoogleCloudStorageOperator(
         task_id="upload_file", src=PATH_TO_FILE, dst=BUCKET_FILE_LOCATION, bucket=BUCKET
     )
 
     download_file = GoogleCloudStorageDownloadOperator(
         task_id="download_file",
-        object=BUCKET_FILE_LOCATION,
+        object_name=BUCKET_FILE_LOCATION,
         bucket=BUCKET,
         filename=PATH_TO_SAVED_FILE,
     )
@@ -70,4 +76,5 @@ with models.DAG(
         task_id="delete_files", bucket_name=BUCKET, prefix=""
     )
 
-    create_bucket >> list_buckets >> upload_file >> download_file >> delete_files
+    create_bucket >> list_buckets >> print_output
+    create_bucket >> upload_file >> download_file >> delete_files

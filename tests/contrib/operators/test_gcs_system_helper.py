@@ -21,9 +21,9 @@ import os
 
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
-PATH_TO_FILE = os.environ.get("GCS_UPLOAD_FILE_PATH", "test_n9c8347r.txt")
-PATH_TO_SAVED_FILE = os.environ.get("PATH_TO_SAVED_FILE", "test_download_n9c8347r.txt")
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "test-gcs-23e-5v5143")
+PATH_TO_FILE = os.environ.get("GCS_UPLOAD_FILE_PATH", "test-gcs-example.txt")
+PATH_TO_SAVED_FILE = os.environ.get("PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
+BUCKET = os.environ.get("GCP_GCS_BUCKET", "test-gcs-example-bucket")
 
 
 class GcsSystemTestHelper(LoggingCommandExecutor):
