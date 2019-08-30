@@ -21,7 +21,7 @@ Improvements
 - [AIRFLOW-1523] Clicking on Graph View should display related DAG run (#5866)
 - [AIRFLOW-5027] Generalized CloudWatch log grabbing for ECS and SageMaker operators (#5645)
 - [AIRFLOW-5244] Add all possible themes to default_webserver_config.py (#5849)
-- [AIRFLOW-5245] Tracks no tasks in the scheduler (#5853)
+- [AIRFLOW-5245] Add more metrics around the scheduler (#5853)
 - [AIRFLOW-5048] Improve display of Kubernetes resources (#5665)
 - [AIRFLOW-5284] Replace deprecated log.warn by log.warning (#5881)
 - [AIRFLOW-5276] Remove unused helpers from airflow.utils.helpers (#5878)
@@ -48,6 +48,10 @@ Bug fixes
 - [AIRFLOW-1772] Google Updated Sensor doesnt work with CRON expressions (#5730)
 - [AIRFLOW-5085] When you run kubernetes git-sync test from TAG, it fails (#5699)
 - [AIRFLOW-5258] ElasticSearch log handler, has 2 times of hours (%H and %I) in _clean_execution_dat (#5864)
+- [AIRFLOW-5348] Escape Label in deprecated chart view when set via JS (#5952)
+- [AIRFLOW-5357] Fix Content-Type for exported variables.json file (#5963)
+- [AIRFLOW-5109] Fix process races when killing processes (#5721)
+- [AIRFLOW-5240] Latest version of Kombu is breaking airflow for py2
 
 Misc/Internal
 """""""""""""
@@ -78,6 +82,12 @@ Misc/Internal
 - [AIRFLOW-5206] All .md files should have all common licence, TOC (where applicable) (#5809)
 - [AIRFLOW-5329] Easy way to add local files to docker (#5933)
 - [AIRFLOW-4027] Make experimental api tests more stateless (#4854)
+
+Doc-only changes
+""""""""""""""""
+- [AIRFLOW-XXX] Fixed Azkaban link (#5865)
+- [AIRFLOW-XXX] Remove duplicate lines from CONTRIBUTING.md (#5830)
+- [AIRFLOW-XXX] Fix incorrect docstring parameter in SchedulerJob (#5729)
 
 Airflow 1.10.4, 2019-08-04
 ----------------------------
