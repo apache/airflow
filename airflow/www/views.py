@@ -2658,6 +2658,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
 
         response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response
 
     def on_form_prefill(self, form, id):
