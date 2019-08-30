@@ -133,9 +133,11 @@ class DruidDbApiHook(DbApiHook):
             host=conn.host,
             port=conn.port,
             path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http')
+            scheme=conn.extra_dejson.get('schema', 'http'),
+            user=conn.login,
+            password=conn.password
         )
-        self.log.info('Get the connection to druid broker on %s', conn.host)
+        self.log.info('Get the connection to druid broker on %s using user %s', conn.host, conn.login)
         return druid_broker_conn
 
     def get_uri(self):
