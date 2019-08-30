@@ -29,7 +29,7 @@ PREFIX = 'TEST'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
-class GoogleCloudStorageListOperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageListOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):

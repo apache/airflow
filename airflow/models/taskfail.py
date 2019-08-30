@@ -50,6 +50,6 @@ class TaskFail(Base):
         self.start_date = start_date
         self.end_date = end_date
         if self.end_date and self.start_date:
-            self.duration = (self.end_date - self.start_date).total_seconds()
+            self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
             self.duration = None

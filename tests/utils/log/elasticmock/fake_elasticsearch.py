@@ -250,7 +250,7 @@ class FakeElasticsearch(Elasticsearch):
             ]
         return result_dict
 
-    def _find_match(self, index, doc_type, body, params=None):
+    def _find_match(self, index, doc_type, body, params=None):  # pylint: disable=unused-argument
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 

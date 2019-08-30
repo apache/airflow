@@ -1,48 +1,88 @@
 <!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 -->
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of contents**
+
+- [Airflow Master](#airflow-master)
+- [Airflow 1.10.4](#airflow-1104)
+- [Airflow 1.10.3](#airflow-1103)
+- [Airflow 1.10.2](#airflow-1102)
+- [Airflow 1.10.1](#airflow-1101)
+- [Airflow 1.10](#airflow-110)
+- [Airflow 1.9](#airflow-19)
+- [Airflow 1.8.1](#airflow-181)
+- [Airflow 1.8](#airflow-18)
+- [Airflow 1.7.1.2](#airflow-1712)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Airflow Master
 
+### Change dag loading duration metric name
+Change DAG file loading duration metric from 
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to 
+better handle the case when a DAG file has multiple DAGs.
 
-### `pool` config option in Celery section to support different Celery pool implementation
+### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
 
-The new `pool` config option allows users to choose different pool
-implementation. Default value is "prefork", while choices include "prefork" (default),
-"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
-in different scenarios.
+ImapHook:
+* The order of arguments has changed for `has_mail_attachment`, 
+`retrieve_mail_attachments` and `download_mail_attachments`.
+* A new `mail_filter` argument has been added to each of those.
 
-For more details about Celery pool implementation, please refer to:
-- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
-- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+ImapAttachmentSensor:
+* The order of arguments has changed for `__init__`.
+* A new `mail_filter` argument has been added to `__init__`. 
 
-### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+ImapAttachmentToS3Operator:
+* The order of arguments has changed for `__init__`.
+* A new `imap_mail_filter` argument has been added to `__init__`. 
 
-`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
-are removed in favor of a real pool, e.g. `default_pool`.
+### Changes to `SubDagOperator`
 
-By default tasks are running in `default_pool`.
-`default_pool` is initialized with 128 slots and user can change the
-number of slots through UI/CLI. `default_pool` cannot be removed.
+`SubDagOperator` is changed to use Airflow scheduler instead of backfill
+to schedule tasks in the subdag. User no longer need to specify the executor
+in `SubDagOperator`.
+
+### Variables removed from the task instance context
+
+The following variables were removed from the task instance context:
+- end_date
+- latest_date
+- tables
+
+### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
+
+To simplify the code, the decorator has been moved from the inner-class.
+
+Instead of `@GoogleCloudBaseHook._Decorators.provide_gcp_credential_file`,
+you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
+
+### Changes to S3Hook
+
+Note: The order of arguments has changed for `check_for_prefix`. 
+The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
 
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
@@ -52,14 +92,6 @@ has been renamed to `request_filter`.
  To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and 
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
-### Changes in writing Logs to Elasticsearch
-
-The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
-
-### Changes to the Google Cloud Storage Hook
-
-Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
-
 ### Export MySQL timestamps as UTC
 
 `MySqlToGoogleCloudStorageOperator` now exports TIMESTAMP columns as UTC
@@ -67,6 +99,13 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
+
+### CLI reorganization
+
+The Airflow CLI has been organized so that related commands are grouped
+together as subcommands. The `airflow list_dags` command is now `airflow
+dags list`, `airflow pause` is `airflow dags pause`, etc. For a complete
+list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
 ### Removal of Mesos Executor
 
@@ -90,13 +129,6 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 
 ### Changes to GoogleCloudStorageHook
 
-* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
-* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
-  
-  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
-
-* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
-
 * The following parameters have been replaced in all the methods in GCSHook:
   * `bucket` is changed to `bucket_name`
   * `object` is changed to `object_name` 
@@ -118,11 +150,6 @@ with CloudantHook().get_conn() as cloudant_session:
 ```
 
 See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
-
-### Changes to DatastoreHook
-
-* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
-* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
 
 ### Unify default conn_id for Google Cloud Platform
 
@@ -241,6 +268,54 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
 and `dataproc_jars`respectively. 
 Arguments for dataproc_properties dataproc_jars 
+
+## Airflow 1.10.4
+
+### Python 2 support is going away
+
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
+
+If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
+
+### Changes to DatastoreHook
+
+* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
+* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
+
+### Changes to GoogleCloudStorageHook
+
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
+
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
+
+* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
+
+### Changes in writing Logs to Elasticsearch
+
+The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.
+
+### Removal of `non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+
+`non_pooled_task_slot_count` and `non_pooled_backfill_task_slot_count`
+are removed in favor of a real pool, e.g. `default_pool`.
+
+By default tasks are running in `default_pool`.
+`default_pool` is initialized with 128 slots and user can change the
+number of slots through UI/CLI. `default_pool` cannot be removed.
+
+### `pool` config option in Celery section to support different Celery pool implementation
+
+The new `pool` config option allows users to choose different pool
+implementation. Default value is "prefork", while choices include "prefork" (default),
+"eventlet", "gevent" or "solo". This may help users achieve better concurrency performance
+in different scenarios.
+
+For more details about Celery pool implementation, please refer to:
+- https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
+- https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
 
 ## Airflow 1.10.3
 
@@ -561,7 +636,7 @@ FAB has built-in authentication support for DB, OAuth, OpenID, LDAP, and REMOTE_
 
 For any other authentication type (OAuth, OpenID, LDAP, REMOTE_USER), see the [Authentication section of FAB docs](http://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-methods) for how to configure variables in webserver_config.py file.
 
-Once you modify your config file, run `airflow initdb` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
+Once you modify your config file, run `airflow db init` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
 
 #### Creating an Admin Account
 

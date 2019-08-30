@@ -45,7 +45,7 @@ class TestSegmentHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, unused_connection_id):
                 return conn
 
         self.test_hook = UnitTestSegmentHook(segment_conn_id=TEST_CONN_ID)
@@ -61,7 +61,7 @@ class TestSegmentHook(unittest.TestCase):
             self.test_hook.on_error('error', ['items'])
 
 
-class SegmentTrackEventOperatorTest(unittest.TestCase):
+class TestSegmentTrackEventOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.segment_track_event_operator.SegmentHook')
     def test_execute(self, mock_hook):

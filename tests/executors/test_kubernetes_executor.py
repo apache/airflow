@@ -25,10 +25,9 @@ from urllib3 import HTTPResponse
 from datetime import datetime
 
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
 try:
     from kubernetes.client.rest import ApiException
-    from airflow import configuration
-    from airflow.configuration import conf
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.executors.kubernetes_executor import KubernetesExecutor
     from airflow.executors.kubernetes_executor import KubeConfig
@@ -190,37 +189,18 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     "subPath shouldn't be defined"
                 )
 
-    @mock.patch.object(conf, 'get')
-    @mock.patch.object(configuration, 'as_dict')
-    def test_worker_configuration_auth_both_ssh_and_user(self, mock_config_as_dict, mock_conf_get):
-        def get_conf(*args, **kwargs):
-            if args[0] == 'core':
-                return '1'
-            if args[0] == 'kubernetes':
-                if args[1] == 'git_ssh_known_hosts_configmap_name':
-                    return 'airflow-configmap'
-                if args[1] == 'git_ssh_key_secret_name':
-                    return 'airflow-secrets'
-                if args[1] == 'git_user':
-                    return 'some-user'
-                if args[1] == 'git_password':
-                    return 'some-password'
-                if args[1] == 'git_repo':
-                    return 'git@github.com:apache/airflow.git'
-                if args[1] == 'git_branch':
-                    return 'master'
-                if args[1] == 'git_dags_folder_mount_point':
-                    return '/usr/local/airflow/dags'
-                if args[1] == 'delete_worker_pods':
-                    return True
-                if args[1] == 'kube_client_request_args':
-                    return '{"_request_timeout" : [60,360] }'
-                return '1'
-            return None
-
-        mock_conf_get.side_effect = get_conf
-        mock_config_as_dict.return_value = {'core': ''}
-
+    @conf_vars({
+        ('kubernetes', 'git_ssh_known_hosts_configmap_name'): 'airflow-configmap',
+        ('kubernetes', 'git_ssh_key_secret_name'): 'airflow-secrets',
+        ('kubernetes', 'git_user'): 'some-user',
+        ('kubernetes', 'git_password'): 'some-password',
+        ('kubernetes', 'git_repo'): 'git@github.com:apache/airflow.git',
+        ('kubernetes', 'git_branch'): 'master',
+        ('kubernetes', 'git_dags_folder_mount_point'): '/usr/local/airflow/dags',
+        ('kubernetes', 'delete_worker_pods'): 'True',
+        ('kubernetes', 'kube_client_request_args'): '{"_request_timeout" : [60,360]}',
+    })
+    def test_worker_configuration_auth_both_ssh_and_user(self):
         with self.assertRaisesRegex(AirflowConfigException,
                                     'either `git_user` and `git_password`.*'
                                     'or `git_ssh_key_secret_name`.*'
@@ -396,6 +376,65 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                         'value': '/etc/git-secret/known_hosts'} in env)
         self.assertFalse({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
 
+    def test_make_pod_git_sync_credentials_secret(self):
+        # Tests the pod created with git_sync_credentials_secret will get into the init container
+        self.kube_config.git_sync_credentials_secret = 'airflow-git-creds-secret'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        username_env = {
+            'name': 'GIT_SYNC_USERNAME',
+            'valueFrom': {
+                'secretKeyRef': {
+                    'name': self.kube_config.git_sync_credentials_secret,
+                    'key': 'GIT_SYNC_USERNAME'
+                }
+            }
+        }
+        password_env = {
+            'name': 'GIT_SYNC_PASSWORD',
+            'valueFrom': {
+                'secretKeyRef': {
+                    'name': self.kube_config.git_sync_credentials_secret,
+                    'key': 'GIT_SYNC_PASSWORD'
+                }
+            }
+        }
+
+        self.assertIn(username_env, pod.init_containers[0]["env"],
+                      'The username env for git credentials did not get into the init container')
+
+        self.assertIn(password_env, pod.init_containers[0]["env"],
+                      'The password env for git credentials did not get into the init container')
+
+    def test_init_environment_using_git_sync_run_as_user_empty(self):
+        # Tests if git_syn_run_as_user is none, then no securityContext created in init container
+
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_sync_run_as_user = ''
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        init_containers = worker_config._get_init_containers()
+        self.assertTrue(init_containers)  # check not empty
+
+        self.assertNotIn(
+            'securityContext', init_containers[0],
+            "securityContext shouldn't be defined"
+        )
+
     def test_make_pod_run_as_user_0(self):
         # Tests the pod created with run-as-user 0 actually gets that in it's config
         self.kube_config.worker_run_as_user = 0
@@ -551,6 +590,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_sync_init_container_name = 'git-sync-clone'
         self.kube_config.git_subpath = 'dags_folder'
         self.kube_config.git_sync_root = '/git'
+        self.kube_config.git_sync_run_as_user = 65533
         self.kube_config.git_dags_folder_mount_point = '/usr/local/airflow/dags/repo/dags_folder'
 
         worker_config = WorkerConfiguration(self.kube_config)
@@ -571,6 +611,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual('gcr.io/google-containers/git-sync-amd64:v2.0.5', init_container['image'])
         self.assertEqual(1, len(init_container_volume_mount))
         self.assertFalse(init_container_volume_mount[0]['readOnly'])
+        self.assertEqual(65533, init_container['securityContext']['runAsUser'])
 
     def test_worker_container_dags(self):
         # Tests that the 'airflow-dags' persistence volume is NOT created when `dags_in_image` is set
@@ -742,7 +783,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
-        mock_delete_pod.assert_called_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -755,7 +796,21 @@ class TestKubernetesExecutor(unittest.TestCase):
         key = ('dag_id', 'task_id', 'ex_time', 'try_number3')
         executor._change_state(key, State.FAILED, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
-        mock_delete_pod.assert_called_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id')
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod')
+    def test_change_state_skip_pod_deletion(self, mock_delete_pod, mock_get_kube_client,
+                                            mock_kubernetes_job_watcher, mock_kube_config):
+        executor = KubernetesExecutor()
+        executor.kube_config.delete_worker_pods = False
+        executor.start()
+        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
+        executor._change_state(key, State.SUCCESS, 'pod_id')
+        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        mock_delete_pod.assert_not_called()
 
 
 if __name__ == '__main__':

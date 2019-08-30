@@ -28,7 +28,7 @@ TEST_BUCKET = 'test-bucket'
 TEST_PROJECT = 'test-project'
 
 
-class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
+class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcs_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):

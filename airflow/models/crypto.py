@@ -17,9 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.typing import Protocol
+from typing import Optional
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+class FernetProtocol(Protocol):
+    def decrypt(self, b):
+        ...
+
+    def encrypt(self, b):
+        ...
 
 
 class InvalidFernetToken(Exception):
@@ -35,7 +45,7 @@ class NullFernet:
 
     The purpose of this is to make the rest of the code not have to know the
     difference, and to only display the message once, not 20 times when
-    `airflow initdb` is ran.
+    `airflow db init` is ran.
     """
     is_encrypted = False
 
@@ -46,7 +56,7 @@ class NullFernet:
         return b
 
 
-_fernet = None
+_fernet = None  # type: Optional[FernetProtocol]
 
 
 def get_fernet():

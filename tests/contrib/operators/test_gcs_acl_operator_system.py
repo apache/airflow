@@ -18,14 +18,12 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
 
 
-@unittest.skipIf(
-    DagGcpSystemTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class CloudStorageExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
+class CloudStorageExampleDagsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name,

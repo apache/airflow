@@ -28,7 +28,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 DAG_NAME = 'example_subdag_operator'
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 

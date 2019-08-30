@@ -33,23 +33,22 @@ import lazy_object_proxy
 import pendulum
 
 import dill
-from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
 from airflow import configuration, settings
-from airflow.exceptions import (
-    AirflowException, AirflowTaskTimeout, AirflowSkipException, AirflowRescheduleException
-)
+from airflow.exceptions import (AirflowException, AirflowRescheduleException,
+                                AirflowSkipException, AirflowTaskTimeout)
 from airflow.models.base import Base, ID_LEN
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCom, XCOM_RETURN_KEY
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
+from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -189,7 +188,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = ''
         self.executor_config = task.executor_config
         self.init_on_load()
-        # Is this TaskInstance being currently running within `airflow run --raw`.
+        # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
 
@@ -350,7 +349,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
-        cmd = ["airflow", "run", str(dag_id), str(task_id), str(iso)]
+        cmd = ["airflow", "tasks", "run", str(dag_id), str(task_id), str(iso)]
         cmd.extend(["--mark_success"]) if mark_success else None
         cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
         cmd.extend(["--job_id", str(job_id)]) if job_id else None
@@ -426,10 +425,13 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None, lock_for_update=False):
+    def refresh_from_db(self, session=None, lock_for_update=False, refresh_executor_config=False):
         """
         Refreshes the task instance from the database based on the primary key
 
+        :param refresh_executor_config: if True, revert executor config to
+            result from DB. Often, however, we will want to keep the newest
+            version
         :param lock_for_update: if True, indicates that the database should
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
@@ -455,7 +457,8 @@ class TaskInstance(Base, LoggingMixin):
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.pid = ti.pid
-            self.executor_config = ti.executor_config
+            if refresh_executor_config:
+                self.executor_config = ti.executor_config
         else:
             self.state = None
 
@@ -766,67 +769,60 @@ class TaskInstance(Base, LoggingMixin):
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
 
-        queue_dep_context = DepContext(
-            deps=QUEUE_DEPS,
-            ignore_all_deps=ignore_all_deps,
-            ignore_ti_state=ignore_ti_state,
-            ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps)
-        if not self.are_dependencies_met(
-                dep_context=queue_dep_context,
-                session=session,
-                verbose=True):
-            session.commit()
-            return False
-
         # TODO: Logging needs cleanup, not clear what is being printed
         hr = "\n" + ("-" * 80)  # Line break
 
-        # For reporting purposes, we report based on 1-indexed,
-        # not 0-indexed lists (i.e. Attempt 1 instead of
-        # Attempt 0 for the first attempt).
-        # Set the task start date. In case it was re-scheduled use the initial
-        # start date that is recorded in task_reschedule table
-        self.start_date = timezone.utcnow()
-        task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-        if task_reschedules:
-            self.start_date = task_reschedules[0].start_date
+        if not mark_success:
+            # Firstly find non-runnable and non-requeueable tis.
+            # Since mark_success is not set, we do nothing.
+            non_requeueable_dep_context = DepContext(
+                deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
+                ignore_all_deps=ignore_all_deps,
+                ignore_ti_state=ignore_ti_state,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps)
+            if not self.are_dependencies_met(
+                    dep_context=non_requeueable_dep_context,
+                    session=session,
+                    verbose=True):
+                session.commit()
+                return False
 
-        dep_context = DepContext(
-            deps=RUN_DEPS - QUEUE_DEPS,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state)
-        runnable = self.are_dependencies_met(
-            dep_context=dep_context,
-            session=session,
-            verbose=True)
+            # For reporting purposes, we report based on 1-indexed,
+            # not 0-indexed lists (i.e. Attempt 1 instead of
+            # Attempt 0 for the first attempt).
+            # Set the task start date. In case it was re-scheduled use the initial
+            # start date that is recorded in task_reschedule table
+            self.start_date = timezone.utcnow()
+            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
+            if task_reschedules:
+                self.start_date = task_reschedules[0].start_date
 
-        if not runnable and not mark_success:
-            # FIXME: we might have hit concurrency limits, which means we probably
-            # have been running prematurely. This should be handled in the
-            # scheduling mechanism.
-            self.state = State.NONE
-            self.log.warning(hr)
-            self.log.warning(
-                "FIXME: Rescheduling due to concurrency limits reached at task runtime. Attempt %s of "
-                "%s. State set to NONE.", self.try_number, self.max_tries + 1
-            )
-            self.log.warning(hr)
-
-            self.queued_dttm = timezone.utcnow()
-            self.log.info("Queuing into pool %s", self.pool)
-            session.merge(self)
-            session.commit()
-            return False
-
-        # Another worker might have started running this task instance while
-        # the current worker process was blocked on refresh_from_db
-        if self.state == State.RUNNING:
-            self.log.warning("Task Instance already running %s", self)
-            session.commit()
-            return False
+            # Secondly we find non-runnable but requeueable tis. We reset its state.
+            # This is because we might have hit concurrency limits,
+            # e.g. because of backfilling.
+            dep_context = DepContext(
+                deps=REQUEUEABLE_DEPS,
+                ignore_all_deps=ignore_all_deps,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps,
+                ignore_ti_state=ignore_ti_state)
+            if not self.are_dependencies_met(
+                    dep_context=dep_context,
+                    session=session,
+                    verbose=True):
+                self.state = State.NONE
+                self.log.warning(hr)
+                self.log.warning(
+                    "Rescheduling due to concurrency limits reached "
+                    "at task runtime. Attempt %s of "
+                    "%s. State set to NONE.", self.try_number, self.max_tries + 1
+                )
+                self.log.warning(hr)
+                self.queued_dttm = timezone.utcnow()
+                session.merge(self)
+                session.commit()
+                return False
 
         # print status message
         self.log.info(hr)
@@ -902,7 +898,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 start_time = time.time()
 
-                self.render_templates()
+                self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -1102,9 +1098,6 @@ class TaskInstance(Base, LoggingMixin):
     def get_template_context(self, session=None):
         task = self.task
         from airflow import macros
-        tables = None
-        if 'tables' in task.params:
-            tables = task.params['tables']
 
         params = {}
         run_id = ''
@@ -1145,12 +1138,14 @@ class TaskInstance(Base, LoggingMixin):
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
             next_ds_nodash = next_ds.replace('-', '')
+            next_execution_date = pendulum.instance(next_execution_date)
 
         prev_ds = None
         prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
             prev_ds_nodash = prev_ds.replace('-', '')
+            prev_execution_date = pendulum.instance(prev_execution_date)
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
@@ -1198,66 +1193,54 @@ class TaskInstance(Base, LoggingMixin):
                 return str(self.var)
 
         return {
+            'conf': configuration,
             'dag': task.dag,
+            'dag_run': dag_run,
             'ds': ds,
+            'ds_nodash': ds_nodash,
+            'execution_date': pendulum.instance(self.execution_date),
+            'inlets': task.inlets,
+            'macros': macros,
             'next_ds': next_ds,
             'next_ds_nodash': next_ds_nodash,
+            'next_execution_date': next_execution_date,
+            'outlets': task.outlets,
+            'params': params,
             'prev_ds': prev_ds,
             'prev_ds_nodash': prev_ds_nodash,
-            'ds_nodash': ds_nodash,
-            'ts': ts,
-            'ts_nodash': ts_nodash,
-            'ts_nodash_with_tz': ts_nodash_with_tz,
-            'yesterday_ds': yesterday_ds,
-            'yesterday_ds_nodash': yesterday_ds_nodash,
-            'tomorrow_ds': tomorrow_ds,
-            'tomorrow_ds_nodash': tomorrow_ds_nodash,
-            'END_DATE': ds,
-            'end_date': ds,
-            'dag_run': dag_run,
-            'run_id': run_id,
-            'execution_date': self.execution_date,
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
                 lambda: self.previous_execution_date_success),
             'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
-            'next_execution_date': next_execution_date,
-            'latest_date': ds,
-            'macros': macros,
-            'params': params,
-            'tables': tables,
+            'run_id': run_id,
             'task': task,
             'task_instance': self,
-            'ti': self,
             'task_instance_key_str': ti_key_str,
-            'conf': configuration,
             'test_mode': self.test_mode,
+            'ti': self,
+            'tomorrow_ds': tomorrow_ds,
+            'tomorrow_ds_nodash': tomorrow_ds_nodash,
+            'ts': ts,
+            'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'var': {
+                'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
-                'json': VariableJsonAccessor()
             },
-            'inlets': task.inlets,
-            'outlets': task.outlets,
+            'yesterday_ds': yesterday_ds,
+            'yesterday_ds_nodash': yesterday_ds_nodash,
         }
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
 
-    def render_templates(self):
-        task = self.task
-        jinja_context = self.get_template_context()
-        if hasattr(self, 'task') and hasattr(self.task, 'dag'):
-            if self.task.dag.user_defined_macros:
-                jinja_context.update(
-                    self.task.dag.user_defined_macros)
+    def render_templates(self, context=None) -> None:
+        """Render templates in the operator fields."""
+        if not context:
+            context = self.get_template_context()
 
-        rt = self.task.render_template  # shortcut to method
-        for attr in task.__class__.template_fields:
-            content = getattr(task, attr)
-            if content:
-                rendered_content = rt(attr, content, jinja_context)
-                setattr(task, attr, rendered_content)
+        self.task.render_template_fields(context)
 
     def email_alert(self, exception):
         exception_html = str(exception).replace('\n', '<br>')

@@ -26,7 +26,7 @@ from airflow.utils.state import State
 from datetime import datetime
 
 
-class BaseExecutorTest(unittest.TestCase):
+class TestBaseExecutor(unittest.TestCase):
     def test_get_event_buffer(self):
         executor = BaseExecutor()
 

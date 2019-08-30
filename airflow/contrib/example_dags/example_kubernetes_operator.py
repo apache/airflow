@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This is an example dag for using the KubernetesPodOperator.
+"""
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.models import DAG
@@ -29,7 +31,7 @@ try:
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
     args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'start_date': days_ago(2)
     }
 
@@ -62,6 +64,6 @@ try:
     )
 
 except ImportError as e:
-    log.warn("Could not import KubernetesPodOperator: " + str(e))
-    log.warn("Install kubernetes dependencies with: "
-             "    pip install 'apache-airflow[kubernetes]'")
+    log.warning("Could not import KubernetesPodOperator: " + str(e))
+    log.warning("Install kubernetes dependencies with: "
+                "    pip install 'apache-airflow[kubernetes]'")
