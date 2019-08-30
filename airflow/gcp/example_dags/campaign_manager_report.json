@@ -1,0 +1,14 @@
+{
+  "type": "STANDARD",
+  "name": "test-report",
+  "criteria": {
+    "dateRange": {
+      "kind": "dfareporting#dateRange",
+      "relativeDateRange": "LAST_365_DAYS"
+    },
+    "dimensions": [
+      {"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}
+    ],
+    "metricNames": ["dfa:activeViewImpressionDistributionViewable"]
+  }
+}

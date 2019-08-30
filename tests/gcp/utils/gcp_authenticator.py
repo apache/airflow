@@ -45,7 +45,7 @@ GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
-
+GOOGLE_CAMPAIGN_MANAGER_KEY = 'google_campaign_manager.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
