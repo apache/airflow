@@ -114,8 +114,6 @@ class TestGKEClusterHookCreate(unittest.TestCase):
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
     def test_create_cluster_proto(self, wait_mock, convert_mock, mock_project_id):
-        from google.cloud.container_v1.proto.cluster_service_pb2 import Cluster
-
         mock_cluster_proto = Cluster()
         mock_cluster_proto.name = CLUSTER_NAME
 
@@ -164,7 +162,6 @@ class TestGKEClusterHookCreate(unittest.TestCase):
             {'name': 'test-cluster'},
             Cluster()
         )
-
 
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
