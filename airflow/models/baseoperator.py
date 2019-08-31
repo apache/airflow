@@ -25,7 +25,8 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Set, Any
+from dateutil.relativedelta import relativedelta
+from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
 
 import jinja2
 
@@ -47,6 +48,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
 @functools.total_ordering
@@ -262,38 +265,38 @@ class BaseOperator(LoggingMixin):
         self,
         task_id: str,
         owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
-        email: str = None,
+        email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: int = None,
+        retries: Optional[int] = None,
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
-        max_retry_delay: datetime = None,
-        start_date: datetime = None,
-        end_date: datetime = None,
-        schedule_interval=None,  # not hooked as of now
+        max_retry_delay: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        schedule_interval: Optional[ScheduleInterval] = None,  # not hooked as of now
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
-        dag: DAG = None,
-        params: Dict = None,
-        default_args: Dict = None,
+        dag: Optional[DAG] = None,
+        params: Optional[Dict] = None,
+        default_args: Optional[Dict] = None,
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = configuration.conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
-        sla: timedelta = None,
-        execution_timeout: timedelta = None,
-        on_failure_callback: Callable = None,
-        on_success_callback: Callable = None,
-        on_retry_callback: Callable = None,
+        sla: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = None,
+        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[Callable] = None,
+        on_retry_callback: Optional[Callable] = None,
         trigger_rule: str = TriggerRule.ALL_SUCCESS,
-        resources: Dict = None,
-        run_as_user: str = None,
-        task_concurrency: int = None,
-        executor_config: Dict = None,
+        resources: Optional[Dict] = None,
+        run_as_user: Optional[str] = None,
+        task_concurrency: Optional[int] = None,
+        executor_config: Optional[Dict] = None,
         do_xcom_push: bool = True,
-        inlets: Dict = None,
-        outlets: Dict = None,
+        inlets: Optional[Dict] = None,
+        outlets: Optional[Dict] = None,
         *args,
         **kwargs
     ):
@@ -636,7 +639,7 @@ class BaseOperator(LoggingMixin):
         self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_fields(self, context: Dict, jinja_env: jinja2.Environment = None) -> None:
+    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
@@ -655,7 +658,9 @@ class BaseOperator(LoggingMixin):
                 rendered_content = self.render_template(content, context, jinja_env)
                 setattr(self, attr_name, rendered_content)
 
-    def render_template(self, content: Any, context: Dict, jinja_env: jinja2.Environment = None) -> Any:
+    def render_template(
+        self, content: Any, context: Dict, jinja_env: Optional[jinja2.Environment] = None
+    ) -> Any:
         """
         Render a templated string. The content can be a collection holding multiple templated strings and will
         be templated recursively.
