@@ -651,7 +651,7 @@ do
       export RUN_DOCKER_COMPOSE="false"
       export RUN_STATIC_CHECKS="false"
       export RUN_BUILD_DOCS="true"
-      shift 2 ;;
+      shift 1 ;;
     --)
       shift ;
       break ;;
