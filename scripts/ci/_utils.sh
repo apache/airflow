@@ -72,6 +72,11 @@ fi
 
 export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
 
+# Default port numbers for forwarded ports
+export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
+export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
+export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
