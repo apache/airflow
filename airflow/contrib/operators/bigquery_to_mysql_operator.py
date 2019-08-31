@@ -19,6 +19,7 @@
 """
 This module contains a Google BigQuery to MySQL operator.
 """
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -77,17 +78,17 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_table,
-                 mysql_table,
-                 selected_fields=None,
-                 gcp_conn_id='google_cloud_default',
-                 mysql_conn_id='mysql_default',
-                 database=None,
-                 delegate_to=None,
-                 replace=False,
-                 batch_size=1000,
+                 dataset_table: str,
+                 mysql_table: str,
+                 selected_fields: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 mysql_conn_id: str = 'mysql_default',
+                 database: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 replace: bool = False,
+                 batch_size: int = 1000,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id

@@ -24,8 +24,10 @@ This module contains Google Kubernetes Engine operators.
 import os
 import subprocess
 import tempfile
+from typing import Union, Dict, Optional
 
 from google.auth.environment_vars import CREDENTIALS
+from google.cloud.container_v1.types import Cluster
 
 from airflow import AirflowException
 from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
@@ -69,13 +71,13 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 name,
-                 location,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v2',
+                 project_id: str,
+                 name: str,
+                 location: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v2',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project_id = project_id
@@ -144,13 +146,13 @@ class GKEClusterCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 location,
-                 body,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v2',
+                 project_id: str,
+                 location: str,
+                 body: Optional[Union[Dict, Cluster]],
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v2',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project_id = project_id
@@ -224,10 +226,10 @@ class GKEPodOperator(KubernetesPodOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 location,
-                 cluster_name,
-                 gcp_conn_id='google_cloud_default',
+                 project_id: str,
+                 location: str,
+                 cluster_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)

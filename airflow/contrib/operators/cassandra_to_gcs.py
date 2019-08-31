@@ -26,6 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
+from typing import Optional
 from uuid import UUID
 
 from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
@@ -82,18 +83,18 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 cql,
-                 bucket,
-                 filename,
-                 schema_filename=None,
-                 approx_max_file_size_bytes=1900000000,
-                 gzip=False,
-                 cassandra_conn_id='cassandra_default',
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
+                 cql: str,
+                 bucket: str,
+                 filename: str,
+                 schema_filename: Optional[str] = None,
+                 approx_max_file_size_bytes: int = 1900000000,
+                 gzip: bool = False,
+                 cassandra_conn_id: str = 'cassandra_default',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:

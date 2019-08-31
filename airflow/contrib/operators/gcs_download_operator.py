@@ -22,6 +22,7 @@ This module contains Google Cloud Storage download operator.
 
 import sys
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -67,15 +68,15 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object_name=None,
-                 filename=None,
-                 store_to_xcom_key=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
+                 bucket: str,
+                 object_name: Optional[str] = None,
+                 filename: Optional[str] = None,
+                 store_to_xcom_key: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         # To preserve backward compatibility
         # TODO: Remove one day
         if object_name is None:

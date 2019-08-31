@@ -20,6 +20,7 @@
 This module contains Google BigQuery check operator.
 """
 import warnings
+from typing import Any, SupportsAbs, Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.operators.check_operator import \
@@ -72,17 +73,17 @@ class BigQueryCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 use_legacy_sql=True,
-                 *args, **kwargs):
+                 sql: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args, **kwargs) -> None:
         super().__init__(sql=sql, *args, **kwargs)
         if not bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id
+            gcp_conn_id = bigquery_conn_id  # type: ignore
 
         self.gcp_conn_id = gcp_conn_id
         self.sql = sql
@@ -113,13 +114,13 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     template_ext = ('.sql', )
 
     @apply_defaults
-    def __init__(self, sql,
-                 pass_value,
-                 tolerance=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 use_legacy_sql=True,
-                 *args, **kwargs):
+    def __init__(self, sql: str,
+                 pass_value: Any,
+                 tolerance: Any = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args, **kwargs) -> None:
         super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
@@ -171,13 +172,15 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(self,
-                 table,
-                 metrics_thresholds,
-                 date_filter_column='ds',
-                 days_back=-7,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 use_legacy_sql=True, *args, **kwargs):
+                 table: str,
+                 metrics_thresholds: dict,
+                 date_filter_column: str = 'ds',
+                 days_back: SupportsAbs[int] = -7,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args,
+                 **kwargs) -> None:
         super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,

@@ -25,6 +25,7 @@ import re
 import uuid
 import copy
 from enum import Enum
+from typing import List, Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.gcp.hooks.dataflow import DataFlowHook
@@ -167,18 +168,18 @@ class DataFlowJavaOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            jar,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
-            job_class=None,
-            check_if_running=CheckJobRunning.WaitForRun,
-            multiple_jobs=None,
+            jar: str,
+            job_name: str = '{{task.task_id}}',
+            dataflow_default_options: Optional[dict] = None,
+            options: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
+            job_class: Optional[str] = None,
+            check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+            multiple_jobs: Optional[bool] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -295,15 +296,15 @@ class DataflowTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            template,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            parameters=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
+            template: str,
+            job_name: str = '{{task.task_id}}',
+            dataflow_default_options: Optional[dict] = None,
+            parameters: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -368,16 +369,16 @@ class DataFlowPythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            py_file,
-            job_name='{{task.task_id}}',
-            py_options=None,
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
+            py_file: str,
+            job_name: str = '{{task.task_id}}',
+            py_options: Optional[List[str]] = None,
+            dataflow_default_options: Optional[dict] = None,
+            options: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -417,11 +418,11 @@ class GoogleCloudBucketHelper:
     GCS_PREFIX_LENGTH = 5
 
     def __init__(self,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None) -> None:
         self._gcs_hook = GoogleCloudStorageHook(gcp_conn_id, delegate_to)
 
-    def google_cloud_to_local(self, file_name):
+    def google_cloud_to_local(self, file_name: str) -> str:
         """
         Checks whether the file specified by file_name is stored in Google Cloud
         Storage (GCS), if so, downloads the file and saves it locally. The full

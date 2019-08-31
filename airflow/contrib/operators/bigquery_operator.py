@@ -22,7 +22,7 @@ This module contains Google BigQuery operators.
 
 import json
 import warnings
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Union, Dict
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
@@ -204,9 +204,9 @@ class BigQueryOperator(BaseOperator):
                  api_resource_configs: Optional[dict] = None,
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
-                 encryption_configuration=None,
+                 encryption_configuration: Optional[dict] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -406,18 +406,18 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
-                 project_id=None,
-                 schema_fields=None,
-                 gcs_schema_object=None,
-                 time_partitioning=None,
-                 bigquery_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 labels=None,
-                 encryption_configuration=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 table_id: str,
+                 project_id: Optional[str] = None,
+                 schema_fields: Optional[List] = None,
+                 gcs_schema_object: Optional[str] = None,
+                 time_partitioning: Optional[Dict] = None,
+                 bigquery_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -553,26 +553,26 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 source_objects,
-                 destination_project_dataset_table,
-                 schema_fields=None,
-                 schema_object=None,
-                 source_format='CSV',
-                 compression='NONE',
-                 skip_leading_rows=0,
-                 field_delimiter=',',
-                 max_bad_records=0,
-                 quote_character=None,
-                 allow_quoted_newlines=False,
-                 allow_jagged_rows=False,
-                 bigquery_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 src_fmt_configs=None,
-                 labels=None,
-                 encryption_configuration=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 source_objects: List,
+                 destination_project_dataset_table: str,
+                 schema_fields: Optional[List] = None,
+                 schema_object: Optional[str] = None,
+                 source_format: str = 'CSV',
+                 compression: str = 'NONE',
+                 skip_leading_rows: int = 0,
+                 field_delimiter: str = ',',
+                 max_bad_records: int = 0,
+                 quote_character: Optional[str] = None,
+                 allow_quoted_newlines: bool = False,
+                 allow_jagged_rows: bool = False,
+                 bigquery_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 src_fmt_configs: Optional[dict] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -675,13 +675,13 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 project_id=None,
-                 delete_contents=False,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 delete_contents: bool = False,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         if bigquery_conn_id:
             warnings.warn(
@@ -754,14 +754,14 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 project_id=None,
-                 dataset_reference=None,
-                 location=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 dataset_reference: Optional[Dict] = None,
+                 location: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         if bigquery_conn_id:
             warnings.warn(
@@ -816,11 +816,11 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -865,12 +865,12 @@ class BigQueryPatchDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 dataset_resource,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 dataset_resource: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -919,12 +919,12 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 dataset_resource,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 dataset_resource: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id

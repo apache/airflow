@@ -20,6 +20,7 @@
 This module contains Google Cloud Storage ACL entry operator.
 """
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -59,17 +60,16 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        bucket,
-        entity,
-        role,
-        user_project=None,
-        gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
+        bucket: str,
+        entity: str,
+        role: str,
+        user_project: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
         *args,
         **kwargs
-    ):
-        super().__init__(*args,
-                         **kwargs)
+    ) -> None:
+        super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -129,17 +129,16 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object_name,
-                 entity,
-                 role,
-                 generation=None,
-                 user_project=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 *args, **kwargs):
-        super().__init__(*args,
-                         **kwargs)
+                 bucket: str,
+                 object_name: str,
+                 entity: str,
+                 role: str,
+                 generation: Optional[int] = None,
+                 user_project: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
