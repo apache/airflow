@@ -159,6 +159,7 @@ repos:
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
         language: python
+        additional_dependencies: ['yamllint']
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
       - id: shellcheck
