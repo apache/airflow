@@ -345,6 +345,7 @@ def do_setup():
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
+            'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
