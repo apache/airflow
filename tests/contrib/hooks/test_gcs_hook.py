@@ -20,6 +20,7 @@ import io
 import os
 import tempfile
 import unittest
+import copy
 from datetime import datetime
 
 import dateutil
@@ -28,6 +29,7 @@ from google.cloud import exceptions
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
+from airflow.version import version
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -385,9 +387,12 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_labels = {'env': 'prod'}
         test_storage_class = 'MULTI_REGIONAL'
 
+        labels_with_version = copy.deepcopy(test_labels)
+        labels_with_version['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+
         mock_service.return_value.bucket.return_value.create.return_value = None
         mock_bucket.return_value.storage_class = test_storage_class
-        mock_bucket.return_value.labels = test_labels
+        mock_bucket.return_value.labels = labels_with_version
 
         sample_bucket = mock_service().bucket(bucket_name=test_bucket)
 
@@ -402,7 +407,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(response, sample_bucket.id)
 
         self.assertEqual(sample_bucket.storage_class, test_storage_class)
-        self.assertEqual(sample_bucket.labels, test_labels)
+        self.assertDictEqual(sample_bucket.labels, test_labels)
 
         mock_service.return_value.bucket.return_value.create.assert_called_once_with(
             project=test_project, location=test_location
