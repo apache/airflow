@@ -32,8 +32,9 @@ repos:
         name: Check if licences are OK for Apache
         entry: ./scripts/ci/ci_check_license.sh
         language: system
-        files: ^\.pre-commit-config\.yaml$
-        pass_filenames: true
+        files: ^.*LICENSE.*$|^.*LICENCE.*$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/potiuk/pre-commit-hooks
     rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
     hooks:
