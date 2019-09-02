@@ -22,19 +22,19 @@
 import datetime
 import json
 import logging
-from typing import Dict, Optional, TYPE_CHECKING, Union
+from typing import Iterable, Optional, TYPE_CHECKING, Union
 
 import dateutil.parser
-import jsonschema
 import pendulum
 
 import airflow
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, DAG
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
+from airflow.dag.serialization.json_schema import Validator
 
 
 if TYPE_CHECKING:
@@ -56,24 +56,27 @@ class Serialization:
     # Time types.
     _datetime_types = (datetime.datetime, datetime.date, datetime.time)
 
+    # Exactly these fields will be contained in the serialized Json
+    _included_fields = []  # type: Iterable[str]
+
     # Object types that are always excluded in serialization.
     # FIXME: not needed if _included_fields of DAG and operator are customized.
     _excluded_types = (logging.Logger, Connection, type)
 
-    _json_schema = None     # type: Optional[Dict]
+    _json_schema = None     # type: Optional[Validator]
 
     @classmethod
     def to_json(cls, var):
         # type: (Union[DAG, BaseOperator, dict, list, set, tuple]) -> str
         """Stringifies DAGs and operators contained by var and returns a JSON string of var.
         """
-        return json.dumps(cls._serialize(var, {}), ensure_ascii=True)
+        return json.dumps(cls._serialize(var), ensure_ascii=True)
 
     @classmethod
     def from_json(cls, json_str):
         # type: (str) -> Union['SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]
         """Deserializes json_str and reconstructs all DAGs and operators it contains."""
-        return cls._deserialize(json.loads(json_str), {})
+        return cls._deserialize(json.loads(json_str))
 
     @classmethod
     def validate_json(cls, json_str):
@@ -81,7 +84,7 @@ class Serialization:
         """Validate json_str satisfies JSON schema."""
         if cls._json_schema is None:
             raise AirflowException('JSON schema of {:s} is not set.'.format(cls.__name__))
-        jsonschema.validate(json.loads(json_str), cls._json_schema)
+        cls._json_schema.validate(json.loads(json_str))
 
     @staticmethod
     def _encode(x, type_):
@@ -89,26 +92,22 @@ class Serialization:
         return {Encoding.VAR: x, Encoding.TYPE: type_}
 
     @classmethod
-    def _serialize_object(cls, var, visited_dags, included_fields):
+    def _serialize_object(cls, var):
         """Helper function to serialize an object as a JSON dict."""
         new_var = {}
-        for k in included_fields:
+        for k in cls._included_fields:
             # None is ignored in serialized form and is added back in deserialization.
             v = getattr(var, k, None)
             if not cls._is_excluded(v):
-                new_var[k] = cls._serialize(v, visited_dags)
+                new_var[k] = cls._serialize(v)
         return new_var
 
     @classmethod
-    def _deserialize_object(cls, var, new_var, included_fields, visited_dags):
-        """Deserialize and copy the attributes of dict var to a new object new_var.
-
-        It does not create new_var because if var is a DAG, new_var should be added into visited_dag
-        ahead of calling this function.
-        """
-        for k in included_fields:
+    def _deserialize_object(cls, var, new_var):
+        """Deserialize and copy the attributes of dict var to a new object new_var."""
+        for k in cls._included_fields:
             if k in var:
-                setattr(new_var, k, cls._deserialize(var[k], visited_dags))
+                setattr(new_var, k, cls._deserialize(var[k]))
             else:
                 setattr(new_var, k, None)
 
@@ -123,7 +122,7 @@ class Serialization:
         return var is None or isinstance(var, cls._excluded_types)
 
     @classmethod
-    def _serialize(cls, var, visited_dags):  # pylint: disable=too-many-return-statements
+    def _serialize(cls, var):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for serialization.
 
         visited_dags stores DAGs that are being serialized or have been serialized,
@@ -143,17 +142,14 @@ class Serialization:
                 return var
             elif isinstance(var, dict):
                 return cls._encode(
-                    {str(k): cls._serialize(v, visited_dags)
-                     for k, v in var.items()},
+                    {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT)
             elif isinstance(var, list):
-                return [cls._serialize(v, visited_dags) for v in var]
+                return [cls._serialize(v) for v in var]
             elif isinstance(var, DAG):
-                return airflow.dag.serialization.SerializedDAG.serialize_dag(
-                    var, visited_dags)
+                return airflow.dag.serialization.SerializedDAG.serialize_dag(var)
             elif isinstance(var, BaseOperator):
-                return airflow.dag.serialization.SerializedBaseOperator.serialize_operator(
-                    var, visited_dags)
+                return airflow.dag.serialization.SerializedBaseOperator.serialize_operator(var)
             elif isinstance(var, cls._datetime_types):
                 return cls._encode(var.isoformat(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
@@ -161,15 +157,15 @@ class Serialization:
             elif isinstance(var, pendulum.tz.Timezone):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif callable(var):
-                return str(get_python_source(var))
+                return str(get_python_source(var, return_none_if_x_none=True))
             elif isinstance(var, set):
-                # FIXME: casts set to list in customized serilization in future.
+                # FIXME: casts set to list in customized serialization in future.
                 return cls._encode(
-                    [cls._serialize(v, visited_dags) for v in var], type_=DAT.SET)
+                    [cls._serialize(v) for v in var], type_=DAT.SET)
             elif isinstance(var, tuple):
-                # FIXME: casts tuple to list in customized serilization in future.
+                # FIXME: casts tuple to list in customized serialization in future.
                 return cls._encode(
-                    [cls._serialize(v, visited_dags) for v in var], type_=DAT.TUPLE)
+                    [cls._serialize(v) for v in var], type_=DAT.TUPLE)
             else:
                 LOG.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
@@ -178,33 +174,25 @@ class Serialization:
             return FAILED
 
     @classmethod
-    def _deserialize(cls, encoded_var, visited_dags):  # pylint: disable=too-many-return-statements
+    def _deserialize(cls, encoded_var):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
         try:
             # JSON primitives (except for dict) are not encoded.
             if cls._is_primitive(encoded_var):
                 return encoded_var
             elif isinstance(encoded_var, list):
-                return [cls._deserialize(v, visited_dags) for v in encoded_var]
+                return [cls._deserialize(v) for v in encoded_var]
 
             assert isinstance(encoded_var, dict)
             var = encoded_var[Encoding.VAR]
             type_ = encoded_var[Encoding.TYPE]
 
             if type_ == DAT.DICT:
-                return {k: cls._deserialize(v, visited_dags) for k, v in var.items()}
+                return {k: cls._deserialize(v) for k, v in var.items()}
             elif type_ == DAT.DAG:
-                if isinstance(var, dict):
-                    return airflow.dag.serialization.SerializedDAG.deserialize_dag(
-                        var, visited_dags)
-                elif isinstance(var, str) and var in visited_dags:
-                    # dag_id is stored in the serailized form for a visited DAGs.
-                    return visited_dags[var]
-                LOG.warning('Invalid DAG %s in deserialization.', var)
-                return None
+                return airflow.dag.serialization.SerializedDAG.deserialize_dag(var)
             elif type_ == DAT.OP:
-                return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(
-                    var, visited_dags)
+                return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
             elif type_ == DAT.DATETIME:
                 return dateutil.parser.parse(var)
             elif type_ == DAT.TIMEDELTA:
@@ -212,9 +200,9 @@ class Serialization:
             elif type_ == DAT.TIMEZONE:
                 return pendulum.tz.timezone(name=var)
             elif type_ == DAT.SET:
-                return {cls._deserialize(v, visited_dags) for v in var}
+                return {cls._deserialize(v) for v in var}
             elif type_ == DAT.TUPLE:
-                return tuple([cls._deserialize(v, visited_dags) for v in var])
+                return tuple([cls._deserialize(v) for v in var])
             else:
                 LOG.warning('Invalid type %s in deserialization.', type_)
                 return None

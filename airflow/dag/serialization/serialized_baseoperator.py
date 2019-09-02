@@ -19,8 +19,7 @@
 
 """Operator serialization with JSON."""
 
-from airflow.dag.serialization.enum import DagAttributeTypes as DAT
-from airflow.dag.serialization.json_schema import make_operator_schema
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.dag.serialization.serialization import Serialization
 from airflow.models import BaseOperator
 
@@ -31,10 +30,9 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
     """
-    _included_fields = list(vars(BaseOperator(task_id='test')).keys()) + [
-        '_dag', '_task_type', 'ui_color', 'ui_fgcolor', 'template_fields']
-
-    _json_schema = make_operator_schema()
+    _included_fields = list(set(vars(BaseOperator(task_id='test')).keys()) - {
+        'inlets', 'outlets'
+    }) + ['_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields']
 
     def __init__(self, *args, **kwargs):
         super(SerializedBaseOperator, self).__init__(*args, **kwargs)
@@ -45,6 +43,9 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
         self.template_fields = BaseOperator.template_fields
+        # subdag parameter is only set for SubDagOperator.
+        # Setting it to None by default as other Operators do not have that field
+        self.subdag = None
 
     @property
     def task_type(self):
@@ -59,22 +60,24 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         self._task_type = task_type
 
     @classmethod
-    def serialize_operator(cls, op, visited_dags):
-        # type: (BaseOperator, dict) -> dict
+    def serialize_operator(cls, op):
+        # type: (BaseOperator) -> dict
         """Serializes operator into a JSON object.
         """
-        serialize_op = cls._serialize_object(
-            op, visited_dags, included_fields=SerializedBaseOperator._included_fields)
+        serialize_op = cls._serialize_object(op)
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
+
+        if isinstance(op.template_fields, tuple):
+            # Don't store the template_fields as a tuple -- a list is simpler and does what we need
+            serialize_op['template_fields'] = serialize_op['template_fields'][Encoding.VAR]
         return cls._encode(serialize_op, type_=DAT.OP)
 
     @classmethod
-    def deserialize_operator(cls, encoded_op, visited_dags):
-        # type: (dict, dict) -> BaseOperator
+    def deserialize_operator(cls, encoded_op):
+        # type: (dict) -> BaseOperator
         """Deserializes an operator from a JSON object.
         """
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
-        cls._deserialize_object(
-            encoded_op, op, SerializedBaseOperator._included_fields, visited_dags)
+        cls._deserialize_object(encoded_op, op)
         return op

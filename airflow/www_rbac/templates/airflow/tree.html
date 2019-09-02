@@ -60,7 +60,7 @@
   {% for op in operators %}
   <div class="legend_circle" style="background:{{ op.ui_color }};">
   </div>
-  <div class="legend_item" style="float:left;border-color:white;">{{ op.__name__ }}</div>
+  <div class="legend_item" style="float:left;border-color:white;">{{ op.task_type }}</div>
   {% endfor %}
   <div style="clear:both;"></div>
 </div>
