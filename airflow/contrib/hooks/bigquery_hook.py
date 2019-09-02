@@ -265,7 +265,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type cluster_fields: list
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
         :type view: dict
 
         **Example**: ::
@@ -592,7 +592,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
             **Example**: ::
 
                 view = {
