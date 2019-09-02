@@ -22,6 +22,7 @@
 import datetime
 import json
 import logging
+import six
 from typing import Iterable, Optional, TYPE_CHECKING, Union
 
 import dateutil.parser
@@ -51,7 +52,7 @@ class Serialization:
     """Serialization provides utils for serialization."""
 
     # JSON primitive types.
-    _primitive_types = (int, bool, float, str)
+    _primitive_types = (int, bool, float) + six.string_types
 
     # Time types.
     _datetime_types = (datetime.datetime, datetime.date, datetime.time)
