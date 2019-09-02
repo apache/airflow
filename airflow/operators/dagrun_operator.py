@@ -52,6 +52,8 @@ class TriggerDagRunOperator(BaseOperator):
     :type python_callable: python callable
     :param execution_date: Execution date for the dag (templated)
     :type execution_date: str or datetime.datetime
+    :param dag_folder: a path to dag bag where is placed trigger dag
+    :type dag_folder: str
     """
     template_fields = ('trigger_dag_id', 'execution_date')
     ui_color = '#ffefeb'
@@ -62,11 +64,12 @@ class TriggerDagRunOperator(BaseOperator):
             trigger_dag_id: str,
             python_callable: Callable[[Dict, DagRunOrder], DagRunOrder] = None,
             execution_date: Optional[Union[str, datetime.datetime]] = None,
+            dag_folder: str = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
-
+        self.dag_folder = dag_folder
         self.execution_date = None  # type: Optional[Union[str, datetime.datetime]]
         if isinstance(execution_date, datetime.datetime):
             self.execution_date = execution_date.isoformat()
@@ -94,6 +97,7 @@ class TriggerDagRunOperator(BaseOperator):
                         run_id=dro.run_id,
                         conf=json.dumps(dro.payload),
                         execution_date=self.execution_date,
-                        replace_microseconds=False)
+                        replace_microseconds=False,
+                        dag_folder=self.dag_folder)
         else:
             self.log.info("Criteria not met, moving on")

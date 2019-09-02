@@ -100,6 +100,7 @@ def trigger_dag(
         conf: Optional[Union[dict, str]] = None,
         execution_date: datetime = None,
         replace_microseconds: bool = True,
+        dag_folder: str = None,
 ) -> Optional[DagRun]:
     """Triggers execution of DAG specified by dag_id
 
@@ -108,12 +109,15 @@ def trigger_dag(
     :param conf: configuration
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
+    :param dag_folder: a path to dag bag where is placed trigger dag
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
     dag_model = DagModel.get_current(dag_id)
+    if not dag_folder:
+        dag_folder = dag_model.fileloc
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    dagbag = DagBag(dag_folder=dag_folder)
     dag_run = DagRun()
     triggers = _trigger_dag(
         dag_id=dag_id,
