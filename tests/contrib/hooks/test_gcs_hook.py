@@ -537,12 +537,14 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"x" * 393216)
         self.testfile.flush()
+        self.testdata_bytes = b"x" * 393216
+        self.testdata_str = "x" * 393216
 
     def tearDown(self):
         os.unlink(self.testfile.name)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload(self, mock_service):
+    def test_upload_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
@@ -552,7 +554,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
                                         test_object,
-                                        self.testfile.name)
+                                        filename=self.testfile.name)
 
         self.assertIsNone(response)
         upload_method.assert_called_once_with(
@@ -561,7 +563,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_gzip(self, mock_service):
+    def test_upload_file_gzip(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
@@ -571,7 +573,70 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
                                         test_object,
-                                        self.testfile.name,
+                                        filename=self.testfile.name,
                                         gzip=True)
         self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
         self.assertIsNone(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_string(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        upload_method = mock_service.return_value.get_bucket.return_value\
+            .blob.return_value.upload_from_string
+        upload_method.return_value = None
+
+        response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
+                                        test_object,
+                                        data=self.testdata_str)
+
+        self.assertIsNone(response)
+        upload_method.assert_called_once_with(
+            self.testdata_str,
+            content_type='text/plain'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_string_gzip(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        upload_method = mock_service.return_value.get_bucket.return_value\
+            .blob.return_value.upload_from_string
+        upload_method.return_value = None
+
+        response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
+                                        test_object,
+                                        data=self.testdata_str,
+                                        gzip=True)
+
+        self.assertIsNone(response)
+
+        response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
+                                        test_object,
+                                        data=self.testdata_bytes,
+                                        gzip=True)
+
+        self.assertIsNone(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_exceptions(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        upload_method = mock_service.return_value.get_bucket.return_value\
+            .blob.return_value.upload_from_string
+        upload_method.return_value = None
+
+        self.assertRaises(ValueError,
+                          self.gcs_hook.upload,
+                          test_bucket,
+                          test_object)
+
+        self.assertRaises(ValueError,
+                          self.gcs_hook.upload,
+                          test_bucket,
+                          test_object,
+                          filename=self.testfile.name,
+                          data=self.testdata_str)
