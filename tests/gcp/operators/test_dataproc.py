@@ -29,8 +29,8 @@ import time
 from copy import deepcopy
 
 from airflow import DAG, AirflowException
-from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJobBuilder
-from airflow.contrib.operators.dataproc_operator import \
+from airflow.gcp.hooks.dataproc import _DataProcJobBuilder
+from airflow.gcp.operators.dataproc import \
     DataprocClusterCreateOperator, \
     DataprocClusterDeleteOperator, \
     DataProcHadoopOperator, \
@@ -96,7 +96,7 @@ LABELS = {
     'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')
 }
 
-HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
+HOOK = 'airflow.gcp.operators.dataproc.DataProcHook'
 DATAPROC_JOB_ID = 'dataproc_job_id'
 DATAPROC_JOB_TO_SUBMIT = {
     'job': {
@@ -761,7 +761,7 @@ class TestDataProcJobBaseOperator(unittest.TestCase):
 
     def test_dataproc_job_base(self):
         with patch(
-            'airflow.contrib.operators.dataproc_operator.DataProcHook.project_id',
+            'airflow.gcp.operators.dataproc.DataProcHook.project_id',
                 new_callable=PropertyMock) as mock_project_id:
             mock_project_id.return_value = GCP_PROJECT_ID
             task = DataProcJobBaseOperator(
@@ -796,8 +796,8 @@ class TestDataProcHadoopOperator(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
-    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.gcp.operators.dataproc.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.gcp.operators.dataproc.uuid.uuid4', return_value='test')
     def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
@@ -881,8 +881,8 @@ class TestDataProcHiveOperator(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
-    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.gcp.operators.dataproc.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.gcp.operators.dataproc.uuid.uuid4', return_value='test')
     def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
@@ -966,8 +966,8 @@ class TestDataProcPigOperator(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
-    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.gcp.operators.dataproc.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.gcp.operators.dataproc.uuid.uuid4', return_value='test')
     def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
@@ -1056,8 +1056,8 @@ class TestDataProcPySparkOperator(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
-    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.gcp.operators.dataproc.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.gcp.operators.dataproc.uuid.uuid4', return_value='test')
     def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)
@@ -1144,8 +1144,8 @@ class TestDataProcSparkOperator(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
-    @mock.patch('airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator.execute')
-    @mock.patch('airflow.contrib.operators.dataproc_operator.uuid.uuid4', return_value='test')
+    @mock.patch('airflow.gcp.operators.dataproc.DataProcJobBaseOperator.execute')
+    @mock.patch('airflow.gcp.operators.dataproc.uuid.uuid4', return_value='test')
     def test_correct_job_definition(self, mock_hook, mock_uuid, mock_project_id):
         # Expected job
         job_definition = deepcopy(DATAPROC_JOB_TO_SUBMIT)

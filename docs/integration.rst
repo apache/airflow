@@ -510,37 +510,37 @@ They also use :class:`airflow.gcp.hooks.dataflow.DataFlowHook` to communicate wi
 Cloud DataProc
 ''''''''''''''
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterCreateOperator`
     Create a new cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator`
     Delete a cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterScaleOperator`
     Scale up or down a cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcHadoopOperator`
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHiveOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcHiveOperator`
     Start a Hive query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPigOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcPigOperator`
     Start a Pig query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcPySparkOperator`
     Start a PySpark Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcSparkOperator`
     Start a Spark Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcSparkSqlOperator`
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator`
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator`
     Instantiate a WorkflowTemplate on Google Cloud Dataproc.
 
 

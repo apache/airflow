@@ -125,6 +125,10 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.gcp.hooks.vision.CloudVisionHook",
                 "airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook",
             ),
+            (
+                "airflow.gcp.hooks.dataproc.DataProcHook",
+                "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
+            ),
         ]
     )
     def test_hooks_paths(self, new_path: str, old_path: str):
@@ -604,6 +608,60 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
                 "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterCreateOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterScaleOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcHadoopOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcHiveOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcJobBaseOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocOperationBaseOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcPigOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcPySparkOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcSparkOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcSparkSqlOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+                "airflow.contrib.operators.dataproc_operator."
+                "DataprocWorkflowTemplateInstantiateInlineOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+                "airflow.contrib.operators.dataproc_operator."
+                "DataprocWorkflowTemplateInstantiateOperator",
             ),
         ]
     )
