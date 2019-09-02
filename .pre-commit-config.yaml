@@ -183,3 +183,23 @@ repos:
         language: system
         entry: ./scripts/ci/ci_flake8.sh
         files: \.py$
+      - id: python2-fastcheck
+        language: pygrep
+        name: Find common Python 3 vs. 2.7 compatibility problems
+        entry: >
+          (?x)
+            (?!.*\#\ noqa)(?!.*//\ noqa)(           # Exclude lines with '# noqa' or '// noqa' comment
+                .super\(\).*|                       # Matches super() call from Python 3
+                ^\s*def\s*\S*\([^:#)]*:.*|          # Matches function param with Python3 type
+                ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
+            )$
+        files: \.py$
+        exclude: ^airflow/_vendor
+        pass_filenames: true
+      - id: python2-compile
+        name: Compile code using python2
+        language: system
+        entry: python2.7 -m py_compile
+        files: \.py$
+        pass_filenames: true
+        require_serial: true
