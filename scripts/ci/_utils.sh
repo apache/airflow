@@ -406,7 +406,7 @@ EOF
         else
             export ACTION="Rebuilding"
         fi
-        if [[ ${CI:=} != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${FORCE_BUILD}" != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
