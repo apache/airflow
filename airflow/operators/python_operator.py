@@ -100,16 +100,16 @@ class PythonOperator(BaseOperator):
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
-        if {parameter for name, parameter
+        if {param for param
            in signature(self.python_callable).parameters.items()
-           if str(parameter).startswith("**")}:
+           if str(param).startswith("**")}:
             # If there is a **kwargs, **context or **_ then just pass everything.
             self.op_kwargs = context
         else:
             # If there is only for example, an execution_date, then pass only these in :-)
             self.op_kwargs = {
-                name: context[name] for name, parameter
-                in signature(self.python_callable).parameters.items()
+                name: context[name]
+                for name in signature(self.python_callable).parameters.keys()
                 if name in context  # If it isn't available on the context, then ignore
             }
 
