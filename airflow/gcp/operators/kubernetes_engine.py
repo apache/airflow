@@ -83,6 +83,7 @@ class GKEClusterDeleteOperator(BaseOperator):
         self.location = location
         self.api_version = api_version
         self.name = name
+        self._check_input()
 
     def _check_input(self):
         if not all([self.project_id, self.name, self.location]):
@@ -91,7 +92,6 @@ class GKEClusterDeleteOperator(BaseOperator):
             raise AirflowException('Operator has incorrect or missing input.')
 
     def execute(self, context):
-        self._check_input()
         hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
@@ -158,13 +158,13 @@ class GKEClusterCreateOperator(BaseOperator):
         self.location = location
         self.api_version = api_version
         self.body = body
+        self._check_input()
 
     def _check_input(self):
-        is_valid_dict = lambda obj: isinstance(obj, dict) and "name" in obj and "initial_node_count" in obj
-        is_valid_object = lambda obj: getattr(obj, "name", None) and getattr(obj, "initial_node_count", None)
-
-        if not all([self.project_id, self.location, self.body]) \
-                or (is_valid_dict(self.body) and is_valid_object(self.body)):
+        if not all([self.project_id, self.location, self.body]) or not (
+            (isinstance(self.body, dict) and "name" in self.body and "initial_node_count" in self.body) or
+            (getattr(self.body, "name", None) and getattr(self.body, "initial_node_count", None))
+        ):
             self.log.error(
                 "One of (project_id, location, body, body['name'], "
                 "body['initial_node_count']) is missing or incorrect"
@@ -172,7 +172,6 @@ class GKEClusterCreateOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context):
-        self._check_input()
         hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
