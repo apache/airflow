@@ -34,7 +34,7 @@ class TestSFTPSensor(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
             '/path/to/file/1970-01-01.txt')
         self.assertTrue(output)
 
@@ -49,7 +49,7 @@ class TestSFTPSensor(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
             '/path/to/file/1970-01-01.txt')
         self.assertFalse(output)
 
@@ -65,5 +65,5 @@ class TestSFTPSensor(unittest.TestCase):
         }
         with self.assertRaises(OSError):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
                 '/path/to/file/1970-01-01.txt')

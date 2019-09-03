@@ -70,7 +70,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_with(query)
+        mock_hook.get_first.assert_called_once_with(query)
 
     @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
     def test_execute_assertion_fail(self, mock_get_hook):
@@ -92,7 +92,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
                                     'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
 
-        mock_cmd.is_success.assert_called_with(mock_cmd.status)
+        mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
     @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
     def test_execute_assert_query_fail(self, mock_get_hook):
@@ -114,7 +114,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
             operator.execute()
 
         self.assertNotIn('Qubole Command Id: ', str(cm.exception))
-        mock_cmd.is_success.assert_called_with(mock_cmd.status)
+        mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
     @mock.patch.object(QuboleCheckHook, 'get_query_results')
     @mock.patch.object(QuboleHook, 'execute')

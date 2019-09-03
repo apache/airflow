@@ -88,7 +88,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_with(sql)
+        mock_hook.get_first.assert_called_once_with(sql)
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_fail(self, mock_get_db_hook):

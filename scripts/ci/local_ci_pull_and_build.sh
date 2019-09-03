@@ -34,10 +34,10 @@ export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
 export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL="false"
 export ASSUME_YES_TO_ALL_QUESTIONS="true"
 
-rebuild_image_if_needed_for_tests
+rebuild_ci_image_if_needed
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_slim_image_if_needed
 
-rebuild_image_if_needed_for_checklicence
+rebuild_checklicence_image_if_needed
 
 script_end

@@ -192,6 +192,7 @@ gcp = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
+    'google-cloud-automl>=0.4.0',
     'google-cloud-bigtable==0.33.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
@@ -362,7 +363,7 @@ def do_setup():
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
-            'typing-extensions>=3.7.4;python_version<"3.7"',
+            'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
         setup_requires=[
             'docutils>=0.14, <1.0',

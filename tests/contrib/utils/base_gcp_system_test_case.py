@@ -88,6 +88,19 @@ environment. You can enable it in one of two ways:
 
 """.format(__file__)
 
+SKIP_LONG_TEST_WARNING = """
+The test is only run when the test is run in with GCP-system-tests enabled
+environment. And environment variable GCP_ENABLE_LONG_TESTS is set to True.
+You can enable it in one of two ways:
+
+* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
+  directory which keeps variables.env file with environment variables to set
+  and keys directory which keeps service account keys in .json format and
+  set GCP_ENABLE_LONG_TESTS to True
+* Run this test within automated environment variable workspace where
+  config directory is checked out next to the airflow one.
+""".format(__file__)
+
 
 class TestBaseGcpSystem(unittest.TestCase, LoggingMixin):
     def __init__(self,
@@ -102,6 +115,12 @@ class TestBaseGcpSystem(unittest.TestCase, LoggingMixin):
     @staticmethod
     def skip_check(key_name):
         return GcpAuthenticator(key_name).full_key_path is None
+
+    @staticmethod
+    def skip_long(key_name):
+        if os.environ.get('GCP_ENABLE_LONG_TESTS') == 'True':
+            return GcpAuthenticator(key_name).full_key_path is None
+        return True
 
     def setUp(self):
         self.gcp_authenticator.gcp_store_authentication()

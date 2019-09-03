@@ -144,7 +144,7 @@ class TestIntegrationFTPHook(unittest.TestCase):
     def _test_mode(self, hook_type, connection_id, expected_mode):
         hook = hook_type(connection_id)
         conn = hook.get_conn()
-        conn.set_pasv.assert_called_with(expected_mode)
+        conn.set_pasv.assert_called_once_with(expected_mode)
 
     @mock.patch("ftplib.FTP")
     def test_ftp_passive_mode(self, mock_ftp):

@@ -57,17 +57,17 @@ class TestDockerSwarmOperator(unittest.TestCase):
         )
         operator.execute(None)
 
-        types_mock.TaskTemplate.assert_called_with(
+        types_mock.TaskTemplate.assert_called_once_with(
             container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
         )
-        types_mock.ContainerSpec.assert_called_with(
+        types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest', command='env', user='unittest',
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}
         )
-        types_mock.RestartPolicy.assert_called_with(condition='none')
-        types_mock.Resources.assert_called_with(mem_limit='128m')
+        types_mock.RestartPolicy.assert_called_once_with(condition='none')
+        types_mock.Resources.assert_called_once_with(mem_limit='128m')
 
-        client_class_mock.assert_called_with(
+        client_class_mock.assert_called_once_with(
             base_url='unix://var/run/docker.sock', tls=None, version='1.19'
         )
 
@@ -79,7 +79,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         self.assertEqual(cskwargs['labels'], {'name': 'airflow__adhoc_airflow__unittest'})
         self.assertTrue(cskwargs['name'].startswith('airflow-'))
         self.assertEqual(client_mock.tasks.call_count, 3)
-        client_mock.remove_service.assert_called_with('some_id')
+        client_mock.remove_service.assert_called_once_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.APIClient')
     @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
@@ -140,4 +140,4 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
         operator.on_kill()
 
-        client_mock.remove_service.assert_called_with('some_id')
+        client_mock.remove_service.assert_called_once_with('some_id')

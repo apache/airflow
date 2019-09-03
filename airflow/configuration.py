@@ -89,7 +89,7 @@ def run_command(command):
     return output
 
 
-def _read_default_config_file(file_name):
+def _read_default_config_file(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
     with open(file_path, encoding='utf-8') as file:
@@ -147,6 +147,12 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
         },
     }
+
+    # This method transforms option names on every read, get, or set operation.
+    # This changes from the default behaviour of ConfigParser from lowercasing
+    # to instead be case-preserving
+    def optionxform(self, optionstr: str) -> str:
+        return optionstr
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -399,8 +405,15 @@ class AirflowConfigParser(ConfigParser):
                     opt = opt.replace('%', '%%')
                 if display_source:
                     opt = (opt, 'env var')
-                cfg.setdefault(section.lower(), OrderedDict()).update(
-                    {key.lower(): opt})
+
+                section = section.lower()
+                # if we lower key for kubernetes_environment_variables section,
+                # then we won't be able to set any Airflow environment
+                # variables. Airflow only parse environment variables starts
+                # with AIRFLOW_. Therefore, we need to make it a special case.
+                if section != 'kubernetes_environment_variables':
+                    key = key.lower()
+                cfg.setdefault(section, OrderedDict()).update({key: opt})
 
         # add bash commands
         if include_cmds:

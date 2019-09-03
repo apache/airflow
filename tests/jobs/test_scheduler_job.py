@@ -1396,7 +1396,7 @@ class TestSchedulerJob(unittest.TestCase):
         mock_list = Mock()
         scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        mock_list.append.assert_called_with(
+        mock_list.append.assert_called_once_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1681,7 +1681,7 @@ class TestSchedulerJob(unittest.TestCase):
         # tasks are put on the task_instances_list (should be one, not 3)
         scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
 
-        task_instances_list.append.assert_called_with(
+        task_instances_list.append.assert_called_once_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1987,7 +1987,7 @@ class TestSchedulerJob(unittest.TestCase):
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
             assert sla_callback.called
-            mock_log().exception.assert_called_with(
+            mock_log().exception.assert_called_once_with(
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
@@ -2028,7 +2028,7 @@ class TestSchedulerJob(unittest.TestCase):
         with mock.patch('airflow.jobs.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
-            mock_log().exception.assert_called_with(
+            mock_log().exception.assert_called_once_with(
                 'Could not send SLA Miss email notification for DAG %s',
                 'test_sla_miss')
 

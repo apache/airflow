@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing_extensions import Protocol
+from airflow.typing import Protocol
 from typing import Optional
 from airflow import configuration
 from airflow.exceptions import AirflowException

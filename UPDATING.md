@@ -39,6 +39,11 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Airflow Master
 
+### Change dag loading duration metric name
+Change DAG file loading duration metric from 
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to 
+better handle the case when a DAG file has multiple DAGs.
+
 ### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
 
 ImapHook:
@@ -631,7 +636,7 @@ FAB has built-in authentication support for DB, OAuth, OpenID, LDAP, and REMOTE_
 
 For any other authentication type (OAuth, OpenID, LDAP, REMOTE_USER), see the [Authentication section of FAB docs](http://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-methods) for how to configure variables in webserver_config.py file.
 
-Once you modify your config file, run `airflow initdb` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
+Once you modify your config file, run `airflow db init` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
 
 #### Creating an Admin Account
 

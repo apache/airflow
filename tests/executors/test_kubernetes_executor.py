@@ -783,7 +783,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
-        mock_delete_pod.assert_called_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -796,7 +796,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         key = ('dag_id', 'task_id', 'ex_time', 'try_number3')
         executor._change_state(key, State.FAILED, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
-        mock_delete_pod.assert_called_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
