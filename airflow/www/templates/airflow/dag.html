@@ -115,6 +115,12 @@
         </a>
       </li>
       <li>
+        <a href="javascript: void();" title="Auto Refresh" onclick="toggleAutoRefresh(); return false" id="btn-auto-refresh">
+          <span class="glyphicon glyphicon-repeat" aria-hidden="true"></span>
+          <span id="label-auto-refresh">Auto Refresh</span>
+        </a>
+      </li>
+      <li>
         <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
           onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
@@ -358,6 +364,8 @@ function updateQueryStringParameter(uri, key, value) {
     $(document).ready(function () {
       $('a[href*="' + this.location.pathname + '"]').parent().addClass('active');
       $('.never_active').removeClass('active');
+
+      toggleAutoRefreshBtnLabel();
     });
 
     var id = '';
@@ -573,5 +581,59 @@ function updateQueryStringParameter(uri, key, value) {
       $.post(url);
     });
 
+    // AutoRefresh
+    AUTO_REFRESH_COOKIE_NAME = 'airflow_auto_refresh_enabled'
+
+    setCookie = (cname, cvalue, exdays) => {
+    var d = new Date();
+      d.setTime(d.getTime() + (exdays*24*60*60*1000));
+      var expires = "expires="+ d.toUTCString();
+      document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    }
+
+    getCookie = (cname)=> {
+      var name = cname + "=";
+      var decodedCookie = decodeURIComponent(document.cookie);
+      var ca = decodedCookie.split(';');
+      for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+          c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+          return c.substring(name.length, c.length);
+        }
+      }
+      return "";
+    }
+
+    rmCookie = (cname)=>{
+      setCookie(cname, '', 0)
+    }
+
+    isAutoRefreshEnabled = ()=>{
+        return getCookie(AUTO_REFRESH_COOKIE_NAME)==1
+    }
+
+    toggleAutoRefresh = ()=>{
+      if(isAutoRefreshEnabled()){
+        $('#label-auto-refresh').html('Auto Refresh')
+        rmCookie(AUTO_REFRESH_COOKIE_NAME)
+      }else{
+        setCookie(AUTO_REFRESH_COOKIE_NAME, 1)
+      }
+    }
+
+    setInterval(()=>{
+        if (isAutoRefreshEnabled())
+            location.reload()
+    }, 1500);
+
+    function toggleAutoRefreshBtnLabel() {
+      if (isAutoRefreshEnabled())
+        $('#label-auto-refresh').html('Turn Off')
+      else
+        $('#label-auto-refresh').html('Auto Refresh')
+    }
   </script>
 {% endblock %}
