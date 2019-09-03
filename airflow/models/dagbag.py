@@ -286,8 +286,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.jobs import LocalTaskJob as LJ
 
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        zombie_threshold_secs = self.SCHEDULER_ZOMBIE_TASK_THRESHOLD
-        limit_dttm = timezone.utcnow() - timedelta(seconds=zombie_threshold_secs)
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self.SCHEDULER_ZOMBIE_TASK_THRESHOLD)
         self.log.debug("Failing jobs without heartbeat after %s", limit_dttm)
 
         tis = (
