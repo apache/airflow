@@ -250,7 +250,7 @@ class TestPythonOperator(unittest.TestCase):
                            )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_dynamic_provide_context(self):
+    def test_conflicting_kwargs(self):
         def fn(dag):
             if dag != 1:
                 raise ValueError("Should be 1")
@@ -261,7 +261,7 @@ class TestPythonOperator(unittest.TestCase):
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_dynamic_provide_context(self):
+    def test_context_with_conflicting_op_args(self):
         def fn(dag):
             if dag != 1:
                 raise ValueError("Should be 1")

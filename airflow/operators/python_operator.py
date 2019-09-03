@@ -23,9 +23,10 @@ import pickle
 import subprocess
 import sys
 import types
+from inspect import signature
+from itertools import islice
 from textwrap import dedent
 from typing import Optional, Iterable, Dict, Callable
-from inspect import signature
 
 import dill
 
@@ -100,16 +101,20 @@ class PythonOperator(BaseOperator):
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
-        if {param for param
-           in signature(self.python_callable).parameters.items()
-           if str(param).startswith("**")}:
-            # If there is a **kwargs, **context or **_ then just pass everything.
+        sig_full = signature(self.python_callable).parameters.items()
+        # Remove the first n arguments equal to len(op_args).
+        # The notation is a bit akward since the OrderedDict is not slice-able
+        # https://stackoverflow.com/questions/30975339/slicing-a-python-ordereddict
+        sig_without_op_args = islice(sig_full, len(self.op_args), sys.maxsize)
+
+        if any(str(param).startswith("**") for param in sig_without_op_args):
+            # If there is a **kwargs, **context or **_ then just dump everything.
             self.op_kwargs = context
         else:
             # If there is only for example, an execution_date, then pass only these in :-)
             self.op_kwargs = {
                 name: context[name]
-                for name in signature(self.python_callable).parameters.keys()
+                for name in sig_without_op_args
                 if name in context  # If it isn't available on the context, then ignore
             }
 
