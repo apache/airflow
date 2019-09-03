@@ -146,15 +146,13 @@ class GKEClusterCreateOperator(BaseOperator):
     def __init__(self,
                  project_id,
                  location,
-                 body=None,
+                 body,
                  gcp_conn_id='google_cloud_default',
                  api_version='v2',
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        if body is None:
-            body = {}
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.location = location
@@ -162,20 +160,16 @@ class GKEClusterCreateOperator(BaseOperator):
         self.body = body
 
     def _check_input(self):
-        if all([self.project_id, self.location, self.body]):
-            if isinstance(self.body, dict) \
-                    and 'name' in self.body \
-                    and 'initial_node_count' in self.body:
-                # Don't throw error
-                return
-            # If not dict, then must
-            elif self.body.name and self.body.initial_node_count:
-                return
+        is_valid_dict = lambda obj: isinstance(obj, dict) and "name" in obj and "initial_node_count" in obj
+        is_valid_object = lambda obj: getattr(obj, "name", None) and getattr(obj, "initial_node_count", None)
 
-        self.log.error(
-            'One of (project_id, location, body, body[\'name\'], '
-            'body[\'initial_node_count\']) is missing or incorrect')
-        raise AirflowException('Operator has incorrect or missing input.')
+        if not all([self.project_id, self.location, self.body]) \
+                or (is_valid_dict(self.body) and is_valid_object(self.body)):
+            self.log.error(
+                "One of (project_id, location, body, body['name'], "
+                "body['initial_node_count']) is missing or incorrect"
+            )
+            raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context):
         self._check_input()
