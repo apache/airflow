@@ -251,24 +251,44 @@ class TestPythonOperator(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_conflicting_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
         def fn(dag):
             if dag != 1:
                 raise ValueError("Should be 1")
 
         python_operator = PythonOperator(
+            task_id='python_operator',
             op_kwargs={'dag': 1},
-            python_callable=fn
+            python_callable=fn,
+            dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_context_with_conflicting_op_args(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
         def fn(dag):
             if dag != 1:
                 raise ValueError("Should be 1")
 
         python_operator = PythonOperator(
+            task_id='python_operator',
             op_args=[1],
-            python_callable=fn
+            python_callable=fn,
+            dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
