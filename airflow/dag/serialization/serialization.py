@@ -147,7 +147,7 @@ class Serialization:
                 return cls._encode(var.isoformat(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, pendulum.tz.Timezone):
+            elif isinstance(var, (pendulum.tz.Timezone, type(pendulum.UTC))):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif callable(var):
                 return str(get_python_source(var))
