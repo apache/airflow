@@ -487,6 +487,9 @@ Cloud Functions
 :class:`airflow.gcp.operators.functions.GcfFunctionDeleteOperator`
     delete Google Cloud Function in Google Cloud Platform
 
+:class:`airflow.gcp.operators.functions.GcfFunctionInvokeOperator`
+    invoke Google Cloud Function in Google Cloud Platform
+
 
 They also use :class:`airflow.gcp.hooks.functions.GcfHook` to communicate with Google Cloud Platform.
 
