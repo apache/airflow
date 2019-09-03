@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Transfers data from AWS Redshift into a S3 Bucket.
+"""
 from typing import Union, List
 
 from airflow.hooks.postgres_hook import PostgresHook
@@ -53,6 +56,11 @@ class RedshiftToS3Transfer(BaseOperator):
     :type verify: bool or str
     :param unload_options: reference to a list of UNLOAD options
     :type unload_options: list
+    :param autocommit: If set to True it will automatically commit the UNLOAD statement.
+        Otherwise it will be committed right before the redshift connection gets closed.
+    :type autocommit: bool
+    :param include_header: If set to True the s3 file contains the header columns.
+    :type include_header: bool
     """
 
     template_fields = ()
@@ -60,7 +68,7 @@ class RedshiftToS3Transfer(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             schema: str,
             table: str,
@@ -89,9 +97,9 @@ class RedshiftToS3Transfer(BaseOperator):
             self.unload_options = list(self.unload_options) + ['PARALLEL OFF', ]
 
     def execute(self, context):
-        self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        credentials = self.s3.get_credentials()
+        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
         if self.include_header:
@@ -106,13 +114,13 @@ class RedshiftToS3Transfer(BaseOperator):
                             """.format(schema=self.schema,
                                        table=self.table)
 
-            cursor = self.hook.get_conn().cursor()
+            cursor = postgres_hook.get_conn().cursor()
             cursor.execute(columns_query)
             rows = cursor.fetchall()
             columns = [row[0] for row in rows]
-            column_names = ', '.join("{0}".format(c) for c in columns)
+            column_names = ', '.join('"{0}"'.format(c) for c in columns)
             column_headers = ', '.join("\\'{0}\\'".format(c) for c in columns)
-            column_castings = ', '.join("CAST({0} AS text) AS {0}".format(c)
+            column_castings = ', '.join('CAST("{0}" AS text) AS "{0}"'.format(c)
                                         for c in columns)
 
             select_query = """SELECT {column_names} FROM
@@ -146,5 +154,5 @@ class RedshiftToS3Transfer(BaseOperator):
                                unload_options=unload_options)
 
         self.log.info('Executing UNLOAD command...')
-        self.hook.run(unload_query, self.autocommit)
+        postgres_hook.run(unload_query, self.autocommit)
         self.log.info("UNLOAD command complete...")

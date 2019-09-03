@@ -31,7 +31,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
     @mock.patch("airflow.hooks.postgres_hook.PostgresHook.get_conn")
-    def test_execute(self, mock_get_conn, mock_run, mock_Session):
+    def test_execute(self, mock_get_conn, mock_run, mock_session):
         column_name = "col"
         cur = mock.MagicMock()
         cur.fetchall.return_value = [(column_name, )]
@@ -39,7 +39,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
-        mock_Session.return_value = Session(access_key, secret_key)
+        mock_session.return_value = Session(access_key, secret_key)
 
         schema = "schema"
         table = "table"
@@ -47,7 +47,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_key = "key"
         unload_options = ('PARALLEL OFF',)
 
-        t = RedshiftToS3Transfer(
+        RedshiftToS3Transfer(
             schema=schema,
             table=table,
             s3_bucket=s3_bucket,
@@ -57,8 +57,8 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
-            dag=None)
-        t.execute(None)
+            dag=None
+        ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
 
@@ -72,9 +72,9 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                        table=table)
 
         unload_query = """
-                UNLOAD ('SELECT {column_name} FROM
+                UNLOAD ('SELECT "{column_name}" FROM
                             (SELECT 2 sort_order,
-                             CAST({column_name} AS text) AS {column_name}
+                             CAST("{column_name}" AS text) AS "{column_name}"
                             FROM {schema}.{table}
                             UNION ALL
                             SELECT 1 sort_order, \\'{column_name}\\')
