@@ -73,7 +73,7 @@ class DagBag(BaseDagBag, LoggingMixin):
     CYCLE_IN_PROGRESS = 1
     CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', "DAGBAG_IMPORT_TIMEOUT")
-    UNIT_TEST_MODE = conf.getboolean('core', 'unit_test_mode')
+    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
