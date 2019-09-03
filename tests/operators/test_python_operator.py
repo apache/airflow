@@ -250,6 +250,28 @@ class TestPythonOperator(unittest.TestCase):
                            )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    def test_dynamic_provide_context(self):
+        def fn(dag):
+            if dag != 1:
+                raise ValueError("Should be 1")
+
+        python_operator = PythonOperator(
+            op_kwargs={'dag': 1},
+            python_callable=fn
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_dynamic_provide_context(self):
+        def fn(dag):
+            if dag != 1:
+                raise ValueError("Should be 1")
+
+        python_operator = PythonOperator(
+            op_args=[1],
+            python_callable=fn
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
 
 class TestBranchOperator(unittest.TestCase):
     @classmethod
