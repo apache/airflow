@@ -199,6 +199,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 
     def test_context(self):
-        def f(**kwargs):
-            return kwargs['templates_dict']['ds']
+        def f(templates_dict):
+            return templates_dict['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
