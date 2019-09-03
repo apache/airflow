@@ -19,7 +19,7 @@
 
 from builtins import ImportError as BuiltinImportError
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -79,7 +79,7 @@ def get_fernet():
         return _fernet
 
     try:
-        fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        fernet_key = conf.get('core', 'FERNET_KEY')
         if not fernet_key:
             log.warning(
                 "empty cryptography key - values will not be stored encrypted."

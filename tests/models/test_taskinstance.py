@@ -27,7 +27,8 @@ from freezegun import freeze_time
 from mock import patch, mock_open
 from parameterized import parameterized, param
 from sqlalchemy.orm.session import Session
-from airflow import models, settings, configuration
+from airflow import models, settings
+from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, TaskFail, TaskInstance as TI, TaskReschedule, DagRun
@@ -901,7 +902,7 @@ class TaskInstanceTest(unittest.TestCase):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
-        configuration.conf.set('webserver', 'rbac', 'True')
+        conf.set('webserver', 'rbac', 'True')
 
         expected_url = (
             'http://localhost:8080/log?'
@@ -989,8 +990,8 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
-        configuration.set('email', 'subject_template', '/subject/path')
-        configuration.set('email', 'html_content_template', '/html_content/path')
+        conf.set('email', 'subject_template', '/subject/path')
+        conf.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):

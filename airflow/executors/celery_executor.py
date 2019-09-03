@@ -27,7 +27,7 @@ from multiprocessing import Pool, cpu_count
 from celery import Celery
 from celery import states as celery_states
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -45,15 +45,15 @@ To start the celery worker, run the command:
 airflow worker
 '''
 
-if configuration.conf.has_option('celery', 'celery_config_options'):
+if conf.has_option('celery', 'celery_config_options'):
     celery_configuration = import_string(
-        configuration.conf.get('celery', 'celery_config_options')
+        conf.get('celery', 'celery_config_options')
     )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    configuration.conf.get('celery', 'CELERY_APP_NAME'),
+    conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 
@@ -141,7 +141,7 @@ class CeleryExecutor(BaseExecutor):
         # (which can become a bottleneck on bigger clusters) so we use
         # a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = configuration.getint('celery', 'SYNC_PARALLELISM')
+        self._sync_parallelism = conf.getint('celery', 'SYNC_PARALLELISM')
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
 

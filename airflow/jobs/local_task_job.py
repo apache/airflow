@@ -28,7 +28,7 @@ import time
 
 from sqlalchemy.exc import OperationalError
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner

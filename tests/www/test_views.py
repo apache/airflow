@@ -34,14 +34,14 @@ from werkzeug.wrappers import BaseResponse
 
 
 import airflow
-from airflow import models, configuration
+from airflow import models
+from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
-from airflow import configuration as conf
 
 from tests.test_utils.config import conf_vars
 
@@ -673,7 +673,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(
             self.runs[1].execution_date,
-            configuration.getint('webserver', 'default_dag_run_display_number'),
+            conf.getint('webserver', 'default_dag_run_display_number'),
             data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
         self.assertRunIsSelected(self.runs[1], data)

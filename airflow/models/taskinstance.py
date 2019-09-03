@@ -38,7 +38,8 @@ from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowTaskTimeout, AirflowSkipException, AirflowRescheduleException
 )
@@ -369,25 +370,25 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_filepath(self):
         iso = self.execution_date.isoformat()
-        log = os.path.expanduser(configuration.conf.get('core', 'BASE_LOG_FOLDER'))
+        log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         return ("{log}/{dag_id}/{task_id}/{iso}.log".format(
             log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
 
     @property
     def log_url(self):
         iso = self.execution_date.isoformat()
-        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        base_url = conf.get('webserver', 'BASE_URL')
         relative_url = '/log?execution_date={iso}&task_id={task_id}&dag_id={dag_id}'.format(
             iso=quote_plus(iso), task_id=quote_plus(self.task_id), dag_id=quote_plus(self.dag_id))
 
-        if configuration.conf.getboolean('webserver', 'rbac'):
+        if conf.getboolean('webserver', 'rbac'):
             return '{base_url}{relative_url}'.format(base_url=base_url, relative_url=relative_url)
         return '{base_url}/admin/airflow{relative_url}'.format(base_url=base_url, relative_url=relative_url)
 
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
             "/success"
             "?task_id={task_id}"
@@ -1172,7 +1173,7 @@ class TaskInstance(Base, LoggingMixin):
         if task.params:
             params.update(task.params)
 
-        if configuration.getboolean('core', 'dag_run_conf_overrides_params'):
+        if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
 
         class VariableAccessor:
@@ -1206,6 +1207,7 @@ class TaskInstance(Base, LoggingMixin):
                 return str(self.var)
 
         return {
+            'conf': conf,
             'dag': task.dag,
             'ds': ds,
             'next_ds': next_ds,
@@ -1238,7 +1240,6 @@ class TaskInstance(Base, LoggingMixin):
             'task_instance': self,
             'ti': self,
             'task_instance_key_str': ti_key_str,
-            'conf': configuration,
             'test_mode': self.test_mode,
             'var': {
                 'value': VariableAccessor(),
@@ -1286,8 +1287,8 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         def render(key, content):
-            if configuration.has_option('email', key):
-                path = configuration.get('email', key)
+            if conf.has_option('email', key):
+                path = conf.get('email', key)
                 with open(path) as f:
                     content = f.read()
 

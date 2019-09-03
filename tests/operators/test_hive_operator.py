@@ -25,7 +25,8 @@ import unittest
 from tests.compat import mock
 import nose
 
-from airflow import DAG, configuration
+from airflow import DAG
+from airflow.configuration import conf
 import airflow.operators.hive_operator
 
 
@@ -92,7 +93,7 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = configuration.conf.get(
+        test_config_hive_mapred_queue = conf.get(
             'hive',
             'default_hive_mapred_queue'
         )

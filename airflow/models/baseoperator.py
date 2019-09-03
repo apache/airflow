@@ -33,7 +33,8 @@ from cached_property import cached_property
 import jinja2
 import six
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
@@ -265,7 +266,7 @@ class BaseOperator(LoggingMixin):
     def __init__(
         self,
         task_id,  # type: str
-        owner=configuration.conf.get('operators', 'DEFAULT_OWNER'),  # type: str
+        owner=conf.get('operators', 'DEFAULT_OWNER'),  # type: str
         email=None,  # type: Optional[str]
         email_on_retry=True,  # type: bool
         email_on_failure=True,  # type: bool
@@ -283,7 +284,7 @@ class BaseOperator(LoggingMixin):
         default_args=None,  # type: Optional[Dict]
         priority_weight=1,  # type: int
         weight_rule=WeightRule.DOWNSTREAM,  # type: str
-        queue=configuration.conf.get('celery', 'default_queue'),  # type: str
+        queue=conf.get('celery', 'default_queue'),  # type: str
         pool=Pool.DEFAULT_POOL_NAME,  # type: str
         sla=None,  # type: Optional[timedelta]
         execution_timeout=None,  # type: Optional[timedelta]

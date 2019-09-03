@@ -22,7 +22,7 @@ from typing import Dict, Any
 
 import six
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured

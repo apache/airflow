@@ -19,7 +19,7 @@
 
 import sys
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor # noqa
 from airflow.executors.local_executor import LocalExecutor
@@ -43,7 +43,7 @@ def get_default_executor():
     if DEFAULT_EXECUTOR is not None:
         return DEFAULT_EXECUTOR
 
-    executor_name = configuration.conf.get('core', 'EXECUTOR')
+    executor_name = conf.get('core', 'EXECUTOR')
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 

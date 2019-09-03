@@ -29,8 +29,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
-from airflow import configuration as conf
 from airflow import models, LoggingMixin
+from airflow.configuration import conf
 from airflow.models.connection import Connection
 from airflow.settings import Session
 
@@ -38,7 +38,6 @@ from airflow.www.blueprints import routes
 from airflow.logging_config import configure_logging
 from airflow import jobs
 from airflow import settings
-from airflow import configuration
 from airflow.utils.net import get_hostname
 
 csrf = CSRFProtect()
@@ -46,7 +45,7 @@ csrf = CSRFProtect()
 
 def create_app(config=None, testing=False):
     app = Flask(__name__)
-    if configuration.conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             num_proxies=None,
@@ -56,8 +55,8 @@ def create_app(config=None, testing=False):
             x_port=1,
             x_prefix=1
         )
-    app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
-    app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
+    app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    app.config['LOGIN_DISABLED'] = not conf.getboolean(
         'webserver', 'AUTHENTICATE')
 
     app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -172,7 +171,7 @@ def create_app(config=None, testing=False):
         def jinja_globals():
             return {
                 'hostname': get_hostname(),
-                'navbar_color': configuration.get('webserver', 'NAVBAR_COLOR'),
+                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
         @app.teardown_appcontext
@@ -193,7 +192,7 @@ def root_app(env, resp):
 def cached_app(config=None, testing=False):
     global app
     if not app:
-        base_url = urlparse(configuration.conf.get('webserver', 'base_url'))[2]
+        base_url = urlparse(conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
 

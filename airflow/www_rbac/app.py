@@ -31,7 +31,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from airflow import settings
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.www_rbac.static_config import configure_manifest_files
 

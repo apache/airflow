@@ -40,14 +40,14 @@ import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
 from six.moves.urllib.parse import urlencode
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
+AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -63,8 +63,8 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 def should_hide_value_for_key(key_name):
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = configuration.conf.getboolean('admin',
-                                                   'hide_sensitive_variable_fields')
+        config_set = conf.getboolean('admin',
+                                     'hide_sensitive_variable_fields')
         field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
     return False

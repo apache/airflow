@@ -22,7 +22,7 @@ import logging
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -129,7 +129,7 @@ class WinRMOperator(BaseOperator):
         if return_code == 0:
             # returning output if do_xcom_push is set
             if self.do_xcom_push:
-                enable_pickling = configuration.conf.getboolean(
+                enable_pickling = conf.getboolean(
                     'core', 'enable_xcom_pickling'
                 )
                 if enable_pickling:

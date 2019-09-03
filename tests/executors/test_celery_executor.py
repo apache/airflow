@@ -30,14 +30,14 @@ from airflow.executors.celery_executor import app
 from celery import states as celery_states
 from airflow.utils.state import State
 
-from airflow import configuration
+from airflow.configuration import conf
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401
+import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
 
 
 class CeleryExecutorTest(unittest.TestCase):
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_celery_integration(self):
         executor = CeleryExecutor()
@@ -88,7 +88,7 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_error_sending_task(self):
         @app.task

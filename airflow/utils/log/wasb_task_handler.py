@@ -21,7 +21,7 @@ import shutil
 
 from cached_property import cached_property
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from azure.common import AzureHttpError
@@ -47,7 +47,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks.wasb_hook import WasbHook
             return WasbHook(remote_conn_id)

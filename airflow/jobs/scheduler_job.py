@@ -39,7 +39,7 @@ from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, SlaMiss, errors

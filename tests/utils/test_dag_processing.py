@@ -26,8 +26,7 @@ import mock
 
 from mock import MagicMock, PropertyMock
 
-from airflow import configuration as conf
-from airflow.configuration import mkdir_p
+from airflow.configuration import conf, mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,

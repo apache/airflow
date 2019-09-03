@@ -27,7 +27,8 @@ from tempfile import mkdtemp, NamedTemporaryFile
 
 from mock import patch, ANY
 
-from airflow import models, configuration
+from airflow import models
+from airflow.configuration import conf
 from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagModel, DagBag, TaskInstance as TI
 from airflow.utils.db import create_session
@@ -629,8 +630,7 @@ class DagBagTest(unittest.TestCase):
             dagbag.kill_zombies()
             mock_ti_handle_failure \
                 .assert_called_with(ANY,
-                                    configuration.getboolean('core',
-                                                             'unit_test_mode'),
+                                    conf.getboolean('core', 'unit_test_mode'),
                                     ANY)
 
     @patch.object(TI, 'handle_failure')
@@ -639,7 +639,7 @@ class DagBagTest(unittest.TestCase):
         Test that kill zombies calls TI's failure handler with proper context
         """
         zombie_threshold_secs = (
-            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
+            conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
         with create_session() as session:
             session.query(TI).delete()
@@ -661,8 +661,7 @@ class DagBagTest(unittest.TestCase):
             dagbag.kill_zombies()
             mock_ti_handle_failure \
                 .assert_called_with(ANY,
-                                    configuration.getboolean('core',
-                                                             'unit_test_mode'),
+                                    conf.getboolean('core', 'unit_test_mode'),
                                     ANY)
 
     @patch.object(TI, 'handle_failure')

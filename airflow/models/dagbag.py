@@ -34,7 +34,8 @@ import six
 from croniter import croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
 from sqlalchemy import or_
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
@@ -80,8 +81,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             executor=None,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
@@ -197,7 +198,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
 
-            with timeout(configuration.conf.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
+            with timeout(conf.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
                 try:
                     m = imp.load_source(mod_name, filepath)
                     mods.append(m)
@@ -287,7 +288,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         zombie_threshold_secs = (
-            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
+            conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
         limit_dttm = timezone.utcnow() - timedelta(
             seconds=zombie_threshold_secs)
         self.log.debug("Failing jobs without heartbeat after %s", limit_dttm)
@@ -307,7 +308,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         for ti in tis:
             self.log.info("Detected zombie job with dag_id %s, task_id %s, and execution date %s",
                           ti.dag_id, ti.task_id, ti.execution_date.isoformat())
-            ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
+            ti.test_mode = conf.getboolean('core', 'unit_test_mode')
             ti.task = self.dags[ti.dag_id].get_task(ti.task_id)
             ti.handle_failure("{} detected as zombie".format(ti),
                               ti.test_mode, ti.get_template_context())
@@ -355,8 +356,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             only_if_updated=True,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.

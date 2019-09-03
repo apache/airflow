@@ -42,7 +42,6 @@ from time import sleep
 
 from bs4 import BeautifulSoup
 
-from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable, TaskInstance
 
@@ -65,7 +64,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException, run_command
+from airflow.configuration import (
+    AirflowConfigException, run_command, conf, parameterized_config, DEFAULT_CONFIG
+)
 from jinja2.exceptions import SecurityError
 from jinja2 import UndefinedError
 from pendulum import utcnow
@@ -342,7 +343,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsNone(additional_dag_run)
 
     def test_confirm_unittest_mod(self):
-        self.assertTrue(configuration.conf.get('core', 'unit_test_mode'))
+        self.assertTrue(conf.get('core', 'unit_test_mode'))
 
     def test_pickling(self):
         dp = self.dag.pickle()
@@ -750,7 +751,7 @@ class CoreTest(unittest.TestCase):
 
     def test_parameterized_config_gen(self):
 
-        cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
+        cfg = parameterized_config(DEFAULT_CONFIG)
 
         # making sure some basic building blocks are present:
         self.assertIn("[core]", cfg)
@@ -763,13 +764,13 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn("{FERNET_KEY}", cfg)
 
     def test_config_use_original_when_original_and_fallback_are_present(self):
-        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
-            FALLBACK_FERNET_KEY = configuration.conf.get(
+            FALLBACK_FERNET_KEY = conf.get(
                 "core",
                 "FERNET_KEY"
             )
@@ -777,12 +778,12 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(FERNET_KEY, FALLBACK_FERNET_KEY)
 
     def test_config_throw_error_when_original_and_fallback_is_absent(self):
-        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
 
         with conf_vars({('core', 'fernet_key'): None}):
             with self.assertRaises(AirflowConfigException) as cm:
-                configuration.conf.get("core", "FERNET_KEY")
+                conf.get("core", "FERNET_KEY")
 
         exception = str(cm.exception)
         message = "section/key [core/fernet_key] not found in config"
@@ -794,7 +795,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -806,7 +807,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -2258,7 +2259,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_password_auth(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
+        self.assertTrue(conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'whatever')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -2317,7 +2318,7 @@ class WebLdapAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_ldap(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
+        self.assertTrue(conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'userx')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -2715,11 +2716,11 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
         self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
@@ -2743,11 +2744,11 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to', 'cc', 'bcc'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
                          msg.get_payload()[-1].get(u'Content-Disposition'))
@@ -2762,13 +2763,13 @@ class EmailSmtpTest(unittest.TestCase):
         msg = MIMEMultipart()
         utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
         mock_smtp.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertTrue(mock_smtp.return_value.starttls.called)
         mock_smtp.return_value.login.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_USER'),
-            configuration.conf.get('smtp', 'SMTP_PASSWORD'),
+            conf.get('smtp', 'SMTP_USER'),
+            conf.get('smtp', 'SMTP_PASSWORD'),
         )
         mock_smtp.return_value.sendmail.assert_called_with('from', 'to', msg.as_string())
         self.assertTrue(mock_smtp.return_value.quit.called)
@@ -2782,8 +2783,8 @@ class EmailSmtpTest(unittest.TestCase):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
         mock_smtp_ssl.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -2798,8 +2799,8 @@ class EmailSmtpTest(unittest.TestCase):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
         mock_smtp.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertFalse(mock_smtp.login.called)
 

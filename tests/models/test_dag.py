@@ -28,7 +28,8 @@ import pendulum
 import six
 from mock import patch
 
-from airflow import models, settings, configuration
+from airflow import models, settings
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowDagCycleException
 from airflow.models import DAG, DagModel, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -675,7 +676,7 @@ class DagTest(unittest.TestCase):
         self.assertTrue(orm_dag.is_active)
         self.assertIsNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(),
-                         configuration.conf.get('webserver', 'dag_default_view').lower())
+                         conf.get('webserver', 'dag_default_view').lower())
         self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
         orm_subdag = session.query(DagModel).filter(

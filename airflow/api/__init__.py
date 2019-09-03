@@ -26,8 +26,8 @@ import warnings
 import lazy_object_proxy
 from zope.deprecation import deprecated
 
-from airflow.exceptions import AirflowException
-from airflow import configuration as conf
+from airflow.exceptions import AirflowException, AirflowConfigException
+from airflow.configuration import conf
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -49,7 +49,7 @@ def load_auth():
     auth_backend = 'airflow.api.auth.backend.default'
     try:
         auth_backend = conf.get("api", "auth_backend")
-    except conf.AirflowConfigException:
+    except AirflowConfigException:
         pass
 
     try:

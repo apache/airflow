@@ -20,7 +20,7 @@
 from base64 import b64encode
 from select import select
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -156,7 +156,7 @@ class SSHOperator(BaseOperator):
                 if exit_status == 0:
                     # returning output if do_xcom_push is set
                     if self.do_xcom_push:
-                        enable_pickling = configuration.conf.getboolean(
+                        enable_pickling = conf.getboolean(
                             'core', 'enable_xcom_pickling'
                         )
                         if enable_pickling:

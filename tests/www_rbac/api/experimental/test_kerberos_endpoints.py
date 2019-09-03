@@ -25,7 +25,7 @@ import unittest
 
 from datetime import datetime
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www_rbac import app as application
 from tests.test_utils.config import conf_vars
@@ -36,7 +36,7 @@ from tests.test_utils.config import conf_vars
 @conf_vars({('api', 'auth_backend'): 'airflow.contrib.auth.backends.kerberos_auth'})
 class ApiKerberosTests(unittest.TestCase):
     def setUp(self):
-        configuration.conf.set("kerberos",
+        conf.set("kerberos",
                  "keytab",
                  os.environ['KRB5_KTNAME'])
 

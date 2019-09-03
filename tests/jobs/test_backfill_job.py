@@ -28,7 +28,7 @@ import sqlalchemy
 from parameterized import parameterized
 
 from airflow import AirflowException, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.bin import cli
 from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot, \
     TaskConcurrencyLimitReached
@@ -128,7 +128,7 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertEquals(State.SUCCESS, dag_run.state)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
@@ -152,7 +152,7 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertTrue(task_instances_list.append.called)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
@@ -205,6 +205,10 @@ class BackfillJobTest(unittest.TestCase):
         dag.clear()
         session.close()
 
+    @unittest.skipIf(
+        "sqlite" in conf.get("core", "sql_alchemy_conn"),
+        "concurrent access not supported in sqlite",
+    )
     @parameterized.expand(
         [
             [
@@ -242,10 +246,6 @@ class BackfillJobTest(unittest.TestCase):
             ],
             ["latest_only", ("latest_only", "task1")],
         ]
-    )
-    @unittest.skipIf(
-        "sqlite" in configuration.conf.get("core", "sql_alchemy_conn"),
-        "concurrent access not supported in sqlite",
     )
     def test_backfill_examples(self, dag_id, expected_execution_order):
         """
@@ -800,7 +800,7 @@ class BackfillJobTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_run_ignores_all_dependencies(self):
         """

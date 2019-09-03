@@ -49,9 +49,9 @@ from sqlalchemy import or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import configuration as conf
 from airflow import models, jobs
-from airflow import settings
+from airflow import settings, configuration
+from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
@@ -1957,10 +1957,10 @@ class ConfigurationView(AirflowBaseView):
     def conf(self):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = conf.AIRFLOW_CONFIG
+        subtitle = configuration.AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+            with open(configuration.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()

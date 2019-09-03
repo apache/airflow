@@ -62,7 +62,8 @@ from wtforms import (
     StringField, IntegerField, validators)
 
 import airflow
-from airflow import configuration as conf, LoggingMixin, configuration
+from airflow import LoggingMixin, configuration
+from airflow.configuration import conf
 from airflow import models
 from airflow import settings
 from airflow import jobs
@@ -2696,7 +2697,7 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
     form_overrides = dict(execution_date=DateTimeField)
 
     def on_model_change(self, form, model, is_created):
-        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
+        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
             model.value = pickle.dumps(model.value)
         else:
@@ -3166,9 +3167,9 @@ class ConfigurationView(wwwutils.SuperUserMixin, AirflowViewMixin, BaseView):
     def conf(self):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = conf.AIRFLOW_CONFIG
+        subtitle = configuration.AIRFLOW_CONFIG
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+            with open(configuration.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
