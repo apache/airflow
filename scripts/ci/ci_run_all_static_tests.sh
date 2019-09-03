@@ -32,8 +32,10 @@ force_python_3_5
 
 script_start
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_slim_image_if_needed
 
-SKIP=pylint pre-commit run --all-files --show-diff-on-failure
+rebuild_checklicence_image_if_needed
+
+pre-commit run --all-files --show-diff-on-failure
 
 script_end

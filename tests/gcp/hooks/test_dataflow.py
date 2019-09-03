@@ -80,7 +80,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class DataFlowHookTest(unittest.TestCase):
+class TestDataFlowHook(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -180,7 +180,7 @@ class DataFlowHookTest(unittest.TestCase):
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
         dataflow = _Dataflow(['test', 'cmd'])
-        mock_logging.info.assert_called_with('Running command: %s', 'test cmd')
+        mock_logging.info.assert_called_once_with('Running command: %s', 'test cmd')
         self.assertRaises(Exception, dataflow.wait_for_done)
 
     def test_valid_dataflow_job_name(self):
@@ -250,7 +250,7 @@ class DataFlowHookTest(unittest.TestCase):
         )
 
 
-class DataFlowTemplateHookTest(unittest.TestCase):
+class TestDataFlowTemplateHook(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -300,7 +300,7 @@ class DataFlowTemplateHookTest(unittest.TestCase):
         )
 
 
-class DataFlowJobTest(unittest.TestCase):
+class TestDataFlowJob(unittest.TestCase):
 
     def setUp(self):
         self.mock_dataflow = MagicMock()
@@ -311,8 +311,8 @@ class DataFlowJobTest(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
                      TEST_LOCATION, 10, TEST_JOB_ID)
-        mock_jobs.get.assert_called_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
-                                         jobId=TEST_JOB_ID)
+        mock_jobs.get.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
+                                              jobId=TEST_JOB_ID)
 
     def test_dataflow_job_init_without_job_id(self):
         mock_jobs = MagicMock()
@@ -320,11 +320,11 @@ class DataFlowJobTest(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
                      TEST_LOCATION, 10)
-        mock_jobs.list.assert_called_with(projectId=TEST_PROJECT,
-                                          location=TEST_LOCATION)
+        mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
+                                               location=TEST_LOCATION)
 
 
-class DataflowTest(unittest.TestCase):
+class TestDataflow(unittest.TestCase):
 
     def test_data_flow_valid_job_id(self):
         cmd = ['echo', 'additional unit test lines.\n' +

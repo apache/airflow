@@ -43,7 +43,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SSHOperatorTest(unittest.TestCase):
+class TestSSHOperator(unittest.TestCase):
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')

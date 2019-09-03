@@ -43,7 +43,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class FileSensorTest(unittest.TestCase):
+class TestFileSensor(unittest.TestCase):
     def setUp(self):
         from airflow.contrib.hooks.fs_hook import FSHook
         hook = FSHook()

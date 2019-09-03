@@ -33,7 +33,7 @@ AWS_CONN_ID = 'aws_default'
 GCS_CONN_ID = 'google_cloud_default'
 
 
-class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
+class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test S3ToGoogleCloudStorageOperator instance is properly initialized."""
 

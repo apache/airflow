@@ -146,7 +146,7 @@ VALID_TRANSFER_JOB_AWS_RAW[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = 
 VALID_OPERATION = {NAME: "operation-name"}
 
 
-class TransferJobPreprocessorTest(unittest.TestCase):
+class TestTransferJobPreprocessor(unittest.TestCase):
     def test_should_do_nothing_on_empty(self):
         body = {}
         TransferJobPreprocessor(body=body).process_body()
@@ -197,7 +197,7 @@ class TransferJobPreprocessorTest(unittest.TestCase):
         })
 
 
-class TransferJobValidatorTest(unittest.TestCase):
+class TestTransferJobValidator(unittest.TestCase):
     def test_should_raise_exception_when_encounters_aws_credentials(self):
         body = {"transferSpec": {"awsS3DataSource": {"awsAccessKey": TEST_AWS_ACCESS_KEY}}}
         with self.assertRaises(AirflowException) as cm:
@@ -247,7 +247,7 @@ class TransferJobValidatorTest(unittest.TestCase):
         self.assertTrue(validated)
 
 
-class GcpStorageTransferJobCreateOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_job_create_gcs(self, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_GCS_RAW
@@ -320,7 +320,7 @@ class GcpStorageTransferJobCreateOperatorTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'aws_conn_id'))
 
 
-class GcpStorageTransferJobUpdateOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_job_update(self, mock_hook):
         mock_hook.return_value.update_transfer_job.return_value = VALID_TRANSFER_JOB_GCS
@@ -353,7 +353,7 @@ class GcpStorageTransferJobUpdateOperatorTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'job_name'))
 
 
-class GcpStorageTransferJobDeleteOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_job_delete(self, mock_hook):
         op = GcpTransferServiceJobDeleteOperator(
@@ -396,7 +396,7 @@ class GcpStorageTransferJobDeleteOperatorTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GpcStorageTransferOperationsGetOperatorTest(unittest.TestCase):
+class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_operation_get(self, mock_hook):
         mock_hook.return_value.get_transfer_operation.return_value = VALID_OPERATION
@@ -431,7 +431,7 @@ class GpcStorageTransferOperationsGetOperatorTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GcpStorageTransferOperationListOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_operation_list(self, mock_hook):
         mock_hook.return_value.list_transfer_operations.return_value = [VALID_TRANSFER_JOB_GCS]
@@ -465,7 +465,7 @@ class GcpStorageTransferOperationListOperatorTest(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
 
 
-class GcpStorageTransferOperationsPauseOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_operation_pause(self, mock_hook):
         op = GcpTransferServiceOperationPauseOperator(operation_name=OPERATION_NAME, task_id='task-id')
@@ -504,7 +504,7 @@ class GcpStorageTransferOperationsPauseOperatorTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GcpStorageTransferOperationsResumeOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_operation_resume(self, mock_hook):
         op = GcpTransferServiceOperationResumeOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
@@ -546,7 +546,7 @@ class GcpStorageTransferOperationsResumeOperatorTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GcpStorageTransferOperationsCancelOperatorTest(unittest.TestCase):
+class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
     def test_operation_cancel(self, mock_hook):
         op = GcpTransferServiceOperationCancelOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
@@ -588,7 +588,7 @@ class GcpStorageTransferOperationsCancelOperatorTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
+class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     def test_constructor(self):
         operator = S3ToGoogleCloudStorageTransferOperator(
             task_id=TASK_ID,
@@ -683,7 +683,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
         self.assertFalse(mock_transfer_hook.return_value.wait_for_transfer_job.called)
 
 
-class GoogleCloudStorageToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCase):
     def test_constructor(self):
         operator = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
             task_id=TASK_ID,

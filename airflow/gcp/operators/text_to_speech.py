@@ -115,8 +115,8 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
     def execute(self, context):
-        gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
-        result = gcp_text_to_speech_hook.synthesize_speech(
+        hook = GCPTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
+        result = hook.synthesize_speech(
             input_data=self.input_data,
             voice=self.voice,
             audio_config=self.audio_config,

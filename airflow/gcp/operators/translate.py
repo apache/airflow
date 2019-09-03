@@ -98,9 +98,9 @@ class CloudTranslateTextOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        _hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
         try:
-            translation = _hook.translate(
+            translation = hook.translate(
                 values=self.values,
                 target_language=self.target_language,
                 format_=self.format_,

@@ -106,7 +106,7 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
 :class:`airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator`
     Lists the files located in a specified Azure Data Lake path.
 
-:class:`airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
+:class:`airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
     Copies files from an Azure Data Lake path to a Google Cloud Storage bucket.
 
 
@@ -389,93 +389,93 @@ They also use :class:`airflow.gcp.hooks.spanner.CloudSpannerHook` to communicate
 Cloud SQL
 '''''''''
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceCreateOperator`
     create a new Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`
     creates a new database inside a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`
     deletes a database from a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`
     updates a database inside a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceDeleteOperator`
     delete a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceExportOperator`
     exports data from a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstanceImportOperator`
     imports data into a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlInstancePatchOperator`
     patch a Cloud SQL instance.
 
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator`
+:class:`airflow.gcp.operators.cloud_sql.CloudSqlQueryOperator`
     run query in a Cloud SQL instance.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` and :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook` and :class:`airflow.gcp.hooks.cloud_sql.CloudSqlHook` to communicate with Google Cloud Platform.
 
 
 Cloud Bigtable
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator`
     updates the number of nodes in a Google Cloud Bigtable cluster.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator`
     creates a Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator`
     deletes a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableTableCreateOperator`
     creates a table in a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator`
+:class:`airflow.gcp.operators.bigtable.BigtableTableDeleteOperator`
     deletes a table in a Google Cloud Bigtable instance.
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
+:class:`airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor`
     (sensor) waits for a table to be fully replicated.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.bigtable.BigtableHook` to communicate with Google Cloud Platform.
 
 Cloud Build
 '''''''''''
 
-:class:`airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator`
+:class:`airflow.gcp.operators.cloud_build.CloudBuildCreateBuildOperator`
      Starts a build with the specified configuration.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.cloud_build.CloudBuildHook` to communicate with Google Cloud Platform.
 
 
 Compute Engine
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceStartOperator`
     start an existing Google Compute Engine instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceStopOperator`
     stop an existing Google Compute Engine instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`
+:class:`airflow.gcp.operators.compute.GceSetMachineTypeOperator`
     change the machine type for a stopped instance.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator`
     copy the Instance Template, applying specified changes.
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`
+:class:`airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator`
     patch the Instance Group Manager, replacing source Instance Template URL with the destination one.
 
 
-The operators have the common base operator :class:`airflow.contrib.operators.gcp_compute_operator.GceBaseOperator`
+The operators have the common base operator :class:`airflow.gcp.operators.compute.GceBaseOperator`
 
-They also use :class:`airflow.contrib.hooks.gcp_compute_hook.GceHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.compute.GceHook` to communicate with Google Cloud Platform.
 
 
 Cloud Functions
@@ -547,39 +547,39 @@ Cloud DataProc
 Cloud Datastore
 '''''''''''''''
 
-:class:`airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator`
+:class:`airflow.gcp.operators.datastore.DatastoreExportOperator`
     Export entities from Google Cloud Datastore to Cloud Storage.
 
-:class:`airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator`
+:class:`airflow.gcp.operators.datastore.DatastoreImportOperator`
     Import entities from Cloud Storage to Google Cloud Datastore.
 
 
-They also use :class:`airflow.contrib.hooks.datastore_hook.DatastoreHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.datastore.DatastoreHook` to communicate with Google Cloud Platform.
 
 
 Cloud ML Engine
 '''''''''''''''
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineBatchPredictionOperator`
     Start a Cloud ML Engine batch prediction job.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineModelOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineModelOperator`
     Manages a Cloud ML Engine model.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineTrainingOperator`
     Start a Cloud ML Engine training job.
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator`
+:class:`airflow.gcp.operators.mlengine.MLEngineVersionOperator`
     Manages a Cloud ML Engine model version.
 
 
-They also use :class:`airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.mlengine.MLEngineHook` to communicate with Google Cloud Platform.
 
 
 Cloud Storage
 '''''''''''''
 
-:class:`airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator`
+:class:`airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator`
     Uploads a file to Google Cloud Storage.
 
 :class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
@@ -597,16 +597,16 @@ Cloud Storage
 :class:`airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator`
     Creates a new cloud storage bucket.
 
-:class:`airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
+:class:`airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
     Loads files from Google cloud storage into BigQuery.
 
-:class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
+:class:`airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
     Copies objects from a bucket to another, with renaming if requested.
 
-:class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
     Copy data from any MySQL Database to Google cloud storage in JSON format.
 
-:class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
+:class:`airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
     Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
 
 :class:`airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor`
@@ -936,6 +936,49 @@ Google Cloud Tasks
 
 They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
 
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.gcp.operators.automl.AutoMLTrainModelOperator`
+    Creates Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLPredictOperator`
+    Runs prediction operation on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLBatchPredictOperator`
+    Perform a batch prediction on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLCreateDatasetOperator`
+    Creates a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLListDatasetOperator`
+    Lists AutoML Datasets in project.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteDatasetOperator`
+    Deletes a dataset and all of its contents.
+
+:class:`airflow.gcp.operators.automl.AutoMLImportDataOperator`
+    Imports data to a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListColumnSpecsOperator`
+    Lists column specs in a table.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListTableSpecsOperator`
+    Lists table specs in a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesUpdateDatasetOperator`
+    Updates a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLGetModelOperator`
+    Get Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteModelOperator`
+    Delete Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeployModelOperator`
+    Deploys a model.
+
+They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
 
 .. _Qubole:
 

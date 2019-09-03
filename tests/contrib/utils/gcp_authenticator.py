@@ -28,6 +28,7 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 # Please keep these variables in alphabetical order.
 GCP_AI_KEY = 'gcp_ai.json'
+GCP_AUTOML_KEY = 'gcp_automl.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
@@ -37,8 +38,11 @@ GCP_DLP_KEY = 'gcp_dlp.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
+GCP_GKE_KEY = "gcp_gke.json"
+GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
+
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'

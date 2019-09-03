@@ -17,8 +17,9 @@
 # under the License.
 
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
-# and MY_DIR variable is set to this directory
-AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../" && pwd)
+# and MY_DIR variable is set to this directory. It can be overridden however
+
+AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -56,6 +57,26 @@ export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 # Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
 
+PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
+    'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
+export PYTHON_VERSION
+
+if [[ ${PYTHON_VERSION} == 2.* ]]; then
+    echo 2>&1
+    echo 2>&1 " You have python 2.7 on your path but python 2 is not supported any more."
+    echo 2>&1 " Switching to python 3.5"
+    echo 2>&1
+    PYTHON_VERSION=3.5
+    export PYTHON_VERSION
+fi
+
+export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
+
+# Default port numbers for forwarded ports
+export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
+export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
+export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -88,6 +109,10 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
       "-v" "${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached" \
       "-v" "${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_history:/root/.bash_history:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.bash_completion.d:/root/.bash_completion.d:cached" \
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
@@ -97,6 +122,7 @@ if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
       "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
       "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
+      "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "--env" "PYTHONDONTWRITEBYTECODE" \
     )
@@ -151,7 +177,7 @@ function check_file_md5sum {
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
     local RET_CODE=0
     if [[ ! -f "${MD5SUM_FILE}" ]]; then
-        print_info "Missing md5sum for ${FILE}"
+        print_info "Missing md5sum for ${FILE#${AIRFLOW_SOURCES}} (${MD5SUM_FILE#${AIRFLOW_SOURCES}})"
         RET_CODE=1
     else
         diff "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}" >/dev/null
@@ -319,15 +345,17 @@ function force_python_3_5() {
 
 function confirm_image_rebuild() {
     set +e
-    "${MY_DIR}/../../confirm" "The image ${THE_IMAGE_TYPE} might need to be rebuild."
+    "${AIRFLOW_SOURCES}/confirm" "${ACTION} the image ${THE_IMAGE_TYPE}."
     RES=$?
     set -e
     if [[ ${RES} == "1" ]]; then
         SKIP_REBUILD="true"
+        # Assume No also to subsequent questions
+        export ASSUME_NO_TO_ALL_QUESTIONS="true"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
         echo >&2 "#############################################"
-        echo >&2 "  ERROR! The image require rebuilding. "
+        echo >&2 "  ERROR:  ${ACTION} the image stopped. "
         echo >&2 "#############################################"
         echo >&2
         echo >&2 "  You should re-run your command with REBUILD=true environment variable set"
@@ -343,7 +371,7 @@ function confirm_image_rebuild() {
         echo >&2
         exit 1
     else
-        # Assume Yes also for subsequent questions
+        # Assume Yes also to subsequent questions
         export ASSUME_YES_TO_ALL_QUESTIONS="true"
     fi
 }
@@ -354,10 +382,11 @@ function rebuild_image_if_needed() {
     export PYTHON_VERSION
     if [[ ${PYTHON_VERSION} == 2.* ]]; then
         echo 2>&1
-        echo 2>&1 " Warning! You have python 2.7 on your path"
-        echo 2>&1 " Switching to python 3.6"
+        echo 2>&1 " You have python 2.7 on your path but python 2 is not supported any more."
+        echo 2>&1 " Switching to python 3.5"
         echo 2>&1
-        export PYTHON_VERSION=3.6
+        PYTHON_VERSION=3.5
+        export PYTHON_VERSION
     fi
 
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
@@ -366,13 +395,19 @@ EOF
     )
     export AIRFLOW_VERSION
 
-    if [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+    if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"} == "true" ]]; then
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} built locally - skip force-pulling them"
+        print_info "Clean up ${THE_IMAGE_TYPE}"
+        print_info
+        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
+        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+    elif [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+        print_info
+        print_info "Image ${THE_IMAGE_TYPE} built locally - skip force-pulling"
         print_info
     else
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} not built locally - force pulling them first"
+        print_info "Image ${THE_IMAGE_TYPE} not built locally - force pulling"
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
         export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
@@ -382,18 +417,23 @@ EOF
     check_if_docker_build_is_needed
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
         SKIP_REBUILD="false"
+        if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES} == "true" ]]; then
+            export ACTION="Cleaning"
+        else
+            export ACTION="Rebuilding"
+        fi
         if [[ ${CI:=} != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
             print_info
-            print_info "Rebuilding image"
+            print_info "${ACTION} image: ${THE_IMAGE_TYPE}"
             print_info
-            # shellcheck source=../../hooks/build
+            # shellcheck source=hooks/build
             ./hooks/build | tee -a "${OUTPUT_LOG}"
             update_all_md5_files
             print_info
-            print_info "Image rebuilt"
+            print_info "${ACTION} image completed: ${THE_IMAGE_TYPE}"
             print_info
         fi
     else
@@ -406,7 +446,7 @@ EOF
 #
 # Rebuilds the slim image for static checks if needed. In order to speed it up, it's built without NPM
 #
-function rebuild_image_if_needed_for_static_checks() {
+function rebuild_ci_slim_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
@@ -417,14 +457,30 @@ function rebuild_image_if_needed_for_static_checks() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_SLIM_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_SLIM_CI_IMAGE")
+    AIRFLOW_SLIM_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_SLIM_CI_IMAGE") || true 2>/dev/null
     export AIRFLOW_SLIM_CI_IMAGE
 }
 
 #
-# Rebuilds the image for static checks if needed.
+# Cleans up the CI slim image
 #
-function rebuild_image_if_needed_for_tests() {
+function cleanup_ci_slim_image() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
+    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
+
+    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
+
+    export THE_IMAGE_TYPE="SLIM_CI"
+
+    rebuild_image_if_needed
+}
+
+#
+# Rebuilds the image for tests if needed.
+#
+function rebuild_ci_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
@@ -433,14 +489,29 @@ function rebuild_image_if_needed_for_tests() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CI_IMAGE")
+    AIRFLOW_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CI_IMAGE") || true 2>/dev/null
     export AIRFLOW_CI_IMAGE
+}
+
+
+#
+# Cleans up the CI slim image
+#
+function cleanup_ci_image() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
+    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
+
+    export THE_IMAGE_TYPE="CI"
+
+    rebuild_image_if_needed
 }
 
 #
 # Rebuilds the image for licence checks if needed.
 #
-function rebuild_image_if_needed_for_checklicence() {
+function rebuild_checklicence_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
@@ -449,8 +520,22 @@ function rebuild_image_if_needed_for_checklicence() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE")
+    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE") || true 2>/dev/null
     export AIRFLOW_CHECKLICENCE_IMAGE
+}
+
+#
+# Cleans up the CI slim image
+#
+function cleanup_checklicence_image() {
+    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
+    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
+    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
+
+    export THE_IMAGE_TYPE="CHECKLICENCE"
+
+    rebuild_image_if_needed
 }
 
 #
@@ -496,7 +581,7 @@ function script_end {
 
 function go_to_airflow_sources {
     print_info
-    pushd "${MY_DIR}/../../" &>/dev/null || exit 1
+    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
     print_info
     print_info "Running in host in $(pwd)"
     print_info
@@ -524,6 +609,7 @@ function run_flake8() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -533,6 +619,7 @@ function run_flake8() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -546,6 +633,7 @@ function run_docs() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}"
 }
 
@@ -557,7 +645,8 @@ function run_check_license() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            "${AIRFLOW_CI_IMAGE}"
+            --rm \
+            "${AIRFLOW_CHECKLICENCE_IMAGE}"
 }
 
 function run_mypy() {
@@ -570,6 +659,7 @@ function run_mypy() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "airflow" "tests" "docs" | tee -a "${OUTPUT_LOG}"
     else
@@ -580,6 +670,7 @@ function run_mypy() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -595,6 +686,7 @@ function run_pylint_main() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -604,6 +696,7 @@ function run_pylint_main() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -620,6 +713,7 @@ function run_pylint_tests() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -629,6 +723,7 @@ function run_pylint_tests() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
             "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
@@ -643,6 +738,7 @@ function run_docker_lint() {
         docker run \
             -v "$(pwd):/root" \
             -w /root \
+            --rm \
             hadolint/hadolint /bin/hadolint Dockerfile*
         echo
         echo "Docker pylint completed with no errors"
@@ -654,9 +750,23 @@ function run_docker_lint() {
         docker run \
             -v "$(pwd):/root" \
             -w /root \
+            --rm \
             hadolint/hadolint /bin/hadolint "$@"
         echo
         echo "Docker pylint completed with no errors"
         echo
     fi
+}
+
+function filter_out_files_from_pylint_todo_list() {
+  FILTERED_FILES=()
+  set +e
+  for FILE in "$@"
+  do
+      if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
+          FILTERED_FILES+=("${FILE}")
+      fi
+  done
+  set -e
+  export FILTERED_FILES
 }

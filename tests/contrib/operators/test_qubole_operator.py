@@ -37,7 +37,7 @@ TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class QuboleOperatorTest(unittest.TestCase):
+class TestQuboleOperator(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))

@@ -92,18 +92,6 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
-
-
 def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
@@ -323,7 +311,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)

@@ -33,13 +33,8 @@ force_python_3_5
 
 script_start
 
-rebuild_image_if_needed_for_checklicence
+rebuild_checklicence_image_if_needed
 
-docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-       --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-       --env AIRFLOW_CI_SILENT \
-       --env HOST_USER_ID="$(id -ur)" \
-       --env HOST_GROUP_ID="$(id -gr)" \
-       "${AIRFLOW_CHECKLICENCE_IMAGE}"
+run_check_license
 
 script_end

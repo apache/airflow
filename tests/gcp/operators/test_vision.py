@@ -59,7 +59,7 @@ GCP_CONN_ID = 'google_cloud_default'
 DETECT_TEST_IMAGE = {"source": {"image_uri": "test_uri"}}
 
 
-class CloudVisionProductSetCreateTest(unittest.TestCase):
+class TestCloudVisionProductSetCreate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_product_set.return_value = {}
@@ -95,7 +95,7 @@ class CloudVisionProductSetCreateTest(unittest.TestCase):
         self.assertEqual(PRODUCTSET_ID_TEST, result)
 
 
-class CloudVisionProductSetUpdateTest(unittest.TestCase):
+class TestCloudVisionProductSetUpdate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.update_product_set.return_value = {}
@@ -116,7 +116,7 @@ class CloudVisionProductSetUpdateTest(unittest.TestCase):
         )
 
 
-class CloudVisionProductSetGetTest(unittest.TestCase):
+class TestCloudVisionProductSetGet(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.get_product_set.return_value = {}
@@ -135,7 +135,7 @@ class CloudVisionProductSetGetTest(unittest.TestCase):
         )
 
 
-class CloudVisionProductSetDeleteTest(unittest.TestCase):
+class TestCloudVisionProductSetDelete(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.delete_product_set.return_value = {}
@@ -154,7 +154,7 @@ class CloudVisionProductSetDeleteTest(unittest.TestCase):
         )
 
 
-class CloudVisionProductCreateTest(unittest.TestCase):
+class TestCloudVisionProductCreate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_product.return_value = {}
@@ -188,7 +188,7 @@ class CloudVisionProductCreateTest(unittest.TestCase):
         self.assertEqual(PRODUCT_ID_TEST, result)
 
 
-class CloudVisionProductGetTest(unittest.TestCase):
+class TestCloudVisionProductGet(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.get_product.return_value = {}
@@ -205,7 +205,7 @@ class CloudVisionProductGetTest(unittest.TestCase):
         )
 
 
-class CloudVisionProductUpdateTest(unittest.TestCase):
+class TestCloudVisionProductUpdate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.update_product.return_value = {}
@@ -224,7 +224,7 @@ class CloudVisionProductUpdateTest(unittest.TestCase):
         )
 
 
-class CloudVisionProductDeleteTest(unittest.TestCase):
+class TestCloudVisionProductDelete(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.delete_product.return_value = {}
@@ -243,7 +243,7 @@ class CloudVisionProductDeleteTest(unittest.TestCase):
         )
 
 
-class CloudVisionReferenceImageCreateTest(unittest.TestCase):
+class TestCloudVisionReferenceImageCreate(unittest.TestCase):
     @mock.patch(  # type: ignore
         'airflow.gcp.operators.vision.CloudVisionHook',
         **{'return_value.create_reference_image.return_value': {}}
@@ -294,7 +294,7 @@ class CloudVisionReferenceImageCreateTest(unittest.TestCase):
         )
 
 
-class CloudVisionAddProductToProductSetOperatorTest(unittest.TestCase):
+class TestCloudVisionAddProductToProductSetOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionAddProductToProductSetOperator(
@@ -316,7 +316,7 @@ class CloudVisionAddProductToProductSetOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionRemoveProductFromProductSetOperatorTest(unittest.TestCase):
+class TestCloudVisionRemoveProductFromProductSetOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionRemoveProductFromProductSetOperator(
@@ -338,7 +338,7 @@ class CloudVisionRemoveProductFromProductSetOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionAnnotateImageOperatorTest(unittest.TestCase):
+class TestCloudVisionAnnotateImageOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
     def test_minimal_green_path_for_one_image(self, mock_hook):
         op = CloudVisionAnnotateImageOperator(request=ANNOTATE_REQUEST_TEST, task_id='id')
@@ -358,7 +358,7 @@ class CloudVisionAnnotateImageOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionDetectTextOperatorTest(unittest.TestCase):
+class TestCloudVisionDetectTextOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.vision.CloudVisionHook")
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectTextOperator(image=DETECT_TEST_IMAGE, task_id="id")
@@ -402,7 +402,7 @@ class CloudVisionDetectTextOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionDetectDocumentTextOperatorTest(unittest.TestCase):
+class TestCloudVisionDetectDocumentTextOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.vision.CloudVisionHook")
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectDocumentTextOperator(image=DETECT_TEST_IMAGE, task_id="id")
@@ -413,7 +413,7 @@ class CloudVisionDetectDocumentTextOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionDetectImageLabelsOperatorTest(unittest.TestCase):
+class TestCloudVisionDetectImageLabelsOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.vision.CloudVisionHook")
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectImageLabelsOperator(image=DETECT_TEST_IMAGE, task_id="id")
@@ -424,7 +424,7 @@ class CloudVisionDetectImageLabelsOperatorTest(unittest.TestCase):
         )
 
 
-class CloudVisionDetectImageSafeSearchOperatorTest(unittest.TestCase):
+class TestCloudVisionDetectImageSafeSearchOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.vision.CloudVisionHook")
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectImageSafeSearchOperator(image=DETECT_TEST_IMAGE, task_id="id")

@@ -62,7 +62,7 @@ POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.gcp.operators.dataflow.{}'
 
 
-class DataFlowPythonOperatorTest(unittest.TestCase):
+class TestDataFlowPythonOperator(unittest.TestCase):
 
     def setUp(self):
         self.dataflow = DataFlowPythonOperator(
@@ -109,7 +109,7 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
 
-class DataFlowJavaOperatorTest(unittest.TestCase):
+class TestDataFlowJavaOperator(unittest.TestCase):
 
     def setUp(self):
         self.dataflow = DataFlowJavaOperator(
@@ -208,7 +208,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
 
 
-class DataFlowTemplateOperatorTest(unittest.TestCase):
+class TestDataFlowTemplateOperator(unittest.TestCase):
 
     def setUp(self):
         self.dataflow = DataflowTemplateOperator(
@@ -248,7 +248,7 @@ class DataFlowTemplateOperatorTest(unittest.TestCase):
                                                     PARAMETERS, TEMPLATE)
 
 
-class GoogleCloudBucketHelperTest(unittest.TestCase):
+class TestGoogleCloudBucketHelper(unittest.TestCase):
 
     @mock.patch(
         'airflow.gcp.operators.dataflow.GoogleCloudBucketHelper.__init__'

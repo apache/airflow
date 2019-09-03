@@ -676,7 +676,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :return:
         """
         if not self._process:
-            self.log.warn('Ending without manager process.')
+            self.log.warning('Ending without manager process.')
             return
         reap_process_group(self._process.pid, log=self.log)
         self._parent_signal_conn.close()

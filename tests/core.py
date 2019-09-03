@@ -101,7 +101,7 @@ class OperatorSubclass(BaseOperator):
         pass
 
 
-class CoreTest(unittest.TestCase):
+class TestCore(unittest.TestCase):
     TEST_SCHEDULE_WITH_NO_PREVIOUS_RUNS_DAG_ID = TEST_DAG_ID + 'test_schedule_dag_no_previous_runs'
     TEST_SCHEDULE_DAG_FAKE_SCHEDULED_PREVIOUS_DAG_ID = \
         TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous'
@@ -809,7 +809,7 @@ class CoreTest(unittest.TestCase):
         self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
         self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
 
-        with conf_vars({('core', 'FERNET_KEY'): None}):
+        with conf_vars({('core', 'fernet_key'): None}):
             with self.assertRaises(AirflowConfigException) as cm:
                 configuration.conf.get("core", "FERNET_KEY")
 
@@ -1067,7 +1067,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
-class CliTests(unittest.TestCase):
+class TestCli(unittest.TestCase):
 
     TEST_USER1_EMAIL = 'test-user1@example.com'
     TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -2084,7 +2084,7 @@ class FakeHDFSHook:
         return client
 
 
-class ConnectionTest(unittest.TestCase):
+class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
@@ -2163,7 +2163,7 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].port == 5432
 
 
-class WebHDFSHookTest(unittest.TestCase):
+class TestWebHDFSHook(unittest.TestCase):
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2180,7 +2180,7 @@ snakebite = None  # type: None
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
-class HDFSHookTest(unittest.TestCase):
+class TestHDFSHook(unittest.TestCase):
     def setUp(self):
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
@@ -2223,27 +2223,27 @@ class HDFSHookTest(unittest.TestCase):
 send_email_test = mock.Mock()
 
 
-class EmailTest(unittest.TestCase):
+class TestEmail(unittest.TestCase):
     def setUp(self):
         configuration.conf.remove_option('email', 'EMAIL_BACKEND')
 
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
         res = utils.email.send_email('to', 'subject', 'content')
-        mock_send_email.assert_called_with('to', 'subject', 'content')
+        mock_send_email.assert_called_once_with('to', 'subject', 'content')
         self.assertEqual(mock_send_email.return_value, res)
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        with conf_vars({('email', 'EMAIL_BACKEND'): 'tests.core.send_email_test'}):
+        with conf_vars({('email', 'email_backend'): 'tests.core.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
-        send_email_test.assert_called_with(
+        send_email_test.assert_called_once_with(
             'to', 'subject', 'content', files=None, dryrun=False,
             cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
 
-class EmailSmtpTest(unittest.TestCase):
+class TestEmailSmtp(unittest.TestCase):
     def setUp(self):
         configuration.conf.set('smtp', 'SMTP_SSL', 'False')
 
@@ -2301,16 +2301,16 @@ class EmailSmtpTest(unittest.TestCase):
         mock_smtp_ssl.return_value = mock.Mock()
         msg = MIMEMultipart()
         utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
-        mock_smtp.assert_called_with(
+        mock_smtp.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertTrue(mock_smtp.return_value.starttls.called)
-        mock_smtp.return_value.login.assert_called_with(
+        mock_smtp.return_value.login.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_USER'),
             configuration.conf.get('smtp', 'SMTP_PASSWORD'),
         )
-        mock_smtp.return_value.sendmail.assert_called_with('from', 'to', msg.as_string())
+        mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
         self.assertTrue(mock_smtp.return_value.quit.called)
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -2318,10 +2318,10 @@ class EmailSmtpTest(unittest.TestCase):
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        with conf_vars({('smtp', 'SMTP_SSL'): 'True'}):
+        with conf_vars({('smtp', 'smtp_ssl'): 'True'}):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
-        mock_smtp_ssl.assert_called_with(
+        mock_smtp_ssl.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
@@ -2332,12 +2332,12 @@ class EmailSmtpTest(unittest.TestCase):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
         with conf_vars({
-                ('smtp', 'SMTP_USER'): None,
-                ('smtp', 'SMTP_PASSWORD'): None,
+                ('smtp', 'smtp_user'): None,
+                ('smtp', 'smtp_password'): None,
         }):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
-        mock_smtp.assert_called_with(
+        mock_smtp.assert_called_once_with(
             configuration.conf.get('smtp', 'SMTP_HOST'),
             configuration.conf.getint('smtp', 'SMTP_PORT'),
         )

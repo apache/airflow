@@ -68,7 +68,7 @@ PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
 
 
-class DatabricksOperatorSharedFunctions(unittest.TestCase):
+class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
     def test_deep_string_coerce(self):
         test_json = {
             'test_int': 1,
@@ -88,7 +88,7 @@ class DatabricksOperatorSharedFunctions(unittest.TestCase):
         self.assertDictEqual(databricks_operator._deep_string_coerce(test_json), expected)
 
 
-class DatabricksSubmitRunOperatorTest(unittest.TestCase):
+class TestDatabricksSubmitRunOperator(unittest.TestCase):
     def test_init_with_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -260,7 +260,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
 
-class DatabricksRunNowOperatorTest(unittest.TestCase):
+class TestDatabricksRunNowOperator(unittest.TestCase):
 
     def test_init_with_named_parameters(self):
         """

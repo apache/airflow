@@ -24,7 +24,6 @@ import warnings
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.version import version
 
 
 class GoogleCloudStorageCreateBucketOperator(BaseOperator):
@@ -125,11 +124,6 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        if self.labels is not None:
-            self.labels.update(
-                {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
-            )
-
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to

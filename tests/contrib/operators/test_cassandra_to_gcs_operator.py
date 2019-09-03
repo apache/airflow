@@ -28,7 +28,7 @@ from airflow.contrib.operators.cassandra_to_gcs import (
 TMP_FILE_NAME = "temp-file"
 
 
-class CassandraToGCSTest(unittest.TestCase):
+class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.contrib.operators.cassandra_to_gcs.NamedTemporaryFile")
     @mock.patch(
         "airflow.contrib.operators.cassandra_to_gcs.GoogleCloudStorageHook.upload"

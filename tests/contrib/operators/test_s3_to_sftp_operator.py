@@ -57,7 +57,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class S3ToSFTPOperatorTest(unittest.TestCase):
+class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook

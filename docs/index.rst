@@ -87,13 +87,14 @@ Content
     plugins
     security
     timezone
-    usage-rest-api
+    Using the CLI <usage-cli>
     integration
     metrics
     kubernetes
     lineage
     changelog
     faq
+    privacy_notice
 
 .. toctree::
     :maxdepth: 1

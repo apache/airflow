@@ -50,6 +50,11 @@
 # So please do not uncomment this line ;)
 # !README.md
 
+# Run tests command with bash completion
+!.bash_completion
+!run-tests
+!run-tests-complete
+
 # Setup/version configuration
 !setup.cfg
 !setup.py

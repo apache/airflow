@@ -34,7 +34,7 @@ FEATURES = [enums.Feature.LABEL_DETECTION]
 ANNOTATE_VIDEO_RESPONSE = {'test': 'test'}
 
 
-class CloudVideoIntelligenceHookTestCase(unittest.TestCase):
+class TestCloudVideoIntelligenceHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
             "airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",

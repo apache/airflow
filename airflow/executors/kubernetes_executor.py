@@ -325,8 +325,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise
             else:
-                self.log.warn('Watch died gracefully, starting back up with: '
-                              'last resource_version: %s', self.resource_version)
+                self.log.warning('Watch died gracefully, starting back up with: '
+                                 'last resource_version: %s', self.resource_version)
 
     def _run(self, kube_client, resource_version, worker_uuid, kube_config):
         self.log.info(
@@ -390,7 +390,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == 'Running':
             self.log.info('Event: %s is Running', pod_id)
         else:
-            self.log.warn(
+            self.log.warning(
                 'Event: Invalid state: %s on pod: %s with labels: %s with '
                 'resource_version: %s', status, pod_id, labels, resource_version
             )
@@ -590,14 +590,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
         try:
             try_num = int(labels.get('try_number', '1'))
         except ValueError:
-            self.log.warn("could not get try_number as an int: %s", labels.get('try_number', '1'))
+            self.log.warning("could not get try_number as an int: %s", labels.get('try_number', '1'))
 
         try:
             dag_id = labels['dag_id']
             task_id = labels['task_id']
             ex_time = self._label_safe_datestring_to_datetime(labels['execution_date'])
         except Exception as e:
-            self.log.warn(
+            self.log.warning(
                 'Error while retrieving labels; labels: %s; exception: %s',
                 labels, e
             )
@@ -626,7 +626,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     dag_id = task.dag_id
                     task_id = task.task_id
                     return (dag_id, task_id, ex_time, try_num)
-        self.log.warn(
+        self.log.warning(
             'Failed to find and match task details to a pod; labels: %s',
             labels
         )

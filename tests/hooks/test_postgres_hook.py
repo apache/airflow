@@ -39,9 +39,21 @@ class TestPostgresHookConn(unittest.TestCase):
             schema='schema'
         )
 
-        self.db_hook = PostgresHook()
+        class UnitTestPostgresHook(PostgresHook):
+            conn_name_attr = 'test_conn_id'
+
+        self.db_hook = UnitTestPostgresHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_non_default_id(self, mock_connect):
+        self.db_hook.test_conn_id = 'non_default'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', password='password',
+                                             host='host', dbname='schema',
+                                             port=None)
+        self.db_hook.get_connection.assert_called_once_with('non_default')
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     def test_get_conn(self, mock_connect):

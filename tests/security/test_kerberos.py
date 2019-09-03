@@ -29,7 +29,7 @@ from tests.test_utils.config import conf_vars
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
-class KerberosTest(unittest.TestCase):
+class TestKerberos(unittest.TestCase):
     def setUp(self):
         if not configuration.conf.has_section("kerberos"):
             configuration.conf.add_section("kerberos")

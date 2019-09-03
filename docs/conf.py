@@ -188,6 +188,7 @@ exclude_patterns = [
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
+    '_api/airflow/typing',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
     '_api/airflow/migrations',
@@ -204,6 +205,7 @@ exclude_patterns = [
     '_api/main',
     '_api/airflow/gcp/index.rst',
     '_api/airflow/gcp/example_dags',
+    '_api/airflow/gcp/utils',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]

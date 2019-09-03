@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import os
 import unittest
 from io import StringIO
@@ -43,6 +43,8 @@ try:
     _, default_project = google.auth.default(scopes=hook._DEFAULT_SCOPES)
 except GoogleAuthError:
     default_creds_available = False
+
+MODULE_NAME = "airflow.contrib.hooks.gcp_api_base_hook"
 
 
 class TestCatchHttpException(unittest.TestCase):
@@ -135,10 +137,10 @@ class TestFallbackToDefaultProjectId(unittest.TestCase):
 ENV_VALUE = "/tmp/a"
 
 
-class ProvideGcpCredentialFileTestCase(unittest.TestCase):
+class TestProvideGcpCredentialFile(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+            MODULE_NAME + '.GoogleCloudBaseHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.instance = hook.GoogleCloudBaseHook(gcp_conn_id="google-cloud-default")
@@ -226,6 +228,88 @@ class ProvideGcpCredentialFileTestCase(unittest.TestCase):
 class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
+
+    @mock.patch(MODULE_NAME + '.google.auth.default', return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
+        self.instance.extras = {}
+        result = self.instance._get_credentials_and_project_id()
+        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
+        self.assertEqual(('CREDENTIALS', 'PROJECT_ID'), result)
+
+    @mock.patch(  # type: ignore
+        MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file',
+        **{'return_value.project_id': "PROJECT_ID"}
+    )
+    def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': "KEY_PATH.json"
+        }
+        result = self.instance._get_credentials_and_project_id()
+        mock_from_service_account_file.assert_called_once_with('KEY_PATH.json', scopes=self.instance.scopes)
+        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
+
+    @mock.patch(MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file')
+    def test_get_credentials_and_project_id_with_service_account_file_and_p12_key(
+        self,
+        mock_from_service_account_file
+    ):
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': "KEY_PATH.p12"
+        }
+        with self.assertRaises(AirflowException):
+            self.instance._get_credentials_and_project_id()
+
+    @mock.patch(MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file')
+    def test_get_credentials_and_project_id_with_service_account_file_and_unknown_key(
+        self,
+        mock_from_service_account_file
+    ):
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': "KEY_PATH.unknown"
+        }
+        with self.assertRaises(AirflowException):
+            self.instance._get_credentials_and_project_id()
+
+    @mock.patch(  # type: ignore
+        MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_info',
+        **{'return_value.project_id': "PROJECT_ID"}
+    )
+    def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_file):
+        service_account = {
+            'private_key': "PRIVATE_KEY"
+        }
+        self.instance.extras = {
+            'extra__google_cloud_platform__keyfile_dict': json.dumps(service_account)
+        }
+        result = self.instance._get_credentials_and_project_id()
+        mock_from_service_account_file.assert_called_once_with(service_account, scopes=self.instance.scopes)
+        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
+
+    @mock.patch(MODULE_NAME + '.google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        self.instance.extras = {}
+        self.instance.delegate_to = "USER"
+        result = self.instance._get_credentials_and_project_id()
+        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
+        mock_credentials.with_subject.assert_called_once_with("USER")
+        self.assertEqual((mock_credentials.with_subject.return_value, "PROJECT_ID"), result)
+
+    @mock.patch(  # type: ignore
+        MODULE_NAME + '.google.auth.default',
+        return_value=("CREDENTIALS", "PROJECT_ID")
+    )
+    def test_get_credentials_and_project_id_with_default_auth_and_overridden_project_id(
+        self,
+        mock_auth_default
+    ):
+        self.instance.extras = {
+            'extra__google_cloud_platform__project': "SECOND_PROJECT_ID"
+        }
+        result = self.instance._get_credentials_and_project_id()
+        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
+        self.assertEqual(("CREDENTIALS", 'SECOND_PROJECT_ID'), result)
 
     @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
     def test_default_creds_with_scopes(self):
@@ -327,3 +411,14 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__project': default_project}
 
         self.assertEqual(self.instance.scopes, ('https://www.googleapis.com/auth/cloud-platform',))
+
+    @mock.patch("airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.get_connection")
+    def test_num_retries_is_not_none_by_default(self, get_con_mock):
+        """
+        Verify that if 'num_retires' in extras is not set, the default value
+        should not be None
+        """
+        get_con_mock.return_value.extra_dejson = {
+            "extra__google_cloud_platform__num_retries": None
+        }
+        self.assertEqual(self.instance.num_retries, 5)

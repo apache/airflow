@@ -30,7 +30,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'python_sensor_dag'
 
 
-class PythonSensorTests(unittest.TestCase):
+class TestPythonSensor(unittest.TestCase):
 
     def setUp(self):
         self.args = {

@@ -86,17 +86,16 @@ class GoogleCloudBaseHook(BaseHook):
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
 
-    def _get_credentials(self) -> google.auth.credentials.Credentials:
+    def _get_credentials_and_project_id(self) -> google.auth.credentials.Credentials:
         """
-        Returns the Credentials object for Google API
+        Returns the Credentials object for Google API and the associated project_id
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
-            credentials, _ = google.auth.default(scopes=self.scopes)
+            credentials, project_id = google.auth.default(scopes=self.scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
@@ -105,6 +104,7 @@ class GoogleCloudBaseHook(BaseHook):
                     google.oauth2.service_account.Credentials.from_service_account_file(
                         key_path, scopes=self.scopes)
                 )
+                project_id = credentials.project_id
             elif key_path.endswith('.p12'):
                 raise AirflowException('Legacy P12 key file are not supported, '
                                        'use a JSON key file.')
@@ -125,11 +125,25 @@ class GoogleCloudBaseHook(BaseHook):
                     google.oauth2.service_account.Credentials.from_service_account_info(
                         keyfile_dict_json, scopes=self.scopes)
                 )
+                project_id = credentials.project_id
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
 
-        return credentials.with_subject(self.delegate_to) \
-            if self.delegate_to else credentials
+        if self.delegate_to:
+            credentials = credentials.with_subject(self.delegate_to)
+
+        overridden_project_id = self._get_field('project')
+        if overridden_project_id:
+            project_id = overridden_project_id
+
+        return credentials, project_id
+
+    def _get_credentials(self) -> google.auth.credentials.Credentials:
+        """
+        Returns the Credentials object for Google API
+        """
+        credentials, _ = self._get_credentials_and_project_id()
+        return credentials
 
     def _get_access_token(self) -> str:
         """
@@ -169,7 +183,18 @@ class GoogleCloudBaseHook(BaseHook):
         :return: id of the project
         :rtype: str
         """
-        return self._get_field('project')
+        _, project_id = self._get_credentials_and_project_id()
+        return project_id
+
+    @property
+    def num_retries(self) -> int:
+        """
+        Returns num_retries from Connection.
+
+        :return: the number of times each API request should be retried
+        :rtype: int
+        """
+        return self._get_field('num_retries') or 5
 
     @property
     def client_info(self) -> ClientInfo:

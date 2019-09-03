@@ -21,13 +21,13 @@ import unittest
 
 from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
 from tests.gcp.operators.test_vision_system_helper import GCPVisionTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 
 VISION_HELPER = GCPVisionTestHelper()
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
-class CloudVisionExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
+class CloudVisionExampleDagsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name, dag_name='example_vision.py', gcp_key=GCP_AI_KEY

@@ -20,13 +20,12 @@ import unittest
 
 from tests.gcp.operators.test_spanner_system_helper import \
     GCPSpannerTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_SPANNER_KEY
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_SPANNER_KEY), SKIP_TEST_WARNING)
-class CloudSpannerExampleDagsTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_SPANNER_KEY), SKIP_TEST_WARNING)
+class CloudSpannerExampleDagsTest(TestDagGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name,

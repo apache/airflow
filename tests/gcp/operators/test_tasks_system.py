@@ -19,14 +19,12 @@
 
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_TASKS_KEY
 
 
-@unittest.skipIf(
-    DagGcpSystemTestCase.skip_check(GCP_TASKS_KEY), SKIP_TEST_WARNING)
-class GcpTasksExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_TASKS_KEY), SKIP_TEST_WARNING)
+class GcpTasksExampleDagsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name='runTest'):
         super().__init__(
             method_name,

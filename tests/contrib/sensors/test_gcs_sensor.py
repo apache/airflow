@@ -158,11 +158,11 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         response = task.execute(None)
 
-        mock_hook.assert_called_with(
+        mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
             google_cloud_storage_conn_id=TEST_GCP_CONN_ID
         )
-        mock_hook.return_value.list.assert_called_with(TEST_BUCKET, prefix=TEST_PREFIX)
+        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(response, generated_messages)
 
     @mock.patch('airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook')
@@ -176,5 +176,5 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         mock_hook.return_value.list.return_value = []
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(mock.MagicMock)
-            mock_hook.return_value.list.assert_called_with(
+            mock_hook.return_value.list.assert_called_once_with(
                 TEST_BUCKET, prefix=TEST_PREFIX)
