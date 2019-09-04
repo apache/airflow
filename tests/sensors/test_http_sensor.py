@@ -96,19 +96,13 @@ class TestHttpSensor(unittest.TestCase):
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_poke_context(self, mock_session_send):
-        """
-        test provide_context
-        """
         response = requests.Response()
         response.status_code = 200
         mock_session_send.return_value = response
 
-        def resp_check(resp, **context):
-            if context:
-                if "execution_date" in context:
-                    if context["execution_date"] == DEFAULT_DATE:
-                        return True
-
+        def resp_check(resp, execution_date):
+            if execution_date == DEFAULT_DATE:
+                return True
             raise AirflowException('AirflowException raised here!')
 
         task = HttpSensor(
@@ -117,7 +111,6 @@ class TestHttpSensor(unittest.TestCase):
             endpoint='',
             request_params={},
             response_check=resp_check,
-            provide_context=True,
             timeout=5,
             poke_interval=1,
             dag=self.dag)

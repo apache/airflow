@@ -26,7 +26,7 @@ import types
 from inspect import signature
 from itertools import islice
 from textwrap import dedent
-from typing import Optional, Iterable, Dict, Callable
+from typing import Optional, Iterable, Dict, Callable, Tuple
 
 import dill
 
@@ -90,7 +90,34 @@ class PythonOperator(BaseOperator):
         if templates_exts:
             self.template_ext = templates_exts
 
-    def execute(self, context):
+    @staticmethod
+    def determine_op_kwargs(python_callable: Callable,
+                            context: Dict,
+                            num_op_args: int = 0) -> Dict:
+        context_keys = context.keys()
+        sig = signature(python_callable).parameters.items()
+        op_args_names = islice(sig, num_op_args)
+        for name, _ in op_args_names:
+            # Check if it part of the context
+            if name in context_keys:
+                # Raise an exception to let the user know that the keyword is reserved
+                raise ValueError(
+                    "The key {} in the op_args is part of the context, and therefore reserved".format(name)
+                )
+
+        if any(str(param).startswith("**") for _, param in sig):
+            # If there is a **kwargs, **context or **_ then just dump everything.
+            op_kwargs = context
+        else:
+            # If there is only for example, an execution_date, then pass only these in :-)
+            op_kwargs = {
+                name: context[name]
+                for name, _ in sig
+                if name in context  # If it isn't available on the context, then ignore
+            }
+        return op_kwargs
+
+    def execute(self, context: Dict):
         # Export context to make it available for callables to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.info("Exporting the following env vars:\n%s",
@@ -100,33 +127,8 @@ class PythonOperator(BaseOperator):
 
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
-        context_keys = context.keys()
 
-        sig = signature(self.python_callable).parameters.items()
-        op_args_names = islice(sig, len(self.op_args))
-        for name, _ in op_args_names:
-            # Check if it part of the context
-            if name in context_keys:
-                # Raise an exception to let the user know that the keyword is reserved
-                raise ValueError(
-                    "The key {} in the op_args is part of the context, and therefore reserved".format(name)
-                )
-
-        print(sig)
-
-        if any(str(param).startswith("**") for _, param in sig):
-            # If there is a **kwargs, **context or **_ then just dump everything.
-            self.op_kwargs = context
-        else:
-            # If there is only for example, an execution_date, then pass only these in :-)
-            self.op_kwargs = {
-                name: context[name]
-                for name, _ in sig
-                if name in context  # If it isn't available on the context, then ignore
-            }
-
-        print(self.op_kwargs)
-        print(sig)
+        self.op_kwargs = PythonOperator.determine_op_kwargs(self.python_callable, context, len(self.op_args))
 
         return_value = self.execute_callable()
         self.log.info("Done. Returned value was: %s", return_value)

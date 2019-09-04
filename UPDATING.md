@@ -37,7 +37,12 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Airflow Master
+
+### Remove provide_context
+
+Instead of settings `provide_context` we're automagically inferring the signature of the callable that is being passed to the PythonOperator. The only behavioural change in is that using a key that is already in the context in the function, such as `dag` or `ds` is not allowed anymore and will thrown an exception. If the `provide_context` is still explicitly passed to the function, it will just end up in the `kwargs`, which can cause no harm.
 
 ### Change dag loading duration metric name
 Change DAG file loading duration metric from 
