@@ -26,7 +26,7 @@ import types
 from inspect import signature
 from itertools import islice
 from textwrap import dedent
-from typing import Optional, Iterable, Dict, Callable
+from typing import Optional, Iterable, Dict, Callable, List
 
 import dill
 
@@ -73,10 +73,10 @@ class PythonOperator(BaseOperator):
     def __init__(
         self,
         python_callable: Callable,
-        op_args: Optional[Iterable] = None,
+        op_args: Optional[List] = None,
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[Iterable[str]] = None,
+        templates_exts: Optional[List[str]] = None,
         *args,
         **kwargs
     ) -> None:
@@ -94,6 +94,15 @@ class PythonOperator(BaseOperator):
     def determine_op_kwargs(python_callable: Callable,
                             context: Dict,
                             num_op_args: int = 0) -> Dict:
+        """
+        Function that will inspect the signature of a python_callable to determine which
+        values need to be passed to the function.
+
+        :param python_callable: The function that you want to invoke
+        :param context: The context provided by the execute method of the Operator/Sensor
+        :param num_op_args: The number of op_args provided, so we know how many to skip
+        :return: The op_args dictionary which contains the values that are compatible with the Callable
+        """
         context_keys = context.keys()
         sig = signature(python_callable).parameters.items()
         op_args_names = islice(sig, num_op_args)
@@ -152,7 +161,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
 
-    def execute(self, context):
+    def execute(self, context: Dict):
         branch = super().execute(context)
         self.skip_all_except(context['ti'], branch)
 
@@ -170,7 +179,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
 
-    def execute(self, context):
+    def execute(self, context: Dict):
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 

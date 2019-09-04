@@ -20,7 +20,7 @@ from airflow.operators.python_operator import PythonOperator
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from typing import Optional, Iterable, Dict, Callable
+from typing import Optional, Iterable, Dict, Callable, List
 
 
 class PythonSensor(BaseSensorOperator):
@@ -53,7 +53,7 @@ class PythonSensor(BaseSensorOperator):
     def __init__(
             self,
             python_callable: Callable,
-            op_args: Optional[Iterable] = None,
+            op_args: Optional[List] = None,
             op_kwargs: Optional[Dict] = None,
             templates_dict: Optional[Dict] = None,
             *args, **kwargs):
