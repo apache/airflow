@@ -398,6 +398,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
                        'gcs_schema_object', 'labels')
@@ -417,8 +419,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
+                 location: str = None,
                  *args, **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
 
         self.project_id = project_id
@@ -432,10 +434,12 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
         self.encryption_configuration = encryption_configuration
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields and self.gcs_schema_object:
 
@@ -545,6 +549,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table', 'labels')
@@ -572,8 +578,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  src_fmt_configs: Optional[dict] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
+                 location: str = None,
                  *args, **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
 
         # GCS config
@@ -600,10 +606,12 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.src_fmt_configs = src_fmt_configs if src_fmt_configs is not None else dict()
         self.labels = labels
         self.encryption_configuration = encryption_configuration
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields and self.schema_object \
                 and self.source_format != 'DATASTORE_BACKUP':
@@ -682,7 +690,6 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
                  *args, **kwargs) -> None:
-
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
@@ -745,7 +752,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
-
+    :param location: The location used for the operation.
+    :type location: str
     """
 
     template_fields = ('dataset_id', 'project_id')
@@ -781,7 +789,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         conn = bq_hook.get_conn()
         cursor = conn.cursor()

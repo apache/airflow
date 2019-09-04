@@ -75,9 +75,10 @@ LIMIT 1000
 """
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+BQ_LOCATION = "europe-north1"
 
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
-
+LOCATION_DATASET_NAME = "{}_location".format(DATASET_NAME)
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL", "gs://cloud-samples-data/bigquery/us-states/us-states.csv"
 )
@@ -175,9 +176,25 @@ with models.DAG(
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
+    create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset_with_location",
+        dataset_id=LOCATION_DATASET_NAME,
+        location=BQ_LOCATION
+    )
+
     create_table = BigQueryCreateEmptyTableOperator(
         task_id="create-table",
         dataset_id=DATASET_NAME,
+        table_id="test_table",
+        schema_fields=[
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+        ],
+    )
+
+    create_table_with_location = BigQueryCreateEmptyTableOperator(
+        task_id="create_table_with_location",
+        dataset_id=LOCATION_DATASET_NAME,
         table_id="test_table",
         schema_fields=[
             {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
@@ -199,7 +216,7 @@ with models.DAG(
     patch_dataset = BigQueryPatchDatasetOperator(
         task_id="patch-dataset",
         dataset_id=DATASET_NAME,
-        dataset_resource={"friendlyName": "Patchet Dataset", "description": "Patched dataset"},
+        dataset_resource={"friendlyName": "Patched Dataset", "description": "Patched dataset"},
     )
 
     update_dataset = BigQueryUpdateDatasetOperator(
@@ -208,6 +225,12 @@ with models.DAG(
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete-dataset", dataset_id=DATASET_NAME, delete_contents=True
+    )
+
+    delete_dataset_with_location = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset_with_location",
+        dataset_id=LOCATION_DATASET_NAME,
+        delete_contents=True
     )
 
     create_dataset >> execute_query_save >> delete_dataset
@@ -220,3 +243,4 @@ with models.DAG(
         copy_from_selected_data >> delete_dataset
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
     create_table >> delete_table >> delete_dataset
+    create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location

@@ -381,7 +381,7 @@ class TestBigQueryOperator(unittest.TestCase):
             write_disposition='WRITE_EMPTY',
             allow_large_results=False,
             flatten_results=None,
-            bigquery_conn_id='google_cloud_default',
+            gcp_conn_id='google_cloud_default',
             udf_config=None,
             use_legacy_sql=True,
             maximum_billing_tier=None,

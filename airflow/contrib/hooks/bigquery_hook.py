@@ -296,6 +296,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }  # type: Dict[str, Any]
 
+        if self.location:
+            table_resource['location'] = self.location
+
         if schema_fields:
             table_resource['schema'] = {'fields': schema_fields}
 
@@ -467,6 +470,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 'tableId': external_table_id,
             }
         }  # type: Dict[str, Any]
+
+        if self.location:
+            table_resource['location'] = self.location
 
         if schema_fields:
             table_resource['externalDataConfiguration'].update({
@@ -1456,6 +1462,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :return: map containing the requested rows.
         """
         optional_params = {}  # type: Dict[str, Any]
+        if self.location:
+            optional_params['location'] = self.location
         if max_results:
             optional_params['maxResults'] = max_results
         if selected_fields:
@@ -1648,6 +1656,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if "datasetReference" not in dataset_reference:
             dataset_reference["datasetReference"] = {}
+
+        if self.location:
+            dataset_reference['location'] = dataset_reference.get('location') or self.location
 
         if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
             raise ValueError(

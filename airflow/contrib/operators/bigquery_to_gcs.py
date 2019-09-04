@@ -65,6 +65,8 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('source_project_dataset_table',
                        'destination_cloud_storage_uris', 'labels')
@@ -83,6 +85,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
+                 location: str = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -102,13 +105,15 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
+        self.location = location
 
     def execute(self, context):
         self.log.info('Executing extract of %s into: %s',
                       self.source_project_dataset_table,
                       self.destination_cloud_storage_uris)
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_extract(

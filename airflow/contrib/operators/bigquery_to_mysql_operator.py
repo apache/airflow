@@ -73,11 +73,13 @@ class BigQueryToMySqlOperator(BaseOperator):
     :type replace: bool
     :param batch_size: The number of rows to take in each batch
     :type batch_size: int
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'mysql_table')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint:disable=too-many-arguments
                  dataset_table: str,
                  mysql_table: str,
                  selected_fields: Optional[str] = None,
@@ -87,6 +89,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  replace: bool = False,
                  batch_size: int = 1000,
+                 location: str = None,
                  *args,
                  **kwargs) -> None:
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
@@ -98,6 +101,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         self.replace = replace
         self.delegate_to = delegate_to
         self.batch_size = batch_size
+        self.location = location
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
@@ -110,7 +114,8 @@ class BigQueryToMySqlOperator(BaseOperator):
                       self.dataset_id, self.table_id)
 
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
 
         conn = hook.get_conn()
         cursor = conn.cursor()

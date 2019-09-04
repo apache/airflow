@@ -23,7 +23,7 @@ Helpers to perform system tests for the Google Cloud Build service.
 import argparse
 
 from airflow.gcp.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUD_BUILD_KEY
+from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_BIGQUERY_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     action = parser.parse_args().action
 
     helper = GCPBigQueryTestHelper()
-    gcp_authenticator = GcpAuthenticator(GCP_CLOUD_BUILD_KEY)
+    gcp_authenticator = GcpAuthenticator(GCP_BIGQUERY_KEY)
     helper.log.info("Starting action: %s", action)
 
     gcp_authenticator.gcp_store_authentication()
