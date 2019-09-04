@@ -32,27 +32,6 @@ class TestLoggingMixin(unittest.TestCase):
             action='always'
         )
 
-    def test_log(self):
-        op = BashOperator(
-            task_id='task-1',
-            bash_command='exit 0'
-        )
-        with reset_warning_registry():
-            with warnings.catch_warnings(record=True) as w:
-                # Set to always, because the warning may have been thrown before
-                # Trigger the warning
-                op.logger.info('Some arbitrary line')
-
-                self.assertEqual(len(w), 1)
-
-                warning = w[0]
-                self.assertTrue(issubclass(warning.category, DeprecationWarning))
-                self.assertEqual(
-                    'Initializing logger for airflow.operators.bash_operator.BashOperator'
-                    ' using logger(), which will be replaced by .log in Airflow 2.0',
-                    str(warning.message)
-                )
-
     def test_set_context(self):
         handler1 = mock.MagicMock()
         handler2 = mock.MagicMock()
