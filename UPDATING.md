@@ -44,6 +44,10 @@ assists users migrating to a new version.
 
 Instead of settings `provide_context` we're automagically inferring the signature of the callable that is being passed to the PythonOperator. The only behavioural change in is that using a key that is already in the context in the function, such as `dag` or `ds` is not allowed anymore and will thrown an exception. If the `provide_context` is still explicitly passed to the function, it will just end up in the `kwargs`, which can cause no harm.
 
+### Changes to FileSensor
+
+FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
+
 ### Change dag loading duration metric name
 Change DAG file loading duration metric from 
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to 
