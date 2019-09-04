@@ -28,13 +28,16 @@ def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
     }
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
+    self._client = None
+    self._conn = None
 
 
 def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None):
-    self.extras = {
-    }
+    self.extras = {}
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
+    self._client = None
+    self._conn = None
 
 
 def get_open_mock():

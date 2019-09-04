@@ -31,6 +31,27 @@ TEST_GCP_PROJECT_ID = 'test-project'
 GKE_ZONE = 'test-zone'
 
 
+class TestGKEClusterHookClient(unittest.TestCase):
+    def setUp(self):
+        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
+
+    @mock.patch(
+        "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.client_info",
+        new_callable=mock.PropertyMock
+    )
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.kubernetes_engine.container_v1.ClusterManagerClient")
+    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+
+        result = self.gke_hook.get_client()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.gke_hook._client, result)
+
+
 class TestGKEClusterHookDelete(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)

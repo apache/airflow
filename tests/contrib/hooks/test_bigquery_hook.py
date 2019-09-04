@@ -20,7 +20,7 @@
 
 import unittest
 from unittest import mock
-from typing import List
+from typing import List, Optional
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
@@ -35,6 +35,31 @@ try:
     hook.BigQueryHook().get_service()
 except GoogleAuthError:
     bq_available = False
+
+
+
+class TestBigQueryHookConnection(unittest.TestCase):
+    hook = None  # type: Optional[hook.BigQueryHook]
+
+    def setUp(self):
+        self.hook = hook.BigQueryHook()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryConnection")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryHook._authorize")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.build")
+    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'bigquery', 'v2', http=mock_authorize.return_value, cache_discovery=False
+        )
+        mock_bigquery_connection.assert_called_once_with(
+            service=mock_build.return_value,
+            project_id=self.hook.project_id,
+            use_legacy_sql=self.hook.use_legacy_sql,
+            location=self.hook.location,
+            num_retries=self.hook.num_retries
+        )
+        self.assertEqual(mock_bigquery_connection.return_value, result)
 
 
 class TestPandasGbqCredentials(unittest.TestCase):

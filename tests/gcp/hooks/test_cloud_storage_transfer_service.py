@@ -83,6 +83,16 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook._authorize")
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.build")
+    def test_gct_client_creation(self, mock_build, mock_authorize):
+        result = self.gct_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'storagetransfer', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+        self.assertEqual(self.gct_hook._conn, result)
+
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
@@ -381,6 +391,16 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook._authorize")
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.build")
+    def test_gct_client_creation(self, mock_build, mock_authorize):
+        result = self.gct_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'storagetransfer', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+        self.assertEqual(self.gct_hook._conn, result)
+
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
@@ -544,6 +564,16 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
+
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook._authorize")
+    @mock.patch("airflow.gcp.hooks.cloud_storage_transfer_service.build")
+    def test_gct_client_creation(self, mock_build, mock_authorize):
+        result = self.gct_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'storagetransfer', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+        self.assertEqual(self.gct_hook._conn, result)
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',

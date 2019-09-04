@@ -87,6 +87,15 @@ class TestDataFlowHook(unittest.TestCase):
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.dataflow.DataFlowHook._authorize")
+    @mock.patch("airflow.gcp.hooks.dataflow.build")
+    def test_dataflow_client_creation(self, mock_build, mock_authorize):
+        result = self.dataflow_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'dataflow', 'v1b3', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))

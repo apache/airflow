@@ -21,7 +21,7 @@
 import unittest
 
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from tests.compat import patch
+from tests.compat import patch, PropertyMock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT = {"text": "test text"}
@@ -36,6 +36,18 @@ class TestTextToSpeechHook(unittest.TestCase):
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")
+
+    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook.client_info", new_callable=PropertyMock)
+    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook._get_credentials")
+    @patch("airflow.gcp.hooks.text_to_speech.TextToSpeechClient")
+    def test_text_to_speech_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.gcp_text_to_speech_hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.gcp_text_to_speech_hook._client, result)
 
     @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook.get_conn")
     def test_synthesize_speech(self, get_conn):

@@ -45,6 +45,15 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
                         new=mock_init):
             self.kms_hook = GoogleCloudKMSHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook._authorize")
+    @mock.patch("airflow.gcp.hooks.kms.build")
+    def test_kms_client_creation(self, mock_build, mock_authorize):
+        result = self.kms_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'cloudkms', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
     def test_encrypt(self, mock_service):
         plaintext = b'Test plaintext'

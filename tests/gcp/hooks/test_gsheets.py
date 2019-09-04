@@ -51,6 +51,15 @@ class TestGSheetsHook(unittest.TestCase):
                         new=mock_base_gcp_hook_default_project_id):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID, spreadsheet_id=SPREADHSEET_ID)
 
+    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook._authorize")
+    @mock.patch("airflow.gcp.hooks.gsheets.build")
+    def test_gsheets_client_creation(self, mock_build, mock_authorize):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'sheets', 'v4', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):
         get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
