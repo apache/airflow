@@ -63,9 +63,8 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         execute_method.return_value = response
 
         ret_val = self.kms_hook.encrypt(TEST_KEY_ID, plaintext)
-        encrypt_method.assert_called_with(name=TEST_KEY_ID,
-                                          body=body)
-        execute_method.assert_called_with(num_retries=mock.ANY)
+        encrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
+        execute_method.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(ciphertext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -92,9 +91,8 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
 
         ret_val = self.kms_hook.encrypt(TEST_KEY_ID, plaintext,
                                         authenticated_data=auth_data)
-        encrypt_method.assert_called_with(name=TEST_KEY_ID,
-                                          body=body)
-        execute_method.assert_called_with(num_retries=mock.ANY)
+        encrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
+        execute_method.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(ciphertext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -115,9 +113,8 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         execute_method.return_value = response
 
         ret_val = self.kms_hook.decrypt(TEST_KEY_ID, ciphertext)
-        decrypt_method.assert_called_with(name=TEST_KEY_ID,
-                                          body=body)
-        execute_method.assert_called_with(num_retries=mock.ANY)
+        decrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
+        execute_method.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(plaintext, ret_val)
 
     @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
@@ -144,7 +141,6 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
 
         ret_val = self.kms_hook.decrypt(TEST_KEY_ID, ciphertext,
                                         authenticated_data=auth_data)
-        decrypt_method.assert_called_with(name=TEST_KEY_ID,
-                                          body=body)
-        execute_method.assert_called_with(num_retries=mock.ANY)
+        decrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
+        execute_method.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(plaintext, ret_val)

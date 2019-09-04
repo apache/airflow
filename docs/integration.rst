@@ -487,6 +487,9 @@ Cloud Functions
 :class:`airflow.gcp.operators.functions.GcfFunctionDeleteOperator`
     delete Google Cloud Function in Google Cloud Platform
 
+:class:`airflow.gcp.operators.functions.GcfFunctionInvokeOperator`
+    invoke Google Cloud Function in Google Cloud Platform
+
 
 They also use :class:`airflow.gcp.hooks.functions.GcfHook` to communicate with Google Cloud Platform.
 
@@ -510,37 +513,37 @@ They also use :class:`airflow.gcp.hooks.dataflow.DataFlowHook` to communicate wi
 Cloud DataProc
 ''''''''''''''
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterCreateOperator`
     Create a new cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator`
     Delete a cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocClusterScaleOperator`
     Scale up or down a cluster on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcHadoopOperator`
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHiveOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcHiveOperator`
     Start a Hive query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPigOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcPigOperator`
     Start a Pig query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcPySparkOperator`
     Start a PySpark Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcSparkOperator`
     Start a Spark Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator`
+:class:`airflow.gcp.operators.dataproc.DataProcSparkSqlOperator`
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator`
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
 
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator`
+:class:`airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator`
     Instantiate a WorkflowTemplate on Google Cloud Dataproc.
 
 
@@ -597,10 +600,10 @@ Cloud Storage
 :class:`airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator`
     Creates a new cloud storage bucket.
 
-:class:`airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
+:class:`airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
     Loads files from Google cloud storage into BigQuery.
 
-:class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
+:class:`airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
     Copies objects from a bucket to another, with renaming if requested.
 
 :class:`airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
@@ -936,6 +939,49 @@ Google Cloud Tasks
 
 They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
 
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.gcp.operators.automl.AutoMLTrainModelOperator`
+    Creates Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLPredictOperator`
+    Runs prediction operation on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLBatchPredictOperator`
+    Perform a batch prediction on Google Cloud AutoML.
+
+:class:`airflow.gcp.operators.automl.AutoMLCreateDatasetOperator`
+    Creates a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLListDatasetOperator`
+    Lists AutoML Datasets in project.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteDatasetOperator`
+    Deletes a dataset and all of its contents.
+
+:class:`airflow.gcp.operators.automl.AutoMLImportDataOperator`
+    Imports data to a Google Cloud AutoML dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListColumnSpecsOperator`
+    Lists column specs in a table.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesListTableSpecsOperator`
+    Lists table specs in a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLTablesUpdateDatasetOperator`
+    Updates a dataset.
+
+:class:`airflow.gcp.operators.automl.AutoMLGetModelOperator`
+    Get Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeleteModelOperator`
+    Delete Google Cloud AutoML model.
+
+:class:`airflow.gcp.operators.automl.AutoMLDeployModelOperator`
+    Deploys a model.
+
+They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
 
 .. _Qubole:
 

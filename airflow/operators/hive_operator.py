@@ -21,7 +21,7 @@ import re
 from typing import Dict
 
 from airflow.hooks.hive_hooks import HiveCliHook
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -95,8 +95,8 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
-        self.mapred_job_name_template = configuration.get('hive',
-                                                          'mapred_job_name_template')
+        self.mapred_job_name_template = conf.get('hive',
+                                                 'mapred_job_name_template')
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.

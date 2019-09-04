@@ -20,7 +20,7 @@
 import unittest
 from unittest import mock
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.jobs import BackfillJob
 from airflow.utils import timezone
@@ -41,7 +41,7 @@ try:
 except ImportError:
     SKIP_DASK = True
 
-if 'sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'):
+if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
     SKIP_DASK = True
 
 # Always skip due to issues on python 3 issues
@@ -140,9 +140,9 @@ class TestDaskExecutorTLS(TestBaseDask):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production
-            configuration.set('dask', 'tls_ca', get_cert('tls-ca-cert.pem'))
-            configuration.set('dask', 'tls_cert', get_cert('tls-key-cert.pem'))
-            configuration.set('dask', 'tls_key', get_cert('tls-key.pem'))
+            conf.set('dask', 'tls_ca', get_cert('tls-ca-cert.pem'))
+            conf.set('dask', 'tls_cert', get_cert('tls-key-cert.pem'))
+            conf.set('dask', 'tls_key', get_cert('tls-key.pem'))
             try:
                 executor = DaskExecutor(cluster_address=s['address'])
 
@@ -153,9 +153,9 @@ class TestDaskExecutorTLS(TestBaseDask):
                 # and tasks to have completed.
                 executor.client.close()
             finally:
-                configuration.set('dask', 'tls_ca', '')
-                configuration.set('dask', 'tls_key', '')
-                configuration.set('dask', 'tls_cert', '')
+                conf.set('dask', 'tls_ca', '')
+                conf.set('dask', 'tls_key', '')
+                conf.set('dask', 'tls_cert', '')
 
     @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')

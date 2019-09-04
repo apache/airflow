@@ -130,9 +130,8 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/contrib/utils/log/task_handler_with_custom_formatter.py
-./airflow/contrib/utils/sendgrid.py
-./airflow/contrib/utils/weekday.py
+./airflow/gcp/utils/mlengine_operator_utils.py
+./airflow/gcp/utils/mlengine_prediction_summary.
 ./airflow/exceptions.py
 ./airflow/executors/base_executor.py
 ./airflow/executors/celery_executor.py
@@ -405,7 +404,7 @@
 ./tests/contrib/operators/test_ecs_operator.py
 ./tests/contrib/operators/test_emr_add_steps_operator.py
 ./tests/contrib/operators/test_emr_create_job_flow_operator.py
-./tests/contrib/operators/test_gcs_to_s3_operator.py
+./tests/operators/test_gcs_to_s3.py
 ./tests/contrib/operators/test_grpc_operator.py
 ./tests/contrib/operators/test_oracle_to_azure_data_lake_transfer.py
 ./tests/contrib/operators/test_qubole_check_operator.py

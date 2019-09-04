@@ -27,7 +27,6 @@ from uuid import uuid4
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
-from airflow.configuration import conf
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
@@ -36,7 +35,8 @@ from airflow.executors import Executors
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -127,24 +127,24 @@ class KubeConfig:
     kubernetes_section = 'kubernetes'
 
     def __init__(self):
-        configuration_dict = configuration.as_dict(display_sensitive=True)
+        configuration_dict = conf.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
         self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
-        self.env_from_configmap_ref = configuration.get(self.kubernetes_section,
-                                                        'env_from_configmap_ref')
-        self.env_from_secret_ref = configuration.get(self.kubernetes_section,
-                                                     'env_from_secret_ref')
+        self.env_from_configmap_ref = conf.get(self.kubernetes_section,
+                                               'env_from_configmap_ref')
+        self.env_from_secret_ref = conf.get(self.kubernetes_section,
+                                            'env_from_secret_ref')
         self.airflow_home = settings.AIRFLOW_HOME
-        self.dags_folder = configuration.get(self.core_section, 'dags_folder')
-        self.parallelism = configuration.getint(self.core_section, 'parallelism')
-        self.worker_container_repository = configuration.get(
+        self.dags_folder = conf.get(self.core_section, 'dags_folder')
+        self.parallelism = conf.getint(self.core_section, 'parallelism')
+        self.worker_container_repository = conf.get(
             self.kubernetes_section, 'worker_container_repository')
-        self.worker_container_tag = configuration.get(
+        self.worker_container_tag = conf.get(
             self.kubernetes_section, 'worker_container_tag')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
-        self.kube_image_pull_policy = configuration.get(
+        self.kube_image_pull_policy = conf.get(
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
@@ -216,7 +216,7 @@ class KubeConfig:
         self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
         # This prop may optionally be set for PV Claims and is used to write logs
-        self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
+        self.base_log_folder = conf.get(self.core_section, 'base_log_folder')
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your
@@ -277,7 +277,7 @@ class KubeConfig:
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
     def _get_security_context_val(self, scontext):
-        val = configuration.get(self.kubernetes_section, scontext)
+        val = conf.get(self.kubernetes_section, scontext)
         if len(val) == 0:
             return val
         else:

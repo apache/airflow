@@ -20,7 +20,6 @@
 This module contains a Google Cloud Vision operator.
 """
 
-
 from copy import deepcopy
 from typing import Union, List, Dict, Any, Sequence, Tuple, Optional
 

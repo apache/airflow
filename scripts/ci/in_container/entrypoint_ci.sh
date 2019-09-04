@@ -55,6 +55,29 @@ echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
 echo
 
+CLEAN_FILES=${CLEAN_FILES:=false}
+
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" && "${CLEAN_FILES}" == "false" ]]; then
+    echo
+    echo "Installing NPM modules as they are not yet installed (sources are mounted from the host)"
+    echo
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    npm ci
+    echo
+    popd
+fi
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" && ${CLEAN_FILES} == "false" ]]; then
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    echo
+    echo "Building production version of javascript files (sources are mounted from the host)"
+    echo
+    echo
+    npm run prod
+    echo
+    echo
+    popd
+fi
+
 ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
@@ -80,9 +103,12 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
     popd &>/dev/null || exit 1
 fi
 
+export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
-    echo "Using ${HADOOP_DISTRO:=} distribution of Hadoop from ${HADOOP_HOME:=}"
+    echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
 fi
 
@@ -95,7 +121,6 @@ export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
-export HADOOP_DISTRO
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
@@ -167,7 +192,7 @@ if [[ "${ENV}" == "docker" ]]; then
 
     if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
         echo
-        echo "ERROR! There was a problem communicating with kerberos"
+        echo "ERROR:  There was a problem communicating with kerberos"
         echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
         echo
         echo "Action! Please restart the environment!"

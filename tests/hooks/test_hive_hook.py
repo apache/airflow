@@ -138,7 +138,11 @@ class TestHiveCliHook(unittest.TestCase):
             "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
-        mock_run_cli.assert_called_with(query)
+        calls = [
+            mock.call(';'),
+            mock.call(query)
+        ]
+        mock_run_cli.assert_has_calls(calls, any_order=True)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
@@ -415,7 +419,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
 
         HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
-        mock_connect.assert_called_with(
+        mock_connect.assert_called_once_with(
             host='localhost',
             port=10000,
             auth='LDAP',

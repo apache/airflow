@@ -25,7 +25,7 @@ import string
 import textwrap
 from typing import Any
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)

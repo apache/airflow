@@ -56,17 +56,15 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
-        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
         Returns a BigQuery PEP 249 connection object.
         """
         service = self.get_service()
-        project = self._get_field('project')
         return BigQueryConnection(
             service=service,
-            project_id=project,
+            project_id=self.project_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
             num_retries=self.num_retries
@@ -112,7 +110,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
         return read_gbq(sql,
-                        project_id=self._get_field('project'),
+                        project_id=self.project_id,
                         dialect=dialect,
                         verbose=False,
                         private_key=private_key)
@@ -208,7 +206,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  use_legacy_sql=True,
                  api_resource_configs=None,
                  location=None,
-                 num_retries=None):
+                 num_retries=5):
 
         self.service = service
         self.project_id = project_id
@@ -232,7 +230,7 @@ class BigQueryBaseCursor(LoggingMixin):
                            labels=None,
                            view=None,
                            encryption_configuration=None,
-                           num_retries=None):
+                           num_retries=5):
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -267,7 +265,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type cluster_fields: list
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
         :type view: dict
 
         **Example**: ::
@@ -594,7 +592,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
             **Example**: ::
 
                 view = {
@@ -1970,7 +1968,7 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True, location=None, num_retries=None):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None, num_retries=5):
         super().__init__(
             service=service,
             project_id=project_id,

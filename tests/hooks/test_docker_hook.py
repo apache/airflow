@@ -78,7 +78,7 @@ class TestDockerHook(unittest.TestCase):
             tls='someconfig'
         )
         hook.get_conn()
-        docker_client_mock.assert_called_with(
+        docker_client_mock.assert_called_once_with(
             base_url='https://index.docker.io/v1/',
             version='1.23',
             tls='someconfig'
@@ -115,7 +115,7 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_with(
+        client.login.assert_called_once_with(
             username='some_user',
             password='some_p4$$w0rd',
             registry='some.docker.registry.com',
@@ -130,7 +130,7 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_with(
+        client.login.assert_called_once_with(
             username='some_user',
             password='some_p4$$w0rd',
             registry='another.docker.registry.com:9876',

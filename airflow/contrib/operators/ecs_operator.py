@@ -73,6 +73,8 @@ class ECSOperator(BaseOperator):
     :type platform_version: str
     :param network_configuration: the network configuration for the task
     :type network_configuration: dict
+    :param tags: a dictionary of tags in the form of {'tagKey': 'tagValue'}.
+    :type tags: dict
     :param awslogs_group: the CloudWatch group where your ECS container logs are stored.
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
@@ -97,7 +99,7 @@ class ECSOperator(BaseOperator):
     def __init__(self, task_definition, cluster, overrides,
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
-                 network_configuration=None, awslogs_group=None,
+                 network_configuration=None, tags=None, awslogs_group=None,
                  awslogs_region=None, awslogs_stream_prefix=None, **kwargs):
         super().__init__(**kwargs)
 
@@ -112,6 +114,7 @@ class ECSOperator(BaseOperator):
         self.platform_version = platform_version
         self.network_configuration = network_configuration
 
+        self.tags = tags
         self.awslogs_group = awslogs_group
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
@@ -149,6 +152,9 @@ class ECSOperator(BaseOperator):
             run_opts['placementConstraints'] = self.placement_constraints
         if self.network_configuration is not None:
             run_opts['networkConfiguration'] = self.network_configuration
+        if self.tags is not None:
+            run_opts['tags'] = [{'key': k, 'value': v} for (k, v) in self.tags.items()]
+
         response = self.client.run_task(**run_opts)
 
         failures = response['failures']

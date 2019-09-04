@@ -155,7 +155,15 @@ class TestHttpSensor(unittest.TestCase):
                 task.execute(None)
 
             self.assertTrue(mock_errors.called)
-            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
+            calls = [
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+            ]
+            mock_errors.assert_has_calls(calls)
 
 
 class FakeSession:

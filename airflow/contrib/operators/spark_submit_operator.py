@@ -70,6 +70,8 @@ class SparkSubmitOperator(BaseOperator):
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab (templated)
     :type principal: str
+    :param proxy_user: User to impersonate when submitting the application (templated)
+    :type proxy_user: str
     :param name: Name of the job (default airflow-spark). (templated)
     :type name: str
     :param num_executors: Number of executors to launch
@@ -85,7 +87,7 @@ class SparkSubmitOperator(BaseOperator):
     :type spark_binary: str
     """
     template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_class_path',
-                       '_packages', '_exclude_packages', '_keytab', '_principal', '_name',
+                       '_packages', '_exclude_packages', '_keytab', '_principal', '_proxy_user', '_name',
                        '_application_args', '_env_vars')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
@@ -109,6 +111,7 @@ class SparkSubmitOperator(BaseOperator):
                  driver_memory=None,
                  keytab=None,
                  principal=None,
+                 proxy_user=None,
                  name='airflow-spark',
                  num_executors=None,
                  application_args=None,
@@ -135,6 +138,7 @@ class SparkSubmitOperator(BaseOperator):
         self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
+        self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
@@ -166,6 +170,7 @@ class SparkSubmitOperator(BaseOperator):
             driver_memory=self._driver_memory,
             keytab=self._keytab,
             principal=self._principal,
+            proxy_user=self._proxy_user,
             name=self._name,
             num_executors=self._num_executors,
             application_args=self._application_args,

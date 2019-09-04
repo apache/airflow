@@ -21,7 +21,7 @@ import os
 import unittest
 from argparse import Namespace
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.security.kerberos import renew_from_kt
 from airflow import LoggingMixin
 from tests.test_utils.config import conf_vars
@@ -31,11 +31,12 @@ from tests.test_utils.config import conf_vars
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class TestKerberos(unittest.TestCase):
     def setUp(self):
-        if not configuration.conf.has_section("kerberos"):
-            configuration.conf.add_section("kerberos")
-        configuration.conf.set("kerberos", "keytab",
-                               os.environ['KRB5_KTNAME'])
-        keytab_from_cfg = configuration.conf.get("kerberos", "keytab")
+
+        if not conf.has_section("kerberos"):
+            conf.add_section("kerberos")
+        conf.set("kerberos", "keytab",
+                 os.environ['KRB5_KTNAME'])
+        keytab_from_cfg = conf.get("kerberos", "keytab")
         self.args = Namespace(keytab=keytab_from_cfg, principal=None, pid=None,
                               daemon=None, stdout=None, stderr=None, log_file=None)
 
