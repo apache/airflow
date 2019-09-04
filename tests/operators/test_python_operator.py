@@ -24,6 +24,8 @@ import unittest
 from collections import namedtuple
 from datetime import timedelta, date
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.operators.dummy_operator import DummyOperator
@@ -259,17 +261,20 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
+        # dag is not allowed since it is a reserved keyword
         def fn(dag):
-            if dag != 1:
-                raise ValueError("Should be 1")
+            # An ValueError should be triggered since we're using dag as a
+            # reserved keyword
+            raise RuntimeError("Should not be triggered, dag: {}".format(dag))
 
         python_operator = PythonOperator(
             task_id='python_operator',
-            op_kwargs={'dag': 1},
+            op_args=[1],
             python_callable=fn,
             dag=self.dag
         )
-        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        with pytest.raises(ValueError, match=r".* dag .*"):
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
@@ -280,13 +285,13 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
-        def fn(dag):
-            if dag != 1:
-                raise ValueError("Should be 1")
+        def fn(custom, dag):
+            if custom != 1:
+                raise ValueError("Should be 1, but was {}, dag: {}".format(custom, dag))
 
         python_operator = PythonOperator(
             task_id='python_operator',
-            op_args=[1],
+            op_kwargs={'custom': 1},
             python_callable=fn,
             dag=self.dag
         )

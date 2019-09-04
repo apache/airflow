@@ -100,21 +100,25 @@ class PythonOperator(BaseOperator):
 
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
+        context_keys = context.keys()
 
-        sig_full = signature(self.python_callable).parameters.items()
-        # Remove the first n arguments equal to len(op_args).
-        # The notation is a bit akward since the OrderedDict is not slice-able
-        # https://stackoverflow.com/questions/30975339/slicing-a-python-ordereddict
-        sig_without_op_args = islice(sig_full, len(self.op_args), sys.maxsize)
+        sig = signature(self.python_callable).parameters.items()
+        op_args_names = islice(sig, len(self.op_args))
 
-        if any(str(param).startswith("**") for param in sig_without_op_args):
+        for name in op_args_names:
+            # Check if it part of the context
+            if name in context_keys:
+                # Raise an exception
+                raise ValueError("The key {} in the op_args is part of the context, and therefore reserved".format(name))
+
+        if any(str(param).startswith("**") for param in sig):
             # If there is a **kwargs, **context or **_ then just dump everything.
             self.op_kwargs = context
         else:
             # If there is only for example, an execution_date, then pass only these in :-)
             self.op_kwargs = {
                 name: context[name]
-                for name in sig_without_op_args
+                for name in sig
                 if name in context  # If it isn't available on the context, then ignore
             }
 
@@ -268,8 +272,8 @@ class PythonVirtualenvOperator(PythonOperator):
                                    self.__class__.__name__)
         # check that args are passed iff python major version matches
         if (python_version is not None and
-                str(python_version)[0] != str(sys.version_info[0]) and
-                self._pass_op_args()):
+            str(python_version)[0] != str(sys.version_info[0]) and
+            self._pass_op_args()):
             raise AirflowException("Passing op_args or op_kwargs is not supported across "
                                    "different Python major versions "
                                    "for PythonVirtualenvOperator. "
