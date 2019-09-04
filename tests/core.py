@@ -2178,6 +2178,7 @@ class TestWebHDFSHook(unittest.TestCase):
 HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
 snakebite = None  # type: None
 
+
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
 class TestHDFSHook(unittest.TestCase):

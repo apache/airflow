@@ -109,7 +109,9 @@ class PythonOperator(BaseOperator):
             # Check if it part of the context
             if name in context_keys:
                 # Raise an exception
-                raise ValueError("The key {} in the op_args is part of the context, and therefore reserved".format(name))
+                raise ValueError(
+                    "The key {} in the op_args is part of the context, and therefore reserved".format(name)
+                )
 
         if any(str(param).startswith("**") for param in sig):
             # If there is a **kwargs, **context or **_ then just dump everything.
@@ -272,8 +274,8 @@ class PythonVirtualenvOperator(PythonOperator):
                                    self.__class__.__name__)
         # check that args are passed iff python major version matches
         if (python_version is not None and
-            str(python_version)[0] != str(sys.version_info[0]) and
-            self._pass_op_args()):
+           str(python_version)[0] != str(sys.version_info[0]) and
+           self._pass_op_args()):
             raise AirflowException("Passing op_args or op_kwargs is not supported across "
                                    "different Python major versions "
                                    "for PythonVirtualenvOperator. "
