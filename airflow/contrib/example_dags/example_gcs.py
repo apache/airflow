@@ -46,7 +46,7 @@ default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 # [START howto_operator_gcs_acl_args_common]
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
-GCS_ACL_ENTITY = os.environ.get("GCS_ACL_ENTITY", "example-entity")
+GCS_ACL_ENTITY = os.environ.get("GCS_ACL_ENTITY", "allUsers")
 GCS_ACL_BUCKET_ROLE = "OWNER"
 GCS_ACL_OBJECT_ROLE = "OWNER"
 # [END howto_operator_gcs_acl_args_common]
@@ -78,8 +78,8 @@ with models.DAG(
         task_id="list_buckets", bucket=BUCKET_1
     )
 
-    print_output = BashOperator(
-        task_id="print_output",
+    list_buckets_result = BashOperator(
+        task_id="list_buckets_result",
         bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
     )
 
@@ -123,11 +123,12 @@ with models.DAG(
         destination_bucket=BUCKET_2,
         destination_object=BUCKET_FILE_LOCATION,
     )
+
     delete_files = GoogleCloudStorageDeleteOperator(
         task_id="delete_files", bucket_name=BUCKET_1, prefix=""
     )
 
-    [create_bucket1, create_bucket2] >> list_buckets >> print_output
+    [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result
     [create_bucket1, create_bucket2] >> upload_file
     upload_file >> [download_file, copy_file]
     upload_file >> gcs_bucket_create_acl_entry_task >> gcs_object_create_acl_entry_task >> delete_files
