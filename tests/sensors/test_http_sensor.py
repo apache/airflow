@@ -63,7 +63,7 @@ class TestHttpSensor(unittest.TestCase):
             timeout=5,
             poke_interval=1)
         with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
-            task.execute(None)
+            task.execute(context={})
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
@@ -81,7 +81,7 @@ class TestHttpSensor(unittest.TestCase):
             timeout=5,
             poke_interval=1)
 
-        task.execute(None)
+        task.execute(context={})
 
         args, kwargs = mock_session_send.call_args
         received_request = args[0]
