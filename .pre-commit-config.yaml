@@ -35,8 +35,8 @@ repos:
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/potiuk/pre-commit-hooks
-    rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.7
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
