@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+---
 dist: xenial
 language: python
 env:
@@ -38,9 +38,9 @@ jobs:
       env: BACKEND=sqlite ENV=docker
       python: "3.5"
       stage: test
-    - name: "Tests mysql python 3.6"
+    - name: "Tests mysql python 3.7"
       env: BACKEND=mysql ENV=docker
-      python: "3.6"
+      python: "3.7"
       stage: test
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
@@ -50,18 +50,18 @@ jobs:
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
       python: "3.6"
       stage: test
-    - name: "Static checks except pylint and docs"
+    - name: "Static checks (no pylint, no licence check)"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests.sh
-    - name: Check docs
+      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
+    - name: "Check licence compliance for Apache"
+      stage: pre-test
+      script: ./scripts/ci/ci_check_license.sh
+    - name: "Pylint checks"
+      stage: pre-test
+      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
+    - name: "Build documentation"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
-    - name: Pylint main
-      stage: pre-test
-      script: ./scripts/ci/ci_pylint_main.sh
-    - name: Pylint tests
-      stage: pre-test
-      script: ./scripts/ci/ci_pylint_tests.sh
 services:
   - docker
 before_install:

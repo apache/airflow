@@ -21,7 +21,6 @@
 This module contains a Google Kubernetes Engine Hook.
 """
 
-import json
 import time
 from typing import Dict, Union, Optional
 
@@ -32,7 +31,7 @@ from google.api_core.retry import Retry
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
-from google.protobuf import json_format
+from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -72,22 +71,6 @@ class GKEClusterHook(GoogleCloudBaseHook):
                 client_info=self.client_info
             )
         return self._client
-
-    @staticmethod
-    def _dict_to_proto(py_dict: Dict, proto):
-        """
-        Converts a python dictionary to the proto supplied
-
-        :param py_dict: The dictionary to convert
-        :type py_dict: dict
-        :param proto: The proto object to merge with dictionary
-        :type proto: protobuf
-        :return: A parsed python dictionary in provided proto format
-        :raises:
-            ParseError: On JSON parsing problems.
-        """
-        dict_json_str = json.dumps(py_dict)
-        return json_format.Parse(dict_json_str, proto)
 
     def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
         """
@@ -227,7 +210,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         if isinstance(cluster, dict):
             cluster_proto = Cluster()
-            cluster = self._dict_to_proto(py_dict=cluster, proto=cluster_proto)
+            cluster = ParseDict(cluster, cluster_proto)
         elif not isinstance(cluster, Cluster):
             raise AirflowException(
                 "cluster is not instance of Cluster proto or python dict")

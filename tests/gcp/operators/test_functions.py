@@ -25,7 +25,8 @@ from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow.gcp.operators.functions import \
-    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, FUNCTION_NAME_PATTERN
+    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, \
+    FUNCTION_NAME_PATTERN, GcfFunctionInvokeOperator
 from airflow import AirflowException
 from airflow.version import version
 from tests.compat import mock
@@ -69,7 +70,7 @@ def _prepare_test_bodies():
     return body_values
 
 
-class GcfFunctionDeployTest(unittest.TestCase):
+class TestGcfFunctionDeploy(unittest.TestCase):
     @parameterized.expand(_prepare_test_bodies())
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_body_empty_or_missing_fields(self, body, message, mock_hook):
@@ -84,9 +85,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_deploy_execute(self, mock_hook):
@@ -142,13 +140,13 @@ class GcfFunctionDeployTest(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_empty_project_id_is_ok(self, mock_hook):
+        mock_hook.return_value.get_function.side_effect = \
+            HttpError(resp=MOCK_RESP_404, content=b'not found')
         operator = GcfFunctionDeployOperator(
             location="test_region",
             body=deepcopy(VALID_BODY),
             task_id="id"
         )
-        operator._hook.get_function.side_effect = \
-            HttpError(resp=MOCK_RESP_404, content=b'not found')
         operator.execute(None)
         mock_hook.assert_called_once_with(api_version='v1',
                                           gcp_conn_id='google_cloud_default')
@@ -171,8 +169,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'location' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     @mock.patch('airflow.gcp.operators.functions.GcfHook')
     def test_empty_body(self, mock_hook):
@@ -185,8 +181,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             )
         err = cm.exception
         self.assertIn("The required parameter 'body' is missing", str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
 
     @parameterized.expand([
         (runtime,) for runtime in VALID_RUNTIMES
@@ -362,9 +356,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
          "The body field 'source_code.sourceRepository.url' of value '' does not match"),
     ]
     )
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
-    def test_invalid_source_code_union_field(self, source_code, message, mock_hook):
-        mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
+    def test_invalid_source_code_union_field(self, source_code, message):
         body = deepcopy(VALID_BODY)
         body.pop('sourceUploadUrl', None)
         body.pop('sourceArchiveUrl', None)
@@ -381,9 +373,6 @@ class GcfFunctionDeployTest(unittest.TestCase):
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
-        mock_hook.assert_called_once_with(api_version='v1',
-                                          gcp_conn_id='google_cloud_default')
-        mock_hook.reset_mock()
 
     @parameterized.expand([
         ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),
@@ -545,7 +534,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
         mock_hook.reset_mock()
 
 
-class GcfFunctionDeleteTest(unittest.TestCase):
+class TestGcfFunctionDelete(unittest.TestCase):
     _FUNCTION_NAME = 'projects/project_name/locations/project_location/functions' \
                      '/function_name'
     _DELETE_FUNCTION_EXPECTED = {
@@ -646,4 +635,45 @@ class GcfFunctionDeleteTest(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
+        )
+
+
+class TestGcfFunctionInvokeOperator(unittest.TestCase):
+    @mock.patch("airflow.gcp.operators.functions.BaseOperator.xcom_push")
+    @mock.patch("airflow.gcp.operators.functions.GcfHook")
+    def test_execute(self, mock_gcf_hook, mock_xcom):
+        exec_id = 'exec_id'
+        mock_gcf_hook.return_value.call_function.return_value = {'executionId': exec_id}
+
+        function_id = "test_function"
+        payload = {'key': 'value'}
+        api_version = 'test'
+        gcp_conn_id = 'test_conn'
+
+        op = GcfFunctionInvokeOperator(
+            task_id='test',
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            api_version=api_version,
+            gcp_conn_id=gcp_conn_id
+        )
+        op.execute(None)
+        mock_gcf_hook.assert_called_once_with(
+            api_version=api_version,
+            gcp_conn_id=gcp_conn_id
+        )
+
+        mock_gcf_hook.return_value.call_function.assert_called_once_with(
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID
+        )
+
+        mock_xcom.assert_called_once_with(
+            context=None,
+            key='execution_id',
+            value=exec_id
         )

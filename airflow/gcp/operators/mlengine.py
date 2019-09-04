@@ -18,7 +18,6 @@ This module contains GCP MLEngine operators.
 """
 import re
 
-from googleapiclient.errors import HttpError
 
 from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.exceptions import AirflowException
@@ -53,11 +52,11 @@ def _normalize_mlengine_job_id(job_id):
     # Clean up 'bad' characters except templates
     tracker = 0
     cleansed_job_id = ''
-    for m in re.finditer(r'\{{2}.+?\}{2}', job):
+    for match in re.finditer(r'\{{2}.+?\}{2}', job):
         cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_',
-                                  job[tracker:m.start()])
-        cleansed_job_id += job[m.start():m.end()]
-        tracker = m.end()
+                                  job[tracker:match.start()])
+        cleansed_job_id += job[match.start():match.end()]
+        tracker = match.end()
 
     # Clean up last substring or the full string if no templates
     cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_', job[tracker:])
@@ -173,7 +172,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint:disable=too-many-arguments
                  project_id,
                  job_id,
                  region,
@@ -273,11 +272,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
             return existing_job.get('predictionInput', None) == \
                 prediction_request['predictionInput']
 
-        try:
-            finished_prediction_job = hook.create_job(
-                self._project_id, prediction_request, check_existing_job)
-        except HttpError:
-            raise
+        finished_prediction_job = hook.create_job(
+            self._project_id, prediction_request, check_existing_job)
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
             self.log.error(
@@ -531,7 +527,7 @@ class MLEngineTrainingOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint:disable=too-many-arguments
                  project_id,
                  job_id,
                  package_uris,
@@ -623,11 +619,8 @@ class MLEngineTrainingOperator(BaseOperator):
             return existing_job.get('trainingInput', None) == \
                 training_request['trainingInput']
 
-        try:
-            finished_training_job = hook.create_job(
-                self._project_id, training_request, check_existing_job)
-        except HttpError:
-            raise
+        finished_training_job = hook.create_job(
+            self._project_id, training_request, check_existing_job)
 
         if finished_training_job['state'] != 'SUCCEEDED':
             self.log.error('MLEngine training job failed: %s', str(finished_training_job))

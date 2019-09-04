@@ -19,7 +19,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Dict
+from typing import Dict, Any, Optional
 
 from googleapiclient.discovery import build
 
@@ -48,7 +48,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,
@@ -58,7 +58,6 @@ class CloudBuildHook(GoogleCloudBaseHook):
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field("num_retries", 5)
 
     def get_conn(self):
         """

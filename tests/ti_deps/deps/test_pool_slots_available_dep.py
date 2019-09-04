@@ -27,7 +27,7 @@ from airflow.utils.db import create_session
 from tests.test_utils import db
 
 
-class PoolSlotsAvailableDepTest(unittest.TestCase):
+class TestPoolSlotsAvailableDep(unittest.TestCase):
     def setUp(self):
         db.clear_db_pools()
         with create_session() as session:

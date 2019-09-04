@@ -44,7 +44,7 @@ INITIAL_SPLIT_KEYS = []  # type: List
 EMPTY_COLUMN_FAMILIES = {}  # type: Dict
 
 
-class BigtableInstanceCreateTest(unittest.TestCase):
+class TestBigtableInstanceCreate(unittest.TestCase):
     @parameterized.expand([
         ('instance_id', PROJECT_ID, '', CLUSTER_ID, CLUSTER_ZONE),
         ('main_cluster_id', PROJECT_ID, INSTANCE_ID, '', CLUSTER_ZONE),
@@ -135,7 +135,7 @@ class BigtableInstanceCreateTest(unittest.TestCase):
         )
 
 
-class BigtableClusterUpdateTest(unittest.TestCase):
+class TestBigtableClusterUpdate(unittest.TestCase):
     @parameterized.expand([
         ('instance_id', PROJECT_ID, '', CLUSTER_ID, NODES),
         ('cluster_id', PROJECT_ID, INSTANCE_ID, '', NODES),
@@ -274,7 +274,7 @@ class BigtableClusterUpdateTest(unittest.TestCase):
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES)
 
 
-class BigtableInstanceDeleteTest(unittest.TestCase):
+class TestBigtableInstanceDelete(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.bigtable.BigtableHook')
     def test_delete_execute(self, mock_hook):
         op = BigtableInstanceDeleteOperator(
@@ -368,7 +368,7 @@ class BigtableInstanceDeleteTest(unittest.TestCase):
             instance_id=INSTANCE_ID)
 
 
-class BigtableTableDeleteTest(unittest.TestCase):
+class TestBigtableTableDelete(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.bigtable.BigtableHook')
     def test_delete_execute(self, mock_hook):
         op = BigtableTableDeleteOperator(
@@ -482,7 +482,7 @@ class BigtableTableDeleteTest(unittest.TestCase):
             table_id=TABLE_ID)
 
 
-class BigtableTableCreateTest(unittest.TestCase):
+class TestBigtableTableCreate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.bigtable.BigtableHook')
     def test_create_execute(self, mock_hook):
         op = BigtableTableCreateOperator(

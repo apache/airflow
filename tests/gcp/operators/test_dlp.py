@@ -67,7 +67,7 @@ STORED_INFO_TYPE_ID = "type123"
 TRIGGER_ID = "trigger123"
 
 
-class CloudDLPCancelDLPJobOperatorTest(unittest.TestCase):
+class TestCloudDLPCancelDLPJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_cancel_dlp_job(self, mock_hook):
         mock_hook.return_value.cancel_dlp_job.return_value = {}
@@ -83,7 +83,7 @@ class CloudDLPCancelDLPJobOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPCreateDeidentifyTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPCreateDeidentifyTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_create_deidentify_template(self, mock_hook):
         mock_hook.return_value.create_deidentify_template.return_value = {}
@@ -103,7 +103,7 @@ class CloudDLPCreateDeidentifyTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPCreateDLPJobOperatorTest(unittest.TestCase):
+class TestCloudDLPCreateDLPJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_create_dlp_job(self, mock_hook):
         mock_hook.return_value.create_dlp_job.return_value = {}
@@ -122,7 +122,7 @@ class CloudDLPCreateDLPJobOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPCreateInspectTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPCreateInspectTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_create_inspect_template(self, mock_hook):
         mock_hook.return_value.create_inspect_template.return_value = {}
@@ -142,7 +142,7 @@ class CloudDLPCreateInspectTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPCreateJobTriggerOperatorTest(unittest.TestCase):
+class TestCloudDLPCreateJobTriggerOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_create_job_trigger(self, mock_hook):
         mock_hook.return_value.create_job_trigger.return_value = {}
@@ -159,7 +159,7 @@ class CloudDLPCreateJobTriggerOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPCreateStoredInfoTypeOperatorTest(unittest.TestCase):
+class TestCloudDLPCreateStoredInfoTypeOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_create_stored_info_type(self, mock_hook):
         mock_hook.return_value.create_stored_info_type.return_value = {}
@@ -179,7 +179,7 @@ class CloudDLPCreateStoredInfoTypeOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeidentifyContentOperatorTest(unittest.TestCase):
+class TestCloudDLPDeidentifyContentOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_deidentify_content(self, mock_hook):
         mock_hook.return_value.deidentify_content.return_value = {}
@@ -201,7 +201,7 @@ class CloudDLPDeidentifyContentOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeleteDeidentifyTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPDeleteDeidentifyTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_deidentify_template(self, mock_hook):
         mock_hook.return_value.delete_deidentify_template.return_value = {}
@@ -220,7 +220,7 @@ class CloudDLPDeleteDeidentifyTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeleteDlpJobOperatorTest(unittest.TestCase):
+class TestCloudDLPDeleteDlpJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_dlp_job(self, mock_hook):
         mock_hook.return_value.delete_dlp_job.return_value = {}
@@ -238,7 +238,7 @@ class CloudDLPDeleteDlpJobOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeleteInspectTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPDeleteInspectTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_inspect_template(self, mock_hook):
         mock_hook.return_value.delete_inspect_template.return_value = {}
@@ -257,7 +257,7 @@ class CloudDLPDeleteInspectTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeleteJobTriggerOperatorTest(unittest.TestCase):
+class TestCloudDLPDeleteJobTriggerOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_job_trigger(self, mock_hook):
         mock_hook.return_value.delete_job_trigger.return_value = {}
@@ -275,7 +275,7 @@ class CloudDLPDeleteJobTriggerOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPDeleteStoredInfoTypeOperatorTest(unittest.TestCase):
+class TestCloudDLPDeleteStoredInfoTypeOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_stored_info_type(self, mock_hook):
         mock_hook.return_value.delete_stored_info_type.return_value = {}
@@ -296,7 +296,7 @@ class CloudDLPDeleteStoredInfoTypeOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPGetDeidentifyTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPGetDeidentifyTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_deidentify_template(self, mock_hook):
         mock_hook.return_value.get_deidentify_template.return_value = {}
@@ -315,7 +315,7 @@ class CloudDLPGetDeidentifyTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPGetDlpJobOperatorTest(unittest.TestCase):
+class TestCloudDLPGetDlpJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_dlp_job(self, mock_hook):
         mock_hook.return_value.get_dlp_job.return_value = {}
@@ -333,7 +333,7 @@ class CloudDLPGetDlpJobOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPGetInspectTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPGetInspectTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_inspect_template(self, mock_hook):
         mock_hook.return_value.get_inspect_template.return_value = {}
@@ -352,7 +352,7 @@ class CloudDLPGetInspectTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPGetJobTripperOperatorTest(unittest.TestCase):
+class TestCloudDLPGetJobTripperOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_job_trigger(self, mock_hook):
         mock_hook.return_value.get_job_trigger.return_value = {}
@@ -370,7 +370,7 @@ class CloudDLPGetJobTripperOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPGetStoredInfoTypeOperatorTest(unittest.TestCase):
+class TestCloudDLPGetStoredInfoTypeOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_stored_info_type(self, mock_hook):
         mock_hook.return_value.get_stored_info_type.return_value = {}
@@ -391,7 +391,7 @@ class CloudDLPGetStoredInfoTypeOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPInspectContentOperatorTest(unittest.TestCase):
+class TestCloudDLPInspectContentOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_inspect_content(self, mock_hook):
         mock_hook.return_value.inspect_content.return_value = {}
@@ -409,7 +409,7 @@ class CloudDLPInspectContentOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListDeidentifyTemplatesOperatorTest(unittest.TestCase):
+class TestCloudDLPListDeidentifyTemplatesOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_deidentify_templates(self, mock_hook):
         mock_hook.return_value.list_deidentify_templates.return_value = {}
@@ -429,7 +429,7 @@ class CloudDLPListDeidentifyTemplatesOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListDlpJobsOperatorTest(unittest.TestCase):
+class TestCloudDLPListDlpJobsOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_dlp_jobs(self, mock_hook):
         mock_hook.return_value.list_dlp_jobs.return_value = {}
@@ -448,7 +448,7 @@ class CloudDLPListDlpJobsOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListInfoTypesOperatorTest(unittest.TestCase):
+class TestCloudDLPListInfoTypesOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_info_types(self, mock_hook):
         mock_hook.return_value.list_info_types.return_value = {}
@@ -464,7 +464,7 @@ class CloudDLPListInfoTypesOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListInspectTemplatesOperatorTest(unittest.TestCase):
+class TestCloudDLPListInspectTemplatesOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_inspect_templates(self, mock_hook):
         mock_hook.return_value.list_inspect_templates.return_value = {}
@@ -484,7 +484,7 @@ class CloudDLPListInspectTemplatesOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListJobTriggersOperatorTest(unittest.TestCase):
+class TestCloudDLPListJobTriggersOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_job_triggers(self, mock_hook):
         mock_hook.return_value.list_job_triggers.return_value = {}
@@ -502,7 +502,7 @@ class CloudDLPListJobTriggersOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPListStoredInfoTypesOperatorTest(unittest.TestCase):
+class TestCloudDLPListStoredInfoTypesOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_stored_info_types(self, mock_hook):
         mock_hook.return_value.list_stored_info_types.return_value = {}
@@ -522,7 +522,7 @@ class CloudDLPListStoredInfoTypesOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPRedactImageOperatorTest(unittest.TestCase):
+class TestCloudDLPRedactImageOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_redact_image(self, mock_hook):
         mock_hook.return_value.redact_image.return_value = {}
@@ -541,7 +541,7 @@ class CloudDLPRedactImageOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPReidentifyContentOperatorTest(unittest.TestCase):
+class TestCloudDLPReidentifyContentOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_reidentify_content(self, mock_hook):
         mock_hook.return_value.reidentify_content.return_value = {}
@@ -563,7 +563,7 @@ class CloudDLPReidentifyContentOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPUpdateDeidentifyTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPUpdateDeidentifyTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_update_deidentify_template(self, mock_hook):
         mock_hook.return_value.update_deidentify_template.return_value = {}
@@ -584,7 +584,7 @@ class CloudDLPUpdateDeidentifyTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPUpdateInspectTemplateOperatorTest(unittest.TestCase):
+class TestCloudDLPUpdateInspectTemplateOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_update_inspect_template(self, mock_hook):
         mock_hook.return_value.update_inspect_template.return_value = {}
@@ -605,7 +605,7 @@ class CloudDLPUpdateInspectTemplateOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPUpdateJobTriggerOperatorTest(unittest.TestCase):
+class TestCloudDLPUpdateJobTriggerOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_update_job_trigger(self, mock_hook):
         mock_hook.return_value.update_job_trigger.return_value = {}
@@ -625,7 +625,7 @@ class CloudDLPUpdateJobTriggerOperatorTest(unittest.TestCase):
         )
 
 
-class CloudDLPUpdateStoredInfoTypeOperatorTest(unittest.TestCase):
+class TestCloudDLPUpdateStoredInfoTypeOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_update_stored_info_type(self, mock_hook):
         mock_hook.return_value.update_stored_info_type.return_value = {}

@@ -27,7 +27,8 @@ import pendulum
 from freezegun import freeze_time
 from parameterized import parameterized, param
 from sqlalchemy.orm.session import Session
-from airflow import models, settings, configuration
+from airflow import models, settings
+from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
@@ -43,9 +44,10 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from airflow.utils.db import provide_session
 
 
-class TaskInstanceTest(unittest.TestCase):
+class TestTaskInstance(unittest.TestCase):
 
     def setUp(self):
         db.clear_db_pools()
@@ -342,6 +344,32 @@ class TaskInstanceTest(unittest.TestCase):
 
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    @provide_session
+    def test_ti_updates_with_task(self, session=None):
+        """
+        test that updating the executor_config propogates to the TaskInstance DB
+        """
+        dag = models.DAG(dag_id='test_run_pooling_task')
+        task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                             executor_config={'foo': 'bar'},
+                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=timezone.utcnow())
+
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
+
+        task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                              executor_config={'bar': 'baz'},
+                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(
+            task=task2, execution_date=timezone.utcnow())
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'bar': 'baz'}, tis[1].executor_config)
 
     def test_run_pooling_task_with_mark_success(self):
         """
@@ -1058,8 +1086,8 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
-        configuration.set('email', 'SUBJECT_TEMPLATE', '/subject/path')
-        configuration.set('email', 'HTML_CONTENT_TEMPLATE', '/html_content/path')
+        conf.set('email', 'subject_template', '/subject/path')
+        conf.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):

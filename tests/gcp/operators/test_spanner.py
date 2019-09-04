@@ -44,7 +44,7 @@ CREATE_QUERY_2 = "CREATE TABLE my_table2 (id INT64, name STRING(100))"
 DDL_STATEMENTS = [CREATE_QUERY, CREATE_QUERY_2]
 
 
-class CloudSpannerTest(unittest.TestCase):
+class TestCloudSpanner(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
     def test_instance_create(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None

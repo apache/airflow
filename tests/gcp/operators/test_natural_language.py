@@ -48,7 +48,7 @@ ANALYZE_SENTIMENT_RESPONSE = AnalyzeSentimentResponse()
 ENCODING_TYPE = "UTF32"
 
 
-class CloudLanguageAnalyzeEntitiesOperatorTestCase(unittest.TestCase):
+class TestCloudLanguageAnalyzeEntitiesOperator(unittest.TestCase):
     @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_entities.return_value = ANALYZE_ENTITIES_RESPONSE
@@ -57,7 +57,7 @@ class CloudLanguageAnalyzeEntitiesOperatorTestCase(unittest.TestCase):
         self.assertEqual(resp, {})
 
 
-class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
+class TestCloudLanguageAnalyzeEntitySentimentOperator(unittest.TestCase):
     @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_entity_sentiment.return_value = ANALYZE_ENTITY_SENTIMENT_RESPONSE
@@ -66,7 +66,7 @@ class CloudLanguageAnalyzeEntitySentimentOperatorTestCase(unittest.TestCase):
         self.assertEqual(resp, {})
 
 
-class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
+class TestCloudLanguageAnalyzeSentimentOperator(unittest.TestCase):
     @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.analyze_sentiment.return_value = ANALYZE_SENTIMENT_RESPONSE
@@ -75,7 +75,7 @@ class CloudLanguageAnalyzeSentimentOperatorTestCase(unittest.TestCase):
         self.assertEqual(resp, {})
 
 
-class CloudLanguageClassifyTextOperatorTestCase(unittest.TestCase):
+class TestCloudLanguageClassifyTextOperator(unittest.TestCase):
     @patch("airflow.gcp.operators.natural_language.CloudNaturalLanguageHook")
     def test_minimal_green_path(self, hook_mock):
         hook_mock.return_value.classify_text.return_value = CLASSIFY_TEXT_RRESPONSE

@@ -36,7 +36,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 INPUT_URI = "gs://test-bucket//test-video.mp4"
 
 
-class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
+class TestCloudVideoIntelligenceOperators(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_labels_green_path(self, mock_hook):
 
@@ -56,6 +56,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )
 
     @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -76,6 +77,7 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )
 
     @mock.patch("airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -96,4 +98,5 @@ class CloudVideoIntelligenceOperatorsTestCase(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
+            timeout=None
         )

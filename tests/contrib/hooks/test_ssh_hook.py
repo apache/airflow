@@ -38,7 +38,7 @@ conn.sendall(b'hello')
 """
 
 
-class SSHHookTest(unittest.TestCase):
+class TestSSHHook(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',

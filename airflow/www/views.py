@@ -46,7 +46,7 @@ from urllib.parse import quote
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import configuration as conf
+from airflow.configuration import conf, AIRFLOW_CONFIG
 from airflow import jobs, models
 from airflow import settings
 from airflow._vendor import nvd3
@@ -166,8 +166,7 @@ class AirflowBaseView(BaseView):
 
 class Airflow(AirflowBaseView):
     @expose('/health')
-    @provide_session
-    def health(self, session=None):
+    def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
@@ -1953,10 +1952,10 @@ class ConfigurationView(AirflowBaseView):
     def conf(self):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = conf.AIRFLOW_CONFIG
+        subtitle = AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as file:
+            with open(AIRFLOW_CONFIG, 'r') as file:
                 config = file.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
@@ -2197,7 +2196,7 @@ class VariableModelView(AirflowModelView):
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val', 'is_encrypted']
+    add_columns = ['key', 'val']
     edit_columns = ['key', 'val']
     search_columns = ['key', 'val']
 
@@ -2245,6 +2244,7 @@ class VariableModelView(AirflowModelView):
 
         response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response
 
     @expose('/varimport', methods=["POST"])

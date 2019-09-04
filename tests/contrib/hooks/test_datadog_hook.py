@@ -85,7 +85,7 @@ class TestDatadogHook(unittest.TestCase):
             type_=TYPE,
             interval=INTERVAL,
         )
-        mock_send.assert_called_with(
+        mock_send.assert_called_once_with(
             metric=METRIC_NAME,
             points=DATAPOINT,
             host=self.hook.host,
@@ -101,7 +101,7 @@ class TestDatadogHook(unittest.TestCase):
         mock_time.return_value = now
         mock_query.return_value = {'status': 'ok'}
         self.hook.query_metric('query', 60, 30)
-        mock_query.assert_called_with(
+        mock_query.assert_called_once_with(
             start=now - 60,
             end=now - 30,
             query='query',
@@ -122,7 +122,7 @@ class TestDatadogHook(unittest.TestCase):
             tags=TAGS,
             device_name=DEVICE_NAME,
         )
-        mock_create.assert_called_with(
+        mock_create.assert_called_once_with(
             title=TITLE,
             text=TEXT,
             aggregation_key=AGGREGATION_KEY,

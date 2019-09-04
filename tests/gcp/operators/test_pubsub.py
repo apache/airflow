@@ -40,7 +40,7 @@ TEST_MESSAGES = [
 TEST_POKE_INTERVAl = 0
 
 
-class PubSubTopicCreateOperatorTest(unittest.TestCase):
+class TestPubSubTopicCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_failifexists(self, mock_hook):
@@ -65,7 +65,7 @@ class PubSubTopicCreateOperatorTest(unittest.TestCase):
             TEST_PROJECT, TEST_TOPIC, fail_if_exists=False)
 
 
-class PubSubTopicDeleteOperatorTest(unittest.TestCase):
+class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
@@ -78,7 +78,7 @@ class PubSubTopicDeleteOperatorTest(unittest.TestCase):
             TEST_PROJECT, TEST_TOPIC, fail_if_not_exists=False)
 
 
-class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
+class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
@@ -120,7 +120,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
 
-class PubSubSubscriptionDeleteOperatorTest(unittest.TestCase):
+class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
@@ -133,7 +133,7 @@ class PubSubSubscriptionDeleteOperatorTest(unittest.TestCase):
             TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=False)
 
 
-class PubSubPublishOperatorTest(unittest.TestCase):
+class TestPubSubPublishOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_publish(self, mock_hook):

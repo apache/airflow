@@ -34,7 +34,7 @@ TARGET_BUCKET_NAME = "target_bucket_name"
 TARGET_FILENAME = "target_filename"
 
 
-class GcpTextToSpeechTest(unittest.TestCase):
+class TestGcpTextToSpeech(unittest.TestCase):
     @patch("airflow.gcp.operators.text_to_speech.GoogleCloudStorageHook")
     @patch("airflow.gcp.operators.text_to_speech.GCPTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):

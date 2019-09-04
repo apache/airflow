@@ -39,7 +39,7 @@ from tabulate import tabulate
 
 # To avoid circular imports
 import airflow.models
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
@@ -676,7 +676,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :return:
         """
         if not self._process:
-            self.log.warn('Ending without manager process.')
+            self.log.warning('Ending without manager process.')
             return
         reap_process_group(self._process.pid, log=self.log)
         self._parent_signal_conn.close()

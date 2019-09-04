@@ -47,7 +47,7 @@ SET_MACHINE_TYPE_BODY = {
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class GceInstanceStartTest(unittest.TestCase):
+class TestGceInstanceStart(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_start(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
@@ -143,7 +143,7 @@ class GceInstanceStartTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GceInstanceStopTest(unittest.TestCase):
+class TestGceInstanceStop(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_instance_stop(self, mock_hook):
         op = GceInstanceStopOperator(
@@ -242,7 +242,7 @@ class GceInstanceStopTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class GceInstanceSetMachineTypeTest(unittest.TestCase):
+class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_set_machine_type(self, mock_hook):
         mock_hook.return_value.set_machine_type.return_value = True
@@ -515,7 +515,7 @@ GCE_INSTANCE_TEMPLATE_BODY_GET_NEW = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_GET)
 GCE_INSTANCE_TEMPLATE_BODY_GET_NEW['name'] = GCE_INSTANCE_TEMPLATE_NEW_NAME
 
 
-class GceInstanceTemplateCopyTest(unittest.TestCase):
+class TestGceInstanceTemplateCopy(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_copy_template(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
@@ -926,7 +926,7 @@ GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY = {
 }
 
 
-class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
+class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.GceHook')
     def test_successful_instance_group_update(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \

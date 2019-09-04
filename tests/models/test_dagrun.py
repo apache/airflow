@@ -32,7 +32,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 
 
-class DagRunTest(unittest.TestCase):
+class TestDagRun(unittest.TestCase):
 
     def create_dag_run(self, dag,
                        state=State.RUNNING,

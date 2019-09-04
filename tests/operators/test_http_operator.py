@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class SimpleHttpOpTests(unittest.TestCase):
+class TestSimpleHttpOp(unittest.TestCase):
     def setUp(self):
         os.environ['AIRFLOW_CONN_HTTP_EXAMPLE'] = 'http://www.example.com'
 
@@ -48,7 +48,11 @@ class SimpleHttpOpTests(unittest.TestCase):
 
         with mock.patch.object(operator.log, 'info') as mock_info:
             operator.execute(None)
-            mock_info.assert_called_with('Example.com fake response')
+            calls = [
+                mock.call('Example.com fake response'),
+                mock.call('Example.com fake response')
+            ]
+            mock_info.has_calls(calls)
 
     @requests_mock.mock()
     def test_response_in_logs_after_failed_check(self, m):
@@ -72,4 +76,8 @@ class SimpleHttpOpTests(unittest.TestCase):
 
         with mock.patch.object(operator.log, 'info') as mock_info:
             self.assertRaises(AirflowException, operator.execute, None)
-            mock_info.assert_called_with('invalid response')
+            calls = [
+                mock.call('Calling HTTP method'),
+                mock.call('invalid response')
+            ]
+            mock_info.assert_has_calls(calls, any_order=True)

@@ -29,7 +29,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Set, Any
 
 import jinja2
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
@@ -261,7 +262,7 @@ class BaseOperator(LoggingMixin):
     def __init__(
         self,
         task_id: str,
-        owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
+        owner: str = conf.get('operators', 'DEFAULT_OWNER'),
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
@@ -279,7 +280,7 @@ class BaseOperator(LoggingMixin):
         default_args: Optional[Dict] = None,
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
-        queue: str = configuration.conf.get('celery', 'default_queue'),
+        queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
@@ -348,7 +349,7 @@ class BaseOperator(LoggingMixin):
             )
         self._schedule_interval = schedule_interval
         self.retries = retries if retries is not None else \
-            configuration.conf.getint('core', 'default_task_retries', fallback=0)
+            conf.getint('core', 'default_task_retries', fallback=0)
         self.queue = queue
         self.pool = pool
         self.sla = sla

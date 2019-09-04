@@ -23,7 +23,7 @@ import time
 import unittest
 
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
@@ -40,7 +40,7 @@ from tests.test_utils.db import clear_db_runs
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class LocalTaskJobTest(unittest.TestCase):
+class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 
@@ -161,9 +161,9 @@ class LocalTaskJobTest(unittest.TestCase):
                 time2 = heartbeat_records[i]
                 self.assertGreaterEqual((time2 - time1).total_seconds(), job.heartrate)
 
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
-    @unittest.skipIf('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('postgresql' in conf.get('core', 'sql_alchemy_conn'),
                      'flaky when run on postgresql')
     def test_mark_success_no_kill(self):
         """

@@ -46,7 +46,7 @@ class TestZendeskHook(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             zendesk_hook.call("some_path", get_all_pages=False)
-            mocked_time.sleep.assert_called_with(sleep_time)
+            mocked_time.sleep.assert_called_once_with(sleep_time)
 
     @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
     def test_returns_single_page_if_get_all_pages_false(self, _):
@@ -92,8 +92,8 @@ class TestZendeskHook(unittest.TestCase):
         zendesk_hook = ZendeskHook("conn_id")
         zendesk_hook.get_connection = mock.Mock(return_value=conn_mock)
         zendesk_hook.get_conn()
-        mock_zendesk.assert_called_with(zdesk_url='https://conn_host', zdesk_email='conn_login',
-                                        zdesk_password='conn_pass', zdesk_token=True)
+        mock_zendesk.assert_called_once_with(zdesk_url='https://conn_host', zdesk_email='conn_login',
+                                             zdesk_password='conn_pass', zdesk_token=True)
 
     @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
     def test_zdesk_sideloading_works_correctly(self, mock_zendesk):

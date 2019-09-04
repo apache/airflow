@@ -87,7 +87,6 @@ class CloudSqlHook(GoogleCloudBaseHook):
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
-        self.num_retries = self._get_field('num_retries', 5)  # type: int
         self._conn = None
 
     def get_conn(self):
@@ -736,7 +735,7 @@ class CloudSqlDatabaseHook(BaseHook):
            in the connection URL
     :type default_gcp_project_id: str
     """
-    _conn = None
+    _conn = None  # type: Optional[Any]
 
     def __init__(
         self,

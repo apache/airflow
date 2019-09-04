@@ -19,14 +19,14 @@
 
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
 
 from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class GCPTextToSpeechExampleDagSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
+class GCPTextToSpeechExampleDagSystemTest(TestDagGcpSystem):
     def setUp(self):
         super().setUp()
         self.gcp_authenticator.gcp_authenticate()

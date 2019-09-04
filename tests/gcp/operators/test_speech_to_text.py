@@ -29,7 +29,7 @@ CONFIG = {"encoding": "LINEAR16"}
 AUDIO = {"uri": "gs://bucket/object"}
 
 
-class CloudSqlTest(unittest.TestCase):
+class TestCloudSql(unittest.TestCase):
     @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True

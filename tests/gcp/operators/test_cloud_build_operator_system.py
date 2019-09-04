@@ -20,12 +20,12 @@
 import unittest
 
 from tests.gcp.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY
 
 
-@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_CLOUD_BUILD_KEY), SKIP_TEST_WARNING)
-class CloudBuildExampleDagsSystemTest(DagGcpSystemTestCase):
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_CLOUD_BUILD_KEY), SKIP_TEST_WARNING)
+class CloudBuildExampleDagsSystemTest(TestDagGcpSystem):
     """
     System tests for Google Cloud Build operators
 

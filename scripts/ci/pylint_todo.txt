@@ -42,7 +42,6 @@
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/contrib/hooks/wasb_hook.py
 ./airflow/contrib/operators/adls_list_operator.py
-./airflow/contrib/operators/adls_to_gcs.py
 ./airflow/contrib/operators/awsbatch_operator.py
 ./airflow/contrib/operators/aws_athena_operator.py
 ./airflow/contrib/operators/aws_sqs_publish_operator.py
@@ -58,7 +57,6 @@
 ./airflow/contrib/operators/emr_add_steps_operator.py
 ./airflow/contrib/operators/emr_create_job_flow_operator.py
 ./airflow/contrib/operators/emr_terminate_job_flow_operator.py
-./airflow/contrib/operators/file_to_gcs.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/hipchat_operator.py
@@ -66,12 +64,10 @@
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
 ./airflow/contrib/operators/jira_operator.py
 ./airflow/contrib/operators/kubernetes_pod_operator.py
-./airflow/gcp/operators/mlengine.py
 ./airflow/contrib/operators/mongo_to_s3.py
 ./airflow/contrib/operators/opsgenie_alert_operator.py
 ./airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py
 ./airflow/contrib/operators/oracle_to_oracle_transfer.py
-./airflow/contrib/operators/pubsub_operator.py
 ./airflow/contrib/operators/qubole_check_operator.py
 ./airflow/contrib/operators/qubole_operator.py
 ./airflow/contrib/operators/redis_publish_operator.py
@@ -134,11 +130,8 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/contrib/utils/log/task_handler_with_custom_formatter.py
 ./airflow/gcp/utils/mlengine_operator_utils.py
-./airflow/gcp/utils/mlengine_prediction_summary.py
-./airflow/contrib/utils/sendgrid.py
-./airflow/contrib/utils/weekday.py
+./airflow/gcp/utils/mlengine_prediction_summary.
 ./airflow/exceptions.py
 ./airflow/executors/base_executor.py
 ./airflow/executors/celery_executor.py
@@ -411,9 +404,8 @@
 ./tests/contrib/operators/test_ecs_operator.py
 ./tests/contrib/operators/test_emr_add_steps_operator.py
 ./tests/contrib/operators/test_emr_create_job_flow_operator.py
-./tests/contrib/operators/test_gcs_to_s3_operator.py
+./tests/operators/test_gcs_to_s3.py
 ./tests/contrib/operators/test_grpc_operator.py
-./tests/gcp/operators/test_mlengine.py
 ./tests/contrib/operators/test_oracle_to_azure_data_lake_transfer.py
 ./tests/contrib/operators/test_qubole_check_operator.py
 ./tests/contrib/operators/test_redis_publish_operator.py
@@ -435,7 +427,6 @@
 ./tests/contrib/sensors/test_weekday_sensor.py
 ./tests/contrib/utils/logging_command_executor.py
 ./tests/contrib/utils/run_once_decorator.py
-./tests/gcp/operators/test_mlengine_utils.py
 ./tests/contrib/utils/test_sendgrid.py
 ./tests/contrib/utils/test_weekday.py
 ./tests/core.py

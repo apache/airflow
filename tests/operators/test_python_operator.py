@@ -62,7 +62,7 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
-class PythonOperatorTest(unittest.TestCase):
+class TestPythonOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -252,7 +252,7 @@ class PythonOperatorTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
-class BranchOperatorTest(unittest.TestCase):
+class TestBranchOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -426,7 +426,7 @@ class BranchOperatorTest(unittest.TestCase):
                 raise Exception
 
 
-class ShortCircuitOperatorTest(unittest.TestCase):
+class TestShortCircuitOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

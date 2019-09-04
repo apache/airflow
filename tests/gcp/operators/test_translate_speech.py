@@ -28,7 +28,7 @@ from tests.compat import mock
 GCP_CONN_ID = 'google_cloud_default'
 
 
-class CloudTranslateSpeechTest(unittest.TestCase):
+class TestCloudTranslateSpeech(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.translate_speech.GCPSpeechToTextHook')
     @mock.patch('airflow.gcp.operators.translate_speech.CloudTranslateHook')
     def test_minimal_green_path(self, mock_translate_hook, mock_speech_hook):

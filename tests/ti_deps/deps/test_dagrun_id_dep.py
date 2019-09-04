@@ -26,7 +26,7 @@ from airflow.models import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
 
 
-class DagrunRunningDepTest(unittest.TestCase):
+class TestDagrunRunningDep(unittest.TestCase):
     def test_dagrun_id_is_backfill(self):
         """
         Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.

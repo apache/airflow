@@ -16,9 +16,27 @@
 # under the License.
 ---
 default_stages: [commit, push]
+default_language_version:
+  # force all unspecified python hooks to run python3
+  python: python3
 repos:
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.6
+  - repo: local
+    hooks:
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/ci_build.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: check-apache-license
+        name: Check if licences are OK for Apache
+        entry: ./scripts/ci/ci_check_license.sh
+        language: system
+        files: ^.*LICENSE.*$|^.*LICENCE.*$
+        pass_filenames: false
+        require_serial: true
+  - repo: https://github.com/potiuk/pre-commit-hooks
+    rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
@@ -31,6 +49,7 @@ repos:
           - "/*||*/"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all other files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -39,6 +58,7 @@ repos:
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
@@ -49,6 +69,7 @@ repos:
           - "||"
           - --license-filepath
           - license-templates/LICENSE.rst
+          - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
         name: Add licence for all JS files
@@ -59,15 +80,28 @@ repos:
           - "/**| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for all JINJA template files
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$ # yamllint disable-line rule:line-length
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "{#||#}"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [shell]
+        files: ^breeze$|^breeze-complete$
         args:
           - --comment-style
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all XML files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
@@ -77,6 +111,36 @@ repos:
           - "<!--||-->"
           - --license-filepath
           - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for yaml files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [yaml]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for all md files
+        files: \.md$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "<!--|| -->"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v1.4.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for md files
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        args:
+          - "--maxlevel"
+          - "2"
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -91,11 +155,19 @@ repos:
       - id: check-xml
   - repo: local
     hooks:
+      - id: yamllint
+        name: Check yaml files with yamllint
+        entry: yamllint -c yamllint-config.yml
+        language: python
+        additional_dependencies: ['yamllint']
+        types: [yaml]
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
+        files: ^breeze$|^breeze-complete$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
@@ -106,23 +178,20 @@ repos:
         language: system
         entry: ./scripts/ci/ci_mypy.sh
         files: \.py$
-        require_serial: true
+        exclude: ^airflow/_vendor/.*$
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: ./scripts/ci/ci_pylint_main.sh
         files: \.py$
-        exclude: ^tests/.*\.py$
-        require_serial: true
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
       - id: pylint
         name: Run pylint for tests
         language: system
         entry: ./scripts/ci/ci_pylint_tests.sh
         files: ^tests/.*\.py$
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
         entry: ./scripts/ci/ci_flake8.sh
         files: \.py$
-        require_serial: true
