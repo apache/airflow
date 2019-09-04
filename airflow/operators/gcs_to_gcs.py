@@ -20,6 +20,7 @@
 This module contains a Google Cloud Storage operator.
 """
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -209,3 +210,90 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
+
+
+class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
+    """
+    Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
+
+    Parameters ``source_object`` and ``destination_object`` describe the root sync directory. If they are
+    not passed, the entire bucket will be synchronized. They should point to directories.
+
+    .. note::
+        The synchronization of individual files is not supported. Only entire directories can be
+        synchronized.
+
+    :param source_bucket: The name of the bucket containing the source objects.
+    :type source_bucket: str
+    :param destination_bucket: The name of the bucket containing the destination objects.
+    :type destination_bucket: str
+    :param source_object: The root sync directory in the source bucket.
+    :type source_object: Optional[str]
+    :param destination_object: The root sync directory in the destination bucket.
+    :type destination_object: Optional[str]
+    :param recursive: If True, subdirectories will be considered
+    :type recursive: bool
+    :param allow_overwrite: if True, the files will be overwritten if a mismatched file is found.
+        By default, overwriting files is not allowed
+    :type allow_overwrite: bool
+    :param delete_extra_files: if True, deletes additional files from the source that not found in the
+        destination. By default extra files are not deleted.
+
+        .. note::
+            This option can delete data quickly if you specify the wrong source/destination combination.
+
+    :type delete_extra_files: bool
+    """
+
+    template_fields = (
+        'source_bucket',
+        'destination_bucket',
+        'source_object',
+        'destination_object',
+        'recursive',
+        'delete_extra_files',
+        'allow_overwrite',
+        'gcp_conn_id',
+        'delegate_to',
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        source_bucket: str,
+        destination_bucket: str,
+        source_object: Optional[str] = None,
+        destination_object: Optional[str] = None,
+        recursive: bool = True,
+        delete_extra_files: bool = False,
+        allow_overwrite: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.source_bucket = source_bucket
+        self.destination_bucket = destination_bucket
+        self.source_object = source_object
+        self.destination_object = destination_object
+        self.recursive = recursive
+        self.delete_extra_files = delete_extra_files
+        self.allow_overwrite = allow_overwrite
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
+        hook.sync(
+            source_bucket=self.source_bucket,
+            destination_bucket=self.destination_bucket,
+            source_object=self.source_object,
+            destination_object=self.destination_object,
+            recursive=self.recursive,
+            delete_extra_files=self.delete_extra_files,
+            allow_overwrite=self.allow_overwrite
+        )

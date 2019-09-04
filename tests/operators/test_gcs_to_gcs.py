@@ -21,7 +21,7 @@ import unittest
 from datetime import datetime
 
 from airflow.operators.gcs_to_gcs import \
-    GoogleCloudStorageToGoogleCloudStorageOperator, WILDCARD
+    GoogleCloudStorageToGoogleCloudStorageOperator, WILDCARD, GoogleCloudStorageSynchronizeBuckets
 from airflow.exceptions import AirflowException
 from tests.compat import mock, patch
 
@@ -309,3 +309,35 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
                 TEST_BUCKET
             )
             self.assertEqual(operator.destination_bucket, operator.source_bucket)
+
+
+class TestGoogleCloudStorageSync(unittest.TestCase):
+
+    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute(self, mock_hook):
+        task = GoogleCloudStorageSynchronizeBuckets(
+            task_id="task-id",
+            source_bucket="SOURCE_BUCKET",
+            destination_bucket="DESTINATION_BUCKET",
+            source_object="SOURCE_OBJECT",
+            destination_object="DESTINATION_OBJECT",
+            recursive="RECURSIVE",
+            delete_extra_files="DELETE_EXTRA_FILES",
+            allow_overwrite="ALLOW_OVERWRITE",
+            gcp_conn_id="GCP_CONN_ID",
+            delegate_to="DELEGATE_TO",
+        )
+        task.execute({})
+        mock_hook.assert_called_once_with(
+            google_cloud_storage_conn_id='GCP_CONN_ID',
+            delegate_to='DELEGATE_TO'
+        )
+        mock_hook.return_value.sync.assert_called_once_with(
+            source_bucket='SOURCE_BUCKET',
+            source_object='SOURCE_OBJECT',
+            destination_bucket='DESTINATION_BUCKET',
+            destination_object='DESTINATION_OBJECT',
+            delete_extra_files='DELETE_EXTRA_FILES',
+            recursive='RECURSIVE',
+            allow_overwrite="ALLOW_OVERWRITE",
+        )

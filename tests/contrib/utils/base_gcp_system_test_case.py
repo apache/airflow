@@ -224,7 +224,7 @@ class TestDagGcpSystem(TestBaseGcpSystem):
                 "the dag {} was not symlinked to the DAGs folder. "
                 "The content of the {} folder is {}".
                 format(self.dag_id,
-                       self.dag_id + ".py",
+                       self.dag_name,
                        dag_folder,
                        os.listdir(dag_folder)))
         dag.clear(reset_dag_runs=True)
