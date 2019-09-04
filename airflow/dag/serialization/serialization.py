@@ -24,7 +24,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, Iterable, Optional, Union
 
-import dateutil.parser
 import pendulum
 
 import airflow
@@ -144,7 +143,7 @@ class Serialization:
             elif isinstance(var, BaseOperator):
                 return airflow.dag.serialization.SerializedBaseOperator.serialize_operator(var)
             elif isinstance(var, cls._datetime_types):
-                return cls._encode(var.isoformat(), type_=DAT.DATETIME)
+                return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
             elif isinstance(var, (pendulum.tz.Timezone, pendulum.tz.timezone_info.TimezoneInfo)):
@@ -187,7 +186,7 @@ class Serialization:
             elif type_ == DAT.OP:
                 return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
             elif type_ == DAT.DATETIME:
-                return dateutil.parser.parse(var)
+                return pendulum.from_timestamp(var)
             elif type_ == DAT.TIMEDELTA:
                 return datetime.timedelta(seconds=var)
             elif type_ == DAT.TIMEZONE:

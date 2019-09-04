@@ -51,7 +51,7 @@ serialized_simple_dag_ground_truth = {
                         "owner": "airflow",
                         "email_on_retry": True,
                         "email_on_failure": True,
-                        "start_date": {"__var": "2019-08-01T00:00:00+00:00",
+                        "start_date": {"__var": 1564617600.0,
                                        "__type": "datetime"},
                         "trigger_rule": "all_success",
                         "depends_on_past": False,

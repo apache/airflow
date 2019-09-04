@@ -10,7 +10,7 @@
           "const": "datetime"
         },
         "__var": {
-          "type": "string",
+          "type": "number",
           "format": "date-time"
         }
       },
