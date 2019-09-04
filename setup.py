@@ -266,6 +266,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'freezegun',
@@ -331,7 +332,6 @@ def do_setup():
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'dumb-init>=1.2.2',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
