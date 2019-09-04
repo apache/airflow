@@ -31,37 +31,39 @@ except ImportError:
 
 
 if gcs_to_bq is not None:
-    args = {
+    default_args = {
         'owner': 'airflow',
         'start_date': airflow.utils.dates.days_ago(2)
     }
 
-    dag = models.DAG(
-        dag_id='example_gcs_to_bq_operator', default_args=args,
-        schedule_interval=None)
+    with models.DAG(
+        dag_id='example_gcs_to_bq_operator',
+        default_args=default_args,
+        schedule_interval=None
+    ) as dag:
 
-    create_test_dataset = bash_operator.BashOperator(
-        task_id='create_airflow_test_dataset',
-        bash_command='bq mk airflow_test',
-        dag=dag)
+        create_test_dataset = bash_operator.BashOperator(
+            task_id='create_airflow_test_dataset',
+            bash_command='bq mk airflow_test'
+        )
 
-    # [START howto_operator_gcs_to_bq]
-    load_csv = gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-        task_id='gcs_to_bq_example',
-        bucket='cloud-samples-data',
-        source_objects=['bigquery/us-states/us-states.csv'],
-        destination_project_dataset_table='airflow_test.gcs_to_bq_table',
-        schema_fields=[
-            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
-        ],
-        write_disposition='WRITE_TRUNCATE',
-        dag=dag)
-    # [END howto_operator_gcs_to_bq]
+        # [START howto_operator_gcs_to_bq]
+        load_csv = gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
+            task_id='gcs_to_bq_example',
+            bucket='cloud-samples-data',
+            source_objects=['bigquery/us-states/us-states.csv'],
+            destination_project_dataset_table='airflow_test.gcs_to_bq_table',
+            schema_fields=[
+                {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
+            ],
+            write_disposition='WRITE_TRUNCATE'
+        )
+        # [END howto_operator_gcs_to_bq]
 
-    delete_test_dataset = bash_operator.BashOperator(
-        task_id='delete_airflow_test_dataset',
-        bash_command='bq rm -rf airflow_test',
-        dag=dag)
+        delete_test_dataset = bash_operator.BashOperator(
+            task_id='delete_airflow_test_dataset',
+            bash_command='bq rm -rf airflow_test'
+        )
 
-    create_test_dataset >> load_csv >> delete_test_dataset
+        create_test_dataset >> load_csv >> delete_test_dataset
