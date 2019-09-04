@@ -104,25 +104,29 @@ class PythonOperator(BaseOperator):
 
         sig = signature(self.python_callable).parameters.items()
         op_args_names = islice(sig, len(self.op_args))
-
-        for name in op_args_names:
+        for name, _ in op_args_names:
             # Check if it part of the context
             if name in context_keys:
-                # Raise an exception
+                # Raise an exception to let the user know that the keyword is reserved
                 raise ValueError(
                     "The key {} in the op_args is part of the context, and therefore reserved".format(name)
                 )
 
-        if any(str(param).startswith("**") for param in sig):
+        print(sig)
+
+        if any(str(param).startswith("**") for _, param in sig):
             # If there is a **kwargs, **context or **_ then just dump everything.
             self.op_kwargs = context
         else:
             # If there is only for example, an execution_date, then pass only these in :-)
             self.op_kwargs = {
                 name: context[name]
-                for name in sig
+                for name, _ in sig
                 if name in context  # If it isn't available on the context, then ignore
             }
+
+        print(self.op_kwargs)
+        print(sig)
 
         return_value = self.execute_callable()
         self.log.info("Done. Returned value was: %s", return_value)

@@ -24,8 +24,6 @@ import unittest
 from collections import namedtuple
 from datetime import timedelta, date
 
-import pytest
-
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.operators.dummy_operator import DummyOperator
@@ -273,8 +271,10 @@ class TestPythonOperator(unittest.TestCase):
             python_callable=fn,
             dag=self.dag
         )
-        with pytest.raises(ValueError, match=r".* dag .*"):
+
+        with self.assertRaises(ValueError) as context:
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
 
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
@@ -286,8 +286,29 @@ class TestPythonOperator(unittest.TestCase):
         )
 
         def fn(custom, dag):
-            if custom != 1:
-                raise ValueError("Should be 1, but was {}, dag: {}".format(custom, dag))
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=fn,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_context_with_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def fn(**context):
+            # check if context is being set
+            self.assertGreater(len(context), 0, "Context has not been injected")
 
         python_operator = PythonOperator(
             task_id='python_operator',
