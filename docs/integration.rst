@@ -667,9 +667,6 @@ They also use :class:`airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransf
 Cloud Vision
 ''''''''''''
 
-Cloud Vision Product Search Operators
-"""""""""""""""""""""""""""""""""""""
-
 :class:`airflow.gcp.operators.vision.CloudVisionAddProductToProductSetOperator`
     Adds a Product to the specified ProductSet.
 :class:`airflow.gcp.operators.vision.CloudVisionAnnotateImageOperator`
@@ -723,8 +720,8 @@ Cloud Speech to Text
 
 They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
 
-Cloud Speech Translate Operators
---------------------------------
+Cloud Speech Translate
+''''''''''''''''''''''
 
 :class:`airflow.gcp.operators.translate_speech.GcpTranslateSpeechOperator`
     Recognizes speech in audio input and translates it.
@@ -734,9 +731,6 @@ They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` and
 
 Cloud Translate
 '''''''''''''''
-
-Cloud Translate Text Operators
-""""""""""""""""""""""""""""""
 
 :class:`airflow.gcp.operators.translate.CloudTranslateTextOperator`
     Translate a string or list of strings.
