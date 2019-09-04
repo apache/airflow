@@ -71,9 +71,9 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  name: str,
                  location: str,
+                 project_id: str = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
                  *args,
@@ -146,9 +146,9 @@ class GKEClusterCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  location: str,
                  body: Optional[Union[Dict, Cluster]],
+                 project_id: str = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
                  *args,
