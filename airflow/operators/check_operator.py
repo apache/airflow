@@ -72,7 +72,7 @@ class CheckOperator(BaseOperator):
         conn_id: Optional[str] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql

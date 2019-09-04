@@ -21,7 +21,6 @@ import logging
 import logging.config
 import os
 import unittest
-import six
 
 from airflow.models import TaskInstance, DAG, DagRun
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -107,8 +106,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
-        six.assertRegex(
-            self,
+        self.assertRegex(
             logs[0],
             target_re,
             "Logs were " + str(logs)

@@ -65,7 +65,7 @@ def gzipped(f):
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
-        def zipper(response):
+        def zipper(response):  # pylint: disable=unused-variable
             accept_encoding = request.headers.get('Accept-Encoding', '')
 
             if 'gzip' not in accept_encoding.lower():

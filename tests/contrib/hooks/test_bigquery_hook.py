@@ -28,6 +28,7 @@ from googleapiclient.errors import HttpError
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
     _validate_value, _api_resource_configs_duplication_check
+from tests.compat import PropertyMock
 
 bq_available = True
 
@@ -43,22 +44,35 @@ class TestPandasGbqPrivateKey(unittest.TestCase):
         if not bq_available:
             self.instance.extras['extra__google_cloud_platform__project'] = 'mock_project'
 
-    def test_key_path_provided(self):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    def test_key_path_provided(self, mock_read_gbq, mock_project_id):
         private_key_path = '/Fake/Path'
         self.instance.extras['extra__google_cloud_platform__key_path'] = private_key_path
 
-        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq',
-                        new=lambda *args, **kwargs: kwargs['private_key']):
+        self.instance.get_pandas_df('select 1')
 
-            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_path)
+        args, kwargs = mock_read_gbq.call_args
+        self.assertEqual(kwargs['private_key'], private_key_path)
 
-    def test_key_json_provided(self):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    def test_key_json_provided(self, mock_read_gbq, mock_project_id):
         private_key_json = 'Fake Private Key'
         self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
 
-        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
-                        **kwargs: kwargs['private_key']):
-            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_json)
+        self.instance.get_pandas_df('select 1')
+
+        args, kwargs = mock_read_gbq.call_args
+        self.assertEqual(kwargs['private_key'], private_key_json)
 
     def test_no_key_provided(self):
         with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
@@ -231,7 +245,7 @@ def mock_poll_job_complete(job_id):
     return job_id in mock_canceled_jobs
 
 
-def mock_job_cancel(projectId, jobId):
+def mock_job_cancel(projectId, jobId):  # pylint: disable=unused-argument
     mock_canceled_jobs.append(jobId)
     return mock.Mock()
 
@@ -273,7 +287,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         bq_hook.cancel_query()
 
-        mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
+        mock_jobs.cancel.assert_called_once_with(projectId=project_id, jobId=running_job_id)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_sql_dialect_default(self, run_with_config):
@@ -303,7 +317,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, run_with_config):
+    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, mock_run_with_configuration):
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
         params = [{
             'name': "param_name",
@@ -368,8 +382,12 @@ class TestTableDataOperations(unittest.TestCase):
         }
         cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
         cursor.insert_all(project_id, dataset_id, table_id, rows)
-        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
-                                  tableId=table_id, body=body)
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
 
     def test_insert_all_fail(self):
         project_id = 'bq-project'
@@ -703,6 +721,76 @@ class TestDatasetsOperations(unittest.TestCase):
                 project_id=project_id)
             self.assertEqual(result, expected_result['datasets'])
 
+    def test_delete_dataset(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        delete_contents = True
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.delete
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.delete_dataset(project_id, dataset_id, delete_contents)
+
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id,
+                                       deleteContents=delete_contents)
+
+    def test_patch_dataset(self):
+        dataset_resource = {
+            "access": [
+                {
+                    "role": "WRITER",
+                    "groupByEmail": "cloud-logs@google.com"
+                }
+            ]
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
+
+    def test_update_dataset(self):
+        dataset_resource = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "your-project:dataset_2_test",
+            "datasetReference": {
+                "projectId": "your-project",
+                "datasetId": "dataset_2_test"
+            }
+        }
+
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.update)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.update_dataset(
+            dataset_id=dataset_id,
+            project_id=project_id,
+            dataset_resource=dataset_resource
+        )
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=dataset_resource
+        )
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
@@ -960,6 +1048,197 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
             projectId=project_id,
             jobId=running_job_id,
             location=location
+        )
+
+
+class TestBigQueryWithKMS(unittest.TestCase):
+    def test_create_empty_table_with_kms(self):
+        project_id = "bq-project"
+        dataset_id = "bq_dataset"
+        table_id = "bq_table"
+        schema_fields = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"}
+        ]
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+
+        cursor.create_empty_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema_fields=schema_fields,
+            encryption_configuration=encryption_configuration,
+        )
+
+        body = {
+            "tableReference": {"tableId": table_id},
+            "schema": {"fields": schema_fields},
+            "encryptionConfiguration": encryption_configuration,
+        }
+        method.assert_called_once_with(
+            projectId=project_id, datasetId=dataset_id, body=body
+        )
+
+    def test_create_external_table_with_kms(self):
+        project_id = "bq-project"
+        dataset_id = "bq_dataset"
+        table_id = "bq_table"
+        external_project_dataset_table = "{}.{}.{}".format(
+            project_id, dataset_id, table_id
+        )
+        source_uris = ['test_data.csv']
+        source_format = 'CSV'
+        autodetect = False
+        compression = 'NONE'
+        ignore_unknown_values = False
+        max_bad_records = 10
+        skip_leading_rows = 1
+        field_delimiter = ','
+        quote_character = None
+        allow_quoted_newlines = False
+        allow_jagged_rows = False
+        labels = {'label1': 'test1', 'label2': 'test2'}
+        schema_fields = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"}
+        ]
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+
+        cursor.create_external_table(
+            external_project_dataset_table=external_project_dataset_table,
+            source_uris=source_uris,
+            source_format=source_format,
+            autodetect=autodetect,
+            compression=compression,
+            ignore_unknown_values=ignore_unknown_values,
+            max_bad_records=max_bad_records,
+            skip_leading_rows=skip_leading_rows,
+            field_delimiter=field_delimiter,
+            quote_character=quote_character,
+            allow_jagged_rows=allow_jagged_rows,
+            allow_quoted_newlines=allow_quoted_newlines,
+            labels=labels,
+            schema_fields=schema_fields,
+            encryption_configuration=encryption_configuration
+        )
+
+        body = {
+            'externalDataConfiguration': {
+                'autodetect': autodetect,
+                'sourceFormat': source_format,
+                'sourceUris': source_uris,
+                'compression': compression,
+                'ignoreUnknownValues': ignore_unknown_values,
+                'schema': {'fields': schema_fields},
+                'maxBadRecords': max_bad_records,
+                'csvOptions': {
+                    'skipLeadingRows': skip_leading_rows,
+                    'fieldDelimiter': field_delimiter,
+                    'quote': quote_character,
+                    'allowQuotedNewlines': allow_quoted_newlines,
+                    'allowJaggedRows': allow_jagged_rows
+                }
+            },
+            'tableReference': {
+                'projectId': project_id,
+                'datasetId': dataset_id,
+                'tableId': table_id,
+            },
+            'labels': labels,
+            "encryptionConfiguration": encryption_configuration,
+        }
+        method.assert_called_once_with(
+            projectId=project_id, datasetId=dataset_id, body=body
+        )
+
+    def test_patch_table_with_kms(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(
+            dataset_id=dataset_id,
+            table_id=table_id,
+            project_id=project_id,
+            encryption_configuration=encryption_configuration
+        )
+
+        body = {
+            "encryptionConfiguration": encryption_configuration
+        }
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_kms(self, run_with_config):
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_query(
+            sql='query',
+            encryption_configuration=encryption_configuration
+        )
+        args, kwargs = run_with_config.call_args
+        self.assertIs(
+            args[0]['query']['destinationEncryptionConfiguration'],
+            encryption_configuration
+        )
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_copy_with_kms(self, run_with_config):
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_copy(
+            source_project_dataset_tables='p.d.st',
+            destination_project_dataset_table='p.d.dt',
+            encryption_configuration=encryption_configuration
+        )
+        args, kwargs = run_with_config.call_args
+        self.assertIs(
+            args[0]['copy']['destinationEncryptionConfiguration'],
+            encryption_configuration
+        )
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_kms(self, run_with_config):
+        encryption_configuration = {
+            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
+        }
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_load(
+            destination_project_dataset_table='p.d.dt',
+            source_uris=['abc.csv'],
+            autodetect=True,
+            encryption_configuration=encryption_configuration
+        )
+        args, kwargs = run_with_config.call_args
+        self.assertIs(
+            args[0]['load']['destinationEncryptionConfiguration'],
+            encryption_configuration
         )
 
 

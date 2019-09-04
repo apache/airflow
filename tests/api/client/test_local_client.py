@@ -19,9 +19,9 @@
 
 import json
 import unittest
+from unittest.mock import patch
 
 from freezegun import freeze_time
-from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow import models
@@ -42,7 +42,7 @@ class TestLocalClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestLocalClient, cls).setUpClass()
+        super().setUpClass()
         DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
     def setUp(self):

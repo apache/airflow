@@ -49,7 +49,7 @@ class DummySensor(BaseSensorOperator):
         return self.return_value
 
 
-class BaseSensorTest(unittest.TestCase):
+class TestBaseSensor(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',

@@ -17,6 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains AWS SNS hook
+"""
 import json
 
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -28,6 +31,7 @@ class AwsSnsHook(AwsHook):
     """
 
     def __init__(self, *args, **kwargs):
+        self.conn = None
         super().__init__(*args, **kwargs)
 
     def get_conn(self):

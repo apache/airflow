@@ -19,6 +19,7 @@
 """
 This module contains Google BigQuery table delete operator.
 """
+import warnings
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -33,7 +34,10 @@ class BigQueryTableDeleteOperator(BaseOperator):
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
         will be deleted. (templated)
     :type deletion_dataset_table: str
-    :param bigquery_conn_id: reference to a specific BigQuery hook.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
@@ -49,20 +53,28 @@ class BigQueryTableDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  deletion_dataset_table,
-                 bigquery_conn_id='google_cloud_default',
+                 gcp_conn_id='google_cloud_default',
+                 bigquery_conn_id=None,
                  delegate_to=None,
                  ignore_if_missing=False,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
         self.deletion_dataset_table = deletion_dataset_table
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.ignore_if_missing = ignore_if_missing
 
     def execute(self, context):
         self.log.info('Deleting: %s', self.deletion_dataset_table)
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()

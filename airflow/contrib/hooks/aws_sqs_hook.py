@@ -17,6 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains AWS SQS hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 

@@ -55,7 +55,7 @@ def configure_manifest_files(app):
     parse_manifest_json()
 
     @app.context_processor
-    def get_url_for_asset():
+    def get_url_for_asset():  # pylint: disable=unused-variable
         """
         Template tag to return the asset URL.
         WebPack renders the assets after minification and modification

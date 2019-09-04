@@ -143,9 +143,6 @@ class GcpFieldValidationException(AirflowException):
     """Thrown when validation finds dictionary field not valid according to specification.
     """
 
-    def __init__(self, message):
-        super().__init__(message)
-
 
 class GcpValidationSpecificationException(AirflowException):
     """Thrown when validation specification is wrong.
@@ -153,9 +150,6 @@ class GcpValidationSpecificationException(AirflowException):
     This should only happen during development as ideally
      specification itself should not be invalid ;) .
     """
-
-    def __init__(self, message):
-        super().__init__(message)
 
 
 def _int_greater_than_zero(value):
@@ -369,9 +363,9 @@ class GcpBodyFieldValidator(LoggingMixin):
         elif field_type == 'union':
             if not children_validation_specs:
                 raise GcpValidationSpecificationException(
-                    "The union field '%s' has no nested fields "
-                    "defined in specification '%s'. Unions should have at least one "
-                    "nested field defined.", full_field_path, validation_spec)
+                    "The union field '{}' has no nested fields "
+                    "defined in specification '{}'. Unions should have at least one "
+                    "nested field defined.".format(full_field_path, validation_spec))
             self._validate_union(children_validation_specs, full_field_path,
                                  dictionary_to_validate)
         elif field_type == 'list':

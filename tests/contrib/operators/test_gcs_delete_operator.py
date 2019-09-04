@@ -28,7 +28,7 @@ PREFIX = 'ab'
 MOCK_FILES = ["a", "ab", "abc"]
 
 
-class GoogleCloudStorageDeleteOperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageHook')
     def test_delete_objects(self, mock_hook):
         operator = GoogleCloudStorageDeleteOperator(task_id=TASK_ID,

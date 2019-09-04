@@ -20,13 +20,12 @@
 
 from functools import wraps
 import logging
-from six import string_types
 import socket
 import string
 import textwrap
 from typing import Any
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)
@@ -56,7 +55,7 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
 def stat_name_default_handler(stat_name, max_length=250):
-    if not isinstance(stat_name, string_types):
+    if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
         raise InvalidStatsNameException(textwrap.dedent("""\
