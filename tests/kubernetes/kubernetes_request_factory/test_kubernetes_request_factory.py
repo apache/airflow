@@ -233,9 +233,53 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         self.input_req['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertEqual(self.input_req, self.expected)
 
-    def test_extract_resources(self):
+    def test_extract_requests(self):
         # Test when resources is not empty
-        resources = Resources('1Gi', 1, '2Gi', 2)
+        resources = Resources(
+            request_memory='1Gi',
+            request_cpu=1)
+
+        pod = Pod('v3.14', {}, [], resources=resources)
+        self.expected['spec']['containers'][0]['resources'] = {
+            'requests': {
+                'memory': '1Gi',
+                'cpu': 1
+            }
+        }
+        KubernetesRequestFactory.extract_resources(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_display_resources(self):
+        resources_string = str(Resources('1Gi', 1))
+        self.assertEqual(
+            resources_string,
+            "Request: [cpu: 1, memory: 1Gi], Limit: [cpu: None, memory: None, gpu: None]")
+
+    def test_extract_limits(self):
+        # Test when resources is not empty
+        resources = Resources(
+            limit_memory='1Gi',
+            limit_cpu=1)
+
+        pod = Pod('v3.14', {}, [], resources=resources)
+        self.expected['spec']['containers'][0]['resources'] = {
+            'limits': {
+                'memory': '1Gi',
+                'cpu': 1
+            }
+        }
+        KubernetesRequestFactory.extract_resources(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_all_resources(self):
+        # Test when resources is not empty
+        resources = Resources(
+            request_memory='1Gi',
+            request_cpu=1,
+            limit_memory='2Gi',
+            limit_cpu=2,
+            limit_gpu=3)
+
         pod = Pod('v3.14', {}, [], resources=resources)
         self.expected['spec']['containers'][0]['resources'] = {
             'requests': {
@@ -244,8 +288,9 @@ class TestKubernetesRequestFactory(unittest.TestCase):
             },
             'limits': {
                 'memory': '2Gi',
-                'cpu': 2
-            },
+                'cpu': 2,
+                'nvidia.com/gpu': 3
+            }
         }
         KubernetesRequestFactory.extract_resources(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)

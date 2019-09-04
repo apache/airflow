@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -35,7 +34,7 @@ TODO: Review the workflow, change it accordingly to
 # from airflow.operators.docker_operator import DockerOperator
 #
 # default_args = {
-#     'owner': 'airflow',
+#     'owner': 'Airflow',
 #     'depends_on_past': False,
 #     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],
@@ -81,7 +80,13 @@ TODO: Review the workflow, change it accordingly to
 #         network_mode='bridge',
 #         volumes=['/your/host/input_dir/path:/your/input_dir/path',
 #                  '/your/host/output_dir/path:/your/output_dir/path'],
-#         command='./entrypoint.sh',
+#         command=[
+#             "/bin/bash",
+#             "-c",
+#             "/bin/sleep 30; "
+#             "/bin/mv {{params.source_location}}/{{ ti.xcom_pull('view_file') }} {{params.target_location}};"
+#             "/bin/echo '{{params.target_location}}/{{ ti.xcom_pull('view_file') }}';"
+#         ],
 #         task_id='move_data',
 #         do_xcom_push=True,
 #         params={'source_location': '/your/input_dir/path',

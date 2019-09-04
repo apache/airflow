@@ -56,7 +56,7 @@ def next_time_side_effect():
 mock_time = mock.Mock(side_effect=next_time_side_effect)
 
 
-class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
+class TestGoogleCloudStorageUploadSessionCompleteSensor(unittest.TestCase):
 
     def setUp(self):
         args = {

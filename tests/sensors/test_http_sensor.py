@@ -34,7 +34,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class TestHttpSensor(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -67,7 +67,7 @@ class HttpSensorTests(unittest.TestCase):
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         task = HttpSensor(
@@ -130,7 +130,7 @@ class HttpSensorTests(unittest.TestCase):
         self,
         mock_session_send
     ):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         response = requests.Response()
@@ -155,7 +155,15 @@ class HttpSensorTests(unittest.TestCase):
                 task.execute(None)
 
             self.assertTrue(mock_errors.called)
-            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
+            calls = [
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+            ]
+            mock_errors.assert_has_calls(calls)
 
 
 class FakeSession:
@@ -164,7 +172,7 @@ class FakeSession:
         self.response.status_code = 200
         self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
 
-    def send(self, request, **kwargs):
+    def send(self, *args, **kwargs):
         return self.response
 
     def prepare_request(self, request):
@@ -175,7 +183,7 @@ class FakeSession:
         return self.response
 
 
-class HttpOpSensorTest(unittest.TestCase):
+class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)

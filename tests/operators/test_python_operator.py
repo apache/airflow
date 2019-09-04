@@ -21,6 +21,7 @@ import copy
 import logging
 import os
 import unittest
+from collections import namedtuple
 from datetime import timedelta, date
 
 from airflow.exceptions import AirflowException
@@ -61,10 +62,10 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
-class PythonOperatorTest(unittest.TestCase):
+class TestPythonOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(PythonOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -138,6 +139,11 @@ class PythonOperatorTest(unittest.TestCase):
         """Test PythonOperator op_args are templatized"""
         recorded_calls = []
 
+        # Create a named tuple and ensure it is still preserved
+        # after the rendering is done
+        Named = namedtuple('Named', ['var1', 'var2'])
+        named_tuple = Named('{{ ds }}', 'unchanged')
+
         task = PythonOperator(
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
@@ -146,7 +152,8 @@ class PythonOperatorTest(unittest.TestCase):
             op_args=[
                 4,
                 date(2019, 1, 1),
-                "dag {{dag.dag_id}} ran on {{ds}}."
+                "dag {{dag.dag_id}} ran on {{ds}}.",
+                named_tuple
             ],
             dag=self.dag)
 
@@ -158,12 +165,14 @@ class PythonOperatorTest(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+        ds_templated = DEFAULT_DATE.date().isoformat()
         self.assertEqual(1, len(recorded_calls))
         self._assertCallsEqual(
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 Named(ds_templated, 'unchanged'))
         )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
@@ -243,10 +252,10 @@ class PythonOperatorTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
-class BranchOperatorTest(unittest.TestCase):
+class TestBranchOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(BranchOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -417,10 +426,10 @@ class BranchOperatorTest(unittest.TestCase):
                 raise Exception
 
 
-class ShortCircuitOperatorTest(unittest.TestCase):
+class TestShortCircuitOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(ShortCircuitOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()

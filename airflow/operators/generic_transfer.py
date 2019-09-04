@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Union, List
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -51,12 +52,12 @@ class GenericTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            sql,
-            destination_table,
-            source_conn_id,
-            destination_conn_id,
-            preoperator=None,
-            *args, **kwargs):
+            sql: str,
+            destination_table: str,
+            source_conn_id: str,
+            destination_conn_id: str,
+            preoperator: Union[str, List[str]] = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.destination_table = destination_table

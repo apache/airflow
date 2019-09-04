@@ -20,7 +20,6 @@
 import unittest
 
 from airflow.contrib.operators.gcs_operator import GoogleCloudStorageCreateBucketOperator
-from airflow.version import version
 from tests.compat import mock
 
 TASK_ID = 'test-gcs-operator'
@@ -28,7 +27,7 @@ TEST_BUCKET = 'test-bucket'
 TEST_PROJECT = 'test-project'
 
 
-class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
+class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcs_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):
@@ -45,9 +44,7 @@ class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.create_bucket.assert_called_once_with(
             bucket_name=TEST_BUCKET, storage_class='MULTI_REGIONAL',
-            location='EU', labels={
-                'airflow-version': 'v' + version.replace('.', '-').replace('+', '-'),
-                'env': 'prod'
-            }, project_id=TEST_PROJECT,
+            location='EU', labels={'env': 'prod'},
+            project_id=TEST_PROJECT,
             resource={'lifecycle': {'rule': [{'action': {'type': 'Delete'}, 'condition': {'age': 7}}]}}
         )

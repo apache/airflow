@@ -21,12 +21,12 @@ from collections import OrderedDict
 
 # To avoid circular imports
 import airflow.utils.dag_processing
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-PARALLELISM = configuration.conf.getint('core', 'PARALLELISM')
+PARALLELISM = conf.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(LoggingMixin):
@@ -143,7 +143,7 @@ class BaseExecutor(LoggingMixin):
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
             reverse=True)
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running[key] = command

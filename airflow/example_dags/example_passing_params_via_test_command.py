@@ -40,7 +40,7 @@ dag = DAG(
 def my_py_command(**kwargs):
     """
     Print out the "foo" param passed in via
-    `airflow test example_passing_params_via_test_command run_this <date>
+    `airflow tasks test example_passing_params_via_test_command run_this <date>
     -tp '{"foo":"bar"}'`
     """
     if kwargs["test_mode"]:

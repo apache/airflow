@@ -16,21 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import airflow
-from airflow.operators.python_operator import PythonOperator
-from airflow.models import DAG
+"""
+This is an example dag for using the Kubernetes Executor.
+"""
 import os
 
-default_args = {
-    'owner': 'airflow',
+import airflow
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
+
+args = {
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
-
 with DAG(
     dag_id='example_kubernetes_executor',
-    default_args=default_args,
+    default_args=args,
     schedule_interval=None
 ) as dag:
 
@@ -59,15 +61,18 @@ with DAG(
         'value': 'airflow'
     }]
 
-
-    def print_stuff():
+    def print_stuff():  # pylint: disable=missing-docstring
         print("stuff!")
 
-
     def use_zip_binary():
-        rc = os.system("zip")
-        assert rc == 0
+        """
+        Checks whether Zip is installed.
 
+        :return: True if it is installed, False if not.
+        :rtype: bool
+        """
+        return_code = os.system("zip")
+        assert return_code == 0
 
     # You don't have to use any special KubernetesExecutor configuration if you don't want to
     start_task = PythonOperator(

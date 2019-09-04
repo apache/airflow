@@ -17,10 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that denies all requests"""
+from typing import Optional
 from functools import wraps
 from flask import Response
+from airflow.api.auth.backend.default import ClientAuthProtocol
 
-CLIENT_AUTH = None
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):

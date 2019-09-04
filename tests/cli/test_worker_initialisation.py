@@ -22,6 +22,7 @@ import sqlalchemy
 import airflow
 from argparse import Namespace
 from tests.compat import mock, patch
+from tests.test_utils.config import conf_vars
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
 from airflow.bin import cli # noqa
@@ -41,23 +42,19 @@ class TestWorkerPrecheck(unittest.TestCase):
             cli.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
-    @mock.patch('airflow.configuration.conf.getboolean')
-    def test_worker_precheck_exception(self, mock_getboolean):
+    @conf_vars({('core', 'worker_precheck'): 'False'})
+    def test_worker_precheck_exception(self):
         """
         Test to check the behaviour of validate_session method
         when worker_precheck is absent in airflow configuration
         """
-        mock_getboolean.return_value = False
-
         self.assertTrue(airflow.settings.validate_session())
-        mock_getboolean.assert_called_once_with('core', 'worker_precheck', fallback=False)
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @mock.patch('airflow.configuration.conf.getboolean')
-    def test_validate_session_dbapi_exception(self, mock_getboolean, mock_session):
+    @conf_vars({('core', 'worker_precheck'): 'True'})
+    def test_validate_session_dbapi_exception(self, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query
         """
-        mock_getboolean.return_value = True
         mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
         self.assertEqual(airflow.settings.validate_session(), False)

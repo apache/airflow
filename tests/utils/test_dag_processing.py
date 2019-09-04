@@ -17,15 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import (datetime, timedelta)
 import os
 import pathlib
 import sys
 import tempfile
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import (MagicMock, PropertyMock)
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.jobs import DagFileProcessor
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,
@@ -42,7 +43,7 @@ LOGGING_CONFIG = {
     'disable_existing_loggers': False,
     'formatters': {
         'airflow.task': {
-            'format': '[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s'
+            'format': '[%(asctime)s] {%(process)d %(filename)s:%(lineno)d} %(levelname)s - %(message)s'
         },
     },
     'handlers': {
@@ -134,9 +135,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
-            stat_queue=MagicMock(),
-            result_queue=MagicMock,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -155,9 +155,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
-            stat_queue=MagicMock(),
-            result_queue=MagicMock,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -169,6 +168,44 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
         manager.set_file_paths(['abc.txt'])
         self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
+
+    @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.DagFileProcessor.kill")
+    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
+        mock_pid.return_value = 1234
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            file_paths=['abc.txt'],
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=MagicMock(),
+            async_mode=True)
+
+        processor = DagFileProcessor('abc.txt', False, [])
+        processor._start_time = timezone.make_aware(datetime.min)
+        manager._processors = {'abc.txt': processor}
+        manager._kill_timed_out_processors()
+        mock_kill.assert_called_once_with()
+
+    @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.scheduler_job.DagFileProcessor")
+    def test_kill_timed_out_processors_no_kill(self, mock_dag_file_processor, mock_pid):
+        mock_pid.return_value = 1234
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            file_paths=['abc.txt'],
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=MagicMock(),
+            async_mode=True)
+
+        processor = DagFileProcessor('abc.txt', False, [])
+        processor._start_time = timezone.make_aware(datetime.max)
+        manager._processors = {'abc.txt': processor}
+        manager._kill_timed_out_processors()
+        mock_dag_file_processor.kill.assert_not_called()
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
@@ -210,20 +247,13 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     [],
                                                     0,
                                                     processor_factory,
+                                                    timedelta.max,
                                                     async_mode)
-            manager_process = \
-                processor_agent._launch_process(processor_agent._dag_directory,
-                                                processor_agent._file_paths,
-                                                processor_agent._max_runs,
-                                                processor_agent._processor_factory,
-                                                processor_agent._child_signal_conn,
-                                                processor_agent._stat_queue,
-                                                processor_agent._result_queue,
-                                                processor_agent._async_mode)
+            processor_agent.start()
             if not async_mode:
                 processor_agent.heartbeat()
 
-            manager_process.join()
+            processor_agent._process.join()
 
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
@@ -241,12 +271,14 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [test_dag_path],
                                                 1,
                                                 processor_factory,
+                                                timedelta.max,
                                                 async_mode)
         processor_agent.start()
         parsing_result = []
+        if not async_mode:
+            processor_agent.heartbeat()
         while not processor_agent.done:
             if not async_mode:
-                processor_agent.heartbeat()
                 processor_agent.wait_until_finished()
             parsing_result.extend(processor_agent.harvest_simple_dags())
 
@@ -273,20 +305,13 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 [],
                                                 0,
                                                 processor_factory,
+                                                timedelta.max,
                                                 async_mode)
-        manager_process = \
-            processor_agent._launch_process(processor_agent._dag_directory,
-                                            processor_agent._file_paths,
-                                            processor_agent._max_runs,
-                                            processor_agent._processor_factory,
-                                            processor_agent._child_signal_conn,
-                                            processor_agent._stat_queue,
-                                            processor_agent._result_queue,
-                                            processor_agent._async_mode)
+        processor_agent.start()
         if not async_mode:
             processor_agent.heartbeat()
 
-        manager_process.join()
+        processor_agent._process.join()
 
         self.assertTrue(os.path.isfile(log_file_loc))
 
