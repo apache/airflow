@@ -25,7 +25,8 @@ from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow.gcp.operators.functions import \
-    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, FUNCTION_NAME_PATTERN
+    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, \
+    FUNCTION_NAME_PATTERN, GcfFunctionInvokeOperator
 from airflow import AirflowException
 from airflow.version import version
 from tests.compat import mock
@@ -634,4 +635,45 @@ class TestGcfFunctionDelete(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
+        )
+
+
+class TestGcfFunctionInvokeOperator(unittest.TestCase):
+    @mock.patch("airflow.gcp.operators.functions.BaseOperator.xcom_push")
+    @mock.patch("airflow.gcp.operators.functions.GcfHook")
+    def test_execute(self, mock_gcf_hook, mock_xcom):
+        exec_id = 'exec_id'
+        mock_gcf_hook.return_value.call_function.return_value = {'executionId': exec_id}
+
+        function_id = "test_function"
+        payload = {'key': 'value'}
+        api_version = 'test'
+        gcp_conn_id = 'test_conn'
+
+        op = GcfFunctionInvokeOperator(
+            task_id='test',
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            api_version=api_version,
+            gcp_conn_id=gcp_conn_id
+        )
+        op.execute(None)
+        mock_gcf_hook.assert_called_once_with(
+            api_version=api_version,
+            gcp_conn_id=gcp_conn_id
+        )
+
+        mock_gcf_hook.return_value.call_function.assert_called_once_with(
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID
+        )
+
+        mock_xcom.assert_called_once_with(
+            context=None,
+            key='execution_id',
+            value=exec_id
         )

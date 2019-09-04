@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,19 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any
-from sqlalchemy import MetaData
-from sqlalchemy.ext.declarative import declarative_base
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euxo pipefail
 
-from airflow.configuration import conf
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
+export AIRFLOW_SOURCES="${MY_DIR}/../../.."
 
-metadata = (
-    None
-    if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace()
-    else MetaData(schema=SQL_ALCHEMY_SCHEMA)
-)
-Base = declarative_base(metadata=metadata)  # type: Any
+gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
 
-ID_LEN = 250
+gosu "${AIRFLOW_USER}" \
+    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
+                    "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
+
+echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
+
+chmod +x "${HOME}/run-tests-complete"
+
+chmod +x "${HOME}/run-tests"
+
+chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"

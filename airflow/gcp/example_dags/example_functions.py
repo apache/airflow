@@ -45,7 +45,7 @@ import os
 
 from airflow import models
 from airflow.gcp.operators.functions \
-    import GcfFunctionDeployOperator, GcfFunctionDeleteOperator
+    import GcfFunctionDeployOperator, GcfFunctionDeleteOperator, GcfFunctionInvokeOperator
 from airflow.utils import dates
 
 # [START howto_operator_gcf_common_variables]
@@ -124,10 +124,19 @@ with models.DAG(
         validate_body=GCP_VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy_no_project_id]
+    # [START howto_operator_gcf_invoke_function]
+    invoke_task = GcfFunctionInvokeOperator(
+        task_id="invoke_task",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        input_data={},
+        function_id=GCF_SHORT_FUNCTION_NAME
+    )
+    # [END howto_operator_gcf_invoke_function]
     # [START howto_operator_gcf_delete]
     delete_task = GcfFunctionDeleteOperator(
         task_id="gcf_delete_task",
         name=FUNCTION_NAME
     )
     # [END howto_operator_gcf_delete]
-    deploy_task >> deploy2_task >> delete_task
+    deploy_task >> deploy2_task >> invoke_task >> delete_task

@@ -281,3 +281,45 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                          'x-goog-content-length-range': '0,104857600'},
                 url='http://uploadHere'
             )
+
+    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    def test_call_function(self, mock_get_conn):
+        payload = {'executionId': 'wh41ppcyoa6l', 'result': 'Hello World!'}
+        call = mock_get_conn.return_value.projects.return_value.\
+            locations.return_value.functions.return_value.call
+        call.return_value.execute.return_value = payload
+
+        function_id = "function1234"
+        input_data = {'key': 'value'}
+        name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            location=GCF_LOCATION,
+            function_id=function_id
+        )
+
+        result = self.gcf_function_hook.call_function(
+            function_id=function_id,
+            location=GCF_LOCATION,
+            input_data=input_data,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
+
+        call.assert_called_once_with(body=input_data, name=name)
+        self.assertDictEqual(result, payload)
+
+    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    def test_call_function_error(self, mock_get_conn):
+        payload = {'error': 'Something very bad'}
+        call = mock_get_conn.return_value.projects.return_value. \
+            locations.return_value.functions.return_value.call
+        call.return_value.execute.return_value = payload
+
+        function_id = "function1234"
+        input_data = {'key': 'value'}
+        with self.assertRaises(AirflowException):
+            self.gcf_function_hook.call_function(
+                function_id=function_id,
+                location=GCF_LOCATION,
+                input_data=input_data,
+                project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
+            )

@@ -103,9 +103,12 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
     popd &>/dev/null || exit 1
 fi
 
+export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
-    echo "Using ${HADOOP_DISTRO:=} distribution of Hadoop from ${HADOOP_HOME:=}"
+    echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
 fi
 
@@ -118,7 +121,6 @@ export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
-export HADOOP_DISTRO
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent

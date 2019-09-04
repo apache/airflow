@@ -158,7 +158,7 @@ ${PYTHON_VERSION:=$(${PYTHON_BINARY} -c \
 # shellcheck source=hooks/_default_branch.sh
 . "${MY_DIR}/_default_branch.sh"
 
-# Source brnnch will be set in DockerHub
+# Source branch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
 # if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if set in DockerHub
 # or default branch configured in _default_branch.sh

@@ -130,9 +130,8 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/contrib/utils/log/task_handler_with_custom_formatter.py
-./airflow/contrib/utils/sendgrid.py
-./airflow/contrib/utils/weekday.py
+./airflow/gcp/utils/mlengine_operator_utils.py
+./airflow/gcp/utils/mlengine_prediction_summary.
 ./airflow/exceptions.py
 ./airflow/executors/base_executor.py
 ./airflow/executors/celery_executor.py

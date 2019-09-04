@@ -21,7 +21,7 @@ This module contains Google Cloud Functions operators.
 """
 
 import re
-from typing import Optional
+from typing import Optional, Dict
 
 from googleapiclient.errors import HttpError
 
@@ -342,3 +342,59 @@ class GcfFunctionDeleteOperator(BaseOperator):
             else:
                 self.log.error('An error occurred. Exiting.')
                 raise e
+
+
+class GcfFunctionInvokeOperator(BaseOperator):
+    """
+    Invokes a deployed Cloud Function. To be used for testing
+    purposes as very limited traffic is allowed.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeployOperator`
+
+    :param function_id: ID of the function to be called
+    :type function_id: str
+    :param input_data: Input to be passed to the function
+    :type input_data: Dict
+    :param location: The location where the function is located.
+    :type location: str
+    :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :return: None
+    """
+    template_fields = ('function_id', 'input_data', 'location', 'project_id')
+
+    @apply_defaults
+    def __init__(
+        self,
+        function_id: str,
+        input_data: Dict,
+        location: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.function_id = function_id
+        self.input_data = input_data
+        self.location = location
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
+
+    def execute(self, context: Dict):
+        hook = GcfHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        self.log.info('Calling function %s.', self.function_id)
+        result = hook.call_function(
+            function_id=self.function_id,
+            input_data=self.input_data,
+            location=self.location,
+            project_id=self.project_id
+        )
+        self.log.info('Function called successfully. Execution id %s', result.get('executionId', None))
+        self.xcom_push(context=context, key='execution_id', value=result.get('executionId', None))
+        return result

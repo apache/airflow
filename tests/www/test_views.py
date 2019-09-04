@@ -37,7 +37,7 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs import BaseJob
@@ -1702,7 +1702,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
     def test_trigger_dag_button(self):
 

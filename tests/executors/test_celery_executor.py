@@ -33,7 +33,7 @@ from parameterized import parameterized
 from airflow.utils.state import State
 from airflow.executors import celery_executor
 
-from airflow import configuration
+from airflow.configuration import conf
 
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
@@ -45,14 +45,14 @@ def _prepare_test_bodies():
             (url, )
             for url in os.environ['CELERY_BROKER_URLS'].split(',')
         ]
-    return [(configuration.conf.get('celery', 'BROKER_URL'))]
+    return [(conf.get('celery', 'BROKER_URL'))]
 
 
 class TestCeleryExecutor(unittest.TestCase):
 
     @contextlib.contextmanager
     def _prepare_app(self, broker_url=None, execute=None):
-        broker_url = broker_url or configuration.conf.get('celery', 'BROKER_URL')
+        broker_url = broker_url or conf.get('celery', 'BROKER_URL')
         execute = execute or celery_executor.execute_command.__wrapped__
 
         test_config = dict(celery_executor.celery_configuration)
@@ -70,7 +70,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 set_event_loop(None)
 
     @parameterized.expand(_prepare_test_bodies())
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_celery_integration(self, broker_url):
         with self._prepare_app(broker_url) as app:
@@ -123,7 +123,7 @@ class TestCeleryExecutor(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_error_sending_task(self):
         def fake_execute_command():
