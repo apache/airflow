@@ -181,6 +181,42 @@ class GcfHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def call_function(
+            self,
+            function_id: str,
+            input_data: Dict,
+            location: str,
+            project_id: str = None
+    ) -> Dict:
+        """
+        Synchronously invokes a deployed Cloud Function. To be used for testing
+        purposes as very limited traffic is allowed.
+
+        :param function_id: ID of the function to be called
+        :type function_id: str
+        :param input_data: Input to be passed to the function
+        :type input_data: Dict
+        :param location: The location where the function is located.
+        :type location: str
+        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
+        """
+        name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
+            project_id=project_id,
+            location=location,
+            function_id=function_id
+        )
+        response = self.get_conn().projects().locations().functions().call(  # pylint:disable=no-member
+            name=name,
+            body=input_data
+        ).execute(num_retries=self.num_retries)
+        if 'error' in response:
+            raise AirflowException(response['error'])
+        return response
+
     def _wait_for_operation_to_complete(self, operation_name: str) -> Dict:
         """
         Waits for the named operation to complete - checks status of the

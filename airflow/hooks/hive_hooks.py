@@ -28,7 +28,7 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.security import utils
@@ -97,8 +97,8 @@ class HiveCliHook(BaseHook):
                     "Invalid Mapred Queue Priority.  Valid values are: "
                     "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
 
-        self.mapred_queue = mapred_queue or configuration.get('hive',
-                                                              'default_hive_mapred_queue')
+        self.mapred_queue = mapred_queue or conf.get('hive',
+                                                     'default_hive_mapred_queue')
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
@@ -129,7 +129,7 @@ class HiveCliHook(BaseHook):
             hive_bin = 'beeline'
             jdbc_url = "jdbc:hive2://{host}:{port}/{schema}".format(
                 host=conn.host, port=conn.port, schema=conn.schema)
-            if configuration.conf.get('core', 'security') == 'kerberos':
+            if conf.get('core', 'security') == 'kerberos':
                 template = conn.extra_dejson.get(
                     'principal', "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -511,13 +511,13 @@ class HiveMetastoreHook(BaseHook):
 
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
 
-        if configuration.conf.get('core', 'security') == 'kerberos':
+        if conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
 
         conn_socket = TSocket.TSocket(ms.host, ms.port)
 
-        if configuration.conf.get('core', 'security') == 'kerberos' \
+        if conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
                 import saslwrapper as sasl
@@ -798,7 +798,7 @@ class HiveServer2Hook(BaseHook):
             # we need to give a username
             username = 'airflow'
         kerberos_service_name = None
-        if configuration.conf.get('core', 'security') == 'kerberos':
+        if conf.get('core', 'security') == 'kerberos':
             auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
             kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 

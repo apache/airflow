@@ -25,7 +25,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.log.logging_mixin import set_context
-from airflow import configuration as conf
+from airflow.configuration import conf
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'

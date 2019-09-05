@@ -444,7 +444,7 @@
               })
               .attr('fill-opacity', 0)
               .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
+              .attr('title', function(d) {return d.state || 'none'})
               .attr('style', function(d) {
                 if (d.count > 0)
                     return"cursor:pointer;"

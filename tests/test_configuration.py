@@ -26,6 +26,7 @@ from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
 import unittest
+from unittest import mock
 
 
 @contextlib.contextmanager
@@ -426,3 +427,10 @@ AIRFLOW_HOME = /root/airflow
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
                 self.assertListEqual([], w)
+
+    def test_deprecated_funcs(self):
+        for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
+                     'remove_option', 'as_dict', 'set']:
+            with mock.patch('airflow.configuration.{}'.format(func)):
+                with self.assertWarns(DeprecationWarning):
+                    getattr(configuration, func)()

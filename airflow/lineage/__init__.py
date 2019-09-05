@@ -18,7 +18,7 @@
 # under the License.
 from functools import wraps
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.lineage.datasets import DataSet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string

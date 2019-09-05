@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.lineage import datasets
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.backend.atlas.typedefs import operator_typedef

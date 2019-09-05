@@ -30,7 +30,7 @@ from urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import settings
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
