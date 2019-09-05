@@ -44,8 +44,8 @@ class TestDataProcHook(unittest.TestCase):
                         new=mock_init):
             self.dataproc_hook = DataProcHook()
 
-    @mock.patch("airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook._authorize")
-    @mock.patch("airflow.contrib.hooks.gcp_dataproc_hook.build")
+    @mock.patch("airflow.gcp.hooks.dataproc.DataProcHook._authorize")
+    @mock.patch("airflow.gcp.hooks.dataproc.build")
     def test_dataproc_client_creation(self, mock_build, mock_authorize):
         result = self.dataproc_hook.get_conn()
         mock_build.assert_called_once_with(
