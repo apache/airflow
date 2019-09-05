@@ -59,7 +59,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
+        new_callable=mock.PropertyMock,
         return_value=None
     )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
@@ -70,7 +70,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
+        new_callable=mock.PropertyMock,
         return_value=None
     )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
@@ -81,7 +81,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
+        new_callable=mock.PropertyMock,
         return_value=None
     )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
@@ -91,7 +91,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
+        new_callable=mock.PropertyMock,
         return_value=None
     )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
@@ -102,7 +102,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
+        new_callable=mock.PropertyMock,
         return_value=None
     )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
