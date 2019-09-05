@@ -143,6 +143,7 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/kubernetes/docker/requirements.txt
 
 # Node & Webpack Stuff
 *.entry.js

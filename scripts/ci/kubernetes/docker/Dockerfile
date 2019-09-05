@@ -39,6 +39,8 @@ RUN pip install -U setuptools && \
     pip install psycopg2-binary==2.7.4  # I had issues with older versions of psycopg2, just a warning
 
 # install airflow
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
 COPY airflow.tar.gz /tmp/airflow.tar.gz
 RUN pip install --no-use-pep517 /tmp/airflow.tar.gz
 
