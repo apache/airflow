@@ -74,7 +74,7 @@ spec:
           containerPort: 8080
         args: ["webserver"]
         env:
-        - name: AIRFLOW_KUBE_NAMESPACE
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
@@ -96,7 +96,7 @@ spec:
         imagePullPolicy: IfNotPresent
         args: ["scheduler"]
         env:
-        - name: AIRFLOW_KUBE_NAMESPACE
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
