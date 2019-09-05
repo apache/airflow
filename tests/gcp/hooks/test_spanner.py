@@ -59,8 +59,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_create_instance(self, get_client):
+    def test_create_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         create_method = instance_method.return_value.create
         create_method.return_value = False
@@ -96,8 +101,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             node_count=1)
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_update_instance(self, get_client):
+    def test_update_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -135,8 +145,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         update_method.assert_called_once_with()
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_delete_instance(self, get_client):
+    def test_delete_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -166,8 +181,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         delete_method.assert_called_once_with()
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_get_database(self, get_client):
+    def test_get_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -201,8 +221,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_exists_method.assert_called_once_with()
         self.assertIsNotNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_create_database(self, get_client):
+    def test_create_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -236,8 +261,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_create_method.assert_called_once_with()
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_update_database(self, get_client):
+    def test_update_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -271,8 +301,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_update_ddl_method.assert_called_once_with(ddl_statements=[], operation_id=None)
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_delete_database(self, get_client):
+    def test_delete_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -310,8 +345,13 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_drop_method.assert_called_once_with()
         self.assertTrue(res)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
-    def test_execute_dml(self, get_client):
+    def test_execute_dml(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
