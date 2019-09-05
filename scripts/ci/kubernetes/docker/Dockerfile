@@ -23,6 +23,7 @@ RUN apt-get update -y && apt-get install -y \
         curl \
         libssl-dev \
         git \
+        libpq-dev \
         inetutils-telnet \
         bind9utils \
         zip \
