@@ -32,13 +32,11 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.utils.sqlalchemy import UtcDateTime
 
-
 # revision identifiers, used by Alembic.
 revision = '6e96a59344a4'
 down_revision = '939bb1e647c8'
 branch_labels = None
 depends_on = None
-
 
 Base = declarative_base()
 ID_LEN = 250
@@ -93,6 +91,10 @@ def upgrade():
     if not op.get_context().environment_context.is_transactional_ddl():
         session.commit()
 
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        op.drop_index('ti_pool', table_name='task_instance')
+
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column(
@@ -101,11 +103,19 @@ def upgrade():
             nullable=False,
         )
 
+    if conn.dialect.name == "mssql":
+        op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
+
 
 def downgrade():
     """
     Make TaskInstance.pool field nullable.
     """
+
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        op.drop_index('ti_pool', table_name='task_instance')
+
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column(
@@ -113,6 +123,9 @@ def downgrade():
             type_=sa.String(50),
             nullable=True,
         )
+
+    if conn.dialect.name == "mssql":
+        op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
 
     session = sa.orm.session.Session(bind=op.get_bind())
     session.query(TaskInstance)\
