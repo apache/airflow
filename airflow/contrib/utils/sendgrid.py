@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Airflow module for emailer using sendgrid
+"""
 
 import base64
 import mimetypes
@@ -30,8 +33,8 @@ from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
-               bcc=None, mime_subtype='mixed', sandbox_mode=False, **kwargs):
+def send_email(to, subject, html_content, files=None, cc=None,
+               bcc=None, sandbox_mode=False, **kwargs):
     """
     Send an email with html content using sendgrid.
 
@@ -104,8 +107,8 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
 
 def _post_sendgrid_mail(mail_data):
     log = LoggingMixin().log
-    sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
-    response = sg.client.mail.send.post(request_body=mail_data)
+    sendgrid_client = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
+    response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:
         log.info('Email with subject %s is successfully sent to recipients: %s',

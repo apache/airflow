@@ -72,6 +72,11 @@ fi
 
 export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
 
+# Default port numbers for forwarded ports
+export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
+export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
+export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -163,10 +168,11 @@ function create_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    mkdir -pv "${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
-    MD5SUM_FILE=${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
     MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
@@ -192,8 +198,9 @@ function check_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    mkdir -pv "${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}"
-    MD5SUM_FILE=${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}/$(basename "${FILE}").md5sum
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${MD5SUM_CACHE_DIR}"
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
     MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
     if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
@@ -219,7 +226,8 @@ function update_all_md5_files() {
     if [[ -n ${PYTHON_VERSION:=""} ]]; then
         SUFFIX="_${PYTHON_VERSION}"
     fi
-    touch "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
+    mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
+    touch "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
 }
 
 #
@@ -396,7 +404,7 @@ EOF
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
         export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-    elif [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+    elif [[ -f "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
         print_info
         print_info "Image ${THE_IMAGE_TYPE} built locally - skip force-pulling"
         print_info
@@ -417,7 +425,7 @@ EOF
         else
             export ACTION="Rebuilding"
         fi
-        if [[ ${CI:=} != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
@@ -473,7 +481,7 @@ function cleanup_ci_slim_image() {
 }
 
 #
-# Rebuilds the image for static checks if needed.
+# Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"

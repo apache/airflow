@@ -31,6 +31,7 @@ from google.cloud import storage
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
+from airflow.version import version
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -439,6 +440,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('Creating Bucket: %s; Location: %s; Storage Class: %s',
                       bucket_name, location, storage_class)
 
+        # Add airflow-version label to the bucket
+        labels = {} or labels
+        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+
         client = self.get_conn()
         bucket = client.bucket(bucket_name=bucket_name)
         bucket_resource = resource or {}
@@ -448,7 +453,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 bucket._patch_property(name=item, value=resource[item])  # pylint: disable=protected-access
 
         bucket.storage_class = storage_class
-        bucket.labels = labels or {}
+        bucket.labels = labels
         bucket.create(project=project_id, location=location)
         return bucket.id
 

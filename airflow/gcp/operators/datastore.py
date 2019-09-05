@@ -61,7 +61,7 @@ class DatastoreExportOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint:disable=too-many-arguments
                  bucket,
                  namespace=None,
                  datastore_conn_id='google_cloud_default',
@@ -71,6 +71,7 @@ class DatastoreExportOperator(BaseOperator):
                  labels=None,
                  polling_interval_in_seconds=10,
                  overwrite_existing=False,
+                 project_id=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -83,6 +84,7 @@ class DatastoreExportOperator(BaseOperator):
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
         self.overwrite_existing = overwrite_existing
+        self.project_id = project_id
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -99,7 +101,9 @@ class DatastoreExportOperator(BaseOperator):
         result = ds_hook.export_to_storage_bucket(bucket=self.bucket,
                                                   namespace=self.namespace,
                                                   entity_filter=self.entity_filter,
-                                                  labels=self.labels)
+                                                  labels=self.labels,
+                                                  project_id=self.project_id
+                                                  )
         operation_name = result['name']
         result = ds_hook.poll_operation_until_done(operation_name,
                                                    self.polling_interval_in_seconds)
@@ -150,6 +154,7 @@ class DatastoreImportOperator(BaseOperator):
                  datastore_conn_id='google_cloud_default',
                  delegate_to=None,
                  polling_interval_in_seconds=10,
+                 project_id=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -161,6 +166,7 @@ class DatastoreImportOperator(BaseOperator):
         self.entity_filter = entity_filter
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
+        self.project_id = project_id
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -171,7 +177,9 @@ class DatastoreImportOperator(BaseOperator):
                                                     file=self.file,
                                                     namespace=self.namespace,
                                                     entity_filter=self.entity_filter,
-                                                    labels=self.labels)
+                                                    labels=self.labels,
+                                                    project_id=self.project_id
+                                                    )
         operation_name = result['name']
         result = ds_hook.poll_operation_until_done(operation_name,
                                                    self.polling_interval_in_seconds)

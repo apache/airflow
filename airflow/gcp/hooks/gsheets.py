@@ -57,7 +57,6 @@ class GSheetsHook(GoogleCloudBaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.delegate_to = delegate_to
-        self.num_retries = self._get_field('num_retries', 5)
         self._conn = None
 
     def get_conn(self) -> Any:

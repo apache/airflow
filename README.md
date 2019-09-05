@@ -136,6 +136,7 @@ Currently **officially** using Airflow:
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 1. [AloPeyk](https://alopeyk.com) [[@blcksrx](https://github.com/blcksrx), [@AloPeyk](https://github.com/AloPeyk)]
 1. [AltX](https://www.getaltx.com/about) [[@pedromduarte](https://github.com/pedromduarte)]
+1. [AMPATH](https://www.ampathkenya.org/)[[@AMPATH](https://github.com/AMPATH), [@fatmali](https://github.com/fatmali)]
 1. [Apigee](https://apigee.com) [[@btallman](https://github.com/btallman)]
 1. [ARGO Labs](http://www.argolabs.org) [[@California Data Collaborative](https://github.com/California-Data-Collaborative)]
 1. [ARMEDANGELS](https://www.armedangels.de) [[@swiffer](https://github.com/swiffer)]
@@ -157,6 +158,7 @@ Currently **officially** using Airflow:
 1. [Bellhops](https://github.com/bellhops)
 1. [BelugaDB](https://belugadb.com) [[@fabio-nukui](https://github.com/fabio-nukui) & [@joao-sallaberry](http://github.com/joao-sallaberry) & [@lucianoviola](https://github.com/lucianoviola) & [@tmatuki](https://github.com/tmatuki)]
 1. [Betterment](https://www.betterment.com/) [[@betterment](https://github.com/Betterment)]
+1. [Bexs Bank](https://www.bexs.com.br/en) [[@felipefb](https://github.com/felipefb) & [@ilarsen](https://github.com/ishvann)]
 1. [BlaBlaCar](https://www.blablacar.com) [[@puckel](https://github.com/puckel) & [@wmorin](https://github.com/wmorin)]
 1. [Blacklane](https://www.blacklane.com) [[@serkef](https://github.com/serkef)]
 1. [Bloc](https://www.bloc.io) [[@dpaola2](https://github.com/dpaola2)]
@@ -164,6 +166,7 @@ Currently **officially** using Airflow:
 1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
 1. [BlueApron](https://www.blueapron.com) [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 1. [Bluecore](https://www.bluecore.com) [[@JLDLaughlin](https://github.com/JLDLaughlin)]
+1. [Bluekiri](https://bluekiri.com) [[@Bluekiri](https://github.com/bluekiri)]
 1. [Boda Telecom Suite - CE](https://github.com/bodastage/bts-ce) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
 1. [Bodastage Solutions](http://bodastage.com) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
 1. [Bombora Inc](https://bombora.com/) [[@jeffkpayne](https://github.com/jeffkpayne), [@pakelley](https://github.com/pakelley), [@dNavalta](https://github.com/dNavalta), [@austynh](https://github.com/austynh), [@TheOriginalAlex](https://github.com/TheOriginalAlex)]
@@ -226,6 +229,7 @@ Currently **officially** using Airflow:
 1. [Flipp](https://www.flipp.com) [[@sethwilsonwishabi](https://github.com/sethwilsonwishabi)]
 1. [Format](https://www.format.com) [[@format](https://github.com/4ormat) & [@jasonicarter](https://github.com/jasonicarter)]
 1. [FreshBooks](https://github.com/freshbooks) [[@DinoCow](https://github.com/DinoCow)]
+1. [FullContact](https://github.com/fullcontact)
 1. [Fuller, Inc.](https://en.fuller-inc.com/) [[@wutali](https://github.com/wutali) & [@sh-tech](https://github.com/sh-tech)]
 1. [Fundera](https://fundera.com) [[@andyxhadji](https://github.com/andyxhadji)]
 1. [G Adventures](https://gadventures.com) [[@chchtv11](https://github.com/chchtv11), [@tgumbley](https://github.com/tgumbley), [@tomwross](https://github.com/tomwross)]
@@ -282,6 +286,7 @@ Currently **officially** using Airflow:
 1. [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
 1. [Korbit](https://www.korbit.co.kr/) [[@jensenity](https://github.com/jensenity)]
 1. [KPN B.V.](https://www.kpn.com/) [[@biyanisuraj](https://github.com/biyanisuraj) & [@gmic](https://github.com/gmic)]
+1. [Kroton Educacional](http://www.kroton.com.br/)
 1. [Lemann Foundation](http://fundacaolemann.org.br) [[@fernandosjp](https://github.com/fernandosjp)]
 1. [LeMans Corporation](https://www.parts-unlimited.com/) [[@alloydwhitlock](https://github.com/alloydwhitlock)] & [[@tinyrye](https://github.com/tinyrye)]
 1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
@@ -289,6 +294,7 @@ Currently **officially** using Airflow:
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
+1. [Logitravel Group](https://www.logitravel.com/)
 1. [Los Angeles Times](http://www.latimes.com/) [[@standyro](https://github.com/standyro)]
 1. [LokSuvidha](http://loksuvidha.com/) [[@saurabhwahile](https://github.com/saurabhwahile)]
 1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]

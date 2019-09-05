@@ -20,6 +20,7 @@ import io
 import os
 import tempfile
 import unittest
+import copy
 from datetime import datetime
 
 import dateutil
@@ -28,6 +29,7 @@ from google.cloud import exceptions
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
+from airflow.version import version
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -71,16 +73,28 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
                 google_cloud_storage_conn_id='test')
 
-    def test_storage_client_creation(self):
-        with mock.patch('google.cloud.storage.Client') as mock_client:
-            gcs_hook_1 = gcs_hook.GoogleCloudStorageHook()
-            gcs_hook_1.get_conn()
-
-            # test that Storage Client is called with required arguments
-            mock_client.assert_called_once_with(
-                client_info=mock.ANY,
-                credentials=mock.ANY,
-                project=mock.ANY)
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.client_info',
+        new_callable=mock.PropertyMock,
+        return_value="CLIENT_INFO"
+    )
+    @mock.patch(
+        BASE_STRING.format("GoogleCloudBaseHook._get_credentials_and_project_id"),
+        return_value=("CREDENTIALS", "PROJECT_ID")
+    )
+    @mock.patch('google.cloud.storage.Client')
+    def test_storage_client_creation(self,
+                                     mock_client,
+                                     mock_get_creds_and_project_id,
+                                     mock_client_info):
+        hook = gcs_hook.GoogleCloudStorageHook()
+        result = hook.get_conn()
+        # test that Storage Client is called with required arguments
+        mock_client.assert_called_once_with(
+            client_info="CLIENT_INFO",
+            credentials="CREDENTIALS",
+            project="PROJECT_ID")
+        self.assertEqual(mock_client.return_value, result)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_exists(self, mock_service):
@@ -373,9 +387,12 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_labels = {'env': 'prod'}
         test_storage_class = 'MULTI_REGIONAL'
 
+        labels_with_version = copy.deepcopy(test_labels)
+        labels_with_version['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+
         mock_service.return_value.bucket.return_value.create.return_value = None
         mock_bucket.return_value.storage_class = test_storage_class
-        mock_bucket.return_value.labels = test_labels
+        mock_bucket.return_value.labels = labels_with_version
 
         sample_bucket = mock_service().bucket(bucket_name=test_bucket)
 
@@ -390,7 +407,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(response, sample_bucket.id)
 
         self.assertEqual(sample_bucket.storage_class, test_storage_class)
-        self.assertEqual(sample_bucket.labels, test_labels)
+        self.assertDictEqual(sample_bucket.labels, test_labels)
 
         mock_service.return_value.bucket.return_value.create.assert_called_once_with(
             project=test_project, location=test_location

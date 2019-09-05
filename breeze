@@ -124,10 +124,6 @@ export SKIP_BUILD_CHECK="false"
 SUPPRESS_CHEATSHEET_FILE="${MY_DIR}/.suppress_cheatsheet"
 SUPPRESS_ASCIIART_FILE="${MY_DIR}/.suppress_asciiart"
 
-export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
-export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
-export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
-
 function print_badge {
     if [[ ! -f "${SUPPRESS_ASCIIART_FILE}" ]]; then
         cat <<EOF
@@ -651,7 +647,7 @@ do
       export RUN_DOCKER_COMPOSE="false"
       export RUN_STATIC_CHECKS="false"
       export RUN_BUILD_DOCS="true"
-      shift 2 ;;
+      shift 1 ;;
     --)
       shift ;
       break ;;
