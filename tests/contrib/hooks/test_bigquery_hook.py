@@ -37,7 +37,6 @@ except GoogleAuthError:
     bq_available = False
 
 
-
 class TestBigQueryHookConnection(unittest.TestCase):
     hook = None  # type: Optional[hook.BigQueryHook]
 

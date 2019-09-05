@@ -214,7 +214,6 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.bigtable_hook_default_project_id._client, result)
 
-
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
