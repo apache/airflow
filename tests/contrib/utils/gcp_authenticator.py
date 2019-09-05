@@ -30,6 +30,7 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
+GCP_BIGQUERY_KEY = 'gcp_bigquery.json'
 GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_COMPUTE_KEY = 'gcp_compute.json'
