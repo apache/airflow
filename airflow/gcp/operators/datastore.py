@@ -59,6 +59,7 @@ class DatastoreExportOperator(BaseOperator):
         emptied prior to exports. This enables overwriting existing backups.
     :type overwrite_existing: bool
     """
+    template_fields = ['bucket', 'namespace', 'entity_filter', 'labels']
 
     @apply_defaults
     def __init__(self,  # pylint:disable=too-many-arguments
@@ -111,7 +112,6 @@ class DatastoreExportOperator(BaseOperator):
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
-
         return result
 
 
@@ -143,6 +143,8 @@ class DatastoreImportOperator(BaseOperator):
         execution status again
     :type polling_interval_in_seconds: int
     """
+
+    template_fields = ['bucket', 'file', 'namespace', 'entity_filter', 'labels']
 
     @apply_defaults
     def __init__(self,
