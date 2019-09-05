@@ -70,6 +70,10 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(GoogleCloudStorageDownloadOperator, self).__init__(*args, **kwargs)
+
+        if filename is not None and store_to_xcom_key is not None:
+            raise ValueError("Either filename or store_to_xcom_key can be set")
+
         self.bucket = bucket
         self.object = object
         self.filename = filename
@@ -84,13 +88,17 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to
         )
-        file_bytes = hook.download(bucket=self.bucket,
-                                   object=self.object,
-                                   filename=self.filename)
+
         if self.store_to_xcom_key:
+            file_bytes = hook.download(bucket=self.bucket,
+                                       object=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise RuntimeError(
                     'The size of the downloaded file is too large to push to XCom!'
                 )
+        else:
+            hook.download(bucket=self.bucket,
+                          object=self.object,
+                          filename=self.filename)

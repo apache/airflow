@@ -48,6 +48,11 @@ Pool size can now be set to -1 to indicate infinite size (it also includes
 optimisation of pool query which lead to poor task n^2 performance of task
 pool queries in MySQL).
 
+### Google Cloud Storage Hook
+
+The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or
+return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
+
 ## Airflow 1.10.6
 
 ### Changes to `aws_default` Connection's default region

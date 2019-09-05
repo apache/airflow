@@ -565,12 +565,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         download_as_a_string_method = mock_service.return_value.bucket.return_value \
             .blob.return_value.download_as_string
         download_as_a_string_method.return_value = test_object_bytes
-
         response = self.gcs_hook.download(bucket=test_bucket,
                                           object=test_object,
                                           filename=test_file)
 
-        self.assertEquals(response, test_object_bytes)
+        self.assertEqual(response, test_file)
         download_filename_method.assert_called_once_with(test_file)
 
 

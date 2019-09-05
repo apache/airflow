@@ -153,7 +153,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     # pylint:disable=redefined-builtin
     def download(self, bucket, object, filename=None):
         """
-        Get a file from Google Cloud Storage.
+        Downloads a file from Google Cloud Storage.
+
+        When no filename is supplied, the operator loads the file into memory and returns its
+        content. When a filename is supplied, it writes the file to the specified location and
+        returns the location. For file sizes that exceed the available memory it is recommended
+        to write to a file.
 
         :param bucket: The bucket to fetch from.
         :type bucket: str
@@ -169,8 +174,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         if filename:
             blob.download_to_filename(filename)
             self.log.info('File downloaded to %s', filename)
-
-        return blob.download_as_string()
+            return filename
+        else:
+            return blob.download_as_string()
 
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
