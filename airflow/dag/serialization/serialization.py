@@ -94,7 +94,7 @@ class Serialization:
         for k in cls._included_fields:
             # None is ignored in serialized form and is added back in deserialization.
             v = getattr(var, k, None)
-            if not cls._is_excluded(v):
+            if not cls._is_excluded(v, k, var):
                 new_var[k] = cls._serialize(v)
         return new_var
 
@@ -113,8 +113,9 @@ class Serialization:
         return var is None or isinstance(var, cls._primitive_types)
 
     @classmethod
-    def _is_excluded(cls, var):
+    def _is_excluded(cls, var, attrname, instance):
         """Types excluded from serialization."""
+        # pylint: disable=unused-argument
         return var is None or isinstance(var, cls._excluded_types)
 
     @classmethod

@@ -77,3 +77,13 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
         cls._deserialize_object(encoded_op, op)
         return op
+
+    @classmethod
+    def _is_excluded(cls, var, attrname, op):
+        if var is not None and op.has_dag() and attrname.endswith("_date"):
+            # If this date is the same as the matching field in the dag, then
+            # don't store it again at the task level.
+            dag_date = getattr(op.dag, attrname, None)
+            if var is dag_date or var == dag_date:
+                return True
+        return super()._is_excluded(var, attrname, op)
