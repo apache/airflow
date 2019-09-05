@@ -299,7 +299,7 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 
 You can connect to those ports/databases using:
 
-* Webserver: (http://127.0.0.1:28080)[http://127.0.0.1:28080]
+* Webserver: `http://127.0.0.1:28080 <http://127.0.0.1:28080>`_
 * Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
 * Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
 
