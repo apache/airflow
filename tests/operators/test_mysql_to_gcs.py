@@ -23,6 +23,8 @@ import unittest
 
 from parameterized import parameterized
 
+from _mysql_exceptions import ProgrammingError
+
 from airflow.operators.mysql_to_gcs import \
     MySqlToGoogleCloudStorageOperator
 from tests.compat import mock
@@ -292,3 +294,31 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         # once for the file and once for the schema
         self.assertEqual(2, gcs_hook_mock.upload.call_count)
+
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
+    def test_query_with_error(self, mock_gcs_hook, mock_mysql_hook):
+        mock_mysql_hook.return_value.get_conn.\
+            return_value.cursor.return_value.execute.side_effect = ProgrammingError
+        op = MySqlToGoogleCloudStorageOperator(
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
+            schema_filename=SCHEMA_FILENAME)
+        with self.assertRaises(ProgrammingError):
+            op.query()
+
+    @mock.patch('airflow.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
+    def test_execute_with_query_error(self, mock_gcs_hook, mock_mysql_hook):
+        mock_mysql_hook.return_value.get_conn.\
+            return_value.cursor.return_value.execute.side_effect = ProgrammingError
+        op = MySqlToGoogleCloudStorageOperator(
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
+            schema_filename=SCHEMA_FILENAME)
+        with self.assertRaises(ProgrammingError):
+            op.execute(None)
