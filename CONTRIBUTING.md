@@ -275,7 +275,7 @@ you that you should rebuild the image.
 ## Prerequisites for pre-commit hooks
 
 The pre-commit hooks use several external linters that need to be installed before pre-commit are run.
-Each of the checks install its own environmen, so you do not need to install those, but there are some
+Each of the checks install its own environment, so you do not need to install those, but there are some
 checks that require locally installed binaries. In Linux you typically install them
 with `sudo apt install` on MacOS with `brew install`.
 
