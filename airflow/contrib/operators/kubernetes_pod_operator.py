@@ -102,6 +102,8 @@ class KubernetesPodOperator(BaseOperator):
     :type pod_runtime_info_envs: list[airflow.kubernetes.models.pod_runtime_info_env.PodRuntimeInfoEnv]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param schedulername: Specify a schedulername for the pod
+    :type schedulername: str
     :param full_pod_spec: The complete podSpec
     :type full_pod_spec: kubernetes.client.models.V1Pod
     """
@@ -133,6 +135,7 @@ class KubernetesPodOperator(BaseOperator):
                 configmaps=self.configmaps,
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
+                schedulername=self.schedulername,
                 resources=self.resources,
                 pod=self.full_pod_spec,
             ).gen_pod()
@@ -199,6 +202,7 @@ class KubernetesPodOperator(BaseOperator):
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
+                 schedulername=None,
                  full_pod_spec=None,
                  *args,
                  **kwargs):
@@ -239,4 +243,5 @@ class KubernetesPodOperator(BaseOperator):
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
+        self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
