@@ -25,7 +25,6 @@ import logging
 import six
 from typing import Iterable, Optional, TYPE_CHECKING, Union
 
-import dateutil.parser
 import pendulum
 
 import airflow
@@ -99,7 +98,7 @@ class Serialization:
         for k in cls._included_fields:
             # None is ignored in serialized form and is added back in deserialization.
             v = getattr(var, k, None)
-            if not cls._is_excluded(v):
+            if not cls._is_excluded(v, k, var):
                 new_var[k] = cls._serialize(v)
         return new_var
 
@@ -118,7 +117,7 @@ class Serialization:
         return var is None or isinstance(var, cls._primitive_types)
 
     @classmethod
-    def _is_excluded(cls, var):
+    def _is_excluded(cls, var, attrname, instance):
         """Types excluded from serialization."""
         return var is None or isinstance(var, cls._excluded_types)
 
@@ -152,10 +151,10 @@ class Serialization:
             elif isinstance(var, BaseOperator):
                 return airflow.dag.serialization.SerializedBaseOperator.serialize_operator(var)
             elif isinstance(var, cls._datetime_types):
-                return cls._encode(var.isoformat(), type_=DAT.DATETIME)
+                return cls._encode(pendulum.instance(var).timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, (pendulum.tz.Timezone, type(pendulum.UTC))):
+            elif isinstance(var, (pendulum.tz.Timezone, pendulum.tz.timezone_info.TimezoneInfo)):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif callable(var):
                 return str(get_python_source(var, return_none_if_x_none=True))
@@ -195,11 +194,11 @@ class Serialization:
             elif type_ == DAT.OP:
                 return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
             elif type_ == DAT.DATETIME:
-                return dateutil.parser.parse(var)
+                return pendulum.from_timestamp(var)
             elif type_ == DAT.TIMEDELTA:
                 return datetime.timedelta(seconds=var)
             elif type_ == DAT.TIMEZONE:
-                return pendulum.tz.timezone(name=var)
+                return pendulum.timezone(var)
             elif type_ == DAT.SET:
                 return {cls._deserialize(v) for v in var}
             elif type_ == DAT.TUPLE:

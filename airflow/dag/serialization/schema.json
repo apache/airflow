@@ -4,13 +4,14 @@
   "definitions": {
     "datetime": {
       "type": "object",
+      "description": "A date time, stored as fractional seconds since the epoch",
       "properties": {
         "__type": {
           "type": "string",
           "const": "datetime"
         },
         "__var": {
-          "type": "string",
+          "type": "number",
           "format": "date-time"
         }
       },
@@ -172,7 +173,6 @@
             "_task_type",
             "task_id",
             "owner",
-            "start_date",
             "pool",
             "ui_color",
             "ui_fgcolor",
@@ -183,6 +183,7 @@
             "task_id": { "type": "string" },
             "owner": { "type": "string" },
             "start_date": { "$ref": "#/definitions/datetime" },
+            "end_date": { "$ref": "#/definitions/datetime" },
             "trigger_rule": { "type": "string" },
             "depends_on_past": { "type": "boolean" },
             "wait_for_downstream": { "type": "boolean" },
