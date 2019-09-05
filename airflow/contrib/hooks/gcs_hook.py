@@ -160,7 +160,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def download(self, bucket_name, object_name, filename=None):
         """
-        Get a file from Google Cloud Storage.
+        Downloads a file from Google Cloud Storage.
+
+        When no filename is supplied, the operator loads the file into memory and returns its
+        content. When a filename is supplied, it writes the file to the specified location and
+        returns the location. For file sizes that exceed the available memory it is recommended
+        to write to a file.
 
         :param bucket_name: The bucket to fetch from.
         :type bucket_name: str
@@ -176,8 +181,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         if filename:
             blob.download_to_filename(filename)
             self.log.info('File downloaded to %s', filename)
-
-        return blob.download_as_string()
+            return filename
+        else:
+            return blob.download_as_string()
 
     def upload(self, bucket_name, object_name, filename,
                mime_type='application/octet-stream', gzip=False):

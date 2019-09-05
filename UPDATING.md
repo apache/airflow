@@ -690,6 +690,10 @@ Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a d
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
 
+### Google Cloud Storage Hook
+
+The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
+
 ### BigQuery Hooks and Operator
 
 The `bql` parameter passed to `BigQueryOperator` and `BigQueryBaseCursor.run_query` has been deprecated and renamed to `sql` for consistency purposes. Using `bql` will still work (and raise a `DeprecationWarning`), but is no longer
