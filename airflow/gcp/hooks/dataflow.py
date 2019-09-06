@@ -88,7 +88,7 @@ class _DataflowJob(LoggingMixin):
         return False
 
     # pylint: disable=too-many-nested-blocks
-    def _get_dataflow_jobs(self) -> List:
+    def _get_dataflow_jobs(self) -> List[Dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
@@ -96,10 +96,13 @@ class _DataflowJob(LoggingMixin):
         :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
-            return self._dataflow.projects().locations().jobs().get(
-                projectId=self._project_number,
-                location=self._job_location,
-                jobId=self._job_id).execute(num_retries=self._num_retries)
+            return [
+                self._dataflow.projects().locations().jobs().get(
+                    projectId=self._project_number,
+                    location=self._job_location,
+                    jobId=self._job_id
+                ).execute(num_retries=self._num_retries)
+            ]
         elif self._job_name:
             jobs = self._dataflow.projects().locations().jobs().list(
                 projectId=self._project_number,

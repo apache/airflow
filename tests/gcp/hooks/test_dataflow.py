@@ -23,8 +23,12 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.gcp.hooks.dataflow import (DataFlowHook, _Dataflow,
-                                        _DataflowJob)
+from airflow.gcp.hooks.dataflow import (
+    DataFlowHook,
+    _Dataflow,
+    _DataflowJob,
+    DataflowJobStatus
+)
 from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
@@ -343,6 +347,64 @@ class TestDataFlowJob(unittest.TestCase):
                      TEST_LOCATION, 10)
         mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
                                                location=TEST_LOCATION)
+
+    def test_dataflow_job_wait_for_multiple_jobs(self):
+        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.return_value.execute.return_value = {
+                "jobs": [job, job]
+            }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=TEST_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        dataflow_job.wait_for_done()
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.assert_called_once_with(location=TEST_LOCATION, projectId=TEST_PROJECT)
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.return_value.execute.assert_called_once_with(num_retries=20)
+
+        self.assertEqual(dataflow_job.get(), [job, job])
+
+    def test_dataflow_job_wait_for_single_jobs(self):
+        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.return_value.execute.return_value = job
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=TEST_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False
+        )
+        dataflow_job.wait_for_done()
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.assert_called_once_with(
+                jobId=TEST_JOB_ID,
+                location=TEST_LOCATION,
+                projectId=TEST_PROJECT
+            )
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.return_value.execute.assert_called_once_with(num_retries=20)
+
+        self.assertEqual(dataflow_job.get(), [job])
 
 
 class TestDataflow(unittest.TestCase):
