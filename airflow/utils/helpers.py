@@ -32,6 +32,7 @@ except ImportError:
 import os
 import re
 import signal
+import subprocess
 
 from jinja2 import Template
 
@@ -307,7 +308,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
             return
         # If operation not permitted error is thrown due to run_as_user, use sudo to kill the process
         if err.errno == errno.EPERM:
-            os.system('sudo kill -' + str(sig) + ' ' + str(os.getpgid(pid)))
+            subprocess.call('sudo -i kill -' + str(sig) + ' ' + str(os.getpgid(pid)), shell=True)
         raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
