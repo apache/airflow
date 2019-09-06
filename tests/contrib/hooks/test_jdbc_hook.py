@@ -19,14 +19,11 @@
 #
 
 import unittest
+from unittest.mock import Mock, patch
 import json
 
-from mock import Mock
-from mock import patch
-
-from airflow import configuration
 from airflow.hooks.jdbc_hook import JdbcHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(
@@ -36,7 +33,6 @@ jdbc_conn_mock = Mock(
 
 class TestJdbcHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='jdbc_default', conn_type='jdbc',
@@ -51,7 +47,7 @@ class TestJdbcHook(unittest.TestCase):
         jdbc_conn = jdbc_hook.get_conn()
         self.assertTrue(jdbc_mock.called)
         self.assertIsInstance(jdbc_conn, Mock)
-        self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)
+        self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)  # pylint: disable=no-member
 
 
 if __name__ == '__main__':

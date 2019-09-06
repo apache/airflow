@@ -16,15 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import print_function
-import airflow
-from airflow.operators.python_operator import PythonOperator
-from libs.helper import print_stuff
-from airflow.models import DAG
+"""
+This is an example dag for using a Kubernetes Executor Configuration.
+"""
 import os
 
+import airflow
+from airflow.contrib.example_dags.libs.helper import print_stuff
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
+
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
@@ -35,11 +38,14 @@ dag = DAG(
 
 
 def test_volume_mount():
+    """
+    Tests whether the volume has been mounted.
+    """
     with open('/foo/volume_mount_test.txt', 'w') as foo:
         foo.write('Hello')
 
-    rc = os.system("cat /foo/volume_mount_test.txt")
-    assert rc == 0
+    return_code = os.system("cat /foo/volume_mount_test.txt")
+    assert return_code == 0
 
 
 # You can use annotations on your kubernetes pods!
@@ -73,4 +79,17 @@ second_task = PythonOperator(
     }
 )
 
+# Test that we can run tasks as a normal user
+third_task = PythonOperator(
+    task_id="non_root_task", python_callable=print_stuff, dag=dag,
+    executor_config={
+        "KubernetesExecutor": {
+            "securityContext": {
+                "runAsUser": 1000
+            }
+        }
+    }
+)
+
 start_task.set_downstream(second_task)
+second_task.set_downstream(third_task)

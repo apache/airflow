@@ -21,17 +21,9 @@
 import sys
 import unittest
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "jobName": "51455483-c62c-48ac-9b88-53a6a725baa3",
@@ -43,8 +35,6 @@ class TestAWSBatchOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.awsbatch_operator.AwsHook')
     def setUp(self, aws_hook_mock):
-        configuration.load_test_config()
-
         self.aws_hook_mock = aws_hook_mock
         self.batch = AWSBatchOperator(
             task_id='task',

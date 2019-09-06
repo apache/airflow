@@ -16,6 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google BigQuery check operator.
+"""
+import warnings
+from typing import Any, SupportsAbs, Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.operators.check_operator import \
@@ -48,31 +53,44 @@ class BigQueryCheckOperator(CheckOperator):
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
-    publishing dubious data, or on the side and receive email alterts
+    publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
     :type sql: str
-    :param bigquery_conn_id: reference to the BigQuery database
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
 
+    template_fields = ('sql', 'gcp_conn_id', )
+    template_ext = ('.sql', )
+
     @apply_defaults
     def __init__(self,
-                 sql,
-                 bigquery_conn_id='bigquery_default',
-                 use_legacy_sql=True,
-                 *args, **kwargs):
-        super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
-        self.bigquery_conn_id = bigquery_conn_id
+                 sql: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args, **kwargs) -> None:
+        super().__init__(sql=sql, *args, **kwargs)
+        if not bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id  # type: ignore
+
+        self.gcp_conn_id = gcp_conn_id
         self.sql = sql
         self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             use_legacy_sql=self.use_legacy_sql)
 
 
@@ -85,23 +103,39 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :type bigquery_conn_id: str
     """
 
+    template_fields = ('sql', 'gcp_conn_id', 'pass_value', )
+    template_ext = ('.sql', )
+
     @apply_defaults
-    def __init__(self, sql,
-                 pass_value,
-                 tolerance=None,
-                 bigquery_conn_id='bigquery_default',
-                 use_legacy_sql=True,
-                 *args, **kwargs):
-        super(BigQueryValueCheckOperator, self).__init__(
+    def __init__(self, sql: str,
+                 pass_value: Any,
+                 tolerance: Any = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args, **kwargs) -> None:
+        super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
-        self.bigquery_conn_id = bigquery_conn_id
+
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
+        self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             use_legacy_sql=self.use_legacy_sql)
 
 
@@ -127,19 +161,40 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :type bigquery_conn_id: str
     """
 
+    template_fields = ('table', 'gcp_conn_id', )
+
     @apply_defaults
-    def __init__(self, table, metrics_thresholds, date_filter_column='ds',
-                 days_back=-7, bigquery_conn_id='bigquery_default',
-                 use_legacy_sql=True, *args, **kwargs):
-        super(BigQueryIntervalCheckOperator, self).__init__(
+    def __init__(self,
+                 table: str,
+                 metrics_thresholds: dict,
+                 date_filter_column: str = 'ds',
+                 days_back: SupportsAbs[int] = -7,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 use_legacy_sql: bool = True,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)
-        self.bigquery_conn_id = bigquery_conn_id
+
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
+        self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             use_legacy_sql=self.use_legacy_sql)

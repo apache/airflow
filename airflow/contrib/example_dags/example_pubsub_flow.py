@@ -24,19 +24,19 @@ can be used to trigger dependant tasks upon receipt of a Pub/Sub message.
 NOTE: project_id must be updated to a GCP project ID accessible with the
       Google Default Credentials on the machine running the workflow
 """
-from __future__ import unicode_literals
+
 from base64 import b64encode
 
 import datetime
 
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.contrib.operators.pubsub_operator import (
+from airflow.gcp.operators.pubsub import (
     PubSubTopicCreateOperator, PubSubSubscriptionCreateOperator,
     PubSubPublishOperator, PubSubTopicDeleteOperator,
     PubSubSubscriptionDeleteOperator
 )
-from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
+from airflow.gcp.sensors.pubsub import PubSubPullSensor
 from airflow.utils import dates
 
 project = 'your-project-id'  # Change this to your own GCP project_id
@@ -50,7 +50,7 @@ messages = [
 ]
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],
@@ -70,6 +70,8 @@ echo_template = '''
 
 with DAG('pubsub-end-to-end', default_args=default_args,
          schedule_interval=datetime.timedelta(days=1)) as dag:
+    # pylint: disable=no-value-for-parameter
+    # Note that parameters gets passed via dags default_args above.
     t1 = PubSubTopicCreateOperator(task_id='create-topic')
     t2 = PubSubSubscriptionCreateOperator(
         task_id='create-subscription', topic_project=project,

@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,21 +6,32 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 Security
 ========
 
-By default, all gates are opened. An easy way to restrict access
-to the web application is to do it at the network level, or by using
-SSH tunnels.
+.. include:: ../.github/SECURITY.rst
+
+Web Authentication
+------------------
+
+By default, Airflow requires users to specify a password prior to login. You can use the
+following CLI commands to create an account:
+
+.. code-block:: bash
+
+    # create an admin user
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -34,71 +45,13 @@ Be sure to checkout :doc:`api` for securing the API.
    environment variables) as ``%%``, otherwise Airflow might leak these
    passwords on a config parser exception to a log.
 
-Reporting Vulnerabilities
--------------------------
-
-The Apache Software Foundation takes security issues very seriously. Apache
-Airflow specifically offers security features and is responsive to issues
-around its features. If you have any concern around Airflow Security or believe
-you have uncovered a vulnerability, we suggest that you get in touch via the
-e-mail address security@apache.org. In the message, try to provide a
-description of the issue and ideally a way of reproducing it. The security team
-will get back to you after assessing the description.
-
-Note that this security address should be used only for undisclosed
-vulnerabilities. Dealing with fixed issues or general questions on how to use
-the security features should be handled regularly via the user and the dev
-lists. Please report any security problems to the project security address
-before disclosing it publicly.
-
-The `ASF Security team's page <https://www.apache.org/security/>`_ describes
-how vulnerability reports are handled, and includes PGP keys if you wish to use
-that.
-
-Web Authentication
-------------------
-
 Password
 ''''''''
 
-.. note::
-
-   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
-   please use command line interface ``airflow users --create`` to create accounts, or do that in the FAB-based UI itself.
-
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
-Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
-uses ``bcrypt`` before storing passwords.
 
-.. code-block:: bash
+Please use command line interface ``airflow users --create`` to create accounts, or do that in the UI.
 
-    [webserver]
-    authenticate = True
-    auth_backend = airflow.contrib.auth.backends.password_auth
-
-When password auth is enabled, an initial user credential will need to be created before anyone can login. An initial
-user was not created in the migrations for this authentication backend to prevent default Airflow installations from
-attack. Creating a new user has to be done via a Python REPL on the same machine Airflow is installed.
-
-.. code-block:: bash
-
-    # navigate to the airflow installation directory
-    $ cd ~/airflow
-    $ python
-    Python 2.7.9 (default, Feb 10 2015, 03:28:08)
-    Type "help", "copyright", "credits" or "license" for more information.
-    >>> import airflow
-    >>> from airflow import models, settings
-    >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
-    >>> user = PasswordUser(models.User())
-    >>> user.username = 'new_user_name'
-    >>> user.email = 'new_user_email@example.com'
-    >>> user.password = 'set_the_password'
-    >>> session = settings.Session()
-    >>> session.add(user)
-    >>> session.commit()
-    >>> session.close()
-    >>> exit()
 
 LDAP
 ''''
@@ -138,6 +91,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
 
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
+
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
 Roll your own
@@ -153,18 +110,41 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
     authenticate = True
     auth_backend = mypackage.auth
 
-Multi-tenancy
--------------
+API Authentication
+------------------
 
-You can filter the list of dags in webserver by owner name when authentication
-is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see
-only the dags which it is owner of, unless it is a superuser.
+Authentication for the API is handled separately to the Web Authentication. The default is to not
+require any authentication on the API i.e. wide open by default. This is not recommended if your
+Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
 
-.. code-block:: bash
+.. code-block:: ini
 
-    [webserver]
-    filter_by_owner = True
+    [api]
+    auth_backend = airflow.api.auth.backend.deny_all
 
+Two "real" methods for authentication are currently supported for the API.
+
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
+
+    [kerberos]
+    keytab = <KEYTAB>
+
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists in the keytab file.
 
 Kerberos
 --------
@@ -277,9 +257,9 @@ and in your DAG, when initializing the HiveOperator, specify:
 
 To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install apache-airflow[kerberos]
+   pip install 'apache-airflow[kerberos]'
 
 OAuth Authentication
 --------------------
@@ -310,9 +290,9 @@ to only members of those teams.
 
 To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install apache-airflow[github_enterprise]
+   pip install 'apache-airflow[github_enterprise]'
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -358,9 +338,9 @@ login, separated with a comma, to only members of those domains.
 
 To use Google authentication, you must install Airflow with the `google_auth` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install apache-airflow[google_auth]
+   pip install 'apache-airflow[google_auth]'
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -458,3 +438,81 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2
+
+
+RBAC UI Security
+----------------
+
+Security of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
+Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+regarding its security model.
+
+Default Roles
+'''''''''''''
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
+that ``Admin`` users alter these default roles in any way by removing
+or adding permissions to these roles.
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users.
+
+Public
+^^^^^^
+``Public`` users (anonymous) don't have any permissions.
+
+Viewer
+^^^^^^
+``Viewer`` users have limited viewer permissions
+
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_perms]
+    :end-before: [END security_viewer_perms]
+
+on limited web views
+
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_vms]
+    :end-before: [END security_viewer_vms]
+
+
+User
+^^^^
+``User`` users have ``Viewer`` permissions plus additional user permissions
+
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_user_perms]
+    :end-before: [END security_user_perms]
+
+on User web views which is the same as Viewer web views.
+
+Op
+^^
+``Op`` users have ``User`` permissions plus additional op permissions
+
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_perms]
+    :end-before: [END security_op_perms]
+
+on ``User`` web views plus these additional op web views
+
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_vms]
+    :end-before: [END security_op_vms]
+
+
+Custom Roles
+'''''''''''''
+
+DAG Level Role
+^^^^^^^^^^^^^^
+``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.

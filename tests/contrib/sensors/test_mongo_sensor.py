@@ -21,10 +21,9 @@
 import unittest
 
 from airflow import DAG
-from airflow import configuration
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.contrib.sensors.mongo_sensor import MongoSensor
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db, timezone
 
 
@@ -34,7 +33,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestMongoSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='mongo_test', conn_type='mongo',

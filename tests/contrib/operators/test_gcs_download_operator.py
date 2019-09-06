@@ -21,14 +21,7 @@ import unittest
 
 from airflow.contrib.operators.gcs_download_operator \
     import GoogleCloudStorageDownloadOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-gcs-download-operator'
 TEST_BUCKET = 'test-bucket'
@@ -36,16 +29,16 @@ TEST_OBJECT = 'dir1/test-object'
 LOCAL_FILE_PATH = '/home/airflow/gcp/test-object'
 
 
-class GoogleCloudStorageDownloadOperatorTest(unittest.TestCase):
+class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):
         operator = GoogleCloudStorageDownloadOperator(task_id=TASK_ID,
                                                       bucket=TEST_BUCKET,
-                                                      object=TEST_OBJECT,
+                                                      object_name=TEST_OBJECT,
                                                       filename=LOCAL_FILE_PATH)
 
         operator.execute(None)
         mock_hook.return_value.download.assert_called_once_with(
-            bucket=TEST_BUCKET, object=TEST_OBJECT, filename=LOCAL_FILE_PATH
+            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
         )

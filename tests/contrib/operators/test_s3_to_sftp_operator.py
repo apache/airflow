@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow import models
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
@@ -57,10 +57,9 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class S3ToSFTPOperatorTest(unittest.TestCase):
+class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         from airflow.hooks.S3_hook import S3Hook
 
@@ -89,7 +88,7 @@ class S3ToSFTPOperatorTest(unittest.TestCase):
     @mock_s3
     def test_s3_to_sftp_operation(self):
         # Setting
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
+        conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
@@ -97,10 +96,10 @@ class S3ToSFTPOperatorTest(unittest.TestCase):
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.s3_bucket)
-        self.assertTrue((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertTrue(self.s3_hook.check_for_bucket(self.s3_bucket))
 
-        with open(LOCAL_FILE_PATH, 'w') as f:
-            f.write(test_remote_file_content)
+        with open(LOCAL_FILE_PATH, 'w') as file:
+            file.write(test_remote_file_content)
         self.s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3

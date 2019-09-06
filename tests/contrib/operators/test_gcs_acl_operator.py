@@ -22,17 +22,10 @@ import unittest
 from airflow.contrib.operators.gcs_acl_operator import \
     GoogleCloudStorageBucketCreateAclEntryOperator, \
     GoogleCloudStorageObjectCreateAclEntryOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
-class GoogleCloudStorageAclTest(unittest.TestCase):
+class TestGoogleCloudStorageAcl(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageHook')
     def test_bucket_create_acl(self, mock_hook):
         operator = GoogleCloudStorageBucketCreateAclEntryOperator(
@@ -44,7 +37,7 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.insert_bucket_acl.assert_called_once_with(
-            bucket="test-bucket",
+            bucket_name="test-bucket",
             entity="test-entity",
             role="test-role",
             user_project="test-user-project"
@@ -56,17 +49,17 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             bucket="test-bucket",
             object_name="test-object",
             entity="test-entity",
+            generation=42,
             role="test-role",
-            generation="test-generation",
             user_project="test-user-project",
             task_id="id"
         )
         operator.execute(None)
         mock_hook.return_value.insert_object_acl.assert_called_once_with(
-            bucket="test-bucket",
+            bucket_name="test-bucket",
             object_name="test-object",
             entity="test-entity",
+            generation=42,
             role="test-role",
-            generation="test-generation",
             user_project="test-user-project"
         )

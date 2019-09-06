@@ -16,20 +16,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Authentication backend that denies all requests"""
+from typing import Optional
 from functools import wraps
 from flask import Response
+from airflow.api.auth.backend.default import ClientAuthProtocol
 
-client_auth = None
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
-def init_app(app):
-    pass
+def init_app(_):
+    """Initializes authentication"""
 
 
 def requires_authentication(function):
+    """Decorator for functions that require authentication"""
+
+    # noinspection PyUnusedLocal
     @wraps(function)
-    def decorated(*args, **kwargs):
+    def decorated(*args, **kwargs):  # pylint: disable=unused-argument
         return Response("Forbidden", 403)
 
     return decorated

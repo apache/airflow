@@ -16,11 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+"""
+Airflow module for emailer using sendgrid
+"""
 
 import base64
 import mimetypes
@@ -35,14 +33,14 @@ from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
-               bcc=None, mime_subtype='mixed', sandbox_mode=False, **kwargs):
+def send_email(to, subject, html_content, files=None, cc=None,
+               bcc=None, sandbox_mode=False, **kwargs):
     """
     Send an email with html content using sendgrid.
 
     To use this plugin:
     0. include sendgrid subpackage as part of your Airflow installation, e.g.,
-    pip install apache-airflow[sendgrid]
+    pip install 'apache-airflow[sendgrid]'
     1. update [email] backend in airflow.cfg, i.e.,
     [email]
     email_backend = airflow.contrib.utils.sendgrid.send_email
@@ -100,8 +98,8 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
         attachment.disposition = "attachment"
         attachment.content_id = '<{0}>'.format(basename)
 
-        with open(fname, "rb") as f:
-            attachment.content = base64.b64encode(f.read()).decode('utf-8')
+        with open(fname, "rb") as file:
+            attachment.content = base64.b64encode(file.read()).decode('utf-8')
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())
@@ -109,10 +107,10 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
 
 def _post_sendgrid_mail(mail_data):
     log = LoggingMixin().log
-    sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
-    response = sg.client.mail.send.post(request_body=mail_data)
+    sendgrid_client = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
+    response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
-    if response.status_code >= 200 and response.status_code < 300:
+    if 200 <= response.status_code < 300:
         log.info('Email with subject %s is successfully sent to recipients: %s',
                  mail_data['subject'], mail_data['personalizations'])
     else:

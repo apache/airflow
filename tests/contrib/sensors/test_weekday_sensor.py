@@ -19,11 +19,11 @@
 #
 
 import unittest
-from airflow import DAG, configuration, models
+from airflow import DAG, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag
+from airflow.models import DagBag, TaskFail
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 
@@ -34,10 +34,9 @@ TEST_DAG_ID = 'weekday_sensor_dag'
 DEV_NULL = '/dev/null'
 
 
-class DayOfWeekSensorTests(unittest.TestCase):
+class TestDayOfWeekSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.dagbag = DagBag(
             dag_folder=DEV_NULL,
             include_examples=True
@@ -53,7 +52,7 @@ class DayOfWeekSensorTests(unittest.TestCase):
         session = Session()
         session.query(models.TaskInstance).filter_by(
             dag_id=TEST_DAG_ID).delete()
-        session.query(models.TaskFail).filter_by(
+        session.query(TaskFail).filter_by(
             dag_id=TEST_DAG_ID).delete()
         session.commit()
         session.close()
@@ -79,9 +78,8 @@ class DayOfWeekSensorTests(unittest.TestCase):
 
     def test_invalid_weekday_number(self):
         invalid_week_day = 'Thsday'
-        with self.assertRaisesRegexp(AttributeError,
-                                     'Invalid Week Day passed: "{}"'.format(
-                                         invalid_week_day)):
+        with self.assertRaisesRegex(AttributeError,
+                                    'Invalid Week Day passed: "{}"'.format(invalid_week_day)):
             DayOfWeekSensor(
                 task_id='weekday_sensor_invalid_weekday_num',
                 week_day=invalid_week_day,
@@ -140,11 +138,11 @@ class DayOfWeekSensorTests(unittest.TestCase):
 
     def test_weekday_sensor_with_invalid_type(self):
         invalid_week_day = ['Thsday']
-        with self.assertRaisesRegexp(TypeError,
-                                     'Unsupported Type for week_day parameter:'
-                                     ' {}. It should be one of str, set or '
-                                     'Weekday enum type'.format(type(invalid_week_day))
-                                     ):
+        with self.assertRaisesRegex(TypeError,
+                                    'Unsupported Type for week_day parameter:'
+                                    ' {}. It should be one of str, set or '
+                                    'Weekday enum type'.format(type(invalid_week_day))
+                                    ):
             DayOfWeekSensor(
                 task_id='weekday_sensor_check_true',
                 week_day=invalid_week_day,

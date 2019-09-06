@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Union, Mapping, Iterable
 
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
@@ -26,10 +27,11 @@ class OracleOperator(BaseOperator):
     """
     Executes sql code in a specific Oracle database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
+    :param sql: the sql code to be executed. Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+        (templated)
+    :type sql: str or list[str]
     :param oracle_conn_id: reference to a specific Oracle database
     :type oracle_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
@@ -45,9 +47,13 @@ class OracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, oracle_conn_id='oracle_default', parameters=None,
-            autocommit=False, *args, **kwargs):
-        super(OracleOperator, self).__init__(*args, **kwargs)
+            self,
+            sql: str,
+            oracle_conn_id: str = 'oracle_default',
+            parameters: Union[Mapping, Iterable] = None,
+            autocommit: bool = False,
+            *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
         self.autocommit = autocommit

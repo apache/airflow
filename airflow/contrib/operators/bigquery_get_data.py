@@ -16,6 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google BigQuery data operator.
+"""
+import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -47,7 +52,7 @@ class BigQueryGetDataOperator(BaseOperator):
             table_id='Transaction_partitions',
             max_results='100',
             selected_fields='DATE',
-            bigquery_conn_id='airflow-service-account'
+            gcp_conn_id='airflow-conn-id'
         )
 
     :param dataset_id: The dataset ID of the requested table. (templated)
@@ -60,7 +65,10 @@ class BigQueryGetDataOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
-    :param bigquery_conn_id: reference to a specific BigQuery hook.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
@@ -72,20 +80,28 @@ class BigQueryGetDataOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
-                 max_results='100',
-                 selected_fields=None,
-                 bigquery_conn_id='bigquery_default',
-                 delegate_to=None,
+                 dataset_id: str,
+                 table_id: str,
+                 max_results: str = '100',
+                 selected_fields: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
-        super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = max_results
         self.selected_fields = selected_fields
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
     def execute(self, context):
@@ -93,7 +109,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
                       self.dataset_id, self.table_id, self.max_results)
 
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
 
         conn = hook.get_conn()

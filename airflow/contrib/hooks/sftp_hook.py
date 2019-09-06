@@ -19,7 +19,6 @@
 
 import stat
 import pysftp
-import logging
 import datetime
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
@@ -31,20 +30,22 @@ class SFTPHook(SSHHook):
 
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
-    Pitfalls: - In contrast with FTPHook describe_directory only returns size, type and
-                modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
-                unique.
-              - retrieve_file and store_file only take a local full path and not a
-                buffer.
-              - If no mode is passed to create_directory it will be created with 777
-                permissions.
+    :Pitfalls::
+
+        - In contrast with FTPHook describe_directory only returns size, type and
+          modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
+          unique.
+        - retrieve_file and store_file only take a local full path and not a
+           buffer.
+        - If no mode is passed to create_directory it will be created with 777
+          permissions.
 
     Errors that may occur throughout but should be handled downstream.
     """
 
     def __init__(self, ftp_conn_id='sftp_default', *args, **kwargs):
         kwargs['ssh_conn_id'] = ftp_conn_id
-        super(SFTPHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.conn = None
         self.private_key_pass = None
@@ -181,10 +182,9 @@ class SFTPHook(SSHHook):
         :type local_full_path: str
         """
         conn = self.get_conn()
-        logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
+        self.log.info('Retrieving file from FTP: %s', remote_full_path)
         conn.get(remote_full_path, local_full_path)
-        logging.info('Finished retrieving file from FTP: {}'.format(
-            remote_full_path))
+        self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
     def store_file(self, remote_full_path, local_full_path):
         """

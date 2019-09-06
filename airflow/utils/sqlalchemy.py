@@ -16,11 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import datetime
 import os
@@ -44,7 +39,7 @@ def setup_event_handlers(engine,
                          initial_backoff_seconds=0.2,
                          max_backoff_seconds=120):
     @event.listens_for(engine, "engine_connect")
-    def ping_connection(connection, branch):
+    def ping_connection(connection, branch):  # pylint: disable=unused-variable
         """
         Pessimistic SQLAlchemy disconnect handling. Ensures that each
         connection returned from the pool is properly connected to the database.
@@ -78,7 +73,13 @@ def setup_event_handlers(engine,
                         err)
                     raise
                 if err.connection_invalidated:
-                    log.warning("DB connection invalidated. Reconnecting...")
+                    # Don't log the first time -- this happens a lot and unless
+                    # there is a problem reconnecting is not a sign of a
+                    # problem
+                    if backoff > initial_backoff_seconds:
+                        log.warning("DB connection invalidated. Reconnecting...")
+                    else:
+                        log.debug("DB connection invalidated. Initial reconnect")
 
                     # Use a truncated binary exponential backoff. Also includes
                     # a jitter to prevent the thundering herd problem of
@@ -101,12 +102,12 @@ def setup_event_handlers(engine,
                 connection.should_close_with_result = save_should_close_with_result
 
     @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):
+    def connect(dbapi_connection, connection_record):  # pylint: disable=unused-variable
         connection_record.info['pid'] = os.getpid()
 
     if engine.dialect.name == "sqlite":
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
+        def set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-variable
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
@@ -114,13 +115,13 @@ def setup_event_handlers(engine,
     # this ensures sanity in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
         @event.listens_for(engine, "connect")
-        def set_mysql_timezone(dbapi_connection, connection_record):
+        def set_mysql_timezone(dbapi_connection, connection_record):  # pylint: disable=unused-variable
             cursor = dbapi_connection.cursor()
             cursor.execute("SET time_zone = '+00:00'")
             cursor.close()
 
     @event.listens_for(engine, "checkout")
-    def checkout(dbapi_connection, connection_record, connection_proxy):
+    def checkout(dbapi_connection, connection_record, connection_proxy):  # pylint: disable=unused-variable
         pid = os.getpid()
         if connection_record.info['pid'] != pid:
             connection_record.connection = connection_proxy.connection = None
@@ -134,6 +135,7 @@ class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
     ``timezone=True`` option, but it differs from that by:
+
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -142,6 +144,7 @@ class UtcDateTime(TypeDecorator):
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
     - Always returns DateTime in UTC
+
     """
 
     impl = DateTime(timezone=True)

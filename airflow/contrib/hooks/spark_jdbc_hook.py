@@ -62,7 +62,7 @@ class SparkJDBCHook(SparkSubmitHook):
     :param jdbc_table: The name of the JDBC table
     :type jdbc_table: str
     :param jdbc_conn_id: Connection id used for connection to JDBC database
-    :type: jdbc_conn_id: str
+    :type jdbc_conn_id: str
     :param jdbc_driver: Name of the JDBC driver to use for the JDBC connection. This
                         driver (usually a jar) should be passed in the 'jars' parameter
     :type jdbc_driver: str
@@ -141,7 +141,7 @@ class SparkJDBCHook(SparkSubmitHook):
                  *args,
                  **kwargs
                  ):
-        super(SparkJDBCHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._name = spark_app_name
         self._conn_id = spark_conn_id
         self._conf = spark_conf

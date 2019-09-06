@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-from builtins import str
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -34,6 +31,15 @@ class HttpSensor(BaseSensorOperator):
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
     would fail the sensor itself directly (no more poking).
 
+    The response check can access the template context by passing ``provide_context=True`` to the operator::
+
+        def response_check(response, **context):
+            # Can look at context['ti'] etc.
+            return True
+
+        HttpSensor(task_id='my_http_sensor', ..., provide_context=True, response_check=response_check)
+
+
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: str
     :param method: The HTTP request method to use
@@ -44,6 +50,12 @@ class HttpSensor(BaseSensorOperator):
     :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request
     :type headers: a dictionary of string key/value pairs
+    :param provide_context: if set to true, Airflow will pass a set of
+        keyword arguments that can be used in your function. This set of
+        kwargs correspond exactly to what you can use in your jinja
+        templates. For this to work, you need to define context in your
+        function header.
+    :type provide_context: bool
     :param response_check: A check against the 'requests' response object.
         Returns True for 'pass' and False otherwise.
     :type response_check: A lambda or defined function.
@@ -63,14 +75,16 @@ class HttpSensor(BaseSensorOperator):
                  request_params=None,
                  headers=None,
                  response_check=None,
+                 provide_context=False,
                  extra_options=None, *args, **kwargs):
-        super(HttpSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
         self.response_check = response_check
+        self.provide_context = provide_context
 
         self.hook = HttpHook(
             method=method,
@@ -84,8 +98,10 @@ class HttpSensor(BaseSensorOperator):
                                      headers=self.headers,
                                      extra_options=self.extra_options)
             if self.response_check:
-                # run content check on response
-                return self.response_check(response)
+                if self.provide_context:
+                    return self.response_check(response, **context)
+                else:
+                    return self.response_check(response)
         except AirflowException as ae:
             if str(ae).startswith("404"):
                 return False

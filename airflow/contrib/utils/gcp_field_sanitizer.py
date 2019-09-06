@@ -98,6 +98,8 @@ arrays - the sanitizer iterates through all dictionaries in the array and search
 components in all elements of the array.
 """
 
+from typing import List
+
 from airflow import LoggingMixin, AirflowException
 
 
@@ -106,57 +108,58 @@ class GcpFieldSanitizerException(AirflowException):
     (other than dict or array).
     """
 
-    def __init__(self, message):
-        super(GcpFieldSanitizerException, self).__init__(message)
-
 
 class GcpBodyFieldSanitizer(LoggingMixin):
     """Sanitizes the body according to specification.
 
     :param sanitize_specs: array of strings that specifies which fields to remove
-    :type sanitize_specs: [string]
+    :type sanitize_specs: list[str]
 
     """
-    def __init__(self, sanitize_specs):
-        # type: ([str]) -> None
-        super(GcpBodyFieldSanitizer, self).__init__()
+    def __init__(self, sanitize_specs: List[str]) -> None:
+        super().__init__()
         self._sanitize_specs = sanitize_specs
 
     def _sanitize(self, dictionary, remaining_field_spec, current_path):
         field_split = remaining_field_spec.split(".", 1)
-        if len(field_split) == 1:
+        if len(field_split) == 1:  # pylint: disable=too-many-nested-blocks
             field_name = field_split[0]
             if field_name in dictionary:
-                self.log.info("Deleted {} [{}]".format(field_name, current_path))
+                self.log.info("Deleted %s [%s]", field_name, current_path)
                 del dictionary[field_name]
             else:
-                self.log.debug("The field {} is missing in {} at the path {}.".
-                               format(field_name, dictionary, current_path))
+                self.log.debug(
+                    "The field %s is missing in %s at the path %s.", field_name, dictionary, current_path
+                )
         else:
             field_name = field_split[0]
             remaining_path = field_split[1]
             child = dictionary.get(field_name)
             if child is None:
-                self.log.debug("The field {} is missing in {} at the path {}. ".
-                               format(field_name, dictionary, current_path))
+                self.log.debug(
+                    "The field %s is missing in %s at the path %s. ", field_name, dictionary, current_path
+                )
             elif isinstance(child, dict):
                 self._sanitize(child, remaining_path, "{}.{}".format(
                     current_path, field_name))
             elif isinstance(child, list):
                 for index, elem in enumerate(child):
                     if not isinstance(elem, dict):
-                        self.log.warn(
-                            "The field {} element at index {} is of wrong type. "
-                            "It should be dict and is {}. Skipping it.".
-                            format(current_path, index, elem))
+                        self.log.warning(
+                            "The field %s element at index %s is of wrong type. "
+                            "It should be dict and is %s. Skipping it.",
+                            current_path, index, elem)
                     self._sanitize(elem, remaining_path, "{}.{}[{}]".format(
                         current_path, field_name, index))
             else:
-                self.log.warn(
-                    "The field {} is of wrong type. "
-                    "It should be dict or list and it is {}. Skipping it.".
-                    format(current_path, child))
+                self.log.warning(
+                    "The field %s is of wrong type. It should be dict or list and it is %s. Skipping it.",
+                    current_path, child
+                )
 
     def sanitize(self, body):
+        """
+        Sanitizes the body according to specification.
+        """
         for elem in self._sanitize_specs:
             self._sanitize(body, elem, "")

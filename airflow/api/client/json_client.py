@@ -16,8 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""JSON API Client"""
 
-from future.moves.urllib.parse import urljoin
+from urllib.parse import urljoin
+
 import requests
 
 from airflow.api.client import api_client
@@ -34,13 +36,15 @@ class Client(api_client.Client):
         if json is not None:
             params['json'] = json
 
-        resp = getattr(requests, method.lower())(**params)
+        resp = getattr(requests, method.lower())(**params)  # pylint: disable=not-callable
         if not resp.ok:
+            # It is justified here because there might be many resp types.
+            # noinspection PyBroadException
             try:
                 data = resp.json()
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 data = {}
-            raise IOError(data.get('error', 'Server error'))
+            raise OSError(data.get('error', 'Server error'))
 
         return resp.json()
 

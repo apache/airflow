@@ -59,7 +59,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
                  poke_interval=60 * 3,
                  *args,
                  **kwargs):
-        super(AwsGlueCatalogPartitionSensor, self).__init__(
+        super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
@@ -74,8 +74,8 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
         self.log.info(
-            'Poking for table {self.database_name}.{self.table_name}, '
-            'expression {self.expression}'.format(**locals()))
+            'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
+        )
 
         return self.get_hook().check_for_partition(
             self.database_name, self.table_name, self.expression)

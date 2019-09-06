@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
 from paramiko import SFTP_NO_SUCH_FILE
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -37,15 +36,15 @@ class SFTPSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, path, sftp_conn_id='sftp_default', *args, **kwargs):
-        super(SFTPSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.path = path
         self.hook = SFTPHook(sftp_conn_id)
 
     def poke(self, context):
-        logging.info('Poking for %s', self.path)
+        self.log.info('Poking for %s', self.path)
         try:
             self.hook.get_mod_time(self.path)
-        except IOError as e:
+        except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
             return False

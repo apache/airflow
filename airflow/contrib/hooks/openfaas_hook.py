@@ -46,7 +46,6 @@ class OpenFaasHook(BaseHook):
                  *args, **kwargs):
         self.function_name = function_name
         self.conn_id = conn_id
-        super(BaseHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
         conn = self.get_connection(self.conn_id)
@@ -60,7 +59,7 @@ class OpenFaasHook(BaseHook):
             url = self.get_conn().host + self.DEPLOY_FUNCTION
             self.log.info("Deploying function " + url)
             response = requests.post(url, body)
-            if (response.status_code != OK_STATUS_CODE):
+            if response.status_code != OK_STATUS_CODE:
                 self.log.error("Response status " + str(response.status_code))
                 self.log.error("Failed to deploy")
                 raise AirflowException('failed to deploy')
@@ -71,7 +70,7 @@ class OpenFaasHook(BaseHook):
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
         self.log.info("Invoking  function " + url)
         response = requests.post(url, body)
-        if (response.ok):
+        if response.ok:
             self.log.info("Invoked " + self.function_name)
         else:
             self.log.error("Response status " + str(response.status_code))
@@ -81,7 +80,7 @@ class OpenFaasHook(BaseHook):
         url = self.get_conn().host + self.UPDATE_FUNCTION
         self.log.info("Updating function " + url)
         response = requests.put(url, body)
-        if (response.status_code != OK_STATUS_CODE):
+        if response.status_code != OK_STATUS_CODE:
             self.log.error("Response status " + str(response.status_code))
             self.log.error("Failed to update response " + response.content.decode("utf-8"))
             raise AirflowException('failed to update ' + self.function_name)
@@ -92,7 +91,7 @@ class OpenFaasHook(BaseHook):
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
 
         response = requests.get(url)
-        if (response.ok):
+        if response.ok:
             return True
         else:
             self.log.error("Failed to find function " + self.function_name)

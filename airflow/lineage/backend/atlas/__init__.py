@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.lineage import datasets
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.backend.atlas.typedefs import operator_typedef
@@ -35,7 +35,8 @@ _host = conf.get("atlas", "host")
 
 
 class AtlasBackend(LineageBackend):
-    def send_lineage(self, operator, inlets, outlets, context):
+    @staticmethod
+    def send_lineage(operator, inlets, outlets, context):
         client = Atlas(_host, port=_port, username=_username, password=_password)
         try:
             client.typedefs.create(data=operator_typedef)

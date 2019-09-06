@@ -162,7 +162,7 @@ class WasbHook(BaseHook):
         :param is_prefix: If blob_name is a prefix, delete all matching files
         :type is_prefix: bool
         :param ignore_if_missing: if True, then return success even if the
-        blob does not exist.
+            blob does not exist.
         :type ignore_if_missing: bool
         :param kwargs: Optional keyword arguments that
             `BlockBlobService.create_blob_from_path()` takes.

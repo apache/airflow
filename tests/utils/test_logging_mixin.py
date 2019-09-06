@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 import unittest
 import warnings
 
@@ -67,8 +67,8 @@ class TestLoggingMixin(unittest.TestCase):
         value = "test"
         set_context(log, value)
 
-        handler1.set_context.assert_called_with(value)
-        handler2.set_context.assert_called_with(value)
+        handler1.set_context.assert_called_once_with(value)
+        handler2.set_context.assert_called_once_with(value)
 
     def tearDown(self):
         warnings.resetwarnings()

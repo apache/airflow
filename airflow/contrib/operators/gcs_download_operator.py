@@ -16,17 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Google Cloud Storage download operator.
+"""
 
 import sys
+import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
+from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
+from airflow import AirflowException
 
 
 class GoogleCloudStorageDownloadOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
+
+    If a filename is supplied, it writes the file to the specified location, alternatively one can
+    set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
+    exceeds the maximum size for xcom it is recommended to write to a file.
 
     :param bucket: The Google cloud storage bucket where the object is. (templated)
     :type bucket: str
@@ -42,8 +53,10 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         the contents of the downloaded file to XCom with the key set in this
         parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
     :type store_to_xcom_key: str
-    :param google_cloud_storage_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -55,37 +68,59 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object,
-                 filename=None,
-                 store_to_xcom_key=None,
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
+                 bucket: str,
+                 object_name: Optional[str] = None,
+                 filename: Optional[str] = None,
+                 store_to_xcom_key: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
-        super(GoogleCloudStorageDownloadOperator, self).__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        # To preserve backward compatibility
+        # TODO: Remove one day
+        if object_name is None:
+            if 'object' in kwargs:
+                object_name = kwargs['object']
+                DeprecationWarning("Use 'object_name' instead of 'object'.")
+            else:
+                TypeError("__init__() missing 1 required positional argument: 'object_name'")
+
+        if filename is not None and store_to_xcom_key is not None:
+            raise ValueError("Either filename or store_to_xcom_key can be set")
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
-        self.object = object
+        self.object = object_name
         self.filename = filename
         self.store_to_xcom_key = store_to_xcom_key
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
     def execute(self, context):
         self.log.info('Executing download: %s, %s, %s', self.bucket,
                       self.object, self.filename)
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
-        file_bytes = hook.download(bucket=self.bucket,
-                                   object=self.object,
-                                   filename=self.filename)
+
         if self.store_to_xcom_key:
-            if sys.getsizeof(file_bytes) < 48000:
+            file_bytes = hook.download(bucket_name=self.bucket,
+                                       object_name=self.object)
+            if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
-                raise RuntimeError(
+                raise AirflowException(
                     'The size of the downloaded file is too large to push to XCom!'
                 )
-        self.log.debug(file_bytes)
+        else:
+            hook.download(bucket_name=self.bucket,
+                          object_name=self.object,
+                          filename=self.filename)

@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import range
+"""Example DAG demonstrating the usage of the BashOperator."""
+
 from datetime import timedelta
 
 import airflow
@@ -26,7 +27,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 

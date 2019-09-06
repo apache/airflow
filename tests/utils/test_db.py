@@ -27,7 +27,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 
-class DbTest(unittest.TestCase):
+class TestDb(unittest.TestCase):
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
         all_meta_data = MetaData()
@@ -40,12 +40,6 @@ class DbTest(unittest.TestCase):
 
         # known diffs to ignore
         ignores = [
-            # users.password is not part of User model,
-            # otherwise it would show up in (old) UI
-            lambda t: (t[0] == 'remove_column' and
-                       t[2] == 'users' and
-                       t[3].name == 'password'),
-
             # ignore tables created by celery
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_taskmeta'),

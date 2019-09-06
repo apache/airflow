@@ -16,22 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import unicode_literals
 
-from builtins import object
+from typing import Set
 
 
-class TriggerRule(object):
+class TriggerRule:
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
-    DUMMY = 'dummy'
     NONE_FAILED = 'none_failed'
+    NONE_SKIPPED = 'none_skipped'
+    DUMMY = 'dummy'
 
-    _ALL_TRIGGER_RULES = {}
+    _ALL_TRIGGER_RULES = set()  # type: Set[str]
 
     @classmethod
     def is_valid(cls, trigger_rule):

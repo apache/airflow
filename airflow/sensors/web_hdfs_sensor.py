@@ -33,12 +33,12 @@ class WebHdfsSensor(BaseSensorOperator):
                  webhdfs_conn_id='webhdfs_default',
                  *args,
                  **kwargs):
-        super(WebHdfsSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id
 
     def poke(self, context):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook(self.webhdfs_conn_id)
-        self.log.info('Poking for file {self.filepath}'.format(**locals()))
+        self.log.info('Poking for file %s', self.filepath)
         return c.check_for_path(hdfs_path=self.filepath)

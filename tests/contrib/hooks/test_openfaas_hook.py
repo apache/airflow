@@ -20,18 +20,11 @@
 
 import unittest
 import requests_mock
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration, AirflowException
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow import AirflowException
+from tests.compat import mock
 
 FUNCTION_NAME = "function_name"
 
@@ -43,7 +36,6 @@ class TestOpenFaasHook(unittest.TestCase):
     UPDATE_FUNCTION = "/system/functions"
 
     def setUp(self):
-        configuration.load_test_config()
         self.hook = OpenFaasHook(function_name=FUNCTION_NAME)
         self.mock_response = {'ans': 'a'}
 

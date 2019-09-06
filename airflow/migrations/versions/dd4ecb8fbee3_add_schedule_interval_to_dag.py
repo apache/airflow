@@ -39,4 +39,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('dag', sa.Column('schedule_interval', sa.Text(), nullable=True))
+    op.drop_column('dag', 'schedule_interval')
