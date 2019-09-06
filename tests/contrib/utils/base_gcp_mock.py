@@ -18,7 +18,11 @@
 # under the License.
 import sys
 
-import mock
+
+import json
+from tests.compat import mock
+
+from airflow.models import Connection
 
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
@@ -36,6 +40,17 @@ def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None
     }
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
+
+
+GCP_CONNECTION_WITH_PROJECT_ID = Connection(
+    extra=json.dumps({
+        'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST
+    })
+)
+
+GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(
+    extra=json.dumps({})
+)
 
 
 def get_open_mock():
