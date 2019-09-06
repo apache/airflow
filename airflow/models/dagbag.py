@@ -386,6 +386,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         if self.store_serialized_dags:
             self.collect_dags_from_db()
+            Stats.gauge('dagbag_size', len(self.dags), 1)
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
