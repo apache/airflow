@@ -272,7 +272,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         raise
 
     log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
+    os.system('sudo kill '+str(sig)+' '+str(os.getpgid(pid)))
 
     gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
