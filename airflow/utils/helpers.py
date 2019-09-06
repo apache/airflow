@@ -308,7 +308,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
             return
         # If operation not permitted error is thrown due to run_as_user, use sudo to kill the process
         if err.errno == errno.EPERM:
-            subprocess.call('sudo -i kill -' + str(sig) + ' ' + str(os.getpgid(pid)), shell=True)
+            subprocess.check_call(["sudo", "-n", "-" + str(sig), str(os.getpgid(pid))])
         raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
