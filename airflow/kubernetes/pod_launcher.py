@@ -32,13 +32,36 @@ from airflow import AirflowException
 from requests.exceptions import BaseHTTPError
 from .kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
+from packaging.version import parse as semantic_version
 
 
 class PodStatus:
+    ''' Define strings that indicate pod status
+    '''
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'
     SUCCEEDED = 'succeeded'
+
+
+class SidecarNames:
+    ''' Define strings that indicate container names
+    '''
+    ISTIO_PROXY = 'istio-proxy'
+
+
+class SleepConfig:
+    ''' Configure sleeps used for polling
+    '''
+    # Only polls during the start of a pod
+    POD_STARTING_POLL = 1
+    # Used to detect all cleanup jobs are completed
+    # and the entire Pod is cleaned up
+    POD_RUNNING_POLL = 1
+    # Polls for the duration of the task execution
+    # to detect when the task is done. The difference
+    # between this and POD_RUNNING_POLL is sidecars.
+    BASE_CONTAINER_RUNNING_POLL = 2
 
 
 class PodLauncher(LoggingMixin):
@@ -96,7 +119,7 @@ class PodLauncher(LoggingMixin):
                 delta = dt.now() - curr_time
                 if delta.seconds >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
-                time.sleep(1)
+                time.sleep(SleepConfig.POD_STARTING_POLL)
             self.log.debug('Pod not yet started')
 
         return self._monitor_pod(pod, get_logs)
@@ -107,16 +130,17 @@ class PodLauncher(LoggingMixin):
             for line in logs:
                 self.log.info(line)
         result = None
+        while self.base_container_is_running(pod):
+            self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
+            time.sleep(SleepConfig.BASE_CONTAINER_RUNNING_POLL)
         if self.extract_xcom:
-            while self.base_container_is_running(pod):
-                self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
-                time.sleep(2)
             result = self._extract_xcom(pod)
             self.log.info(result)
             result = json.loads(result)
+        self._handle_istio_proxy(pod)
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
-            time.sleep(2)
+            time.sleep(SleepConfig.POD_RUNNING_POLL)
         return self._task_status(self.read_pod(pod)), result
 
     def _task_status(self, event):
@@ -174,6 +198,62 @@ class PodLauncher(LoggingMixin):
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)
             )
+
+    def _handle_istio_proxy(self, pod):
+        """If an istio-proxy sidecar is detected, attempt to cleanly shutdown.
+        If we detect a version of Istio before it's compatible with Kubernetes
+        Jobs, then raise an informative error message.
+
+        Args:
+            pod (V1Pod): The pod which we are checking for the sidecar
+
+        Returns:
+            (bool): True if we detect and exit istio-proxy,
+                    False if we do not detect istio-proxy
+
+        Raises:
+            AirflowException: if we find an istio-proxy, and we can't shut it down.
+        """
+        # Describe the pod.
+        pod = self.read_pod(pod)
+        for container in pod.spec.containers:
+
+            # Skip unless it's a sidecar named as SidecarNames.ISTIO_PROXY.
+            if container.name != SidecarNames.ISTIO_PROXY:
+                continue
+
+            # Check if supported version of istio-proxy.
+            # If we can't tell the version, proceed anyways.
+            if ":" in container.image:
+                _, tag = container.image.split(":")
+                if semantic_version(tag) < semantic_version("1.3.0-rc.0"):
+                    raise AirflowException(
+                        'Please use istio version 1.3.0+ for KubernetesExecutor compatibility.' +
+                        ' Detected version {}'.format(tag))
+
+            # Determine the istio-proxy statusPort, which is where /quitquitquit is implemented.
+            # Default to 15020
+            status_port = "15020"
+            for i in range(len(container.args)):
+                arg = container.args[i]
+                if arg.strip() == "--statusPort":
+                    status_port = container.args[i + 1].strip()
+                    break
+                if arg.strip()[:13] == "--statusPort=":
+                    status_port = arg.strip()[13:]
+                    break
+
+            # Use exec to curl localhost inside of the sidecar.
+            self._client.connect_get_namespaced_pod_exec(
+                pod.name,
+                pod.namespace,
+                container=SidecarNames.ISTIO_PROXY,
+                command=['curl',
+                         '-XPOST',
+                         'http://127.0.0.1:{}/quitquitquit'.format(status_port)])
+
+            return True
+        return False
 
     def _extract_xcom(self, pod: V1Pod):
         resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,
