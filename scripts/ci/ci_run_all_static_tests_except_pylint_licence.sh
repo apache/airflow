@@ -32,7 +32,7 @@ force_python_3_5
 
 script_start
 
-rebuild_checklicence_image_if_needed
+rebuild_ci_slim_image_if_needed
 
 SKIP=pylint,check-apache-license pre-commit run --all-files --show-diff-on-failure
 

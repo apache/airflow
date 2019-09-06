@@ -40,6 +40,9 @@ else
     rebuild_ci_slim_image_if_needed
 fi
 
+# Disable force pulling forced above
+unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
+
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 # Required for K8s v1.10.x. See
 # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
