@@ -2291,10 +2291,10 @@ def _api_resource_configs_duplication_check(key: Any, value: Any, config_dict: D
                          .format(param_name=key, dict_name=config_dict_name))
 
 
-def _validate_src_fmt_configs(source_format: str ,
+def _validate_src_fmt_configs(source_format: str,
                               src_fmt_configs: Dict,
                               valid_configs: List[str],
-                              backward_compatibility_configs: Optional[Dict] = None) -> Dict
+                              backward_compatibility_configs: Optional[Dict] = None) -> Dict:
     """
     Validates the given src_fmt_configs against a valid configuration for the source format.
     Adds the backward compatiblity config to the src_fmt_configs.
