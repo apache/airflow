@@ -26,7 +26,8 @@ from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check
+    _validate_value, _api_resource_configs_duplication_check, \
+    _validate_src_fmt_configs
 
 bq_available = True
 
@@ -357,6 +358,28 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "key_one", key_one, {"key_one": False})
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
+
+    def test_validate_src_fmt_configs(self):
+        source_format = "test_format"
+        valid_configs = ["test_config_known", "compatibility_val"]
+        backward_compatibility_configs = {"compatibility_val": "val"}
+
+        with self.assertRaises(ValueError):
+            # This config should raise a value error.
+            src_fmt_configs = {"test_config_unknown": "val"}
+            _validate_src_fmt_configs(source_format,
+                                      src_fmt_configs,
+                                      valid_configs,
+                                      backward_compatibility_configs)
+
+        src_fmt_configs = {"test_config_known": "val"}
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
+        assert "test_config_known" in src_fmt_configs, \
+            "src_fmt_configs should contain al known src_fmt_configs"
+
+        assert "compatibility_val" in src_fmt_configs, \
+            "_validate_src_fmt_configs should add backward_compatibility config"
 
 
 class TestTableDataOperations(unittest.TestCase):
