@@ -306,7 +306,8 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
-        # If operation not permitted error is thrown due to run_as_user, use sudo -n(--non-interactive) to kill the process
+        # If operation not permitted error is thrown due to run_as_user,
+        # use sudo -n(--non-interactive) to kill the process
         if err.errno == errno.EPERM:
             subprocess.check_call(["sudo", "-n", "-" + str(sig), str(os.getpgid(pid))])
         raise
