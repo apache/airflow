@@ -383,6 +383,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         if self.store_serialized_dags:
             self.collect_dags_from_db()
+            Stats.gauge('dagbag_size', len(self.dags), 1)
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
@@ -417,6 +418,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 ))
             except Exception as e:
                 self.log.exception(e)
+        Stats.gauge(
+            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+        Stats.gauge('dagbag_size', len(self.dags), 1)
+        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
         for file_stat in self.dagbag_stats:

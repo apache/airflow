@@ -41,7 +41,7 @@ def upgrade():
                     sa.Column('dag_id', sa.String(length=250), nullable=False),
                     sa.Column('fileloc', sa.String(length=2000), nullable=False),
                     sa.Column('fileloc_hash', sa.Integer(), nullable=False),
-                    sa.Column('data', sa.Text(), nullable=False),
+                    sa.Column('data', sa.JSON(), nullable=False),
                     sa.Column('last_updated', sa.DateTime(), nullable=False),
                     sa.PrimaryKeyConstraint('dag_id'))
     op.create_index(   # pylint: disable=no-member

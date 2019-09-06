@@ -23,7 +23,7 @@ import hashlib
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, Index, Integer, String, Text, and_
+from sqlalchemy import Column, Index, Integer, String, JSON, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import Base, ID_LEN
@@ -62,7 +62,7 @@ class SerializedDagModel(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(Integer, nullable=False)
-    data = Column(Text, nullable=False)
+    data = Column(JSON, nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
@@ -75,7 +75,7 @@ class SerializedDagModel(Base):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
         self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
-        self.data = SerializedDAG.to_json(dag)
+        self.data = SerializedDAG.serialize_dag(dag)
         self.last_updated = timezone.utcnow()
 
     @staticmethod
@@ -120,13 +120,14 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        from airflow.dag.serialization import Serialization
+        from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F811, E501; pylint: disable=redefined-outer-name
+        from airflow.dag.serialization.enums import Encoding
 
         serialized_dags = session.query(cls.dag_id, cls.data).all()
 
         dags = {}
         for dag_id, data in serialized_dags:
-            dag = Serialization.from_json(data)  # type: Any
+            dag = SerializedDAG.deserialize_dag(data[Encoding.VAR])  # type: Any
             # Sanity check.
             if dag.dag_id == dag_id:
                 dags[dag_id] = dag
