@@ -305,10 +305,10 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
-        if err.errno == errno.EPERM: # If operation not permitted, use sudo to kill
-            os.system('sudo kill '+str(sig)+' '+str(os.getpgid(pid)))
+        if err.errno == errno.EPERM:   # If operation not permitted, use sudo to kill
+            os.system('sudo kill ' + str(sig) + ' ' + str(os.getpgid(pid)))
         raise
-        
+
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
