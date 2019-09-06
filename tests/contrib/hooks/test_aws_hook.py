@@ -22,7 +22,6 @@ import unittest
 
 import boto3
 
-from airflow import configuration
 from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
 from tests.compat import mock
@@ -37,10 +36,6 @@ except ImportError:
 
 
 class TestAwsHook(unittest.TestCase):
-    @mock_emr
-    def setUp(self):
-        configuration.load_test_config()
-
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
@@ -155,7 +150,7 @@ class TestAwsHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
         hook._get_credentials(region_name=None)
-        mock_parse_s3_config.assert_called_with(
+        mock_parse_s3_config.assert_called_once_with(
             'aws-credentials',
             'aws',
             'test'

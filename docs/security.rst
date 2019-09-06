@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,17 +6,24 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 Security
 ========
+
+.. include:: ../.github/SECURITY.rst
+
+Web Authentication
+------------------
 
 By default, Airflow requires users to specify a password prior to login. You can use the
 following CLI commands to create an account:
@@ -37,30 +44,6 @@ Be sure to checkout :doc:`api` for securing the API.
    '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
    environment variables) as ``%%``, otherwise Airflow might leak these
    passwords on a config parser exception to a log.
-
-Reporting Vulnerabilities
--------------------------
-
-The Apache Software Foundation takes security issues very seriously. Apache
-Airflow specifically offers security features and is responsive to issues
-around its features. If you have any concern around Airflow Security or believe
-you have uncovered a vulnerability, we suggest that you get in touch via the
-e-mail address security@apache.org. In the message, try to provide a
-description of the issue and ideally a way of reproducing it. The security team
-will get back to you after assessing the description.
-
-Note that this security address should be used only for undisclosed
-vulnerabilities. Dealing with fixed issues or general questions on how to use
-the security features should be handled regularly via the user and the dev
-lists. Please report any security problems to the project security address
-before disclosing it publicly.
-
-The `ASF Security team's page <https://www.apache.org/security/>`_ describes
-how vulnerability reports are handled, and includes PGP keys if you wish to use
-that.
-
-Web Authentication
-------------------
 
 Password
 ''''''''
@@ -127,6 +110,41 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
     authenticate = True
     auth_backend = mypackage.auth
 
+API Authentication
+------------------
+
+Authentication for the API is handled separately to the Web Authentication. The default is to not
+require any authentication on the API i.e. wide open by default. This is not recommended if your
+Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.deny_all
+
+Two "real" methods for authentication are currently supported for the API.
+
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
+
+    [kerberos]
+    keytab = <KEYTAB>
+
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists in the keytab file.
 
 Kerberos
 --------
@@ -449,85 +467,27 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited viewer permissions
 
-.. code:: python
-
-    VIEWER_PERMS = {
-        'menu_access',
-        'can_index',
-        'can_list',
-        'can_show',
-        'can_chart',
-        'can_dag_stats',
-        'can_dag_details',
-        'can_task_stats',
-        'can_code',
-        'can_log',
-        'can_get_logs_with_metadata',
-        'can_tries',
-        'can_graph',
-        'can_tree',
-        'can_task',
-        'can_task_instances',
-        'can_xcom',
-        'can_gantt',
-        'can_landing_times',
-        'can_duration',
-        'can_blocked',
-        'can_rendered',
-        'can_pickle_info',
-        'can_version',
-    }
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_perms]
+    :end-before: [END security_viewer_perms]
 
 on limited web views
 
-.. code:: python
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_viewer_vms]
+    :end-before: [END security_viewer_vms]
 
-    VIEWER_VMS = {
-        'Airflow',
-        'DagModelView',
-        'Browse',
-        'DAG Runs',
-        'DagRunModelView',
-        'Task Instances',
-        'TaskInstanceModelView',
-        'SLA Misses',
-        'SlaMissModelView',
-        'Jobs',
-        'JobModelView',
-        'Logs',
-        'LogModelView',
-        'Docs',
-        'Documentation',
-        'GitHub',
-        'About',
-        'Version',
-        'VersionView',
-    }
 
 User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional user permissions
 
-.. code:: python
-
-    USER_PERMS = {
-        'can_dagrun_clear',
-        'can_run',
-        'can_trigger',
-        'can_add',
-        'can_edit',
-        'can_delete',
-        'can_paused',
-        'can_refresh',
-        'can_success',
-        'muldelete',
-        'set_failed',
-        'set_running',
-        'set_success',
-        'clear',
-        'can_clear',
-    }
-
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_user_perms]
+    :end-before: [END security_user_perms]
 
 on User web views which is the same as Viewer web views.
 
@@ -535,30 +495,18 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional op permissions
 
-.. code:: python
-
-    OP_PERMS = {
-        'can_conf',
-        'can_varimport',
-    }
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_perms]
+    :end-before: [END security_op_perms]
 
 on ``User`` web views plus these additional op web views
 
-.. code:: python
+.. exampleinclude:: ../airflow/www/security.py
+    :language: python
+    :start-after: [START security_op_vms]
+    :end-before: [END security_op_vms]
 
-    OP_VMS = {
-        'Admin',
-        'Configurations',
-        'ConfigurationView',
-        'Connections',
-        'ConnectionModelView',
-        'Pools',
-        'PoolModelView',
-        'Variables',
-        'VariableModelView',
-        'XComs',
-        'XComModelView',
-    }
 
 Custom Roles
 '''''''''''''
@@ -568,4 +516,3 @@ DAG Level Role
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
-

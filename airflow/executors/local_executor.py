@@ -47,7 +47,6 @@ locally, into just one `LocalExecutor` with multiple modes.
 import multiprocessing
 import subprocess
 
-from builtins import range
 from queue import Empty
 
 from airflow.executors.base_executor import BaseExecutor
@@ -88,8 +87,6 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         except subprocess.CalledProcessError as e:
             state = State.FAILED
             self.log.error("Failed to execute task %s.", str(e))
-            # TODO: Why is this commented out?
-            # raise e
         self.result_queue.put((key, state))
 
     def run(self):

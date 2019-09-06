@@ -18,7 +18,7 @@
 # under the License.
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.operators.papermill_operator import PapermillOperator
 

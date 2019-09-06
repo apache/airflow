@@ -22,7 +22,6 @@
 import json
 import unittest
 
-from airflow import configuration
 from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock
@@ -31,7 +30,6 @@ from tests.compat import mock
 class TestAzureDataLakeHook(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='adl_test_key',
@@ -100,7 +98,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/*')
-        mock_fs.return_value.glob.assert_called_with('file_path/*')
+        mock_fs.return_value.glob.assert_called_once_with('file_path/*')
 
     @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.core.AzureDLFileSystem',
                 autospec=True)
@@ -109,7 +107,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/some_folder/')
-        mock_fs.return_value.walk.assert_called_with('file_path/some_folder/')
+        mock_fs.return_value.walk.assert_called_once_with('file_path/some_folder/')
 
 
 if __name__ == '__main__':

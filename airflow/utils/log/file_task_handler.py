@@ -21,7 +21,7 @@ import logging
 import os
 import requests
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.configuration import AirflowConfigException
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
@@ -99,9 +99,9 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as f:
+                with open(location) as file:
                     log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(f.readlines())
+                    log += "".join(file.readlines())
             except Exception as e:
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))

@@ -103,7 +103,7 @@ def _build_metrics(func_name, namespace):
     metrics['execution_date'] = tmp_dic.get('execution_date')
     metrics['host_name'] = socket.gethostname()
 
-    extra = json.dumps(dict((k, metrics[k]) for k in ('host_name', 'full_command')))
+    extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
     log = Log(
         event='cli_{}'.format(func_name),
         task_instance=None,

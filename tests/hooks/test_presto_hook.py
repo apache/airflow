@@ -18,10 +18,10 @@
 # under the License.
 #
 
-import mock
+from unittest import mock
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from airflow.hooks.presto_hook import PrestoHook
 

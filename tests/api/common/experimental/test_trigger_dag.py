@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 import unittest
 import json
 
@@ -26,7 +26,7 @@ from airflow.models import DAG, DagRun
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
 
 
-class TriggerDagTests(unittest.TestCase):
+class TestTriggerDag(unittest.TestCase):
 
     @mock.patch('airflow.models.DagRun')
     @mock.patch('airflow.models.DagBag')

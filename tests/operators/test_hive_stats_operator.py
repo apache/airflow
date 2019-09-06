@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
+from unittest.mock import patch
 from collections import OrderedDict
 
-from mock import patch
 
 from airflow import AirflowException
 from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator
@@ -158,7 +158,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
                                           mock_presto_hook,
                                           mock_mysql_hook,
                                           mock_json_dumps):
-        def assignment_func(col, col_type):
+        def assignment_func(col, _):
             return {
                 (col, 'test'): 'TEST({})'.format(col)
             }
@@ -208,7 +208,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
                                                           mock_presto_hook,
                                                           mock_mysql_hook,
                                                           mock_json_dumps):
-        def assignment_func(col, col_type):
+        def assignment_func(_, __):
             pass
 
         self.kwargs.update(dict(assignment_func=assignment_func))

@@ -20,9 +20,9 @@
 
 import os
 import signal
-from builtins import bytes
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
+from typing import Dict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -71,10 +71,10 @@ class BashOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            bash_command,
-            env=None,
-            output_encoding='utf-8',
-            *args, **kwargs):
+            bash_command: str,
+            env: Dict[str, str] = None,
+            output_encoding: str = 'utf-8',
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.bash_command = bash_command
@@ -91,15 +91,16 @@ class BashOperator(BaseOperator):
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
         # Prepare env for child process.
-        if self.env is None:
-            self.env = os.environ.copy()
+        env = self.env
+        if env is None:
+            env = os.environ.copy()
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.info('Exporting the following env vars:\n%s',
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in
                                  airflow_context_vars.items()]))
-        self.env.update(airflow_context_vars)
+        env.update(airflow_context_vars)
 
         self.lineage_data = self.bash_command
 
@@ -123,7 +124,7 @@ class BashOperator(BaseOperator):
                     stdout=PIPE,
                     stderr=STDOUT,
                     cwd=tmp_dir,
-                    env=self.env,
+                    env=env,
                     preexec_fn=pre_exec)
 
                 self.sub_process = sub_process

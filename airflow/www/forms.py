@@ -70,6 +70,7 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
@@ -80,6 +81,12 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+
+    def populate_obj(self, item):
+        # TODO: This is probably better done as a custom field type so we can
+        # set TZ at parse time
+        super().populate_obj(item)
+        item.execution_date = timezone.make_aware(item.execution_date)
 
 
 class ConnectionForm(DynamicForm):

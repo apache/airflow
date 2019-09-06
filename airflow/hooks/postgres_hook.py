@@ -53,7 +53,8 @@ class PostgresHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):
-        conn = self.get_connection(self.postgres_conn_id)
+        conn_id = getattr(self, self.conn_name_attr)
+        conn = self.get_connection(conn_id)
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):
@@ -90,11 +91,11 @@ class PostgresHook(DbApiHook):
             with open(filename, 'w'):
                 pass
 
-        with open(filename, 'r+') as f:
+        with open(filename, 'r+') as file:
             with closing(self.get_conn()) as conn:
                 with closing(conn.cursor()) as cur:
-                    cur.copy_expert(sql, f)
-                    f.truncate(f.tell())
+                    cur.copy_expert(sql, file)
+                    file.truncate(file.tell())
                     conn.commit()
 
     def bulk_load(self, table, tmp_file):

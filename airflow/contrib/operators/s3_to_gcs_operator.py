@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from tempfile import NamedTemporaryFile
 
 from airflow.contrib.hooks.gcs_hook import (GoogleCloudStorageHook,
@@ -52,8 +52,10 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param dest_gcs_conn_id: The destination connection ID to use
-        when connecting to Google Cloud Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type dest_gcs_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
@@ -65,6 +67,8 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param replace: Whether you want to replace existing destination files
         or not.
     :type replace: bool
+    :param gzip: Option to compress file for upload
+    :type gzip: bool
 
 
     **Example**:
@@ -78,6 +82,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
             dest_gcs_conn_id='google_cloud_default',
             dest_gcs='gs://my.gcs.bucket/some/customers/',
             replace=False,
+            gzip=True,
             dag=my-dag)
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
@@ -94,10 +99,12 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  delimiter='',
                  aws_conn_id='aws_default',
                  verify=None,
+                 gcp_conn_id='google_cloud_default',
                  dest_gcs_conn_id=None,
                  dest_gcs=None,
                  delegate_to=None,
                  replace=False,
+                 gzip=False,
                  *args,
                  **kwargs):
 
@@ -108,11 +115,19 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
             aws_conn_id=aws_conn_id,
             *args,
             **kwargs)
-        self.dest_gcs_conn_id = dest_gcs_conn_id
+
+        if dest_gcs_conn_id:
+            warnings.warn(
+                "The dest_gcs_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = dest_gcs_conn_id
+
+        self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
         self.replace = replace
         self.verify = verify
+        self.gzip = gzip
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -127,7 +142,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         files = super().execute(context)
 
         gcs_hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.dest_gcs_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 
         if not self.replace:
@@ -186,7 +201,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     #                             dest_gcs_bucket,
                     #                             dest_gcs_object))
 
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name)
+                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name, gzip=self.gzip)
 
             self.log.info(
                 "All done, uploaded %d files to Google Cloud Storage",
@@ -202,6 +217,6 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     # airflow/contrib/hooks/gcs_hook.py
     @staticmethod
     def _gcs_object_is_directory(object):
-        bucket, blob = _parse_gcs_url(object)
+        _, blob = _parse_gcs_url(object)
 
         return len(blob) == 0 or blob.endswith('/')

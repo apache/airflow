@@ -19,25 +19,23 @@
 import unittest
 
 import requests
-from mock import patch
+from unittest.mock import patch
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.models import TaskInstance
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
 from tests.compat import mock
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class TestHttpSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -64,12 +62,12 @@ class HttpSensorTests(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1)
-        with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
+        with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
             task.execute(None)
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         task = HttpSensor(
@@ -97,11 +95,42 @@ class HttpSensorTests(unittest.TestCase):
         self.assertTrue(prep_request.method, received_request.method)
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
+    def test_poke_context(self, mock_session_send):
+        """
+        test provide_context
+        """
+        response = requests.Response()
+        response.status_code = 200
+        mock_session_send.return_value = response
+
+        def resp_check(resp, **context):
+            if context:
+                if "execution_date" in context:
+                    if context["execution_date"] == DEFAULT_DATE:
+                        return True
+
+            raise AirflowException('AirflowException raised here!')
+
+        task = HttpSensor(
+            task_id='http_sensor_poke_exception',
+            http_conn_id='http_default',
+            endpoint='',
+            request_params={},
+            response_check=resp_check,
+            provide_context=True,
+            timeout=5,
+            poke_interval=1,
+            dag=self.dag)
+
+        task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        task.execute(task_instance.get_template_context())
+
+    @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_logging_head_error_request(
         self,
         mock_session_send
     ):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         response = requests.Response()
@@ -126,7 +155,15 @@ class HttpSensorTests(unittest.TestCase):
                 task.execute(None)
 
             self.assertTrue(mock_errors.called)
-            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
+            calls = [
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+            ]
+            mock_errors.assert_has_calls(calls)
 
 
 class FakeSession:
@@ -135,7 +172,7 @@ class FakeSession:
         self.response.status_code = 200
         self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
 
-    def send(self, request, **kwargs):
+    def send(self, *args, **kwargs):
         return self.response
 
     def prepare_request(self, request):
@@ -146,9 +183,8 @@ class FakeSession:
         return self.response
 
 
-class HttpOpSensorTest(unittest.TestCase):
+class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

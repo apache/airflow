@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
 
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.operators.check_operator import CheckOperator, \
@@ -59,9 +60,10 @@ class PrestoCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-            self, sql,
-            presto_conn_id='presto_default',
-            *args, **kwargs):
+            self,
+            sql: str,
+            presto_conn_id: str = 'presto_default',
+            *args, **kwargs) -> None:
         super().__init__(sql=sql, *args, **kwargs)
 
         self.presto_conn_id = presto_conn_id
@@ -83,8 +85,11 @@ class PrestoValueCheckOperator(ValueCheckOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, pass_value, tolerance=None,
-            presto_conn_id='presto_default',
+            self,
+            sql: str,
+            pass_value: Any,
+            tolerance: Any = None,
+            presto_conn_id: str = 'presto_default',
             *args, **kwargs):
         super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
@@ -113,9 +118,12 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(
-            self, table, metrics_thresholds,
-            date_filter_column='ds', days_back=-7,
-            presto_conn_id='presto_default',
+            self,
+            table: str,
+            metrics_thresholds: Dict,
+            date_filter_column: str = 'ds',
+            days_back: int = -7,
+            presto_conn_id: str = 'presto_default',
             *args, **kwargs):
         super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,

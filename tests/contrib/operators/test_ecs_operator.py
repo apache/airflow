@@ -24,7 +24,6 @@ from copy import deepcopy
 
 from parameterized import parameterized
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.ecs_operator import ECSOperator
 from tests.compat import mock
@@ -55,8 +54,6 @@ class TestECSOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.ecs_operator.AwsHook')
     def setUp(self, aws_hook_mock):
-        configuration.load_test_config()
-
         self.aws_hook_mock = aws_hook_mock
         self.ecs_operator_args = {
             'task_id': 'task',
@@ -93,18 +90,19 @@ class TestECSOperator(unittest.TestCase):
         self.assertEqual(self.ecs.template_fields, ('overrides',))
 
     @parameterized.expand([
-        ['EC2'],
-        ['FARGATE']
+        ['EC2', None],
+        ['FARGATE', None],
+        ['EC2', {'testTagKey': 'testTagValue'}],
     ])
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     @mock.patch('airflow.contrib.operators.ecs_operator.AwsHook')
-    def test_execute_without_failures(self, launch_type, aws_hook_mock,
+    def test_execute_without_failures(self, launch_type, tags, aws_hook_mock,
                                       check_mock, wait_mock):
         client_mock = aws_hook_mock.return_value.get_client_type.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
-        ecs = ECSOperator(launch_type=launch_type, **self.ecs_operator_args)
+        ecs = ECSOperator(launch_type=launch_type, tags=tags, **self.ecs_operator_args)
         ecs.execute(None)
 
         aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs',
@@ -112,6 +110,8 @@ class TestECSOperator(unittest.TestCase):
         extend_args = {}
         if launch_type == 'FARGATE':
             extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
         client_mock.run_task.assert_called_once_with(
             cluster='c',

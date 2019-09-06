@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import range
 from collections import OrderedDict
 
 # To avoid circular imports
 import airflow.utils.dag_processing
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-PARALLELISM = configuration.conf.getint('core', 'PARALLELISM')
+PARALLELISM = conf.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(LoggingMixin):
@@ -51,7 +50,6 @@ class BaseExecutor(LoggingMixin):
         Executors may need to get things started. For example LocalExecutor
         starts N workers.
         """
-        pass
 
     def queue_command(self, simple_task_instance, command, priority=1, queue=None):
         key = simple_task_instance.key
@@ -109,7 +107,6 @@ class BaseExecutor(LoggingMixin):
         Sync will get called periodically by the heartbeat method.
         Executors should override this to perform gather statuses.
         """
-        pass
 
     def heartbeat(self):
         # Triggering new jobs
@@ -129,11 +126,24 @@ class BaseExecutor(LoggingMixin):
         Stats.gauge('executor.queued_tasks', num_queued_tasks)
         Stats.gauge('executor.running_tasks', num_running_tasks)
 
+        self.trigger_tasks(open_slots)
+
+        # Calling child class sync method
+        self.log.debug("Calling the %s sync method", self.__class__)
+        self.sync()
+
+    def trigger_tasks(self, open_slots):
+        """
+        Trigger tasks
+
+        :param open_slots: Number of open slots
+        :return:
+        """
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
             reverse=True)
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running[key] = command
@@ -141,10 +151,6 @@ class BaseExecutor(LoggingMixin):
                                command=command,
                                queue=queue,
                                executor_config=simple_ti.executor_config)
-
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
 
     def change_state(self, key, state):
         self.log.debug("Changing state: %s", key)

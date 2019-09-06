@@ -13,13 +13,12 @@
 # limitations under the License.
 import unittest
 
-from airflow import configuration
 from airflow.contrib.operators.grpc_operator import GrpcOperator
 
 from tests.compat import mock
 
 
-class StubClass(object):
+class StubClass:
     def __init__(self, channel):
         pass
 
@@ -28,9 +27,6 @@ class StubClass(object):
 
 
 class TestGrpcOperator(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     def custom_conn_func(self, connection):
         pass
 

@@ -20,7 +20,7 @@
 import os
 from typing import Dict, Any
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
@@ -35,6 +35,12 @@ LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
+
+COLORED_LOG_FORMAT = conf.get('core', 'COLORED_LOG_FORMAT')
+
+COLORED_LOG = conf.getboolean('core', 'COLORED_CONSOLE_LOG')
+
+COLORED_FORMATTER_CLASS = conf.get('core', 'COLORED_FORMATTER_CLASS')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
@@ -54,24 +60,35 @@ PROCESSOR_FILENAME_TEMPLATE = conf.get('core', 'LOG_PROCESSOR_FILENAME_TEMPLATE'
 # just to help Airflow select correct handler
 REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
-ELASTICSEARCH_HOST = conf.get('elasticsearch', 'ELASTICSEARCH_HOST')
+ELASTICSEARCH_HOST = conf.get('elasticsearch', 'HOST')
 
-LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
+ELASTICSEARCH_LOG_ID_TEMPLATE = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
 
-END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
+ELASTICSEARCH_END_OF_LOG_MARK = conf.get('elasticsearch', 'END_OF_LOG_MARK')
+
+ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'WRITE_STDOUT')
+
+ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'JSON_FORMAT')
+
+ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'JSON_FIELDS')
+
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'airflow': {
-            'format': LOG_FORMAT,
+            'format': LOG_FORMAT
+        },
+        'airflow_coloured': {
+            'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
+            'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'logging.Formatter'
         },
     },
     'handlers': {
         'console': {
             'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
-            'formatter': 'airflow',
+            'formatter': 'airflow_coloured',
             'stream': 'sys.stdout'
         },
         'task': {
@@ -165,10 +182,13 @@ REMOTE_HANDLERS = {
             'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'log_id_template': LOG_ID_TEMPLATE,
+            'log_id_template': ELASTICSEARCH_LOG_ID_TEMPLATE,
             'filename_template': FILENAME_TEMPLATE,
-            'end_of_log_mark': END_OF_LOG_MARK,
+            'end_of_log_mark': ELASTICSEARCH_END_OF_LOG_MARK,
             'host': ELASTICSEARCH_HOST,
+            'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
+            'json_format': ELASTICSEARCH_JSON_FORMAT,
+            'json_fields': ELASTICSEARCH_JSON_FIELDS
         },
     },
 }

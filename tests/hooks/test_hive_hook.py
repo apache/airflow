@@ -22,15 +22,14 @@ import datetime
 import itertools
 import os
 import random
-import sys
 import unittest
+from unittest import mock
 from collections import OrderedDict
 
-import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.models.connection import Connection
@@ -39,18 +38,14 @@ from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
-configuration.load_test_config()
-
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-NOT_ASSERTLOGS_VERSION = sys.version_info.major + sys.version_info.minor / 10
 
 
-class HiveEnvironmentTest(unittest.TestCase):
+class TestHiveEnvironment(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
         self.next_day = (DEFAULT_DATE +
@@ -143,7 +138,11 @@ class TestHiveCliHook(unittest.TestCase):
             "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
-        mock_run_cli.assert_called_with(query)
+        calls = [
+            mock.call(';'),
+            mock.call(query)
+        ]
+        mock_run_cli.assert_has_calls(calls, any_order=True)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
@@ -199,7 +198,7 @@ class TestHiveCliHook(unittest.TestCase):
         d['c'] = ['c']
         d['M'] = [datetime.datetime(2018, 1, 1)]
         d['O'] = [object()]
-        d['S'] = ['STRING'.encode('utf-8')]
+        d['S'] = [b'STRING']
         d['U'] = ['STRING']
         d['V'] = [None]
         df = pd.DataFrame(d)
@@ -227,7 +226,7 @@ class TestHiveCliHook(unittest.TestCase):
         assertEqualIgnoreMultipleSpaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
-class TestHiveMetastoreHook(HiveEnvironmentTest):
+class TestHiveMetastoreHook(TestHiveEnvironment):
     VALID_FILTER_MAP = {'key2': 'value2'}
 
     def test_get_max_partition_from_empty_part_specs(self):
@@ -369,7 +368,6 @@ class TestHiveServer2Hook(unittest.TestCase):
         df.to_csv(self.local_path, header=False, index=False)
 
     def setUp(self):
-        configuration.load_test_config()
         self._upload_dataframe()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
@@ -421,7 +419,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
 
         HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
-        mock_connect.assert_called_with(
+        mock_connect.assert_called_once_with(
             host='localhost',
             port=10000,
             auth='LDAP',
@@ -460,8 +458,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
-    @unittest.skipIf(NOT_ASSERTLOGS_VERSION < 3.4, 'assertLogs not support before python 3.4')
-    def test_to_csv_assertlogs(self):
+    def test_to_csv(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
@@ -474,18 +471,6 @@ class TestHiveServer2Hook(unittest.TestCase):
             self.assertEqual(len(df), 2)
             self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
                           'Written 2 rows so far.', cm.output)
-
-    @unittest.skipIf(NOT_ASSERTLOGS_VERSION >= 3.4, 'test could cover by test_to_csv_assertLogs')
-    def test_to_csv_without_assertlogs(self):
-        hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
-        csv_filepath = 'query_results.csv'
-        hook.to_csv(query, csv_filepath, schema=self.database,
-                    delimiter=',', lineterminator='\n', output_header=True)
-        df = pd.read_csv(csv_filepath, sep=',')
-        self.assertListEqual(df.columns.tolist(), self.columns)
-        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
-        self.assertEqual(len(df), 2)
 
     def test_multi_statements(self):
         sqls = [

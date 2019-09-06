@@ -19,9 +19,9 @@
 #
 
 import unittest
+from unittest.mock import patch
 
 from datetime import datetime
-from mock import patch
 
 from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
 from airflow.exceptions import AirflowException
@@ -35,7 +35,7 @@ TEMPLATE_CONN = "my_conn_id"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class QuboleSensorTest(unittest.TestCase):
+class TestQuboleSensor(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))

@@ -19,10 +19,10 @@
 
 
 import unittest
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.aws_sqs_publish_operator import SQSPublishOperator
 from airflow.utils import timezone
-from mock import MagicMock
+from unittest.mock import MagicMock
 from moto import mock_sqs
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
 
@@ -32,8 +32,6 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 class TestSQSPublishOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
-
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -61,9 +59,9 @@ class TestSQSPublishOperator(unittest.TestCase):
 
         message = self.sqs_hook.get_conn().receive_message(QueueUrl='test')
 
-        self.assertEquals(len(message['Messages']), 1)
-        self.assertEquals(message['Messages'][0]['MessageId'], result['MessageId'])
-        self.assertEquals(message['Messages'][0]['Body'], 'hello')
+        self.assertEqual(len(message['Messages']), 1)
+        self.assertEqual(message['Messages'][0]['MessageId'], result['MessageId'])
+        self.assertEqual(message['Messages'][0]['Body'], 'hello')
 
         context_calls = []
 
