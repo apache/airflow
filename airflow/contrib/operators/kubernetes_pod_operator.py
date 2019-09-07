@@ -27,6 +27,11 @@ class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod
 
+    .. note::
+        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
+        :class:`~airflow.gcp.operators.kubernetes_engine.GKEPodOperator`, which
+        simplifies the authorization process.
+
     :param image: Docker image you wish to launch. Defaults to dockerhub.io,
         but fully qualified URLS will point to custom repositories
     :type image: str
