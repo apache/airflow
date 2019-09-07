@@ -454,7 +454,9 @@ function rebuild_ci_slim_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
 
-    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
+    # Temporary force python version 3.5 for static checks
+    export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
+    export PYTHON_VERSION=3.5
 
     export THE_IMAGE_TYPE="SLIM_CI"
 
@@ -462,6 +464,8 @@ function rebuild_ci_slim_image_if_needed() {
 
     AIRFLOW_SLIM_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_SLIM_CI_IMAGE") || true 2>/dev/null
     export AIRFLOW_SLIM_CI_IMAGE
+    export PYTHON_VERSION=${OLD_PYTHON_VERSION}
+
 }
 
 #
