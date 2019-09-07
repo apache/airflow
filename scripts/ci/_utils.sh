@@ -640,6 +640,18 @@ function run_docs() {
             "${AIRFLOW_SLIM_CI_IMAGE}"
 }
 
+function run_check_links() {
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint /opt/airflow/docs/check_links.sh \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
+            "${AIRFLOW_SLIM_CI_IMAGE}"
+}
+
 function run_check_license() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint /opt/airflow/scripts/ci/in_container/run_check_licence.sh \

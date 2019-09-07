@@ -62,7 +62,6 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
     && apt-get install -y --no-install-recommends \
            apt-utils \
            build-essential \
-           curl \
            dirmngr \
            freetds-bin \
            freetds-dev \
@@ -76,6 +75,7 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            libsasl2-modules \
            libssl-dev \
            locales  \
+           lynx \
            netcat \
            nodejs \
            rsync \

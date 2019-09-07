@@ -36,6 +36,7 @@ function redraw_progress_bar { # int barsize, int base, int current, int top
 
 if ! command -v lynx; then
     echo "This script requires lynx to work properly."
+    echo
     echo "For futher informatiion, look at: http://lynx.browser.org/"
     exit
 fi
@@ -46,6 +47,37 @@ pushd "${MY_DIR}" &>/dev/null || exit 1
 echo
 echo "Working in ${MY_DIR} folder"
 echo
+
+if [[ ! -f _build/html/index.html ]]; then
+   echo "You should build documentation first."
+   echo
+   echo "If you use the breeze environment then you can do it using the following command:"
+   echo "./breeze --build-docs"
+   echo
+   exit 1
+fi
+
+if [[ -f /.dockerenv ]]; then
+    # This script can be run both - in container and outside of it.
+    # Here we are inside the container which means that we should (when the host is Linux)
+    # fix permissions of the _build and _api folders via sudo.
+    # Those files are mounted from the host via docs folder and we might not have permissions to
+    # write to those directories (and remove the _api folder).
+    # We know we have sudo capabilities inside the container.
+    echo "Creating the _build and _api folders in case they do not exist"
+    sudo mkdir -pv _build/html
+    sudo mkdir -pv _api
+    echo "Created the _build and _api folders in case they do not exist"
+    echo "Changing ownership of _build and _api folders to ${AIRFLOW_USER}:${AIRFLOW_USER}"
+    sudo chown -R "${AIRFLOW_USER}":"${AIRFLOW_USER}" .
+    echo "Changed ownership of the whole doc folder to ${AIRFLOW_USER}:${AIRFLOW_USER}"
+else
+    # We are outside the container so we simply make sure that the directories exist
+    echo "Creating the _build and _api folders in case they do not exist"
+    mkdir -pv _build/html
+    echo "Creating the _build and _api folders in case they do not exist"
+fi
+
 
 readarray -d '' pages < <(find ./_build/html/ -name '*.html' -print0)
 echo "Found ${#pages[@]} HTML files."
@@ -80,3 +112,5 @@ if [[ ${#invalid_links[@]} -ne 0 ]]; then
 else
     echo "All links work"
 fi
+
+popd &>/dev/null || exit 1
