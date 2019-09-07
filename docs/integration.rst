@@ -18,11 +18,9 @@
 Integration
 ===========
 
-- :ref:`Azure`
-- :ref:`AWS`
-- :ref:`Databricks`
-- :ref:`GCP`
-- :ref:`Qubole`
+.. contents:: Content
+  :local:
+  :depth: 1
 
 .. _Azure:
 
