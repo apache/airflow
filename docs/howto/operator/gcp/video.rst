@@ -214,3 +214,11 @@ More information
 """"""""""""""""
 
 Note: The duration of video annotation operation is equal or longer than the annotation video itself.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/videointelligence/index.html>`__
+* `Product Documentation <https://cloud.google.com/video-intelligence/docs/>`__

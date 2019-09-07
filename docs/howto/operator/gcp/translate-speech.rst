@@ -87,3 +87,13 @@ Templating
     :dedent: 4
     :start-after: [START translate_speech_template_fields]
     :end-before: [END translate_speech_template_fields]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud Translate - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/translate/index.html>`__
+* `Google Cloud Translate - Product Documentation <https://cloud.google.com/translate/docs/>`__
+* `Google Cloud Speech - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Google Cloud Speech - Product Documentation <https://cloud.google.com/speech/>`__
