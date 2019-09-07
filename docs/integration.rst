@@ -951,23 +951,9 @@ Qubole
 Apache Airflow has a native operator and hooks to talk to `Qubole <https://qubole.com/>`__,
 which lets you submit your big data jobs directly to Qubole from Apache Airflow.
 
+The operators are defined in the following module:
 
-:class:`airflow.contrib.operators.qubole_operator.QuboleOperator`
-    Execute tasks (commands) on QDS (https://qubole.com).
-
-:class:`airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor`
-    Wait for a Hive partition to show up in QHS (Qubole Hive Service)
-    and check for its presence via QDS APIs
-
-:class:`airflow.contrib.sensors.qubole_sensor.QuboleFileSensor`
-    Wait for a file or folder to be present in cloud storage
-    and check for its presence via QDS APIs
-
-:class:`airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator`
-    Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
-    a command that will be executed on QDS.
-
-:class:`airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator`
-    Performs a simple value check using Qubole command.
-    By default, each value on the first row of this
-    Qubole command is compared with a pre-defined value
+ * :mod:`airflow.contrib.operators.qubole_operator`
+ * :mod:`airflow.contrib.sensors.qubole_sensor`
+ * :mod:`airflow.contrib.sensors.qubole_sensor`
+ * :mod:`airflow.contrib.operators.qubole_check_operator`
