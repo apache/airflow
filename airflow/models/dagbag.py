@@ -28,7 +28,6 @@ from collections import namedtuple
 from datetime import datetime
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
-from sqlalchemy import or_
 
 from airflow import settings
 from airflow.configuration import conf

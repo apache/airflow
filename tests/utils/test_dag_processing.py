@@ -18,24 +18,25 @@
 # under the License.
 
 import os
+import pathlib
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
-
-import pathlib
-from unittest.mock import (MagicMock, PropertyMock)
+from unittest.mock import MagicMock, PropertyMock
 
 from airflow.configuration import conf
-from airflow.jobs import DagFileProcessor
-from airflow.jobs import LocalTaskJob as LJ
+from airflow.jobs import DagFileProcessor, LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
-from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager, DagFileStat,
-                                          SimpleTaskInstance, correct_maybe_zipped)
+from airflow.utils.dag_processing import (
+    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, SimpleTaskInstance, correct_maybe_zipped,
+)
 from airflow.utils.db import create_session
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
@@ -134,6 +135,9 @@ class settings_context:
 
 
 class TestDagFileProcessorManager(unittest.TestCase):
+    def setUp(self):
+        clear_db_runs()
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
@@ -203,7 +207,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1)
-            zombies = manager._find_zombies()
+            manager._find_zombies()
+            zombies = manager._zombies
             self.assertEqual(1, len(zombies))
             self.assertIsInstance(zombies[0], SimpleTaskInstance)
             self.assertEqual(ti.dag_id, zombies[0].dag_id)
@@ -212,6 +217,85 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             session.query(TI).delete()
             session.query(LJ).delete()
+
+    def test_zombies_are_correctly_passed_to_dag_file_processor(self):
+        """
+        Check that the same set of zombies are passed to the dag
+        file processors until the next zombie detection logic is invoked.
+        """
+        with conf_vars({('scheduler', 'max_threads'): '1',
+                        ('core', 'load_examples'): 'False'}):
+            dagbag = DagBag(os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py'))
+            with create_session() as session:
+                session.query(LJ).delete()
+                dag = dagbag.get_dag('test_example_bash_operator')
+                task = dag.get_task(task_id='run_this_last')
+
+                ti = TI(task, DEFAULT_DATE, State.RUNNING)
+                lj = LJ(ti)
+                lj.state = State.SHUTDOWN
+                lj.id = 1
+                ti.job_id = lj.id
+
+                session.add(lj)
+                session.add(ti)
+                session.commit()
+                fake_zombies = [SimpleTaskInstance(ti)]
+
+            class FakeDagFIleProcessor(DagFileProcessor):
+                # This fake processor will return the zombies it received in constructor
+                # as its processing result w/o actually parsing anything.
+                def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+                    super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
+
+                    self._result = zombies, 0
+
+                def start(self):
+                    pass
+
+                @property
+                def start_time(self):
+                    return DEFAULT_DATE
+
+                @property
+                def pid(self):
+                    return 1234
+
+                @property
+                def done(self):
+                    return True
+
+                @property
+                def result(self):
+                    return self._result
+
+            def processor_factory(file_path, zombies):
+                return FakeDagFIleProcessor(file_path,
+                                            False,
+                                            [],
+                                            zombies)
+
+            test_dag_path = os.path.join(TEST_DAG_FOLDER,
+                                         'test_example_bash_operator.py')
+            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            processor_agent = DagFileProcessorAgent(test_dag_path,
+                                                    [],
+                                                    1,
+                                                    processor_factory,
+                                                    timedelta.max,
+                                                    async_mode)
+            processor_agent.start()
+            parsing_result = []
+            if not async_mode:
+                processor_agent.heartbeat()
+            while not processor_agent.done:
+                if not async_mode:
+                    processor_agent.wait_until_finished()
+                parsing_result.extend(processor_agent.harvest_simple_dags())
+
+            self.assertEqual(len(fake_zombies), len(parsing_result))
+            self.assertEqual(set([zombie.key for zombie in fake_zombies]),
+                             set([result.key for result in parsing_result]))
 
     @mock.patch("airflow.jobs.DagFileProcessor.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.DagFileProcessor.kill")
