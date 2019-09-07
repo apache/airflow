@@ -46,21 +46,14 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 
-:class:`airflow.contrib.hooks.wasb_hook.WasbHook`
-    Interface with Azure Blob Storage.
+The operators are defined in the following module:
 
-:class:`airflow.contrib.sensors.wasb_sensor.WasbBlobSensor`
-    Checks if a blob is present on Azure Blob storage.
+* :mod:`airflow.contrib.sensors.wasb_sensor`
+* :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
+* :mod:`airflow.contrib.sensors.wasb_sensor`
+* :mod:`airflow.contrib.operators.file_to_wasb`
 
-:class:`airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator`
-    Deletes blob(s) on Azure Blob Storage.
-
-:class:`airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor`
-    Checks if blobs matching a prefix are present on Azure Blob storage.
-
-:class:`airflow.contrib.operators.file_to_wasb.FileToWasbOperator`
-    Uploads a local file to a container as a blob.
-
+They use :class:`airflow.contrib.hooks.wasb_hook.WasbHook` to communicate with Microsoft Azure.
 
 Azure File Share
 ''''''''''''''''
@@ -70,8 +63,7 @@ type `wasb` exists. Authorization can be done by supplying a login (=Storage acc
 and password (=Storage account key), or login and SAS token in the extra field
 (see connection `wasb_default` for an example).
 
-:class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook`:
-    Interface with Azure File Share.
+It uses :class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook` to communicate with Microsoft Azure.
 
 Azure CosmosDB
 ''''''''''''''
@@ -81,15 +73,12 @@ Airflow connection of type `azure_cosmos` exists. Authorization can be done by s
 login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
 default database and collection to use (see connection `azure_cosmos_default` for an example).
 
-:class:`airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook`
-    Interface with Azure CosmosDB.
+The operators are defined in the following modules:
 
-:class:`airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator`
-    Simple operator to insert document into CosmosDB.
+* :mod:`airflow.contrib.operators.azure_cosmos_operator`
+* :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
 
-:class:`airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor`
-    Simple sensor to detect document existence in CosmosDB.
-
+They also use :class:`airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook` to communicate with Microsoft Azure.
 
 Azure Data Lake
 '''''''''''''''
@@ -99,14 +88,12 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 
-:class:`airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook`
-    Interface with Azure Data Lake.
+The operators are defined in the following modules:
 
-:class:`airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator`
-    Lists the files located in a specified Azure Data Lake path.
+* :mod:`airflow.contrib.operators.adls_list_operator`
+* :mod:`airflow.contrib.operators.adls_to_gcs`
 
-:class:`airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
-    Copies files from an Azure Data Lake path to a Google Cloud Storage bucket.
+They also use :class:`airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook` to communicate with Microsoft Azure.
 
 
 Azure Container Instances
@@ -118,20 +105,13 @@ credentials for this principal can either be defined in the extra field ``key_pa
 environment variable named ``AZURE_AUTH_LOCATION``,
 or by providing a login/password and tenantId in extras.
 
+The operator is defined in the :mod:`airflow.contrib.operators.azure_container_instances_operator` module.
+
+They also use :class:`airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook`,
+:class:`airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook` and
+:class:`airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook` to communicate with Microsoft Azure.
+
 The AzureContainerRegistryHook requires a host/login/password to be defined in the connection.
-
-:class:`airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook`
-    Interface with Azure Container Volumes
-
-:class:`airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator`
-    Start/Monitor a new ACI.
-
-:class:`airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook`
-    Wrapper around a single ACI.
-
-:class:`airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook`
-    Interface with ACR
-
 
 
 .. _AWS:
@@ -152,87 +132,61 @@ See :ref:`write-logs-amazon`.
 AWS EMR
 '''''''
 
-:class:`airflow.contrib.hooks.emr_hook.EmrHook`
-    Interface with AWS EMR.
+The operators are defined in the following modules:
 
-:class:`airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator`
-    Adds steps to an existing EMR JobFlow.
+* :mod:`airflow.contrib.operators.emr_add_steps_operator`
+* :mod:`airflow.contrib.operators.emr_create_job_flow_operator`
+* :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
 
-:class:`airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator`
-    Creates an EMR JobFlow, reading the config from the EMR connection.
-
-:class:`airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator`
-    Terminates an EMR JobFlow.
-
+They also use :class:`airflow.contrib.hooks.emr_hook.EmrHook` to communicate with Amazon Web Service.
 
 AWS S3
 ''''''
 
-:class:`airflow.hooks.S3_hook.S3Hook`
-    Interface with AWS S3.
+The operators are defined in the following modules:
 
-:class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator`
-    Copies data from a source S3 location to a temporary location on the local filesystem.
+* :mod:`airflow.operators.s3_file_transform_operator`
+* :mod:`airflow.contrib.operators.s3_list_operator`
+* :mod:`airflow.contrib.operators.s3_to_gcs_operator`
+* :mod:`airflow.contrib.operators.s3_to_gcs_transfer_operator`
+* :mod:`airflow.operators.s3_to_hive_operator`
 
-:class:`airflow.contrib.operators.s3_list_operator.S3ListOperator`
-    Lists the files matching a key prefix from a S3 location.
-
-:class:`airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator`
-    Syncs an S3 location with a Google Cloud Storage bucket.
-
-:class:`airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
-    Syncs an S3 bucket with a Google Cloud Storage bucket using the GCP Storage Transfer Service.
-
-:class:`airflow.operators.s3_to_hive_operator.S3ToHiveTransfer`
-    Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
-
+They also use :class:`airflow.hooks.S3_hook.S3Hook` to communicate with Amazon Web Service.
 
 AWS Batch Service
 '''''''''''''''''
 
-:class:`airflow.contrib.operators.awsbatch_operator.AWSBatchOperator`
-    Execute a task on AWS Batch Service.
-
+The operator is defined in the :class:`airflow.contrib.operators.awsbatch_operator.AWSBatchOperator` module.
 
 AWS RedShift
 ''''''''''''
 
-:class:`airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor`
-    Waits for a Redshift cluster to reach a specific status.
+The operators are defined in the following modules:
 
-:class:`airflow.contrib.hooks.redshift_hook.RedshiftHook`
-    Interact with AWS Redshift, using the boto3 library.
+* :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
+* :mod:`airflow.operators.redshift_to_s3_operator`
+* :mod:`airflow.operators.s3_to_redshift_operator`
 
-:class:`airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer`
-    Executes an unload command to S3 as CSV with or without headers.
-
-:class:`airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer`
-    Executes an copy command from S3 as CSV with or without headers.
-
+They also use :class:`airflow.contrib.hooks.redshift_hook.RedshiftHook` to communicate with Amazon Web Service.
 
 
 AWS DynamoDB
 ''''''''''''
 
-:class:`airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator`
-     Moves data from Hive to DynamoDB.
+The operator is defined in the :class:`airflow.contrib.operators.hive_to_dynamodb` module.
 
-:class:`airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook`
-    Interface with AWS DynamoDB.
+It uses :class:`airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook` to communicate with Amazon Web Service.
 
 
 AWS Lambda
 ''''''''''
 
-:class:`airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook`
-    Interface with AWS Lambda.
-
+It uses :class:`airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook` to communicate with Amazon Web Service.
 
 AWS Kinesis
 '''''''''''
 
-:class:`airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook`
-    Interface with AWS Kinesis Firehose.
+It uses :class:`airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook` to communicate with Amazon Web Service.
 
 
 Amazon SageMaker
@@ -242,27 +196,16 @@ For more instructions on using Amazon SageMaker in Airflow, please see `the Sage
 
 .. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
 
-:class:`airflow.contrib.hooks.sagemaker_hook.SageMakerHook`
-    Interface with Amazon SageMaker.
+The operators are defined in the following modules:
 
-:class:`airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator`
-    Create a SageMaker training job.
+:mod:`airflow.contrib.operators.sagemaker_training_operator`
+:mod:`airflow.contrib.operators.sagemaker_tuning_operator`
+:mod:`airflow.contrib.operators.sagemaker_model_operator`
+:mod:`airflow.contrib.operators.sagemaker_transform_operator`
+:mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`
+:mod:`airflow.contrib.operators.sagemaker_endpoint_operator`
 
-:class:`airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator`
-    Create a SageMaker tuning job.
-
-:class:`airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator`
-    Create a SageMaker model.
-
-:class:`airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator`
-    Create a SageMaker transform job.
-
-:class:`airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator`
-    Create a SageMaker endpoint config.
-
-:class:`airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator`
-    Create a SageMaker endpoint.
-
+They uses :class:`airflow.contrib.hooks.sagemaker_hook.SageMakerHook` to communicate with Amazon Web Service.
 
 .. _Databricks:
 
@@ -273,19 +216,7 @@ With contributions from `Databricks <https://databricks.com/>`__, Airflow has se
 which enable the submitting and running of jobs to the Databricks platform. Internally the
 operators talk to the ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 
-
-:class:`airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator`
-    Submits a Spark job run to Databricks using the
-    `api/2.0/jobs/runs/submit
-    <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
-    API endpoint.
-
-:class:`airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator`
-    Runs an existing Spark job in Databricks using the
-        `api/2.0/jobs/run-now
-        <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
-        API endpoint.
-
+The operators are defined in the :class:`airflow.contrib.operators.databricks_operator` module.
 
 .. _GCP:
 
