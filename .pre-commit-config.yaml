@@ -167,7 +167,7 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|^docs/check_links.sh$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
