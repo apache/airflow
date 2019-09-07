@@ -33,6 +33,13 @@ Airflow has limited support for Microsoft Azure: interfaces exist only for Azure
 Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and
 Azure Data Lake Hook are in contrib section.
 
+Logging
+'''''''
+
+Airflow can be configured to read and write task logs in Azure Blob Storage.
+See :ref:`write-logs-azure`.
+
+
 Azure Blob Storage
 ''''''''''''''''''
 
@@ -67,12 +74,6 @@ and password (=Storage account key), or login and SAS token in the extra field
 
 :class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook`:
     Interface with Azure File Share.
-
-Logging
-'''''''
-
-Airflow can be configured to read and write task logs in Azure Blob Storage.
-See :ref:`write-logs-azure`.
 
 Azure CosmosDB
 ''''''''''''''
