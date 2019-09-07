@@ -144,6 +144,13 @@ AWS: Amazon Web Services
 Airflow has extensive support for Amazon Web Services. But note that the Hooks, Sensors and
 Operators are in the contrib section.
 
+Logging
+'''''''
+
+Airflow can be configured to read and write task logs in Amazon Simple Storage Service (Amazon S3).
+See :ref:`write-logs-amazon`.
+
+
 AWS EMR
 '''''''
 
