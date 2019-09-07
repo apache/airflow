@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 import inspect
 import os
 import shutil
 import textwrap
 import unittest
-from tempfile import mkdtemp, NamedTemporaryFile
+from datetime import datetime
+from tempfile import NamedTemporaryFile, mkdtemp
 
 from mock import patch, ANY
 

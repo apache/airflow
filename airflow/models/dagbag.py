@@ -30,8 +30,8 @@ import zipfile
 from collections import namedtuple
 from datetime import datetime
 
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 import six
-from croniter import croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
 
 from airflow import settings
 from airflow.configuration import conf

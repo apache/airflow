@@ -40,6 +40,7 @@ import psutil
 from setproctitle import setproctitle
 import six
 from six.moves import reload_module
+from sqlalchemy import or_
 from tabulate import tabulate
 
 # To avoid circular imports
@@ -54,7 +55,6 @@ from airflow.utils.helpers import reap_process_group
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from sqlalchemy import or_
 
 if six.PY2:
     ConnectionError = IOError
@@ -776,13 +776,14 @@ class DagFileProcessorManager(LoggingMixin):
         # Map from file path to stats about the file
         self._file_stats = {}  # type: dict(str, DagFileStat)
 
-        self._last_zombie_query_time = timezone.utcnow()
+        self._last_zombie_query_time = None
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.utcnow()
         # Last time stats were printed
         self.last_stat_print_time = timezone.datetime(2000, 1, 1)
         # TODO: Remove magic number
         self._zombie_query_interval = 10
+        self._zombies = []
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
 
@@ -852,6 +853,7 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             self._refresh_dag_dir()
+            self._find_zombies()
 
             simple_dags = self.heartbeat()
             for simple_dag in simple_dags:
@@ -1247,13 +1249,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._file_path_queue.extend(files_paths_to_queue)
 
-        zombies = self._find_zombies()
-
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and
                len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, zombies)
+            processor = self._processor_factory(file_path, self._zombies)
             Stats.incr('dag_processing.processes')
 
             processor.start()
@@ -1271,13 +1271,13 @@ class DagFileProcessorManager(LoggingMixin):
     @provide_session
     def _find_zombies(self, session):
         """
-        Find zombie task instances, which are tasks haven't heartbeated for too long.
-        :return: Zombie task instances in SimpleTaskInstance format.
+        Find zombie task instances, which are tasks haven't heartbeated for too long
+        and update the current zombie list.
         """
         now = timezone.utcnow()
         zombies = []
-        if (now - self._last_zombie_query_time).total_seconds() \
-                > self._zombie_query_interval:
+        if not self._last_zombie_query_time or \
+                (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
             from airflow.jobs import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
@@ -1305,7 +1305,7 @@ class DagFileProcessorManager(LoggingMixin):
                     sti.dag_id, sti.task_id, sti.execution_date.isoformat())
                 zombies.append(sti)
 
-        return zombies
+            self._zombies = zombies
 
     def _kill_timed_out_processors(self):
         """
