@@ -776,6 +776,9 @@ These are the current flags of the `./breeze <./breeze>`_ script
     -y, --assume-yes
             Assume 'yes' answer to all questions.
 
+    -n, --assume-no
+            Assume 'no' answer to all questions.
+
     -C, --toggle-suppress-cheatsheet
             Toggles on/off cheatsheet displayed before starting bash shell
 
@@ -790,13 +793,13 @@ These are the current flags of the `./breeze <./breeze>`_ script
     -H, --dockerhub-repo
             DockerHub repository used to pull, push, build images. Default: airflow.
 
-    -r, --force-rebuild-images
-            Forces rebuilding of the local docker images. The images are rebuilt
+    -r, --force-build-images
+            Forces building of the local docker images. The images are rebuilt
             automatically for the first time or when changes are detected in
             package-related files, but you can force it using this flag.
 
-    -R, --force-rebuild-images-clean
-            Force rebuild images without cache. This will remove the pulled or build images
+    -R, --force-build-images-clean
+            Force build images without cache. This will remove the pulled or build images
             and start building images from scratch. This might take a long time.
 
     -p, --force-pull-images

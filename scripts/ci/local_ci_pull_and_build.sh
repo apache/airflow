@@ -31,13 +31,9 @@ basic_sanity_checks
 script_start
 
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
 export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL="false"
-export ASSUME_YES_TO_ALL_QUESTIONS="true"
 
-rebuild_ci_image_if_needed
-
-rebuild_ci_slim_image_if_needed
-
-rebuild_checklicence_image_if_needed
+rebuild_all_images_if_needed_and_confirmed
 
 script_end

@@ -21,7 +21,6 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
 
 export PYTHON_VERSION=3.5
 

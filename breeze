@@ -121,7 +121,7 @@ EOF
 export AIRFLOW_VERSION
 
 # Verbosity in running ci scripts
-export AIRFLOW_CI_VERBOSE="false"
+export VERBOSE="false"
 
 # Enter environment by default, rather than run tests or bash command or docker compose or static checks
 export RUN_TESTS="false"
@@ -130,10 +130,7 @@ export RUN_IN_BASH="false"
 export RUN_STATIC_CHECKS="false"
 export RUN_BUILD_DOCS="false"
 
-export FORCE_BUILD=${FORCE_BUILD:="false"}
-
-# if set to true, rebuild is done without asking user
-export SKIP_BUILD_CHECK="false"
+export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD=${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:="false"}
 
 # Files determining whether asciiart/cheatsheet are suppressed
 
@@ -392,6 +389,9 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -y, --assume-yes
         Assume 'yes' answer to all questions.
 
+-n, --assume-no
+        Assume 'no' answer to all questions.
+
 -C, --toggle-suppress-cheatsheet
         Toggles on/off cheatsheet displayed before starting bash shell
 
@@ -406,13 +406,13 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
 
--r, --force-rebuild-images
-        Forces rebuilding of the local docker images. The images are rebuilt
+-r, --force-build-images
+        Forces building of the local docker images. The images are rebuilt
         automatically for the first time or when changes are detected in
         package-related files, but you can force it using this flag.
 
--R, --force-rebuild-images-clean
-        Force rebuild images without cache. This will remove the pulled or build images
+-R, --force-build-images-clean
+        Force build images without cache. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
 
 -p, --force-pull-images
@@ -421,7 +421,7 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         environment, later the locally build images are used as cache.
 
 -u, --push-images
-        After rebuilding - uploads the images to DockerHub
+        After building - uploads the images to DockerHub
         It is useful in case you use your own DockerHub user to store images and you want
         to build them locally. Note that you need to use 'docker login' before you upload images.
 
@@ -491,20 +491,23 @@ do
       shift ;;
     -b|--build-only)
       ENTER_ENVIRONMENT="false"
-      SKIP_BUILD_CHECK="true"
-      AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-      FORCE_BUILD="true"
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       echo "Only build. Do not enter airflow-testing container"
       echo
       shift ;;
     -v|--verbose)
-      AIRFLOW_CI_VERBOSE="true"
+      VERBOSE="true"
       echo "Verbose output"
       echo
       shift ;;
     -y|--assume-yes)
-      export ASSUME_YES="true"
+      export FORCE_ANSWER_TO_QUESTIONS="yes"
       echo "Assuming 'yes' answer to all questions."
+      echo
+      shift ;;
+    -n|--assume-no)
+      export FORCE_ANSWER_TO_QUESTIONS="no"
+      echo "Assuming 'no' answer to all questions."
       echo
       shift ;;
     -C|--toggle-suppress-cheatsheet)
@@ -525,23 +528,19 @@ do
       echo "Toggle suppress asciiart"
       echo
       shift ;;
-    -r|--force-rebuild-images)
+    -r|--force-build-images)
       echo
-      echo "Force rebuild images"
+      echo "Force build images"
       echo
-      AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-      SKIP_BUILD_CHECK="true"
-      FORCE_BUILD="true"
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
-    -R|--force-rebuild-images-clean)
+    -R|--force-build-images-clean)
       echo
-      echo "Clean rebuild of images without cache"
+      echo "Clean build of images without cache"
       echo
       export AIRFLOW_CONTAINER_USE_DOCKER_CACHE=false
       export AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=false
-      AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-      SKIP_BUILD_CHECK="true"
-      FORCE_BUILD="true"
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       CLEANUP_IMAGES="true"
       shift ;;
     -p|--force-pull-images)
@@ -549,8 +548,7 @@ do
       echo "Force pulling images before build. Uses pulled images as cache."
       echo
       export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-      AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-      SKIP_BUILD_CHECK="true"
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
     -u|--push-images)
       if [[ "${AIRFLOW_FIX_PERMISSIONS}" != "all" ]]; then
@@ -568,8 +566,7 @@ do
       echo "Pushing images to DockerHub"
       echo
       export AIRFLOW_CONTAINER_PUSH_IMAGES="true"
-      AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-      SKIP_BUILD_CHECK="true"
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
     -c|--cleanup-images)
       echo
@@ -682,6 +679,9 @@ printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
 echo
 
 CMDNAME="$(basename -- "$0")"
+
+# Cleans up the answer that was given last time, whether to force/
+cleanup_last_force_answer
 
 export ENV="${ENV:=$(read_from_file ENV)}"
 export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"

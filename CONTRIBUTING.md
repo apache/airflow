@@ -274,7 +274,7 @@ Before running the pre-commit hooks you must first build the docker images as de
 
 Sometimes your image is outdated (when dependencies change) and needs to be rebuilt because some
 dependencies have been changed. In such case the docker build pre-commit will inform
-you that you should rebuild the image.
+you that you should build the image.
 
 ## Prerequisites for pre-commit hooks
 
