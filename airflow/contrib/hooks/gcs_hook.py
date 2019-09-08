@@ -238,7 +238,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 with gz.GzipFile(fileobj=out, mode="w") as f:
                     f.write(data)
                 data = out.getvalue()
-            blob.upload_from_string(data, content_type=mime_type)
+            blob.upload_from_string(data,
+                                    content_type=mime_type)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
             raise ValueError("""'filename' and 'data' parameter missing.
