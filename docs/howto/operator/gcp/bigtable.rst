@@ -170,3 +170,11 @@ Using the operator
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]
     :end-before: [END howto_operator_gcp_bigtable_table_wait_for_replication]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/bigtable/index.html>`__
+* `Product Documentation <https://cloud.google.com/bigtable/docs/>`__

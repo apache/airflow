@@ -276,3 +276,11 @@ More information
 
 See Google Cloud Spanner API documentation to `delete an instance
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/spanner/index.html>`__
+* `Product Documentation <https://cloud.google.com/spanner/docs/>`__

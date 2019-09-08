@@ -68,3 +68,11 @@ More information
 """"""""""""""""
 
 See `Google Cloud Translate documentation <https://cloud.google.com/translate/docs/translating-text>`_.
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/translate/index.html>`__
+* `Product Documentation <https://cloud.google.com/translate/docs/>`__
