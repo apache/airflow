@@ -269,6 +269,8 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'contextdecorator;python_version<"3.4"',
+    'coverage',
     'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
