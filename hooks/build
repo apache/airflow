@@ -26,14 +26,14 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "My dir: ${MY_DIR}"
 
-AIRFLOW_ROOT=$(cd "${MY_DIR}"; cd ..; pwd)
-cd "${AIRFLOW_ROOT}"
+AIRFLOW_SOURCES=$(cd "${MY_DIR}"; cd ..; pwd)
+cd "${AIRFLOW_SOURCES}"
 
 echo
-echo "Airflow root directory: ${AIRFLOW_ROOT}"
+echo "Airflow root directory: ${AIRFLOW_SOURCES}"
 echo
 
-BUILD_CACHE_DIR="${AIRFLOW_ROOT}/.build"
+BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
 mkdir -pv "${BUILD_CACHE_DIR}"
 
 date
@@ -136,97 +136,8 @@ function build_python_image {
 
 start_step "Setting variables"
 
-# You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-
-# You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-
-# You can override python binary with specific version
-export PYTHON_BINARY=${PYTHON_BINARY:=python}
-
-# Determine python version from the local python on the path.
-# You can override it with PYTHON_VERSION because all python version dependencies
-# Are determined in Docker images. If you pass IMAGE_NAME, python version will be extracted from the name
-# This default Python version is later overridden in case IMAGE_NAME is passed
-export PYTHON_VERSION=\
-${PYTHON_VERSION:=$(${PYTHON_BINARY} -c \
- 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
-
-# shellcheck source=hooks/_default_branch.sh
-. "${MY_DIR}/_default_branch.sh"
-
-# Source branch will be set in DockerHub
-SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if set in DockerHub
-# or default branch configured in _default_branch.sh
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
-echo
-echo "Branch: ${AIRFLOW_CONTAINER_BRANCH_NAME}"
-echo
-
-
-# IMAGE_NAME might come from DockerHub and we decide which PYTHON_VERSION to use based on it (see below)
-# In case IMAGE_NAME is not set we determine PYTHON_VERSION based on the default python on the path
-# So in virtualenvs it will use the virtualenv's PYTHON_VERSION.
-export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}}
-
-echo
-echo "BASE_IMAGE_NAME=${BASE_IMAGE_NAME:=} (final image will have -ci, -ci-slim suffixes)"
-echo
-
-# Remove index.docker.io/ prefix as it is added by default by DockerHub
-export LOCAL_BASE_IMAGE_NAME=${BASE_IMAGE_NAME#index.docker.io/}
-echo
-echo "LOCAL_BASE_IMAGE_NAME=${LOCAL_BASE_IMAGE_NAME}"
-echo
-
-# Extract python version from image name we want to build in case it was passed
-# Via IMAGE_NAME
-# This nice bash construct below extracts last field after '-python' delimiter
-# So for example 'airflow:master-python3.6' will produce LONG_PYTHON_VERSION=python3.6
-LONG_PYTHON_VERSION="${LOCAL_BASE_IMAGE_NAME##*-}"
-export LONG_PYTHON_VERSION
-
-echo
-echo "LONG_PYTHON_VERSION=${LONG_PYTHON_VERSION}"
-echo
-
-if [[ ! ${LONG_PYTHON_VERSION} =~ python[2-3]\.[0-9]+ ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Python version extracted from IMAGE_NAME does not match the pythonX.Y format"
-    echo >&2
-    echo >&2 "The IMAGE_NAME format should be '<BRANCH>-pythonX.Y'"
-    echo >&2
-    exit 1
-fi
-
-PYTHON_VERSION=${LONG_PYTHON_VERSION#python}
-
-echo
-echo "PYTHON_VERSION=${PYTHON_VERSION}"
-echo
-
-if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  The ${LOCAL_BASE_IMAGE_NAME} does not start with ${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
-    echo >&2
-    exit 1
-fi
-
-# Extract IMAGE_TAG from LOCAL_BASE_IMAGE_NAME (apache/airflow:master-python3.6 -> master-python3.6)
-IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${DOCKERHUB_USER}/${DOCKERHUB_REPO}:}
-echo
-echo "Image tag: ${IMAGE_TAG}"
-echo
-
-# Extract TAG_PREFIX from IMAGE_TAG (master-python3.6 -> master)
-TAG_PREFIX=${IMAGE_TAG%-*}
-echo
-echo "Image tag prefix: ${TAG_PREFIX}"
-echo
+# shellcheck source=common/_autodetect_variables.sh
+. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
 
 echo
 echo "Travis event type: ${TRAVIS_EVENT_TYPE:=}"
@@ -365,7 +276,7 @@ end_step
 AIRFLOW_CONTAINER_CLEANUP_IMAGES=${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"}
 if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     echo
-    "${AIRFLOW_ROOT}/confirm" "Removing all local images for that build."
+    "${AIRFLOW_SOURCES}/confirm" "Removing all local images for that build."
     echo
     start_step "Removing images"
     docker rmi "${PYTHON_BASE_IMAGE}" || true
@@ -542,7 +453,7 @@ BUILD_ID=${BUILD_ID:="local"}
 
 
 # directory where "deployment" artifacts should be placed
-DEPLOY_DIR=${AIRFLOW_ROOT}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
+DEPLOY_DIR=${AIRFLOW_SOURCES}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
 
 mkdir -pv "${DEPLOY_DIR}"
 
@@ -568,13 +479,13 @@ if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == 
         ALL_FILES_TO_FIX=$(docker run airflow-context /bin/sh -c "(cd /context && find .)")
     elif [[ "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
         ALL_FILES_TO_FIX="\
-            ${AIRFLOW_ROOT}/setup.py \
-            ${AIRFLOW_ROOT}/setup.cfg \
-            ${AIRFLOW_ROOT}/airflow/version.py \
-            ${AIRFLOW_ROOT}/airflow/__init__.py \
-            ${AIRFLOW_ROOT}/airflow/bin/airflow \
-            ${AIRFLOW_ROOT}/airflow/www/package.json \
-            ${AIRFLOW_ROOT}/airflow/www/package-lock.json \
+            ${AIRFLOW_SOURCES}/setup.py \
+            ${AIRFLOW_SOURCES}/setup.cfg \
+            ${AIRFLOW_SOURCES}/airflow/version.py \
+            ${AIRFLOW_SOURCES}/airflow/__init__.py \
+            ${AIRFLOW_SOURCES}/airflow/bin/airflow \
+            ${AIRFLOW_SOURCES}/airflow/www/package.json \
+            ${AIRFLOW_SOURCES}/airflow/www/package-lock.json \
             "
     fi
     STAT_BIN=stat

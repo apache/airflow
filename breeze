@@ -26,11 +26,27 @@ export AIRFLOW_SOURCES="${MY_DIR}"
 # Directory where all CI scripts are located
 export SCRIPTS_CI_DIR="${MY_DIR}/scripts/ci"
 
+BUILD_CACHE_DIR="${MY_DIR}/.build"
+FILES_DIR="${MY_DIR}/files"
+TMP_DIR="${MY_DIR}/tmp"
+
+mkdir -pv "${BUILD_CACHE_DIR}"
+mkdir -pv "${TMP_DIR}"
+mkdir -pv "${FILES_DIR}"
+
+function save_to_file {
+    # shellcheck disable=SC2005
+    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
+}
+
+function read_from_file {
+    cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
+}
+
+export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
+
 # shellcheck source=scripts/ci/_utils.sh
 . "${SCRIPTS_CI_DIR}/_utils.sh"
-
-# shellcheck source=hooks/_default_branch.sh
-. "${MY_DIR}/hooks/_default_branch.sh"
 
 basic_sanity_checks
 
@@ -665,37 +681,7 @@ echo
 printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
 echo
 
-if ! PYTHON_BIN=$(command -v python3); then
-   if ! PYTHON_BIN=$(command -v python); then
-        echo >&2
-        echo >&2 "Error: You must have python3 (preferred) or python in your PATH"
-        echo >&2
-        exit 1
-   fi
-fi
-
-BUILD_CACHE_DIR="${MY_DIR}/.build"
-FILES_DIR="${MY_DIR}/files"
-TMP_DIR="${MY_DIR}/tmp"
-
-mkdir -pv "${BUILD_CACHE_DIR}"
-mkdir -pv "${TMP_DIR}"
-mkdir -pv "${FILES_DIR}"
-
 CMDNAME="$(basename -- "$0")"
-
-function save_to_file {
-    # shellcheck disable=SC2005
-    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
-}
-
-function read_from_file {
-    cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
-}
-
-export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
-export PYTHON_VERSION=${PYTHON_VERSION:=$("${PYTHON_BIN}" -c \
-'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
 
 export ENV="${ENV:=$(read_from_file ENV)}"
 export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
@@ -796,7 +782,7 @@ fi
 if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
    # Check if we are in virtualenv
    set +e
-   echo -e "import sys\nif not hasattr(sys,'real_prefix'):\n  sys.exit(1)" | "${PYTHON_BIN}"
+   echo -e "import sys\nif not hasattr(sys,'real_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
    RES=$?
    set -e
    if [[ ${RES} != "0" ]]; then
