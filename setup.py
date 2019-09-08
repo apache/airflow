@@ -262,10 +262,16 @@ zendesk = ['zdesk']
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
     + cassandra + mongo
 
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
+    'coverage',
     'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
@@ -288,6 +294,11 @@ devel = [
     'requests_mock',
     'yamllint'
 ]
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from the above list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 
 if PY3:
     devel += ['mypy']
@@ -328,6 +339,11 @@ def do_setup():
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         install_requires=[
             'alembic>=1.0, <2.0',
             'cached_property~=1.5',
@@ -372,6 +388,11 @@ def do_setup():
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
         ],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         setup_requires=[
             'docutils>=0.14, <1.0',
             'gitpython>=2.0.2',
