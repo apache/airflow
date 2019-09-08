@@ -890,3 +890,16 @@ class TestDag(unittest.TestCase):
             self.assertIn('t1', stdout_lines[0])
             self.assertIn('t2', stdout_lines[1])
             self.assertIn('t3', stdout_lines[2])
+
+    def test_dag_default_args_schedule_interval(self):
+        dag = DAG('DAG', default_args={'schedule_interval': datetime.timedelta(days=2, hours=1, minutes=30)})
+        self.assertEqual(dag.schedule_interval, dag.default_args['schedule_interval'])
+
+        dag = DAG('DAG', default_args={'schedule_interval': '@weekly'})
+        self.assertEqual(dag.schedule_interval, dag.default_args['schedule_interval'])
+
+        dag = DAG('DAG', default_args={'schedule_interval': '30 4 * * *'})
+        self.assertEqual(dag.schedule_interval, dag.default_args['schedule_interval'])
+
+        dag = DAG('DAG', default_args={'schedule_interval': None}, schedule_interval="@once")
+        self.assertEqual(dag.schedule_interval, dag.default_args['schedule_interval'])

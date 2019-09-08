@@ -280,6 +280,8 @@ class DAG(BaseDag, LoggingMixin):
                 timezone.convert_to_utc(self.default_args['end_date'])
             )
 
+        if 'schedule_interval' in self.default_args:
+            schedule_interval = self.default_args['schedule_interval']
         self.schedule_interval = schedule_interval
         if isinstance(schedule_interval, str) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)  # type: Optional[ScheduleInterval]
