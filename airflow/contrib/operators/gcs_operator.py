@@ -20,11 +20,11 @@
 This module contains a Google Cloud Storage Bucket operator.
 """
 import warnings
+from typing import Dict, Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.version import version
 
 
 class GoogleCloudStorageCreateBucketOperator(BaseOperator):
@@ -96,17 +96,17 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket_name,
-                 resource=None,
-                 storage_class='MULTI_REGIONAL',
-                 location='US',
-                 project_id=None,
-                 labels=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
+                 bucket_name: str,
+                 resource: Optional[Dict] = None,
+                 storage_class: str = 'MULTI_REGIONAL',
+                 location: str = 'US',
+                 project_id: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
@@ -125,11 +125,6 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        if self.labels is not None:
-            self.labels.update(
-                {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
-            )
-
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to

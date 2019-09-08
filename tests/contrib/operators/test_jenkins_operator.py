@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class JenkinsOperatorTestCase(unittest.TestCase):
+class TestJenkinsOperator(unittest.TestCase):
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute(self):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
@@ -64,8 +64,8 @@ class JenkinsOperatorTestCase(unittest.TestCase):
             operator.execute(None)
 
             self.assertEqual(jenkins_mock.get_build_info.call_count, 1)
-            jenkins_mock.get_build_info.assert_called_with(name='a_job_on_jenkins',
-                                                           number='1')
+            jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins',
+                                                                number='1')
 
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute_job_polling_loop(self):

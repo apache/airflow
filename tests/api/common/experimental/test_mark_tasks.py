@@ -19,9 +19,10 @@
 
 import unittest
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from airflow import configuration, models
+from airflow import models
+from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (
     set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
     set_dag_run_state_to_running)
@@ -44,7 +45,12 @@ class TestMarkTasks(unittest.TestCase):
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
+        cls.dag3 = dagbag.dags['example_trigger_target_dag']
+        cls.dag3.sync_to_db()
         cls.execution_dates = [days_ago(2), days_ago(1)]
+        start_date3 = cls.dag3.default_args["start_date"]
+        cls.dag3_execution_dates = [start_date3, start_date3 + timedelta(days=1),
+                                    start_date3 + timedelta(days=2)]
 
     def setUp(self):
         clear_db_runs()
@@ -62,6 +68,14 @@ class TestMarkTasks(unittest.TestCase):
 
         for dr in drs:
             dr.dag = self.dag2
+            dr.verify_integrity()
+
+        drs = _create_dagruns(self.dag3,
+                              self.dag3_execution_dates,
+                              state=State.SUCCESS,
+                              run_id_template="manual__{}")
+        for dr in drs:
+            dr.dag = self.dag3
             dr.verify_integrity()
 
     def tearDown(self):
@@ -140,6 +154,23 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id], [self.execution_dates[0]],
                           State.SUCCESS, snapshot)
 
+        # set one task as FAILED. dag3 has schedule_interval None
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=False,
+                            past=False, state=State.FAILED, commit=True)
+        # exactly one TaskInstance should have been altered
+        self.assertEqual(len(altered), 1)
+        # task should have been marked as failed
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[1]],
+                          State.FAILED, snapshot)
+        # tasks on other days should be unchanged
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[0]],
+                          None, snapshot)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[2]],
+                          None, snapshot)
+
     def test_mark_downstream(self):
         # test downstream
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
@@ -179,6 +210,15 @@ class TestMarkTasks(unittest.TestCase):
         self.assertEqual(len(altered), 2)
         self.verify_state(self.dag1, [task.task_id], self.execution_dates, State.SUCCESS, snapshot)
 
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=True,
+                            past=False, state=State.FAILED, commit=True)
+        self.assertEqual(len(altered), 2)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[0]], None, snapshot)
+        self.verify_state(self.dag3, [task.task_id], self.dag3_execution_dates[1:], State.FAILED, snapshot)
+
     def test_mark_tasks_past(self):
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
@@ -188,6 +228,15 @@ class TestMarkTasks(unittest.TestCase):
                             past=True, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 2)
         self.verify_state(self.dag1, [task.task_id], self.execution_dates, State.SUCCESS, snapshot)
+
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=False,
+                            past=True, state=State.FAILED, commit=True)
+        self.assertEqual(len(altered), 2)
+        self.verify_state(self.dag3, [task.task_id], self.dag3_execution_dates[:2], State.FAILED, snapshot)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[2]], None, snapshot)
 
     def test_mark_tasks_multiple(self):
         # set multiple tasks to success
@@ -203,7 +252,7 @@ class TestMarkTasks(unittest.TestCase):
     # TODO: this skipIf should be removed once a fixing solution is found later
     #       We skip it here because this test case is working with Postgres & SQLite
     #       but not with MySQL
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "Flaky with MySQL")
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'), "Flaky with MySQL")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
         task = self.dag2.get_task("section-1")

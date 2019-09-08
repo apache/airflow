@@ -25,6 +25,7 @@ import os
 import subprocess
 import sys
 import unittest
+from typing import List
 
 from setuptools import setup, find_packages, Command
 
@@ -62,7 +63,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -83,7 +84,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options = []
+    user_options = []  # type: List[str]
 
     def initialize_options(self):
         """Set default values for options."""
@@ -178,7 +179,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=1.2.3',
+    'sphinx>=2.1.2',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
 docker = ['docker~=3.0']
@@ -188,21 +189,25 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 gcp = [
+    # Please keep the list in alphabetical order
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
+    'google-cloud-automl>=0.4.0',
     'google-cloud-bigtable==0.33.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-language>=1.1.1',
+    'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.9.0, <1.10.0',
+    'google-cloud-speech>=0.36.3',
     'google-cloud-storage~=1.16',
+    'google-cloud-tasks==1.1.0',
+    'google-cloud-texttospeech>=0.4.0',
     'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
-    'google-cloud-tasks==1.1.0',
-    'google-cloud-texttospeech>=0.4.0',
-    'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
     'pandas-gbq',
@@ -261,9 +266,17 @@ zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
 
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'contextdecorator;python_version<"3.4"',
+    'coverage',
+    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'freezegun',
@@ -276,13 +289,20 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
+    'pre-commit',
     'pylint~=2.3.1',
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
+    'yamllint'
 ]
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from the above list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 
 if PY3:
     devel += ['mypy']
@@ -320,13 +340,18 @@ def do_setup():
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         install_requires=[
             'alembic>=1.0, <2.0',
+            'argcomplete~=1.10',
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'dumb-init>=1.2.2',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
@@ -334,12 +359,14 @@ def do_setup():
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
+            'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
+            'marshmallow-sqlalchemy>=0.16.1, <0.19.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
             'psutil>=4.2.0, <6.0.0',
@@ -358,7 +385,13 @@ def do_setup():
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
+            'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         setup_requires=[
             'docutils>=0.14, <1.0',
             'gitpython>=2.0.2',

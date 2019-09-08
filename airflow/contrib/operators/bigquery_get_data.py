@@ -20,6 +20,7 @@
 This module contains a Google BigQuery data operator.
 """
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -79,15 +80,15 @@ class BigQueryGetDataOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
-                 max_results='100',
-                 selected_fields=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
+                 dataset_id: str,
+                 table_id: str,
+                 max_results: str = '100',
+                 selected_fields: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:

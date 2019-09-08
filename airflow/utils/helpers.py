@@ -35,12 +35,12 @@ import signal
 
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
@@ -90,18 +90,6 @@ def ask_yesno(question):
             return False
         else:
             print("Please respond by yes or no.")
-
-
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
 
 
 def is_container(obj):
@@ -323,7 +311,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)

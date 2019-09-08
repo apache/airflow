@@ -23,12 +23,11 @@ import time
 import unittest
 
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
@@ -41,7 +40,7 @@ from tests.test_utils.db import clear_db_runs
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class LocalTaskJobTest(unittest.TestCase):
+class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 
@@ -162,9 +161,9 @@ class LocalTaskJobTest(unittest.TestCase):
                 time2 = heartbeat_records[i]
                 self.assertGreaterEqual((time2 - time1).total_seconds(), job.heartrate)
 
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
-    @unittest.skipIf('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('postgresql' in conf.get('core', 'sql_alchemy_conn'),
                      'flaky when run on postgresql')
     def test_mark_success_no_kill(self):
         """
@@ -227,13 +226,15 @@ class LocalTaskJobTest(unittest.TestCase):
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
         ti.pid = 1
+        session.merge(ti)
         session.commit()
 
         ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
-                            ignore_ti_state=True,
                             executor=SequentialExecutor())
-        with patch.object(BaseTaskRunner, 'start', return_value=None) as mock_method:
+        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+        with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:
             job1.run()
             mock_method.assert_not_called()
 

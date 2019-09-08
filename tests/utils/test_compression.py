@@ -29,7 +29,7 @@ import unittest
 from airflow.utils import compression
 
 
-class Compression(unittest.TestCase):
+class TestCompression(unittest.TestCase):
 
     def setUp(self):
         self.fn = {}

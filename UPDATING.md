@@ -1,27 +1,66 @@
 <!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 -->
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of contents**
+
+- [Airflow Master](#airflow-master)
+- [Airflow 1.10.4](#airflow-1104)
+- [Airflow 1.10.3](#airflow-1103)
+- [Airflow 1.10.2](#airflow-1102)
+- [Airflow 1.10.1](#airflow-1101)
+- [Airflow 1.10](#airflow-110)
+- [Airflow 1.9](#airflow-19)
+- [Airflow 1.8.1](#airflow-181)
+- [Airflow 1.8](#airflow-18)
+- [Airflow 1.7.1.2](#airflow-1712)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Airflow Master
+
+### Changes to FileSensor
+FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
+
+### Change dag loading duration metric name
+Change DAG file loading duration metric from 
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to 
+better handle the case when a DAG file has multiple DAGs.
+
+### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
+
+ImapHook:
+* The order of arguments has changed for `has_mail_attachment`, 
+`retrieve_mail_attachments` and `download_mail_attachments`.
+* A new `mail_filter` argument has been added to each of those.
+
+ImapAttachmentSensor:
+* The order of arguments has changed for `__init__`.
+* A new `mail_filter` argument has been added to `__init__`. 
+
+ImapAttachmentToS3Operator:
+* The order of arguments has changed for `__init__`.
+* A new `imap_mail_filter` argument has been added to `__init__`. 
 
 ### Changes to `SubDagOperator`
 
@@ -600,7 +639,7 @@ FAB has built-in authentication support for DB, OAuth, OpenID, LDAP, and REMOTE_
 
 For any other authentication type (OAuth, OpenID, LDAP, REMOTE_USER), see the [Authentication section of FAB docs](http://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-methods) for how to configure variables in webserver_config.py file.
 
-Once you modify your config file, run `airflow initdb` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
+Once you modify your config file, run `airflow db init` to generate new tables for RBAC support (these tables will have the prefix `ab_`).
 
 #### Creating an Admin Account
 
@@ -650,6 +689,10 @@ Resulting in the same config parameters as Celery 4, with more transparency.
 Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a default
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
+
+### Google Cloud Storage Hook
+
+The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
 
 ### BigQuery Hooks and Operator
 

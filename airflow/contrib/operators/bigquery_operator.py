@@ -22,7 +22,7 @@ This module contains Google BigQuery operators.
 
 import json
 import warnings
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Union, Dict
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
@@ -30,6 +30,8 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
+
+BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
@@ -41,8 +43,31 @@ class BigQueryConsoleLink(BaseOperatorLink):
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
         job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        return 'https://console.cloud.google.com/bigquery?j={job_id}'.format(
-            job_id=job_id) if job_id else ''
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+
+
+class BigQueryConsoleIndexableLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+
+    def __init__(self, index) -> None:
+        super().__init__()
+        self.index = index
+
+    @property
+    def name(self) -> str:
+        return 'BigQuery Console #{index}'.format(index=self.index + 1)
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        if not job_ids:
+            return None
+        if len(job_ids) < self.index:
+            return None
+        job_id = job_ids[self.index]
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -103,7 +128,7 @@ class BigQueryOperator(BaseOperator):
     :type api_resource_configs: dict
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
-    :type schema_update_options: tuple
+    :type schema_update_options: Optional[Union[list, tuple, set]]
     :param query_params: a list of dictionary containing query parameter types and
         values, passed to BigQuery. The structure of dictionary should look like
         'queryParameters' in Google BigQuery Jobs API:
@@ -142,9 +167,18 @@ class BigQueryOperator(BaseOperator):
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
-    operator_extra_links = (
-        BigQueryConsoleLink(),
-    )
+    @property
+    def operator_extra_links(self):
+        """
+        Return operator extra links
+        """
+        if isinstance(self.sql, str):
+            return (
+                BigQueryConsoleLink(),
+            )
+        return (
+            BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql)
+        )
 
     # pylint: disable=too-many-arguments, too-many-locals
     @apply_defaults
@@ -162,7 +196,7 @@ class BigQueryOperator(BaseOperator):
                  maximum_billing_tier: Optional[int] = None,
                  maximum_bytes_billed: Optional[float] = None,
                  create_disposition: Optional[str] = 'CREATE_IF_NEEDED',
-                 schema_update_options: Optional[tuple] = (),
+                 schema_update_options: Optional[Union[list, tuple, set]] = None,
                  query_params: Optional[list] = None,
                  labels: Optional[dict] = None,
                  priority: Optional[str] = 'INTERACTIVE',
@@ -170,9 +204,9 @@ class BigQueryOperator(BaseOperator):
                  api_resource_configs: Optional[dict] = None,
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
-                 encryption_configuration=None,
+                 encryption_configuration: Optional[dict] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -372,18 +406,18 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
-                 project_id=None,
-                 schema_fields=None,
-                 gcs_schema_object=None,
-                 time_partitioning=None,
-                 bigquery_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 labels=None,
-                 encryption_configuration=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 table_id: str,
+                 project_id: Optional[str] = None,
+                 schema_fields: Optional[List] = None,
+                 gcs_schema_object: Optional[str] = None,
+                 time_partitioning: Optional[Dict] = None,
+                 bigquery_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -519,26 +553,26 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 source_objects,
-                 destination_project_dataset_table,
-                 schema_fields=None,
-                 schema_object=None,
-                 source_format='CSV',
-                 compression='NONE',
-                 skip_leading_rows=0,
-                 field_delimiter=',',
-                 max_bad_records=0,
-                 quote_character=None,
-                 allow_quoted_newlines=False,
-                 allow_jagged_rows=False,
-                 bigquery_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 src_fmt_configs=None,
-                 labels=None,
-                 encryption_configuration=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 source_objects: List,
+                 destination_project_dataset_table: str,
+                 schema_fields: Optional[List] = None,
+                 schema_object: Optional[str] = None,
+                 source_format: str = 'CSV',
+                 compression: str = 'NONE',
+                 skip_leading_rows: int = 0,
+                 field_delimiter: str = ',',
+                 max_bad_records: int = 0,
+                 quote_character: Optional[str] = None,
+                 allow_quoted_newlines: bool = False,
+                 allow_jagged_rows: bool = False,
+                 bigquery_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 src_fmt_configs: Optional[dict] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -614,6 +648,11 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
     :type dataset_id: str
+    :param delete_contents: (Optional) Whether to force the deletion even if the dataset is not empty.
+        Will delete all tables (if any) in the dataset if set to True.
+        Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+        The default value is False.
+    :type delete_contents: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
@@ -625,6 +664,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         delete_temp_data = BigQueryDeleteDatasetOperator(
             dataset_id='temp-dataset',
             project_id='temp-project',
+            delete_contents=True, # Force the deletion of the dataset as well as its tables (if any).
             gcp_conn_id='_my_gcp_conn_',
             task_id='Deletetemp',
             dag=dag)
@@ -635,12 +675,13 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 delete_contents: bool = False,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         if bigquery_conn_id:
             warnings.warn(
@@ -650,15 +691,15 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.delete_contents = delete_contents
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-
-        self.log.info('Dataset id: %s', self.dataset_id)
-        self.log.info('Project id: %s', self.project_id)
 
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
+        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
+
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
@@ -667,7 +708,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         cursor.delete_dataset(
             project_id=self.project_id,
-            dataset_id=self.dataset_id
+            dataset_id=self.dataset_id,
+            delete_contents=self.delete_contents
         )
 
 
@@ -682,6 +724,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
+    :param location: (Optional) The geographic location where the dataset should reside.
+        There is no default value but the dataset will be created in US if nothing is provided.
+    :type location: str
     :param dataset_reference: Dataset reference that could be provided with request body.
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -708,13 +753,14 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 project_id=None,
-                 dataset_reference=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 *args, **kwargs):
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 dataset_reference: Optional[Dict] = None,
+                 location: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         if bigquery_conn_id:
             warnings.warn(
@@ -724,16 +770,16 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
 
-        self.log.info('Dataset id: %s', self.dataset_id)
-        self.log.info('Project id: %s', self.project_id)
-
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
+        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
+
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
@@ -743,4 +789,157 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         cursor.create_empty_dataset(
             project_id=self.project_id,
             dataset_id=self.dataset_id,
-            dataset_reference=self.dataset_reference)
+            dataset_reference=self.dataset_reference,
+            location=self.location)
+
+
+class BigQueryGetDatasetOperator(BaseOperator):
+    """
+    This operator is used to return the dataset specified by dataset_id.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.get_dataset(
+            dataset_id=self.dataset_id,
+            project_id=self.project_id)
+
+
+class BigQueryPatchDatasetOperator(BaseOperator):
+    """
+    This operator is used to patch dataset for your Project in BigQuery.
+    It only replaces fields that are provided in the submitted dataset resource.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param dataset_resource: Dataset resource that will be provided with request body.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    :type dataset_resource: dict
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id: str,
+                 dataset_resource: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.dataset_resource = dataset_resource
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start patching dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.patch_dataset(
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id)
+
+
+class BigQueryUpdateDatasetOperator(BaseOperator):
+    """
+    This operator is used to update dataset for your Project in BigQuery.
+    The update method replaces the entire dataset resource, whereas the patch
+    method only replaces fields that are provided in the submitted dataset resource.
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param dataset_resource: Dataset resource that will be provided with request body.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    :type dataset_resource: dict
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :rtype: dataset
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id: str,
+                 dataset_resource: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.dataset_resource = dataset_resource
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.update_dataset(
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id)

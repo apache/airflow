@@ -25,7 +25,7 @@ from airflow.contrib.operators.gcs_acl_operator import \
 from tests.compat import mock
 
 
-class GoogleCloudStorageAclTest(unittest.TestCase):
+class TestGoogleCloudStorageAcl(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageHook')
     def test_bucket_create_acl(self, mock_hook):
         operator = GoogleCloudStorageBucketCreateAclEntryOperator(

@@ -34,7 +34,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class TestHttpSensor(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -155,7 +155,15 @@ class HttpSensorTests(unittest.TestCase):
                 task.execute(None)
 
             self.assertTrue(mock_errors.called)
-            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
+            calls = [
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+            ]
+            mock_errors.assert_has_calls(calls)
 
 
 class FakeSession:
@@ -175,7 +183,7 @@ class FakeSession:
         return self.response
 
 
-class HttpOpSensorTest(unittest.TestCase):
+class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)

@@ -273,7 +273,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # return a set of all dags that the user could access
         return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
-    def has_access(self, permission, view_name, user=None):
+    def has_access(self, permission, view_name, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.

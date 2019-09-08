@@ -17,9 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import configuration
+from airflow.typing import Protocol
+from typing import Optional
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+class FernetProtocol(Protocol):
+    def decrypt(self, b):
+        ...
+
+    def encrypt(self, b):
+        ...
 
 
 class InvalidFernetToken(Exception):
@@ -46,7 +56,7 @@ class NullFernet:
         return b
 
 
-_fernet = None
+_fernet = None  # type: Optional[FernetProtocol]
 
 
 def get_fernet():
@@ -77,7 +87,7 @@ def get_fernet():
         return _fernet
 
     try:
-        fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        fernet_key = conf.get('core', 'FERNET_KEY')
         if not fernet_key:
             log.warning(
                 "empty cryptography key - values will not be stored encrypted."

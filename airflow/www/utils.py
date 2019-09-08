@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
 import json
 import time
 import markdown
 import re
+from typing import Any, Optional
 import zipfile
 import os
 import io
@@ -34,7 +36,7 @@ import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
 from urllib.parse import urlencode
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
@@ -55,8 +57,8 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 def should_hide_value_for_key(key_name):
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = configuration.conf.getboolean('admin',
-                                                   'hide_sensitive_variable_fields')
+        config_set = conf.getboolean('admin',
+                                     'hide_sensitive_variable_fields')
         field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
     return False
@@ -372,6 +374,34 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_python_source(x: Any) -> Optional[str]:
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+    return source_code
 
 
 class UtcAwareFilterMixin:

@@ -20,7 +20,7 @@
 This module contains a Google Cloud Storage list operator.
 """
 import warnings
-from typing import Iterable
+from typing import Iterable, Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -71,14 +71,14 @@ class GoogleCloudStorageListOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 prefix=None,
-                 delimiter=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
+                 bucket: str,
+                 prefix: Optional[str] = None,
+                 delimiter: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:

@@ -20,6 +20,7 @@
 This module contains a Google BigQuery to BigQuery operator.
 """
 import warnings
+from typing import Dict, Union, List, Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -74,17 +75,17 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 source_project_dataset_tables,
-                 destination_project_dataset_table,
-                 write_disposition='WRITE_EMPTY',
-                 create_disposition='CREATE_IF_NEEDED',
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 labels=None,
-                 encryption_configuration=None,
+                 source_project_dataset_tables: Union[List[str], str],
+                 destination_project_dataset_table: str,
+                 write_disposition: str = 'WRITE_EMPTY',
+                 create_disposition: str = 'CREATE_IF_NEEDED',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:

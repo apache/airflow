@@ -39,7 +39,7 @@ from tabulate import tabulate
 
 # To avoid circular imports
 import airflow.models
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
@@ -288,7 +288,7 @@ def correct_maybe_zipped(fileloc):
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def list_py_file_paths(directory, safe_mode=True,
+def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
                        include_examples=None):
     """
     Traverse a directory and look for Python files.
@@ -296,7 +296,9 @@ def list_py_file_paths(directory, safe_mode=True,
     :param directory: the directory to traverse
     :type directory: unicode
     :param safe_mode: whether to use a heuristic to determine whether a file
-        contains Airflow DAG definitions
+        contains Airflow DAG definitions. If not provided, use the
+        core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
+        to safe.
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -674,7 +676,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :return:
         """
         if not self._process:
-            self.log.warn('Ending without manager process.')
+            self.log.warning('Ending without manager process.')
             return
         reap_process_group(self._process.pid, log=self.log)
         self._parent_signal_conn.close()

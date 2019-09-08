@@ -20,6 +20,7 @@
 This module contains Google BigQuery table delete operator.
 """
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -52,13 +53,13 @@ class BigQueryTableDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 deletion_dataset_table,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 ignore_if_missing=False,
+                 deletion_dataset_table: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 ignore_if_missing: bool = False,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:

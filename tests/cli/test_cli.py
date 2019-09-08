@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
 import io
 import sys
 import unittest
@@ -280,7 +281,7 @@ class TestCLI(unittest.TestCase):
             'dags', 'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -324,7 +325,7 @@ class TestCLI(unittest.TestCase):
             'dags', 'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -340,6 +341,45 @@ class TestCLI(unittest.TestCase):
             verbose=False,
         )
         mock_run.reset_mock()
+
+    def test_show_dag_print(self):
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator']))
+        out = temp_stdout.getvalue()
+        self.assertIn("label=example_bash_operator", out)
+        self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
+        self.assertIn("runme_2 -> run_after_loop", out)
+
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_dave(self, mock_render_dag):
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator', '--save', 'awesome.png']
+            ))
+        out = temp_stdout.getvalue()
+        mock_render_dag.return_value.render.assert_called_once_with(
+            cleanup=True, filename='awesome', format='png'
+        )
+        self.assertIn("File awesome.png saved", out)
+
+    @mock.patch("airflow.bin.cli.subprocess.Popen")
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
+        mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
+        mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator', '--imgcat']
+            ))
+        out = temp_stdout.getvalue()
+        mock_render_dag.return_value.pipe.assert_called_once_with(format='png')
+        mock_popen.return_value.communicate.assert_called_once_with(b'DOT_DATA')
+        self.assertIn("OUT", out)
+        self.assertIn("ERR", out)
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_cli_backfill_depends_on_past(self, mock_run):
@@ -364,7 +404,7 @@ class TestCLI(unittest.TestCase):
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=run_date,
             end_date=run_date,
             conf=None,
@@ -403,7 +443,7 @@ class TestCLI(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,
             conf=None,
@@ -439,7 +479,7 @@ class TestCLI(unittest.TestCase):
                  NAIVE_DATE.isoformat()]
 
         cli.run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_with(
+        mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,

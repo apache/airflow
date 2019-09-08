@@ -39,7 +39,7 @@ default_args = dict(
 )
 
 
-class SubDagOperatorTests(unittest.TestCase):
+class TestSubDagOperator(unittest.TestCase):
 
     def setUp(self):
         clear_db_runs()

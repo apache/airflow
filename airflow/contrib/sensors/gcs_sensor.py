@@ -22,6 +22,7 @@ This module contains Google Cloud Storage sensors.
 
 import os
 from datetime import datetime
+from typing import Callable, List, Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -51,11 +52,11 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object,  # pylint:disable=redefined-builtin
-                 google_cloud_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 object: str,  # pylint:disable=redefined-builtin
+                 google_cloud_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.bucket = bucket
@@ -106,12 +107,12 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object,  # pylint:disable=redefined-builtin
-                 ts_func=ts_function,
-                 google_cloud_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 object: str,  # pylint:disable=redefined-builtin
+                 ts_func: Callable = ts_function,
+                 google_cloud_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.bucket = bucket
@@ -154,17 +155,17 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 prefix,
-                 google_cloud_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 prefix: str,
+                 google_cloud_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
-        self._matches = []
+        self._matches = []  # type: List[str]
 
     def poke(self, context):
         self.log.info('Sensor checks existence of objects: %s, %s',
@@ -211,8 +212,6 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
     :type min_objects: int
     :param previous_num_objects: The number of objects found during the last poke.
     :type previous_num_objects: int
-    :param inactivity_seconds: The current seconds of the inactivity period.
-    :type inactivity_seconds: float
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
@@ -231,15 +230,15 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 prefix,
-                 inactivity_period=60 * 60,
-                 min_objects=1,
-                 previous_num_objects=0,
-                 allow_delete=True,
-                 google_cloud_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 *args, **kwargs):
+                 bucket: str,
+                 prefix: str,
+                 inactivity_period: float = 60 * 60,
+                 min_objects: int = 1,
+                 previous_num_objects: int = 0,
+                 allow_delete: bool = True,
+                 google_cloud_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -254,7 +253,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.last_activity_time = None
 
-    def is_bucket_updated(self, current_num_objects):
+    def is_bucket_updated(self, current_num_objects: int) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.

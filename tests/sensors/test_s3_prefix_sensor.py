@@ -23,7 +23,7 @@ import unittest
 from airflow.sensors.s3_prefix_sensor import S3PrefixSensor
 
 
-class S3PrefixSensorTests(unittest.TestCase):
+class TestS3PrefixSensor(unittest.TestCase):
 
     @mock.patch('airflow.hooks.S3_hook.S3Hook')
     def test_poke(self, mock_hook):
@@ -34,7 +34,7 @@ class S3PrefixSensorTests(unittest.TestCase):
 
         mock_hook.return_value.check_for_prefix.return_value = False
         self.assertFalse(s.poke(None))
-        mock_hook.return_value.check_for_prefix.assert_called_with(
+        mock_hook.return_value.check_for_prefix.assert_called_once_with(
             prefix='prefix',
             delimiter='/',
             bucket_name='bucket')

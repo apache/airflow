@@ -25,11 +25,12 @@ import unittest
 from tempfile import mkdtemp
 
 import psutil
+import six
 from parameterized import parameterized
 
 import airflow.example_dags
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
@@ -62,7 +63,7 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
-class SchedulerJobTest(unittest.TestCase):
+class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
         clear_db_runs()
@@ -78,20 +79,17 @@ class SchedulerJobTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-
-        def getboolean(section, key):
-            if section.lower() == 'core' and key.lower() == 'load_examples':
-                return False
-            else:
-                return configuration.conf.getboolean(section, key)
-
-        cls.patcher = mock.patch('airflow.jobs.scheduler_job.conf.getboolean')
-        cls.mock_getboolean = cls.patcher.start()
-        cls.mock_getboolean.side_effect = getboolean
+        cls.old_val = None
+        if conf.has_option('core', 'load_examples'):
+            cls.old_val = conf.get('core', 'load_examples')
+        conf.set('core', 'load_examples', 'false')
 
     @classmethod
     def tearDownClass(cls):
-        cls.patcher.stop()
+        if cls.old_val is not None:
+            conf.set('core', 'load_examples', cls.old_val)
+        else:
+            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -806,7 +804,7 @@ class SchedulerJobTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
@@ -1395,7 +1393,7 @@ class SchedulerJobTest(unittest.TestCase):
         mock_list = Mock()
         scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        mock_list.append.assert_called_with(
+        mock_list.append.assert_called_once_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1680,7 +1678,7 @@ class SchedulerJobTest(unittest.TestCase):
         # tasks are put on the task_instances_list (should be one, not 3)
         scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
 
-        task_instances_list.append.assert_called_with(
+        task_instances_list.append.assert_called_once_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1986,7 +1984,7 @@ class SchedulerJobTest(unittest.TestCase):
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
             assert sla_callback.called
-            mock_log().exception.assert_called_with(
+            mock_log().exception.assert_called_once_with(
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
@@ -2027,7 +2025,7 @@ class SchedulerJobTest(unittest.TestCase):
         with mock.patch('airflow.jobs.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
-            mock_log().exception.assert_called_with(
+            mock_log().exception.assert_called_once_with(
                 'Could not send SLA Miss email notification for DAG %s',
                 'test_sla_miss')
 
@@ -2037,7 +2035,8 @@ class SchedulerJobTest(unittest.TestCase):
         but is still present in the executor.
         """
         executor = TestExecutor(do_update=False)
-        dagbag = DagBag(executor=executor)
+        dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
+                                                                   "no_dags.py"))
         dagbag.dags.clear()
         dagbag.executor = executor
 
@@ -2079,9 +2078,9 @@ class SchedulerJobTest(unittest.TestCase):
         do_schedule()
         self.assertEqual(1, len(executor.queued_tasks))
 
-        def run_with_error(task):
+        def run_with_error(task, ignore_ti_state=False):
             try:
-                task.run()
+                task.run(ignore_ti_state=ignore_ti_state)
             except AirflowException:
                 pass
 
@@ -2091,8 +2090,12 @@ class SchedulerJobTest(unittest.TestCase):
         ti.task = dag_task1
 
         self.assertEqual(ti.try_number, 1)
-        # fail execution
-        run_with_error(ti)
+        # At this point, scheduler has tried to schedule the task once and
+        # heartbeated the executor once, which moved the state of the task from
+        # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
+        # we need to ignore the TI state as SCHEDULED is not a valid state to start
+        # executing task.
+        run_with_error(ti, ignore_ti_state=True)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 
@@ -2270,7 +2273,7 @@ class SchedulerJobTest(unittest.TestCase):
                          schedule_interval='* * * * *',
                          start_date=six_hours_ago_to_the_hour,
                          catchup=True)
-        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = conf.getboolean('scheduler', 'catchup_by_default')
         self.assertEqual(default_catchup, True)
         self.assertEqual(dag1.catchup, True)
 

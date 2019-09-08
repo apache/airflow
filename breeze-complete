@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+_BREEZE_ALLOWED_PYTHON_VERSIONS=" 3.5 3.6 3.7 "
+_BREEZE_ALLOWED_ENVS=" docker kubernetes "
+_BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
+_BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.13.0 "
+_BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
+_BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck"
+_BREEZE_DEFAULT_DOCKERHUB_USER="apache"
+_BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
+
+_BREEZE_SHORT_OPTIONS="
+h P: E: B: K: M:
+s b O
+v y C A
+r R p u
+c D: H: e a
+t: d: k x: S: F:
+"
+
+_BREEZE_LONG_OPTIONS="
+help python: env: backend: kubernetes-version: kubernetes-mode:
+skip-mounting-local-sources build-only build-docs
+verbose assume-yes toggle-suppress-cheatsheet toggle-suppress-asciiart
+force-rebuild-images force-rebuild-images-clean force-pull-images push-images
+cleanup-images dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
+test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
+"
+
+# Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
+
+_BREEZE_KNOWN_VALUES=""
+
+function _get_known_values_breeze {
+    case "$1" in
+        -P | --python )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_VERSIONS} ;;
+        -E | --env )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_ENVS} ;;
+        -B | --backend )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS} ;;
+        -K | --kubernetes-version )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} ;;
+        -M | --kubernetes-mode )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES} ;;
+        -S | --static-check )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
+        -F | --static-check-all-files )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
+        -d | --docker-compose )
+            # shellcheck disable=SC2034
+            if typeset -f "_docker_compose" > /dev/null; then
+              _docker_compose
+            fi
+            _BREEZE_KNOWN_VALUES="" ;;
+        -D | --dockerhub-user )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}" ;;
+        -H | --dockerhub-repo )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}" ;;
+        *)
+            _BREEZE_KNOWN_VALUES=""
+    esac
+}
+
+_BREEZE_GETOPT_SHORT_OPTIONS=""
+_BREEZE_GETOPT_LONG_OPTIONS=""
+
+function _build_options_breeze {
+    local SEPARATOR=""
+    local OPTION
+
+    for OPTION in ${_BREEZE_SHORT_OPTIONS}
+    do
+        _BREEZE_GETOPT_SHORT_OPTIONS="${_BREEZE_GETOPT_SHORT_OPTIONS}${SEPARATOR}${OPTION}"
+        SEPARATOR=","
+    done
+
+    SEPARATOR=""
+    for OPTION in ${_BREEZE_LONG_OPTIONS}
+    do
+        _BREEZE_GETOPT_LONG_OPTIONS="${_BREEZE_GETOPT_LONG_OPTIONS}${SEPARATOR}${OPTION}"
+        SEPARATOR=","
+    done
+}
+
+function _listcontains_breeze {
+  local WORD
+  for WORD in $1; do
+    [[ ${WORD} = "$2" ]] && return 0
+  done
+  return 1
+}
+
+# A completion function for breeze
+function _comp_breeze {
+    local ALL_OPTIONS=""
+    local EXTRA_ARG_OPTIONS=""
+    local OPTION
+    local GETOPT_OPTION
+    local LAST_COMMAND_PREFIX
+    local PREVIOUS_COMMAND
+
+    for OPTION in ${_BREEZE_SHORT_OPTIONS}
+    do
+        LAST_CHAR="${OPTION:$((${#OPTION}-1)):1}"
+        GETOPT_OPTION='-'${OPTION//:/}
+        if [[ "${LAST_CHAR}" == ":" ]]; then
+            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
+        fi
+        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
+    done
+    for OPTION in ${_BREEZE_LONG_OPTIONS}
+    do
+        LAST_CHAR="${OPTION:$((${#OPTION}-1)):1}"
+        GETOPT_OPTION='--'${OPTION//:/}
+        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
+        if [[ "${LAST_CHAR}" == ":" ]]; then
+            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
+        fi
+    done
+
+    LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]}-1]}"
+    if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
+        PREVIOUS_COMMAND="${COMP_WORDS[${#COMP_WORDS[@]}-2]}"
+    else
+        PREVIOUS_COMMAND=""
+    fi
+
+    if _listcontains_breeze "${EXTRA_ARG_OPTIONS}" "${PREVIOUS_COMMAND}"; then
+        COMPREPLY=()
+        _get_known_values_breeze "${PREVIOUS_COMMAND}"
+        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
+            < <(compgen -W "${_BREEZE_KNOWN_VALUES}" -- "${LAST_COMMAND_PREFIX}")
+    else
+        COMPREPLY=()
+        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
+            < <(compgen -W "${ALL_OPTIONS}" -- "${LAST_COMMAND_PREFIX}")
+    fi
+}
+
+_build_options_breeze
+
+complete -F _comp_breeze breeze
