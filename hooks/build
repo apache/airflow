@@ -572,7 +572,10 @@ if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == 
             ${AIRFLOW_ROOT}/setup.cfg \
             ${AIRFLOW_ROOT}/airflow/version.py \
             ${AIRFLOW_ROOT}/airflow/__init__.py \
-            ${AIRFLOW_ROOT}/airflow/bin/airflow"
+            ${AIRFLOW_ROOT}/airflow/bin/airflow \
+            ${AIRFLOW_ROOT}/airflow/www/package.json \
+            ${AIRFLOW_ROOT}/airflow/www/package-lock.json \
+            "
     fi
     STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
