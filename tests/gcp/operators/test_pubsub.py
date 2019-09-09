@@ -51,7 +51,16 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.create_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_exists=True)
+            project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=True,
+            labels=None,
+            message_storage_policy=None,
+            kms_key_name=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_succeedifexists(self, mock_hook):
@@ -62,7 +71,16 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.create_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_exists=False)
+            project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=False,
+            labels=None,
+            message_storage_policy=None,
+            kms_key_name=None,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubTopicDeleteOperator(unittest.TestCase):
@@ -75,7 +93,13 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.delete_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_not_exists=False)
+            project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_not_exists=False,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
@@ -83,14 +107,28 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
-            task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC,
-            subscription=TEST_SUBSCRIPTION)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            topic_project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION
+        )
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, None,
-            10, False)
+            topic_project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            subscription_project=None,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
@@ -100,23 +138,49 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC,
             subscription=TEST_SUBSCRIPTION,
             subscription_project=another_project)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, another_project,
-            10, False)
+            topic_project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            subscription_project=another_project,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
-            task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            topic_project=TEST_PROJECT,
+            topic=TEST_TOPIC
+        )
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, None, None, 10, False)
+            topic_project=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=None,
+            subscription_project=None,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
 
@@ -125,12 +189,20 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionDeleteOperator(
-            task_id=TASK_ID, project=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            project=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION
+        )
 
         operator.execute(None)
         mock_hook.return_value.delete_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=False)
+            project=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            fail_if_not_exists=False,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubPublishOperator(unittest.TestCase):

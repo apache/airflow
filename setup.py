@@ -200,6 +200,7 @@ gcp = [
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
+    'google-cloud-pubsub==1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
