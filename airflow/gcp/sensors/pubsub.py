@@ -19,6 +19,7 @@
 """
 This module contains a Google PubSub sensor.
 """
+from typing import Optional
 
 from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -68,15 +69,15 @@ class PubSubPullSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            subscription,
-            max_messages=5,
-            return_immediately=False,
-            ack_messages=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            project: str,
+            subscription: str,
+            max_messages: int = 5,
+            return_immediately: bool = False,
+            ack_messages: bool = False,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.gcp_conn_id = gcp_conn_id

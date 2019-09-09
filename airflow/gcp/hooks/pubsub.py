@@ -19,7 +19,7 @@
 """
 This module contains a Google Pub/Sub Hook.
 """
-
+from typing import Any, List, Dict, Optional
 from uuid import uuid4
 
 from googleapiclient.discovery import build
@@ -53,7 +53,7 @@ class PubSubHook(GoogleCloudBaseHook):
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
         super().__init__(gcp_conn_id, delegate_to=delegate_to)
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Returns a Pub/Sub service object.
 
@@ -63,7 +63,7 @@ class PubSubHook(GoogleCloudBaseHook):
         return build(
             'pubsub', 'v1', http=http_authorized, cache_discovery=False)
 
-    def publish(self, project, topic, messages):
+    def publish(self, project: str, topic: str, messages: List[Dict]) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -87,7 +87,7 @@ class PubSubHook(GoogleCloudBaseHook):
             raise PubSubException(
                 'Error publishing to topic {}'.format(full_topic), e)
 
-    def create_topic(self, project, topic, fail_if_exists=False):
+    def create_topic(self, project: str, topic: str, fail_if_exists: bool = False) -> None:
         """
         Creates a Pub/Sub topic, if it does not already exist.
 
@@ -117,7 +117,7 @@ class PubSubHook(GoogleCloudBaseHook):
                 raise PubSubException(
                     'Error creating topic {}'.format(full_topic), e)
 
-    def delete_topic(self, project, topic, fail_if_not_exists=False):
+    def delete_topic(self, project: str, topic: str, fail_if_not_exists: bool = False) -> None:
         """
         Deletes a Pub/Sub topic if it exists.
 
@@ -146,9 +146,15 @@ class PubSubHook(GoogleCloudBaseHook):
                 raise PubSubException(
                     'Error deleting topic {}'.format(full_topic), e)
 
-    def create_subscription(self, topic_project, topic, subscription=None,
-                            subscription_project=None, ack_deadline_secs=10,
-                            fail_if_exists=False):
+    def create_subscription(
+        self,
+        topic_project: str,
+        topic: str,
+        subscription: Optional[str] = None,
+        subscription_project: Optional[str] = None,
+        ack_deadline_secs: int = 10,
+        fail_if_exists: bool = False,
+    ) -> str:
         """
         Creates a Pub/Sub subscription, if it does not already exist.
 
@@ -204,8 +210,7 @@ class PubSubHook(GoogleCloudBaseHook):
                     e)
         return subscription
 
-    def delete_subscription(self, project, subscription,
-                            fail_if_not_exists=False):
+    def delete_subscription(self, project: str, subscription: str, fail_if_not_exists: bool = False) -> None:
         """
         Deletes a Pub/Sub subscription, if it exists.
 
@@ -236,8 +241,9 @@ class PubSubHook(GoogleCloudBaseHook):
                     'Error deleting subscription {}'.format(full_subscription),
                     e)
 
-    def pull(self, project, subscription, max_messages,
-             return_immediately=False):
+    def pull(
+        self, project: str, subscription: str, max_messages: int, return_immediately: bool = False
+    ) -> List[Dict]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
@@ -273,7 +279,7 @@ class PubSubHook(GoogleCloudBaseHook):
                 'Error pulling messages from subscription {}'.format(
                     full_subscription), e)
 
-    def acknowledge(self, project, subscription, ack_ids):
+    def acknowledge(self, project: str, subscription: str, ack_ids: List) -> None:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 

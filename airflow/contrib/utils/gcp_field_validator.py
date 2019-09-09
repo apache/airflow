@@ -188,7 +188,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     :type api_version: str
 
     """
-    def __init__(self, validation_specs: Sequence[str], api_version: str) -> None:
+    def __init__(self, validation_specs: Sequence[Dict], api_version: str) -> None:
         super().__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version

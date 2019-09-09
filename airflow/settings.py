@@ -144,10 +144,7 @@ def configure_orm(disable_connection_pool=False):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
-        try:
-            pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE')
-        except conf.AirflowConfigException:
-            pool_size = 5
+        pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
 
         # The maximum overflow size of the pool.
         # When the number of checked-out connections reaches the size set in pool_size,
@@ -159,24 +156,26 @@ def configure_orm(disable_connection_pool=False):
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
-        try:
-            max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW')
-        except conf.AirflowConfigException:
-            max_overflow = 10
+        max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
         # co-exist on the same server, SQLAlchemy should set its
         # pool_recycle to an equal or smaller value.
-        try:
-            pool_recycle = conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE')
-        except conf.AirflowConfigException:
-            pool_recycle = 1800
+        pool_recycle = conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
+
+        # Check connection at the start of each connection pool checkout.
+        # Typically, this is a simple statement like “SELECT 1”, but may also make use
+        # of some DBAPI-specific method to test the connection for liveness.
+        # More information here:
+        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=False)
 
         log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
                  "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
+        engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default

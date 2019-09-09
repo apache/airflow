@@ -20,6 +20,7 @@
 This module contains a Google BigQuery data operator.
 """
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -73,21 +74,24 @@ class BigQueryGetDataOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'
 
     @apply_defaults
     def __init__(self,
-                 dataset_id,
-                 table_id,
-                 max_results='100',
-                 selected_fields=None,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
+                 dataset_id: str,
+                 table_id: str,
+                 max_results: str = '100',
+                 selected_fields: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 location: str = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -102,6 +106,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.location = location
 
     def execute(self, context):
         self.log.info('Fetching Data from:')
@@ -109,7 +114,8 @@ class BigQueryGetDataOperator(BaseOperator):
                       self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
 
         conn = hook.get_conn()
         cursor = conn.cursor()

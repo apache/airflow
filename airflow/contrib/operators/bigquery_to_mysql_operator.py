@@ -19,6 +19,7 @@
 """
 This module contains a Google BigQuery to MySQL operator.
 """
+from typing import Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -72,22 +73,25 @@ class BigQueryToMySqlOperator(BaseOperator):
     :type replace: bool
     :param batch_size: The number of rows to take in each batch
     :type batch_size: int
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'mysql_table')
 
     @apply_defaults
-    def __init__(self,
-                 dataset_table,
-                 mysql_table,
-                 selected_fields=None,
-                 gcp_conn_id='google_cloud_default',
-                 mysql_conn_id='mysql_default',
-                 database=None,
-                 delegate_to=None,
-                 replace=False,
-                 batch_size=1000,
+    def __init__(self,  # pylint:disable=too-many-arguments
+                 dataset_table: str,
+                 mysql_table: str,
+                 selected_fields: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 mysql_conn_id: str = 'mysql_default',
+                 database: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 replace: bool = False,
+                 batch_size: int = 1000,
+                 location: str = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
@@ -97,6 +101,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         self.replace = replace
         self.delegate_to = delegate_to
         self.batch_size = batch_size
+        self.location = location
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
@@ -109,7 +114,8 @@ class BigQueryToMySqlOperator(BaseOperator):
                       self.dataset_id, self.table_id)
 
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
 
         conn = hook.get_conn()
         cursor = conn.cursor()

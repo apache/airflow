@@ -19,6 +19,7 @@
 """
 Class responsible for colouring logs based on log level.
 """
+import re
 import sys
 from typing import Any, Union
 
@@ -55,14 +56,23 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
             return arg
         return colored(str(arg), **ARGS)  # type: ignore
 
+    @staticmethod
+    def _count_number_of_arguments_in_message(record: LogRecord) -> int:
+        matches = re.findall(r"%.", record.msg)
+        return len(matches) if matches else 0
+
     def _color_record_args(self, record: LogRecord) -> LogRecord:
         if isinstance(record.args, (tuple, list)):
             record.args = tuple(self._color_arg(arg) for arg in record.args)
         elif isinstance(record.args, dict):
-            # Case of logging.debug("a %(a)d b %(b)s", {'a':1, 'b':2})
-            record.args = {
-                key: self._color_arg(value) for key, value in record.args.items()
-            }
+            if self._count_number_of_arguments_in_message(record) > 1:
+                # Case of logging.debug("a %(a)d b %(b)s", {'a':1, 'b':2})
+                record.args = {
+                    key: self._color_arg(value) for key, value in record.args.items()
+                }
+            else:
+                # Case of single dict passed to formatted string
+                record.args = self._color_arg(record.args)   # type: ignore
         elif isinstance(record.args, str):
             record.args = self._color_arg(record.args)
         return record

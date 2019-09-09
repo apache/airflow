@@ -21,6 +21,10 @@ This module contains a Google Text to Speech operator.
 """
 
 from tempfile import NamedTemporaryFile
+from typing import Dict, Union, Optional
+
+from google.api_core.retry import Retry
+from google.cloud.texttospeech_v1.types import SynthesisInput, VoiceSelectionParams, AudioConfig
 
 from airflow import AirflowException
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
@@ -79,18 +83,18 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        input_data,
-        voice,
-        audio_config,
-        target_bucket_name,
-        target_filename,
-        project_id=None,
-        gcp_conn_id="google_cloud_default",
-        retry=None,
-        timeout=None,
+        input_data: Union[Dict, SynthesisInput],
+        voice: Union[Dict, VoiceSelectionParams],
+        audio_config: Union[Dict, AudioConfig],
+        target_bucket_name: str,
+        target_filename: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         self.input_data = input_data
         self.voice = voice
         self.audio_config = audio_config

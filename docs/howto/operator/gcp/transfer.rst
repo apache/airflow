@@ -420,3 +420,11 @@ Templating
     :dedent: 4
     :start-after: [START gcp_transfer_job_sensor_template_fields]
     :end-before: [END gcp_transfer_job_sensor_template_fields]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud API Documentation <https://cloud.google.com/storage-transfer/docs/reference/rest/>`__
+* `Product Documentation <https://cloud.google.com/storage-transfer/docs/>`__

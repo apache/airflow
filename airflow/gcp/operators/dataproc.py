@@ -27,9 +27,10 @@ import os
 import re
 import time
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import List, Dict, Set, Optional
 
-from airflow.gcp.hooks.dataproc import DataProcHook
+from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -44,12 +45,12 @@ class DataprocOperationBaseOperator(BaseOperator):
     """
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 region='global',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
+                 project_id: str,
+                 region: str = 'global',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -194,42 +195,42 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 cluster_name,
-                 num_workers,
-                 zone=None,
-                 network_uri=None,
-                 subnetwork_uri=None,
-                 internal_ip_only=None,
-                 tags=None,
-                 storage_bucket=None,
-                 init_actions_uris=None,
-                 init_action_timeout="10m",
-                 metadata=None,
-                 custom_image=None,
-                 custom_image_project_id=None,
-                 image_version=None,
-                 autoscaling_policy=None,
-                 properties=None,
-                 optional_components=None,
-                 num_masters=1,
-                 master_machine_type='n1-standard-4',
-                 master_disk_type='pd-standard',
-                 master_disk_size=1024,
-                 worker_machine_type='n1-standard-4',
-                 worker_disk_type='pd-standard',
-                 worker_disk_size=1024,
-                 num_preemptible_workers=0,
-                 labels=None,
-                 region='global',
-                 service_account=None,
-                 service_account_scopes=None,
-                 idle_delete_ttl=None,
-                 auto_delete_time=None,
-                 auto_delete_ttl=None,
-                 customer_managed_key=None,
+                 project_id: str,
+                 cluster_name: str,
+                 num_workers: int,
+                 zone: Optional[str] = None,
+                 network_uri: Optional[str] = None,
+                 subnetwork_uri: Optional[str] = None,
+                 internal_ip_only: Optional[bool] = None,
+                 tags: Optional[List[str]] = None,
+                 storage_bucket: Optional[str] = None,
+                 init_actions_uris: Optional[List[str]] = None,
+                 init_action_timeout: str = "10m",
+                 metadata: Optional[Dict] = None,
+                 custom_image: Optional[str] = None,
+                 custom_image_project_id: Optional[str] = None,
+                 image_version: Optional[str] = None,
+                 autoscaling_policy: Optional[str] = None,
+                 properties: Optional[Dict] = None,
+                 optional_components: Optional[List[str]] = None,
+                 num_masters: int = 1,
+                 master_machine_type: str = 'n1-standard-4',
+                 master_disk_type: str = 'pd-standard',
+                 master_disk_size: int = 1024,
+                 worker_machine_type: str = 'n1-standard-4',
+                 worker_disk_type: str = 'pd-standard',
+                 worker_disk_size: int = 1024,
+                 num_preemptible_workers: int = 0,
+                 labels: Optional[Dict] = None,
+                 region: str = 'global',
+                 service_account: Optional[str] = None,
+                 service_account_scopes: Optional[List[str]] = None,
+                 idle_delete_ttl: Optional[int] = None,
+                 auto_delete_time: Optional[datetime] = None,
+                 auto_delete_ttl: Optional[int] = None,
+                 customer_managed_key: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
 
         super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
@@ -506,21 +507,21 @@ class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 cluster_name,
-                 project_id,
-                 region='global',
-                 num_workers=2,
-                 num_preemptible_workers=0,
-                 graceful_decommission_timeout=None,
+                 cluster_name: str,
+                 project_id: str,
+                 region: str = 'global',
+                 num_workers: int = 2,
+                 num_preemptible_workers: int = 0,
+                 graceful_decommission_timeout: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
 
         # Optional
-        self.optional_arguments = {}
+        self.optional_arguments = {}  # type: Dict
         if graceful_decommission_timeout:
             self.optional_arguments['gracefulDecommissionTimeout'] = \
                 self._get_graceful_decommission_timeout(
@@ -606,11 +607,11 @@ class DataprocClusterDeleteOperator(DataprocOperationBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 cluster_name,
-                 project_id,
-                 region='global',
+                 cluster_name: str,
+                 project_id: str,
+                 region: str = 'global',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
 
         super().__init__(project_id=project_id, region=region, *args, **kwargs)
         self.cluster_name = cluster_name
@@ -674,17 +675,17 @@ class DataProcJobBaseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 job_name='{{task.task_id}}_{{ds_nodash}}',
-                 cluster_name="cluster-1",
-                 dataproc_properties=None,
-                 dataproc_jars=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 labels=None,
-                 region='global',
-                 job_error_states=None,
+                 job_name: str = '{{task.task_id}}_{{ds_nodash}}',
+                 cluster_name: str = "cluster-1",
+                 dataproc_properties: Optional[Dict] = None,
+                 dataproc_jars: Optional[List[str]] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 region: str = 'global',
+                 job_error_states: Optional[Set[str]] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -780,11 +781,11 @@ class DataProcPigOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            query=None,
-            query_uri=None,
-            variables=None,
+            query: Optional[str] = None,
+            query_uri: Optional[str] = None,
+            variables: Optional[Dict] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.query = query
@@ -823,11 +824,11 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            query=None,
-            query_uri=None,
-            variables=None,
+            query: Optional[str] = None,
+            query_uri: Optional[str] = None,
+            variables: Optional[Dict] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.query = query
@@ -867,11 +868,11 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            query=None,
-            query_uri=None,
-            variables=None,
+            query: Optional[str] = None,
+            query_uri: Optional[str] = None,
+            variables: Optional[Dict] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.query = query
@@ -918,13 +919,13 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            main_jar=None,
-            main_class=None,
-            arguments=None,
-            archives=None,
-            files=None,
+            main_jar: Optional[str] = None,
+            main_class: Optional[str] = None,
+            arguments: Optional[List] = None,
+            archives: Optional[List] = None,
+            files: Optional[List] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.main_jar = main_jar
@@ -970,13 +971,13 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            main_jar=None,
-            main_class=None,
-            arguments=None,
-            archives=None,
-            files=None,
+            main_jar: Optional[str] = None,
+            main_class: Optional[str] = None,
+            arguments: Optional[List] = None,
+            archives: Optional[List] = None,
+            files: Optional[List] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.main_jar = main_jar
@@ -1049,13 +1050,13 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     @apply_defaults
     def __init__(
             self,
-            main,
-            arguments=None,
-            archives=None,
-            pyfiles=None,
-            files=None,
+            main: str,
+            arguments: Optional[List] = None,
+            archives: Optional[List] = None,
+            pyfiles: Optional[List] = None,
+            files: List = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.main = main
@@ -1118,7 +1119,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocOperationBaseOperator)
     template_fields = ['template_id']
 
     @apply_defaults
-    def __init__(self, template_id, parameters, *args, **kwargs):
+    def __init__(self, template_id: str, parameters: Dict[str, str], *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.parameters = parameters
@@ -1148,7 +1149,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
         https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
 
     :param template: The template contents. (templated)
-    :type template: map
+    :type template: dict
     :param project_id: The ID of the google cloud project in which
         the template runs
     :type project_id: str
@@ -1165,7 +1166,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
     template_fields = ['template']
 
     @apply_defaults
-    def __init__(self, template, *args, **kwargs):
+    def __init__(self, template: Dict, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.template = template
 

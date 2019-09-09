@@ -103,6 +103,16 @@ class TestMLEngineHook(unittest.TestCase):
 
     _SERVICE_URI_PREFIX = 'https://ml.googleapis.com/v1/'
 
+    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook._authorize")
+    @mock.patch("airflow.gcp.hooks.mlengine.build")
+    def test_mle_engine_client_creation(self, mock_build, mock_authorize):
+        mle_engine_hook = hook.MLEngineHook()
+        result = mle_engine_hook.get_conn()
+        mock_build.assert_called_with(
+            'ml', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @_SKIP_IF
     def test_create_version(self):
         project = 'test-project'

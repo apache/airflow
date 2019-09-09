@@ -125,3 +125,11 @@ More information
 
 See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
+* `Product Documentation <https://cloud.google.com/storage/docs/>`__

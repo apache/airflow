@@ -20,6 +20,7 @@
 This module contains a Google BigQuery to BigQuery operator.
 """
 import warnings
+from typing import Dict, Union, List, Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -66,6 +67,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('source_project_dataset_tables',
                        'destination_project_dataset_table', 'labels')
@@ -73,18 +76,19 @@ class BigQueryToBigQueryOperator(BaseOperator):
     ui_color = '#e6f0e4'
 
     @apply_defaults
-    def __init__(self,
-                 source_project_dataset_tables,
-                 destination_project_dataset_table,
-                 write_disposition='WRITE_EMPTY',
-                 create_disposition='CREATE_IF_NEEDED',
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 labels=None,
-                 encryption_configuration=None,
+    def __init__(self,  # pylint:disable=too-many-arguments
+                 source_project_dataset_tables: Union[List[str], str],
+                 destination_project_dataset_table: str,
+                 write_disposition: str = 'WRITE_EMPTY',
+                 create_disposition: str = 'CREATE_IF_NEEDED',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None,
+                 location: str = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -101,6 +105,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.labels = labels
         self.encryption_configuration = encryption_configuration
+        self.location = location
 
     def execute(self, context):
         self.log.info(
@@ -108,7 +113,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
             self.source_project_dataset_tables, self.destination_project_dataset_table
         )
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_copy(

@@ -451,8 +451,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Note that by default tasks aren't assigned to any pool and their
-execution parallelism is only limited to the executor's setting.
+Note that if tasks are not given a pool, they are assigned to a default
+pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
+can changed through the UI or CLI (though it cannot be removed).
 
 To combine Pools with SubDAGs see the `SubDAGs`_ section.
 

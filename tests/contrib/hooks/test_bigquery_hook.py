@@ -20,14 +20,15 @@
 
 import unittest
 from unittest import mock
-from typing import List
+from typing import List, Optional
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check
+    _validate_value, _api_resource_configs_duplication_check, \
+    _validate_src_fmt_configs
 
 bq_available = True
 
@@ -35,6 +36,30 @@ try:
     hook.BigQueryHook().get_service()
 except GoogleAuthError:
     bq_available = False
+
+
+class TestBigQueryHookConnection(unittest.TestCase):
+    hook = None  # type: Optional[hook.BigQueryHook]
+
+    def setUp(self):
+        self.hook = hook.BigQueryHook()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryConnection")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryHook._authorize")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.build")
+    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'bigquery', 'v2', http=mock_authorize.return_value, cache_discovery=False
+        )
+        mock_bigquery_connection.assert_called_once_with(
+            service=mock_build.return_value,
+            project_id=self.hook.project_id,
+            use_legacy_sql=self.hook.use_legacy_sql,
+            location=self.hook.location,
+            num_retries=self.hook.num_retries
+        )
+        self.assertEqual(mock_bigquery_connection.return_value, result)
 
 
 class TestPandasGbqCredentials(unittest.TestCase):
@@ -357,6 +382,28 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
 
+    def test_validate_src_fmt_configs(self):
+        source_format = "test_format"
+        valid_configs = ["test_config_known", "compatibility_val"]
+        backward_compatibility_configs = {"compatibility_val": "val"}
+
+        with self.assertRaises(ValueError):
+            # This config should raise a value error.
+            src_fmt_configs = {"test_config_unknown": "val"}
+            _validate_src_fmt_configs(source_format,
+                                      src_fmt_configs,
+                                      valid_configs,
+                                      backward_compatibility_configs)
+
+        src_fmt_configs = {"test_config_known": "val"}
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
+        assert "test_config_known" in src_fmt_configs, \
+            "src_fmt_configs should contain al known src_fmt_configs"
+
+        assert "compatibility_val" in src_fmt_configs, \
+            "_validate_src_fmt_configs should add backward_compatibility config"
+
 
 class TestTableDataOperations(unittest.TestCase):
     def test_insert_all_succeed(self):
@@ -641,7 +688,6 @@ class TestLabelsInRunJob(unittest.TestCase):
 class TestDatasetsOperations(unittest.TestCase):
 
     def test_create_empty_dataset_no_dataset_id_err(self):
-
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
@@ -656,6 +702,59 @@ class TestDatasetsOperations(unittest.TestCase):
                     "datasetReference":
                         {"datasetId": "test_dataset",
                          "projectId": "project_test2"}})
+
+    def test_create_empty_dataset_with_location_duplicates_call_err(self):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test", location="EU",
+                dataset_reference={
+                    "location": "US",
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test"}})
+
+    def test_create_empty_dataset_with_location(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
+
+    def test_create_empty_dataset_with_location_duplicates_call_no_err(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+        dataset_reference = {"location": "EU"}
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location,
+                                    dataset_reference=dataset_reference)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
 
     def test_get_dataset_without_dataset_id(self):
         with mock.patch.object(hook.BigQueryHook, 'get_service'):

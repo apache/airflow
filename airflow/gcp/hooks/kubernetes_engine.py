@@ -131,6 +131,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def delete_cluster(
         self,
         name: str,
@@ -177,6 +178,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return None
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
         cluster: Union[Dict, Cluster],
@@ -234,6 +236,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name).self_link
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_cluster(
         self,
         name: str,

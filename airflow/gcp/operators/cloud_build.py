@@ -19,6 +19,7 @@
 """Operators that integrat with Google Cloud Build service."""
 from copy import deepcopy
 import re
+from typing import Dict, Iterable, Any, Optional
 from urllib.parse import urlparse, unquote
 
 from airflow import AirflowException
@@ -42,7 +43,7 @@ class BuildProcessor:
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
     :type body: dict
     """
-    def __init__(self, body):
+    def __init__(self, body: Dict) -> None:
         self.body = deepcopy(body)
 
     def _verify_source(self):
@@ -127,7 +128,7 @@ class BuildProcessor:
         return source_dict
 
     @staticmethod
-    def _convert_storage_url_to_dict(storage_url):
+    def _convert_storage_url_to_dict(storage_url: str) -> Dict[str, Any]:
         """
         Convert url to object in Google Cloud Storage to a format supported by the API
 
@@ -165,18 +166,24 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :param body: The request body.
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
     :type body: dict
+    :param project_id: ID of the Google Cloud project if None then
+        default project_id is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")
+    template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(
-        self, body, project_id=None, gcp_conn_id="google_cloud_default", api_version="v1", *args, **kwargs
-    ):
+    def __init__(self,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = "google_cloud_default",
+                 api_version: str = "v1",
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.body = body
         self.project_id = project_id

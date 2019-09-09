@@ -19,6 +19,7 @@
 """
 This module contains Google Spanner operators.
 """
+from typing import List, Optional
 
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import CloudSpannerHook
@@ -57,13 +58,13 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 configuration_name,
-                 node_count,
-                 display_name,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 configuration_name: str,
+                 node_count: str,
+                 display_name: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.configuration_name = configuration_name
@@ -118,10 +119,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -174,12 +175,12 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
+                 instance_id: int,
                  database_id,
                  query,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -257,12 +258,12 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 ddl_statements,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 ddl_statements: List[str],
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -331,13 +332,13 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 ddl_statements,
-                 project_id=None,
-                 operation_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 ddl_statements: List[str],
+                 project_id: Optional[str] = None,
+                 operation_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -403,11 +404,11 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id

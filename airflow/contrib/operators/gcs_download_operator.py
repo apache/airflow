@@ -22,6 +22,7 @@ This module contains Google Cloud Storage download operator.
 
 import sys
 import warnings
+from typing import Optional
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -34,12 +35,17 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is. (templated)
+    If a filename is supplied, it writes the file to the specified location, alternatively one can
+    set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
+    exceeds the maximum size for xcom it is recommended to write to a file.
+
+    :param bucket: The Google cloud storage bucket where the object is.
+        Must not contain 'gs://' prefix. (templated)
     :type bucket: str
     :param object: The name of the object to download in the Google cloud
         storage bucket. (templated)
     :type object: str
-    :param filename: The file path on the local file system (where the
+    :param filename: The file path, including filename,  on the local file system (where the
         operator is being executed) that the file should be downloaded to. (templated)
         If no filename passed, the downloaded data will not be stored on the local file
         system.
@@ -63,15 +69,15 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 object_name=None,
-                 filename=None,
-                 store_to_xcom_key=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
+                 bucket: str,
+                 object_name: Optional[str] = None,
+                 filename: Optional[str] = None,
+                 store_to_xcom_key: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         # To preserve backward compatibility
         # TODO: Remove one day
         if object_name is None:
@@ -80,6 +86,9 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                 DeprecationWarning("Use 'object_name' instead of 'object'.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'object_name'")
+
+        if filename is not None and store_to_xcom_key is not None:
+            raise ValueError("Either filename or store_to_xcom_key can be set")
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -102,13 +111,17 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
-        file_bytes = hook.download(bucket_name=self.bucket,
-                                   object_name=self.object,
-                                   filename=self.filename)
+
         if self.store_to_xcom_key:
+            file_bytes = hook.download(bucket_name=self.bucket,
+                                       object_name=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise AirflowException(
                     'The size of the downloaded file is too large to push to XCom!'
                 )
+        else:
+            hook.download(bucket_name=self.bucket,
+                          object_name=self.object,
+                          filename=self.filename)
