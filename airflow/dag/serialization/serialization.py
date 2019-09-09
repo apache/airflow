@@ -70,17 +70,33 @@ class Serialization:
         return json.dumps(cls._serialize(var), ensure_ascii=True)
 
     @classmethod
-    def from_json(cls, json_str: str) -> Union[
-            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
-        """Deserializes json_str and reconstructs all DAGs and operators it contains."""
-        return cls._deserialize(json.loads(json_str))
+    def to_dict(cls, var: Union[DAG, BaseOperator, dict, list, set, tuple]) -> dict:
+        """Stringifies DAGs and operators contained by var and returns a dict of var.
+        """
+        return cls._serialize(var)
 
     @classmethod
-    def validate_json(cls, json_str: str):
-        """Validate json_str satisfies JSON schema."""
+    def from_json(cls, serialized_obj: str) -> Union[
+            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
+        """Deserializes json_str and reconstructs all DAGs and operators it contains."""
+        return cls._deserialize(json.loads(serialized_obj))
+
+    @classmethod
+    def from_dict(cls, serialized_obj: dict) -> Union[
+            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
+        """Deserializes json_str and reconstructs all DAGs and operators it contains."""
+        return cls._deserialize(serialized_obj)
+
+    @classmethod
+    def validate_schema(cls, serialized_obj: Union[str, dict]):
+        """Validate serialized_obj satisfies JSON schema."""
         if cls._json_schema is None:
             raise AirflowException('JSON schema of {:s} is not set.'.format(cls.__name__))
-        cls._json_schema.validate(json.loads(json_str))
+
+        if isinstance(serialized_obj, dict):
+            cls._json_schema.validate(serialized_obj)
+        elif isinstance(serialized_obj, str):
+            cls._json_schema.validate(json.loads(serialized_obj))
 
     @staticmethod
     def _encode(x, type_):

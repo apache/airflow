@@ -75,7 +75,7 @@ class SerializedDagModel(Base):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
         self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
-        self.data = SerializedDAG.serialize_dag(dag)
+        self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
 
     @staticmethod
@@ -121,13 +121,15 @@ class SerializedDagModel(Base):
         :returns: a dict of DAGs read from database
         """
         from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F811, E501; pylint: disable=redefined-outer-name
-        from airflow.dag.serialization.enums import Encoding
 
         serialized_dags = session.query(cls.dag_id, cls.data).all()
 
         dags = {}
         for dag_id, data in serialized_dags:
-            dag = SerializedDAG.deserialize_dag(data[Encoding.VAR])  # type: Any
+            if isinstance(data, dict):
+                dag = SerializedDAG.from_dict(data)  # type: Any
+            else:
+                dag = SerializedDAG.from_json(data)
             # Sanity check.
             if dag.dag_id == dag_id:
                 dags[dag_id] = dag

@@ -20,8 +20,6 @@
 """DAG serialization with JSON."""
 import json
 
-from airflow.exceptions import AirflowException
-
 from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.dag.serialization.json_schema import load_dag_schema
 from airflow.dag.serialization.serialization import Serialization
@@ -55,8 +53,6 @@ class SerializedDAG(DAG, Serialization):
         """Serializes a DAG into a JSON object.
         """
         new_dag = {Encoding.TYPE: DAT.DAG, Encoding.VAR: cls._serialize_object(dag)}
-        # Validate DAG with Schema
-        cls._validate_dag_schema(serialized_dag_dict=new_dag)
         return new_dag
 
     @classmethod
@@ -78,14 +74,16 @@ class SerializedDAG(DAG, Serialization):
         """
         json_str = json.dumps(cls._serialize(var), ensure_ascii=True)
 
-        # ToDo: Verify if adding Schema Validation is the best approach or not
         # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
-        cls.validate_json(json_str=json_str)
+        cls.validate_schema(json_str)
         return json_str
 
     @classmethod
-    def _validate_dag_schema(cls, serialized_dag_dict: dict):
+    def to_dict(cls, var) -> dict:
+        """Stringifies DAGs and operators contained by var and returns a dict of var.
+        """
+        json_dict = cls._serialize(var)
+
         # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
-        if cls._json_schema is None:
-            raise AirflowException('JSON schema of {:s} is not set.'.format(cls.__name__))
-        cls._json_schema.validate(serialized_dag_dict)
+        cls.validate_schema(json_dict)
+        return json_dict

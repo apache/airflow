@@ -73,7 +73,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
                 self.assertTrue(result.fileloc == dag.full_filepath)
                 # Verifies JSON schema.
-                SerializedDAG.validate_json(result.data)
+                SerializedDAG.validate_schema(result.data)
 
     def test_read_dags(self):
         """DAGs can be read from database."""

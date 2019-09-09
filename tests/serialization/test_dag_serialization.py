@@ -180,7 +180,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         # Verify JSON schema of serialized DAGs.
         for json_str in serialized_dags.values():
-            SerializedDAG.validate_json(json_str)
+            SerializedDAG.validate_schema(json_str)
 
         # Compares with the ground truth of JSON string.
         self.validate_serialized_dag(
