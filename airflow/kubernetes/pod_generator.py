@@ -22,8 +22,6 @@ is supported and no serialization need be written.
 """
 
 import copy
-import textwrap
-
 import kubernetes.client.models as k8s
 from airflow.executors import Executors
 import uuid
@@ -35,10 +33,7 @@ class PodDefaults:
     """
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = textwrap.dedent("""
-    trap "exit 0" INT;
-    while true; do sleep 3600; done;
-    """).strip()
+    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
     VOLUME_MOUNT = k8s.V1VolumeMount(
         name='xcom',
         mount_path=XCOM_MOUNT_PATH
