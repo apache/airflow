@@ -36,18 +36,27 @@ depends_on = None
 
 def upgrade():
     """Upgrade version."""
+    json_type = sa.JSON
+    conn = op.get_bind()  # pylint: disable=no-member
+
+    if conn.dialect.name != "postgresql":
+        # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
+        # versions, check for the function existing.
+        try:
+            conn.execute("SELECT JSON_VALID(1)").fetchone()
+        except sa.exc.OperationalError:
+            json_type = sa.Text
 
     op.create_table('serialized_dag',  # pylint: disable=no-member
                     sa.Column('dag_id', sa.String(length=250), nullable=False),
                     sa.Column('fileloc', sa.String(length=2000), nullable=False),
                     sa.Column('fileloc_hash', sa.Integer(), nullable=False),
-                    sa.Column('data', sa.JSON(), nullable=False),
+                    sa.Column('data', json_type(), nullable=False),
                     sa.Column('last_updated', sa.DateTime(), nullable=False),
                     sa.PrimaryKeyConstraint('dag_id'))
     op.create_index(   # pylint: disable=no-member
         'idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
 
-    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
         cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
