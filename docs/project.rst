@@ -62,6 +62,7 @@ Committers
 - @mik-laj (Kamil Breguła)
 - @aijamalnk (Aizhamal Nurmamat kyzy)
 - @milton0825 (Chao-Han Tsai)
+- @feluelle (Felix Uellendall)
 
 
 For the full list of contributors, take a look at `Airflow's Github
