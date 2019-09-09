@@ -23,13 +23,7 @@ from airflow.contrib.kubernetes.secret import Secret
 from airflow.exceptions import AirflowConfigException
 import unittest
 
-XCOM_CMD = """import time
-while True:
-    try:
-        time.sleep(3600)
-    except KeyboardInterrupt:
-        exit(0)
-"""
+XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
 
 
 class TestPodRequestFactory(unittest.TestCase):
@@ -160,8 +154,8 @@ class TestPodRequestFactory(unittest.TestCase):
         result = self.xcom_pod_request_factory.create(self.pod)
         container_two = {
             'name': 'airflow-xcom-sidecar',
-            'image': 'python:3.5-alpine',
-            'command': ['python', '-c', XCOM_CMD],
+            'image': 'alpine',
+            'command': ['sh', '-c', XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',
