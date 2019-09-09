@@ -31,6 +31,11 @@ First you must install sentry requirement:
 
 Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``[sentry]``. Its template resembles the following: ``'{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'``
 
+.. code-block:: python
+
+    [sentry]
+    sentry_dsn = http://foo@sentry.io/123
+
 .. note::
     If this value is not provided, the SDK will try to read it from the ``SENTRY_DSN`` environment variable.
 
