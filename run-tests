@@ -39,19 +39,19 @@ fi
 
 # environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
-AIRFLOW_ROOT="$(cd "${MY_DIR}" && pwd)"
-export AIRFLOW_ROOT
-export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_ROOT}/tests/dags"
+AIRFLOW_SOURCES="$(cd "${MY_DIR}" && pwd)"
+export AIRFLOW_SOURCES
+export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_SOURCES}/tests/dags"
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
 # add test/test_utils to PYTHONPATH TODO: Do we need that ??? Looks fishy.
-export PYTHONPATH=${PYTHONPATH:=}:${AIRFLOW_ROOT}/tests/test_utils
+export PYTHONPATH=${PYTHONPATH:=}:${AIRFLOW_SOURCES}/tests/test_utils
 
 echo Airflow home: "${AIRFLOW_HOME}"
-echo Airflow root: "${AIRFLOW_ROOT}"
+echo Airflow root: "${AIRFLOW_SOURCES}"
 echo Home of the user: "${HOME}"
 
-export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_ROOT}/tests/dags"
+export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
 
 usage() {
       echo """
@@ -73,7 +73,7 @@ Flags:
 
 -f, --xunit-file
         The file where xunit results should be dumped. Default if not specified
-        is ${AIRFLOW_ROOT}/logs/all_tests.xml
+        is ${AIRFLOW_SOURCES}/logs/all_tests.xml
 
 -s, --nocapture
         Don't capture stdout when running the tests. This is useful if you are
@@ -106,7 +106,7 @@ unset PARAMS
 WITH_DB_INIT="false"
 NOCAPTURE="false"
 WITH_XUNIT="false"
-XUNIT_FILE="${AIRFLOW_ROOT}/logs/all_tests.xml"
+XUNIT_FILE="${AIRFLOW_SOURCES}/logs/all_tests.xml"
 VERBOSE="${AIRFLOW_CI_VERBOSE}"
 
 # Parse Flags.

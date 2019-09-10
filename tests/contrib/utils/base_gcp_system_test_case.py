@@ -40,7 +40,7 @@ ENV_FILE_RETRIEVER = os.path.join(AIRFLOW_PARENT_FOLDER,
 
 
 # Retrieve environment variables from parent directory retriever - it should be
-# in the path ${AIRFLOW_ROOT}/../../get_system_test_environment_variables.py
+# in the path ${AIRFLOW_SOURCES}/../../get_system_test_environment_variables.py
 # and it should print all the variables in form of key=value to the stdout
 class RetrieveVariables:
     @staticmethod
