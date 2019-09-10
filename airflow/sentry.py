@@ -23,7 +23,7 @@
 from typing import Any
 from functools import wraps
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -55,6 +55,7 @@ class DummySentry:
         Blank function for formatting a TaskInstance._run_raw_task.
         """
         return run
+
 
 class ConfiguredSentry:
     """

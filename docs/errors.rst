@@ -42,29 +42,23 @@ Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``
 Tags
 -----
 
-=================================== ================================================================
+=================================== ==================================================
 Name                                Description
-=================================== ================================================================
+=================================== ==================================================
 dag_id                              Dag name of the dag that failed
 task_id                             Task name of the task that failed
 execution_date                      Execution date when the task failed
 operator                            Operator name of the task that failed
-=================================== ================================================================
+=================================== ==================================================
 
 Breadcrumbs
 ------------
 
-=================================== ====================================================================================================
+=================================== ==============================================================
 Name                                Description
-=================================== ====================================================================================================
-upstream_tasks[dag_id]              Dag ID of task that executed before failed task
+=================================== ==============================================================
 upstream_tasks[task_id]             Task ID of task that executed before failed task
-upstream_tasks[execution_date]      Execution date of task instance that executed before failed task
 upstream_tasks[state]               Final state of task that executed before failed task (only Success and Failed states are captured)
 upstream_tasks[operator]            Task operator of task that executed before failed task
 upstream_tasks[duration]            Duration in seconds of task that executed before failed task
-=================================== ====================================================================================================
-<<<<<<< HEAD
-=======
-
->>>>>>> ecc80b4da129d60f612acaae53fd69d55839726b
+=================================== ==============================================================
