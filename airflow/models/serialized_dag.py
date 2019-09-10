@@ -23,7 +23,8 @@ import hashlib
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, Index, Integer, String, Text, JSON, and_, exc
+# from sqlalchemy import Column, Index, Integer, String, Text, JSON, and_, exc
+from sqlalchemy import Column, Index, Integer, String, JSON, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import Base, ID_LEN
@@ -36,7 +37,6 @@ if TYPE_CHECKING:
     from airflow.models import DAG  # noqa: F401; # pylint: disable=cyclic-import
 
 log = LoggingMixin().log
-json_type = JSON
 
 
 class SerializedDagModel(Base):
@@ -63,12 +63,11 @@ class SerializedDagModel(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(Integer, nullable=False)
-    try:
-        db.create_session().execute("SELECT JSON_VALID(1)").fetchone()
-    except exc.OperationalError:
-        json_type = Text
-
-    data = Column(json_type, nullable=False)
+    data = Column(JSON, nullable=False)
+    # try:
+    #     data = Column(JSON, nullable=False)
+    # except exc.OperationalError:
+    #     data = Column(Text, nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
