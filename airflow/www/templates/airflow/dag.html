@@ -627,7 +627,7 @@ function updateQueryStringParameter(uri, key, value) {
     setInterval(()=>{
         if (isAutoRefreshEnabled())
             location.reload()
-    }, 1500);
+    }, 3000);
 
     function toggleAutoRefreshBtnLabel() {
       if (isAutoRefreshEnabled())
