@@ -25,13 +25,13 @@ Google Cloud Bigtable Operators
   :local:
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
 
 Environment variables
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 All examples below rely on the following variables, which can be passed via environment variables.
 
