@@ -107,7 +107,7 @@ class PythonOperator(BaseOperator):
         sig = signature(python_callable).parameters.items()
         op_args_names = islice(sig, num_op_args)
         for name, _ in op_args_names:
-            # Check if it part of the context
+            # Check if it is part of the context
             if name in context_keys:
                 # Raise an exception to let the user know that the keyword is reserved
                 raise ValueError(
@@ -115,7 +115,7 @@ class PythonOperator(BaseOperator):
                 )
 
         if any(str(param).startswith("**") for _, param in sig):
-            # If there is a **kwargs, **context or **_ then just dump everything.
+            # If there is a ** argument then just dump everything.
             op_kwargs = context
         else:
             # If there is only for example, an execution_date, then pass only these in :-)
