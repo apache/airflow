@@ -38,6 +38,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 
+# https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
+# universal/runnerlib/execute.go#L85
+JOB_ID_PATTERN = re.compile(r'Submitted job:\s+([a-z|0-9|A-Z|\-|\_]+).*')
+
+
 class DataflowJobStatus:
     """
     Helper class with Dataflow job statuses.
@@ -179,7 +184,7 @@ class _DataflowJob(LoggingMixin):
                                      DataflowJobStatus.JOB_STATE_PENDING}:
             time.sleep(self._poll_sleep)
         else:
-            self.log.debug(str(job))
+            self.log.debug("Current job: %s", str(job))
             raise Exception(
                 "Google Cloud Dataflow job {} was unknown state: {}".format(
                     job['name'], job['currentState']))
@@ -221,23 +226,22 @@ class _Dataflow(LoggingMixin):
             stderr=subprocess.PIPE,
             close_fds=True)
 
-    def _line(self, fd):
+    def _read_line_by_fd(self, fd):
         if fd == self._proc.stderr.fileno():
-            line = b''.join(self._proc.stderr.readlines())
+            line = self._proc.stderr.readline().decode()
             if line:
                 self.log.warning(line[:-1])
             return line
 
         if fd == self._proc.stdout.fileno():
-            line = b''.join(self._proc.stdout.readlines())
+            line = self._proc.stdout.readline().decode()
             if line:
                 self.log.info(line[:-1])
             return line
 
         raise Exception("No data in stderr or in stdout.")
 
-    @staticmethod
-    def _extract_job(line: bytes) -> Optional[str]:
+    def _extract_job(self, line: str) -> Optional[str]:
         """
         Extracts job_id.
 
@@ -247,11 +251,11 @@ class _Dataflow(LoggingMixin):
         :rtype: Optional[str]
         """
         # Job id info: https://goo.gl/SE29y9.
-        job_id_pattern = re.compile(
-            br'.*console.cloud.google.com/dataflow.*/jobs/([a-z|0-9|A-Z|\-|\_]+).*')
-        matched_job = job_id_pattern.search(line or b'')
+        matched_job = JOB_ID_PATTERN.search(line)
         if matched_job:
-            return matched_job.group(1).decode()
+            job_id = matched_job.group(1)
+            self.log.info("Found Job ID: %s", job_id)
+            return job_id
         return None
 
     def wait_for_done(self) -> Optional[str]:
@@ -268,14 +272,16 @@ class _Dataflow(LoggingMixin):
         # terminated.
         process_ends = False
         while True:
-            ret = select.select(reads, [], [], 5)
-            if ret is None:
+            # Wait for at least one available fd.
+            readable_fbs, _, _ = select.select(reads, [], [], 5)
+            if readable_fbs is None:
                 self.log.info("Waiting for DataFlow process to complete.")
                 continue
 
-            for raw_line in ret[0]:
-                line = self._line(raw_line)
-                if line:
+            # Read available fds.
+            for readable_fb in readable_fbs:
+                line = self._read_line_by_fd(readable_fb)
+                if line and not job_id:
                     job_id = job_id or self._extract_job(line)
 
             if process_ends:
