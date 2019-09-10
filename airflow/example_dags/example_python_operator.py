@@ -28,13 +28,13 @@ from airflow.operators.python_operator import PythonOperator
 
 args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': airflow.utils.dates.days_ago(5),
 }
 
 dag = DAG(
     dag_id='example_python_operator',
     default_args=args,
-    schedule_interval=None,
+    schedule_interval='@daily',
 )
 
 
@@ -55,8 +55,9 @@ run_this = PythonOperator(
 
 
 # [START howto_operator_python_kwargs]
-def my_sleeping_function(random_base):
+def my_sleeping_function(ds, random_base):
     """This is a function that will run within the DAG execution"""
+    print("The execution date is: {}".format(ds))
     time.sleep(random_base)
 
 

@@ -34,7 +34,8 @@ Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
 Use the ``op_args`` and ``op_kwargs`` arguments to pass additional arguments
-to the Python callable.
+to the Python callable. If you use any of the :doc:`context variables <../../macros-ref>`
+as an argument of the provided callable, the value will be automatically injected as shown below:
 
 .. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
     :language: python
