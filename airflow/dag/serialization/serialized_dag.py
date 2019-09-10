@@ -75,7 +75,15 @@ class SerializedDAG(DAG, Serialization):
         """
         json_str = json.dumps(cls._serialize(var), ensure_ascii=True)
 
-        # ToDo: Verify if adding Schema Validation is the best approach or not
         # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
-        cls.validate_json(json_str=json_str)
+        cls.validate_schema(json_str)
         return json_str
+
+    @classmethod
+    def to_dict(cls, var):
+        # type: (...) -> dict
+        """Stringifies DAGs and operators contained by var and returns a dict of var.
+        """
+        json_dict = cls._serialize(var)
+        cls.validate_schema(json_dict)
+        return json_dict
