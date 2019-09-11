@@ -376,7 +376,7 @@
 ./tests/contrib/hooks/test_aws_lambda_hook.py
 ./tests/contrib/hooks/test_azure_container_instance_hook.py
 ./tests/contrib/hooks/test_azure_cosmos_hook.py
-./tests/contrib/hooks/test_bigquery_hook.py
+./tests/gcp/hooks/test_bigquery.py
 ./tests/contrib/hooks/test_cassandra_hook.py
 ./tests/contrib/hooks/test_databricks_hook.py
 ./tests/contrib/hooks/test_datastore_hook.py

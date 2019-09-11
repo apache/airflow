@@ -22,18 +22,19 @@ from unittest.mock import MagicMock
 from datetime import datetime
 
 from airflow import models
-from airflow.contrib.operators.bigquery_get_data import BigQueryGetDataOperator
-from airflow.contrib.operators.bigquery_operator import \
-    BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
-    BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
-    BigQueryOperator, BigQueryConsoleLink, BigQueryGetDatasetOperator, \
-    BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator
-from airflow.contrib.operators.bigquery_table_delete_operator import \
-    BigQueryTableDeleteOperator
-from airflow.contrib.operators.bigquery_to_bigquery import \
-    BigQueryToBigQueryOperator
-from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
-from airflow.contrib.operators.bigquery_to_mysql_operator import BigQueryToMySqlOperator
+from airflow.gcp.operators.bigquery import (
+    BigQueryCreateExternalTableOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryOperator,
+    BigQueryConsoleLink,
+    BigQueryGetDatasetOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
+    BigQueryTableDeleteOperator,
+    BigQueryGetDataOperator
+)
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.settings import Session
@@ -55,7 +56,7 @@ TEST_DAG_ID = 'test-bigquery-operators'
 
 class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
                                                     dataset_id=TEST_DATASET,
@@ -80,7 +81,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
 class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
@@ -120,7 +121,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
 
 class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryDeleteDatasetOperator(
             task_id=TASK_ID,
@@ -142,7 +143,7 @@ class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
 
 
 class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryCreateEmptyDatasetOperator(
             task_id=TASK_ID,
@@ -165,7 +166,7 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
 
 
 class TestBigQueryGetDatasetOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryGetDatasetOperator(
             task_id=TASK_ID,
@@ -185,7 +186,7 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
 
 
 class TestBigQueryPatchDatasetOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         dataset_resource = {"friendlyName": 'Test DS'}
         operator = BigQueryPatchDatasetOperator(
@@ -208,7 +209,7 @@ class TestBigQueryPatchDatasetOperator(unittest.TestCase):
 
 
 class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         dataset_resource = {"friendlyName": 'Test DS'}
         operator = BigQueryUpdateDatasetOperator(
@@ -246,7 +247,7 @@ class TestBigQueryOperator(unittest.TestCase):
         session.commit()
         session.close()
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         encryption_configuration = {'key': 'kk'}
 
@@ -298,7 +299,7 @@ class TestBigQueryOperator(unittest.TestCase):
                 encryption_configuration=encryption_configuration
             )
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute_list(self, mock_hook):
         operator = BigQueryOperator(
             task_id=TASK_ID,
@@ -372,7 +373,7 @@ class TestBigQueryOperator(unittest.TestCase):
                 ),
             ])
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute_bad_type(self, mock_hook):
         operator = BigQueryOperator(
             task_id=TASK_ID,
@@ -399,7 +400,7 @@ class TestBigQueryOperator(unittest.TestCase):
         with self.assertRaises(AirflowException):
             operator.execute(MagicMock())
 
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_defaults(self, mock_hook):
         operator = BigQueryOperator(
             task_id=TASK_ID,
@@ -439,7 +440,7 @@ class TestBigQueryOperator(unittest.TestCase):
         self.assertTrue(isinstance(ti.task.sql, str))
 
     @provide_session
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, session):
         bigquery_task = BigQueryOperator(
             task_id=TASK_ID,
@@ -455,7 +456,7 @@ class TestBigQueryOperator(unittest.TestCase):
         )
 
     @provide_session
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, session):
         bigquery_task = BigQueryOperator(
             task_id=TASK_ID,
@@ -484,7 +485,7 @@ class TestBigQueryOperator(unittest.TestCase):
         )
 
     @provide_session
-    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, session):
         bigquery_task = BigQueryOperator(
             task_id=TASK_ID,
@@ -520,7 +521,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
 class TestBigQueryGetDataOperator(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.bigquery_get_data.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
 
         max_results = '100'
@@ -545,7 +546,7 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
 
 
 class TestBigQueryTableDeleteOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_table_delete_operator.BigQueryHook')
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         ignore_if_missing = True
         deletion_dataset_table = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
@@ -564,105 +565,4 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,
                 ignore_if_missing=ignore_if_missing
-            )
-
-
-class TestBigQueryToBigQueryOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_to_bigquery.BigQueryHook')
-    def test_execute(self, mock_hook):
-        source_project_dataset_tables = '{}.{}'.format(
-            TEST_DATASET, TEST_TABLE_ID)
-        destination_project_dataset_table = '{}.{}'.format(
-            TEST_DATASET + '_new', TEST_TABLE_ID)
-        write_disposition = 'WRITE_EMPTY'
-        create_disposition = 'CREATE_IF_NEEDED'
-        labels = {'k1': 'v1'}
-        encryption_configuration = {'key': 'kk'}
-
-        operator = BigQueryToBigQueryOperator(
-            task_id=TASK_ID,
-            source_project_dataset_tables=source_project_dataset_tables,
-            destination_project_dataset_table=destination_project_dataset_table,
-            write_disposition=write_disposition,
-            create_disposition=create_disposition,
-            labels=labels,
-            encryption_configuration=encryption_configuration
-        )
-
-        operator.execute(None)
-        mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .run_copy \
-            .assert_called_once_with(
-                source_project_dataset_tables=source_project_dataset_tables,
-                destination_project_dataset_table=destination_project_dataset_table,
-                write_disposition=write_disposition,
-                create_disposition=create_disposition,
-                labels=labels,
-                encryption_configuration=encryption_configuration
-            )
-
-
-class TestBigQueryToCloudStorageOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_to_gcs.BigQueryHook')
-    def test_execute(self, mock_hook):
-        source_project_dataset_table = '{}.{}'.format(
-            TEST_DATASET, TEST_TABLE_ID)
-        destination_cloud_storage_uris = ['gs://some-bucket/some-file.txt']
-        compression = 'NONE'
-        export_format = 'CSV'
-        field_delimiter = ','
-        print_header = True
-        labels = {'k1': 'v1'}
-
-        operator = BigQueryToCloudStorageOperator(
-            task_id=TASK_ID,
-            source_project_dataset_table=source_project_dataset_table,
-            destination_cloud_storage_uris=destination_cloud_storage_uris,
-            compression=compression,
-            export_format=export_format,
-            field_delimiter=field_delimiter,
-            print_header=print_header,
-            labels=labels
-        )
-
-        operator.execute(None)
-        mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .run_extract \
-            .assert_called_once_with(
-                source_project_dataset_table=source_project_dataset_table,
-                destination_cloud_storage_uris=destination_cloud_storage_uris,
-                compression=compression,
-                export_format=export_format,
-                field_delimiter=field_delimiter,
-                print_header=print_header,
-                labels=labels
-            )
-
-
-class TestBigQueryToMySqlOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryHook')
-    def test_execute_good_request_to_bq(self, mock_hook):
-        destination_table = 'table'
-        operator = BigQueryToMySqlOperator(
-            task_id=TASK_ID,
-            dataset_table='{}.{}'.format(TEST_DATASET, TEST_TABLE_ID),
-            mysql_table=destination_table,
-            replace=False,
-        )
-
-        operator.execute(None)
-        mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .get_tabledata \
-            .assert_called_once_with(
-                dataset_id=TEST_DATASET,
-                table_id=TEST_TABLE_ID,
-                max_results=1000,
-                selected_fields=None,
-                start_index=0
             )

@@ -18,15 +18,14 @@
 # under the License.
 
 """
-Example Airflow DAG for Google Big Query service
+Example Airflow DAG for Google BigQuery service.
 """
 import os
 from urllib.parse import urlparse
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.bigquery_get_data import BigQueryGetDataOperator
-from airflow.contrib.operators.bigquery_operator import (
+from airflow.gcp.operators.bigquery import (
     BigQueryOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryCreateEmptyDatasetOperator,
@@ -35,10 +34,12 @@ from airflow.contrib.operators.bigquery_operator import (
     BigQueryUpdateDatasetOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryCreateExternalTableOperator,
+    BigQueryGetDataOperator,
+    BigQueryTableDeleteOperator,
 )
-from airflow.contrib.operators.bigquery_table_delete_operator import BigQueryTableDeleteOperator
-from airflow.contrib.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
-from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+
+from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
 from airflow.operators.bash_operator import BashOperator
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address

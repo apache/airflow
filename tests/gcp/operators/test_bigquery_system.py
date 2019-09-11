@@ -19,7 +19,7 @@
 """System tests for Google Cloud Build operators"""
 import unittest
 
-from tests.contrib.operators.test_bigquery_operator_system_helper import GCPBigQueryTestHelper
+from tests.gcp.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
 from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.contrib.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 

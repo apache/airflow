@@ -315,15 +315,14 @@ All hooks is based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleClou
 BigQuery
 ''''''''
 
-The operators are defined in the following module:
+The operators are defined in the following modules:
+ * :mod:`airflow.gcp.operators.bigquery`
+ * :mod:`airflow.gcp.sensors.bigquery`
+ * :mod:`airflow.operators.bigquery_to_bigquery`
+ * :mod:`airflow.operators.bigquery_to_gcs`
+ * :mod:`airflow.operators.bigquery_to_mysql`
 
- * :mod:`airflow.contrib.operators.bigquery_check_operator`
- * :mod:`airflow.contrib.operators.bigquery_get_data`
- * :mod:`airflow.contrib.operators.bigquery_table_delete_operator`
- * :mod:`airflow.contrib.operators.bigquery_to_bigquery`
- * :mod:`airflow.contrib.operators.bigquery_to_gcs`
-
-They also use :class:`airflow.contrib.hooks.bigquery_hook.BigQueryHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.bigquery.BigQueryHook` to communicate with Google Cloud Platform.
 
 BigQuery Data Transfer Service
 ''''''''''''''''''''''''''''''
