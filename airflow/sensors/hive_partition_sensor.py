@@ -31,12 +31,12 @@ class HivePartitionSensor(BaseSensorOperator):
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
-    :type table: string
+    :type table: str
     :param partition: The partition clause to wait for. This is passed as
         is to the metastore Thrift client ``get_partitions_by_filter`` method,
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
-    :type partition: string
+    :type partition: str
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
     :type metastore_conn_id: str
@@ -65,8 +65,8 @@ class HivePartitionSensor(BaseSensorOperator):
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
         self.log.info(
-            'Poking for table {self.schema}.{self.table}, '
-            'partition {self.partition}'.format(**locals()))
+            'Poking for table %s.%s, partition %s', self.schema, self.table, self.partition
+        )
         if not hasattr(self, 'hook'):
             from airflow.hooks.hive_hooks import HiveMetastoreHook
             self.hook = HiveMetastoreHook(

@@ -47,13 +47,13 @@ class DruidCheckOperator(CheckOperator):
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
-    publishing dubious data, or on the side and receive email alterts
+    publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param druid_broker_conn_id: reference to the druid broker
-    :type druid_broker_conn_id: string
+    :type druid_broker_conn_id: str
     """
 
     @apply_defaults
@@ -83,9 +83,9 @@ class DruidCheckOperator(CheckOperator):
             return cur.fetchone()
 
     def execute(self, context=None):
-        self.log.info('Executing SQL check: {}'.format(self.sql))
+        self.log.info('Executing SQL check: %s', self.sql)
         record = self.get_first(self.sql)
-        self.log.info("Record: {}".format(str(record)))
+        self.log.info("Record: %s", str(record))
         if not record:
             raise AirflowException("The query returned None")
         self.log.info("Success.")

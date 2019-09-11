@@ -47,6 +47,17 @@ class AirflowSensorTimeout(AirflowException):
     pass
 
 
+class AirflowRescheduleException(AirflowException):
+    """
+    Raise when the task should be re-scheduled at a later time.
+
+    :param reschedule_date: The date when the task should be rescheduled
+    :type reschedule: datetime.datetime
+    """
+    def __init__(self, reschedule_date):
+        self.reschedule_date = reschedule_date
+
+
 class AirflowTaskTimeout(AirflowException):
     pass
 
@@ -95,4 +106,19 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
+    pass
+
+
+class NoAvailablePoolSlot(AirflowException):
+    """Raise when there is not enough slots in pool"""
+    pass
+
+
+class DagConcurrencyLimitReached(AirflowException):
+    """Raise when DAG concurrency limit is reached"""
+    pass
+
+
+class TaskConcurrencyLimitReached(AirflowException):
+    """Raise when task concurrency limit is reached"""
     pass

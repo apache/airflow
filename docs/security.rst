@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Security
 ========
@@ -40,9 +42,14 @@ Web Authentication
 Password
 ''''''''
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   please use command line interface ``create_user`` to create accounts, or do that in the FAB-based UI itself.
+
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
-uses bcrypt before storing passwords.
+uses ``bcrypt`` before storing passwords.
 
 .. code-block:: bash
 
@@ -111,6 +118,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
+
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
@@ -249,6 +260,12 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
+To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[kerberos]'
+
 OAuth Authentication
 --------------------
 
@@ -275,6 +292,12 @@ to only members of those teams.
 
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
+
+To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[github_enterprise]'
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -317,6 +340,12 @@ login, separated with a comma, to only members of those domains.
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
     domain = "example1.com,example2.com"
+
+To use Google authentication, you must install Airflow with the `google_auth` extras group:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[google_auth]'
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -395,3 +424,170 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2
+
+
+RBAC UI Security
+----------------
+
+Security of Airflow Webserver UI when running with ``rbac=True`` in the config is handled by Flask AppBuilder (FAB).
+Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+regarding its security model.
+
+Default Roles
+'''''''''''''
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
+that ``Admin`` users alter these default roles in any way by removing
+or adding permissions to these roles.
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users.
+
+Public
+^^^^^^
+``Public`` users (anonymous) don't have any permissions.
+
+Viewer
+^^^^^^
+``Viewer`` users have limited viewer permissions
+
+.. code:: python
+
+    VIEWER_PERMS = {
+        'menu_access',
+        'can_index',
+        'can_list',
+        'can_show',
+        'can_chart',
+        'can_dag_stats',
+        'can_dag_details',
+        'can_task_stats',
+        'can_code',
+        'can_log',
+        'can_get_logs_with_metadata',
+        'can_tries',
+        'can_graph',
+        'can_tree',
+        'can_task',
+        'can_task_instances',
+        'can_xcom',
+        'can_gantt',
+        'can_landing_times',
+        'can_duration',
+        'can_blocked',
+        'can_rendered',
+        'can_pickle_info',
+        'can_version',
+    }
+
+on limited web views
+
+.. code:: python
+
+    VIEWER_VMS = {
+        'Airflow',
+        'DagModelView',
+        'Browse',
+        'DAG Runs',
+        'DagRunModelView',
+        'Task Instances',
+        'TaskInstanceModelView',
+        'SLA Misses',
+        'SlaMissModelView',
+        'Jobs',
+        'JobModelView',
+        'Logs',
+        'LogModelView',
+        'Docs',
+        'Documentation',
+        'GitHub',
+        'About',
+        'Version',
+        'VersionView',
+    }
+
+User
+^^^^
+``User`` users have ``Viewer`` permissions plus additional user permissions
+
+.. code:: python
+
+    USER_PERMS = {
+        'can_dagrun_clear',
+        'can_run',
+        'can_trigger',
+        'can_add',
+        'can_edit',
+        'can_delete',
+        'can_paused',
+        'can_refresh',
+        'can_success',
+        'muldelete',
+        'set_failed',
+        'set_running',
+        'set_success',
+        'clear',
+        'can_clear',
+    }
+
+
+on User web views which is the same as Viewer web views.
+
+Op
+^^
+``Op`` users have ``User`` permissions plus additional op permissions
+
+.. code:: python
+
+    OP_PERMS = {
+        'can_conf',
+        'can_varimport',
+    }
+
+on ``User`` web views plus these additional op web views
+
+.. code:: python
+
+    OP_VMS = {
+        'Admin',
+        'Configurations',
+        'ConfigurationView',
+        'Connections',
+        'ConnectionModelView',
+        'Pools',
+        'PoolModelView',
+        'Variables',
+        'VariableModelView',
+        'XComs',
+        'XComModelView',
+    }
+
+Custom Roles
+'''''''''''''
+
+DAG Level Role
+^^^^^^^^^^^^^^
+``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.

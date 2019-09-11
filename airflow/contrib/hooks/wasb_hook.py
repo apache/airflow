@@ -18,7 +18,7 @@
 # under the License.
 #
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 from azure.storage.blob import BlockBlobService
@@ -59,7 +59,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.exists()` takes.
         :type kwargs: object
         :return: True if the blob exists, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         return self.connection.exists(container_name, blob_name, **kwargs)
 
@@ -75,7 +75,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.list_blobs()` takes.
         :type kwargs: object
         :return: True if blobs matching the prefix exist, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         matches = self.connection.list_blobs(container_name, prefix,
                                              num_results=1, **kwargs)
@@ -162,7 +162,7 @@ class WasbHook(BaseHook):
         :param is_prefix: If blob_name is a prefix, delete all matching files
         :type is_prefix: bool
         :param ignore_if_missing: if True, then return success even if the
-        blob does not exist.
+            blob does not exist.
         :type ignore_if_missing: bool
         :param kwargs: Optional keyword arguments that
             `BlockBlobService.create_blob_from_path()` takes.

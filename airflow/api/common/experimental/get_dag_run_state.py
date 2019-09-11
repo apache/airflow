@@ -16,29 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""DAG run APIs."""
+from datetime import datetime
+from typing import Dict
 
-from airflow.exceptions import DagNotFound, DagRunNotFound
-from airflow.models import DagBag
+from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 
 
-def get_dag_run_state(dag_id, execution_date):
-    """Return the task object identified by the given dag_id and task_id."""
+def get_dag_run_state(dag_id, execution_date):  # type: (str, datetime) -> Dict[str, str]
+    """Return the task object identified by the given dag_id and task_id.
 
-    dagbag = DagBag()
+    :param dag_id: DAG id
+    :param execution_date: execution date
+    :return: Dictionary storing state of the object
+    """
 
-    # Check DAG exists.
-    if dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(dag_id)
-        raise DagNotFound(error_message)
+    dag = check_and_get_dag(dag_id=dag_id)
 
-    # Get DAG object and check Task Exists
-    dag = dagbag.get_dag(dag_id)
-
-    # Get DagRun object and check that it exists
-    dagrun = dag.get_dagrun(execution_date=execution_date)
-    if not dagrun:
-        error_message = ('Dag Run for date {} not found in dag {}'
-                         .format(execution_date, dag_id))
-        raise DagRunNotFound(error_message)
+    dagrun = check_and_get_dagrun(dag, execution_date)
 
     return {'state': dagrun.get_state()}

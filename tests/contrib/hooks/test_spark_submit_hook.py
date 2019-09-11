@@ -20,7 +20,8 @@
 import six
 import unittest
 
-from airflow import configuration, models, AirflowException
+from airflow import configuration, AirflowException
+from airflow.models import Connection
 from airflow.utils import db
 from mock import patch, call
 
@@ -37,6 +38,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         'conn_id': 'default_spark',
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
+        'archives': 'sample_archive.zip#SAMPLE',
         'jars': 'parquet.jar',
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -72,13 +74,13 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_yarn_cluster', conn_type='spark',
                 host='yarn://yarn-master',
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_k8s_cluster', conn_type='spark',
                 host='k8s://https://k8s-master',
                 extra='{"spark-home": "/opt/spark", ' +
@@ -86,43 +88,43 @@ class TestSparkSubmitHook(unittest.TestCase):
                       '"namespace": "mynamespace"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_default_mesos', conn_type='spark',
                 host='mesos://host', port=5050)
         )
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_home_set', conn_type='spark',
                 host='yarn://yarn-master',
                 extra='{"spark-home": "/opt/myspark"}')
         )
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_home_not_set', conn_type='spark',
                 host='yarn://yarn-master')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_binary_set', conn_type='spark',
                 host='yarn', extra='{"spark-binary": "custom-spark-submit"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_binary_and_home_set', conn_type='spark',
                 host='yarn',
                 extra='{"spark-home": "/path/to/spark_home", ' +
                       '"spark-binary": "custom-spark-submit"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_standalone_cluster', conn_type='spark',
                 host='spark://spark-standalone-master:6066',
                 extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "cluster"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark_standalone_cluster_client_mode', conn_type='spark',
                 host='spark://spark-standalone-master:6066',
                 extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "client"}')
@@ -142,6 +144,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--conf', 'parquet.compression=SNAPPY',
             '--files', 'hive-site.xml',
             '--py-files', 'sample_library.py',
+            '--archives', 'sample_archive.zip#SAMPLE',
             '--jars', 'parquet.jar',
             '--packages', 'com.databricks:spark-avro_2.11:3.2.0',
             '--exclude-packages', 'org.bad.dependency:1.0.0',
@@ -162,7 +165,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--with-spaces', 'args should keep embdedded spaces',
             'baz'
         ]
-        self.assertEquals(expected_build_cmd, cmd)
+        self.assertEqual(expected_build_cmd, cmd)
 
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
@@ -378,6 +381,43 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "namespace": 'default'}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], 'custom-spark-submit')
+
+    def test_resolve_connection_spark_binary_default_value_override(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_binary_set',
+                               spark_binary='another-custom-spark-submit')
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        expected_spark_connection = {"master": "yarn",
+                                     "spark_binary": "another-custom-spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None,
+                                     "namespace": 'default'}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(cmd[0], 'another-custom-spark-submit')
+
+    def test_resolve_connection_spark_binary_default_value(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_default')
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        expected_spark_connection = {"master": "yarn",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": 'root.default',
+                                     "spark_home": None,
+                                     "namespace": 'default'}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(cmd[0], 'spark-submit')
 
     def test_resolve_connection_spark_binary_and_home_set_connection(self):
         # Given

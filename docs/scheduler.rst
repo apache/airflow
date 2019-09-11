@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,22 +6,25 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 Scheduling & Triggers
 =====================
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,
-it monitors and stays in sync with a folder for all DAG objects it may contain,
-and periodically (every minute or so) inspects active tasks to see whether
+it spins up a subprocess, which monitors and stays in sync with a folder
+for all DAG objects it may contain, and periodically (every minute or so)
+collects DAG parsing results and inspects active tasks to see whether
 they can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
@@ -38,9 +41,9 @@ has ended.
 start date, at the END of the period.
 
 The scheduler starts an instance of the executor specified in the your
-``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
-executed as subprocesses; in the case of ``CeleryExecutor`` and
-``MesosExecutor``, tasks are executed remotely.
+``airflow.cfg``. If it happens to be the :class:`airflow.contrib.executors.local_executor.LocalExecutor`, tasks will be
+executed as subprocesses; in the case of :class:`airflow.executors.celery_executor.CeleryExecutor`, :class:`airflow.executors.dask_executor.DaskExecutor``, and
+:class:`airflow.contrib.executors.mesos_executor.MesosExecutor`, tasks are executed remotely.
 
 To start a scheduler, simply run the command:
 
@@ -113,7 +116,7 @@ interval series.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -129,7 +132,7 @@ interval series.
         'email_on_retry': False,
         'retries': 1,
         'retry_delay': timedelta(minutes=5),
-        'schedule_interval': '@hourly',
+        'schedule_interval': '@daily',
     }
 
     dag = DAG('tutorial', catchup=False, default_args=default_args)
@@ -177,8 +180,8 @@ Here are some of the ways you can **unblock tasks**:
   states (``failed``, or ``success``)
 * Clearing a task instance will no longer delete the task instance record. Instead it updates
   max_tries and set the current task instance state to be None.
+* Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
   subsections of the DAG as well as specifying date ranges.
-

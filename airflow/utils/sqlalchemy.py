@@ -24,12 +24,14 @@ from __future__ import unicode_literals
 
 import datetime
 import os
+import json
 import pendulum
 import time
 import random
 
+from dateutil import relativedelta
 from sqlalchemy import event, exc, select
-from sqlalchemy.types import DateTime, TypeDecorator
+from sqlalchemy.types import Text, DateTime, TypeDecorator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -37,12 +39,10 @@ log = LoggingMixin().log
 utc = pendulum.timezone('UTC')
 
 
-def setup_event_handlers(
-        engine,
-        reconnect_timeout_seconds,
-        initial_backoff_seconds=0.2,
-        max_backoff_seconds=120):
-
+def setup_event_handlers(engine,
+                         reconnect_timeout_seconds,
+                         initial_backoff_seconds=0.2,
+                         max_backoff_seconds=120):
     @event.listens_for(engine, "engine_connect")
     def ping_connection(connection, branch):
         """
@@ -68,7 +68,7 @@ def setup_event_handlers(
 
             try:
                 connection.scalar(select([1]))
-                # If we made it here then the connection appears to be healty
+                # If we made it here then the connection appears to be healthy
                 break
             except exc.DBAPIError as err:
                 if time.time() - start >= reconnect_timeout_seconds:
@@ -78,7 +78,13 @@ def setup_event_handlers(
                         err)
                     raise
                 if err.connection_invalidated:
-                    log.warning("DB connection invalidated. Reconnecting...")
+                    # Don't log the first time -- this happens a lot and unless
+                    # there is a problem reconnecting is not a sign of a
+                    # problem
+                    if backoff > initial_backoff_seconds:
+                        log.warning("DB connection invalidated. Reconnecting...")
+                    else:
+                        log.debug("DB connection invalidated. Initial reconnect")
 
                     # Use a truncated binary exponential backoff. Also includes
                     # a jitter to prevent the thundering herd problem of
@@ -99,7 +105,6 @@ def setup_event_handlers(
             finally:
                 # restore "close with result"
                 connection.should_close_with_result = save_should_close_with_result
-
 
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
@@ -135,6 +140,7 @@ class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
     ``timezone=True`` option, but it differs from that by:
+
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -143,6 +149,7 @@ class UtcDateTime(TypeDecorator):
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
     - Always returns DateTime in UTC
+
     """
 
     impl = DateTime(timezone=True)
@@ -172,3 +179,34 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+
+class Interval(TypeDecorator):
+
+    impl = Text
+
+    attr_keys = {
+        datetime.timedelta: ('days', 'seconds', 'microseconds'),
+        relativedelta.relativedelta: (
+            'years', 'months', 'days', 'leapdays', 'hours', 'minutes', 'seconds', 'microseconds',
+            'year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond',
+        ),
+    }
+
+    def process_bind_param(self, value, dialect):
+        if type(value) in self.attr_keys:
+            attrs = {
+                key: getattr(value, key)
+                for key in self.attr_keys[type(value)]
+            }
+            return json.dumps({'type': type(value).__name__, 'attrs': attrs})
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        data = json.loads(value)
+        if isinstance(data, dict):
+            type_map = {key.__name__: key for key in self.attr_keys}
+            return type_map[data['type']](**data['attrs'])
+        return data

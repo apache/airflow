@@ -16,21 +16,28 @@
 # under the License.
 
 import base64
+import hashlib
+from queue import Empty
+
+import re
+import json
 import multiprocessing
-from queue import Queue
 from dateutil import parser
 from uuid import uuid4
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
+from urllib3.exceptions import HTTPError
+
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
-from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
+from airflow.utils.db import provide_session, create_session
 from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -38,26 +45,35 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
-                 request_cpu=None, limit_memory=None, limit_cpu=None,
-                 gcp_service_account_key=None, node_selectors=None, affinity=None):
+                 request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None,
+                 gcp_service_account_key=None, node_selectors=None, affinity=None,
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
+        self.limit_gpu = limit_gpu
         self.gcp_service_account_key = gcp_service_account_key
         self.node_selectors = node_selectors
         self.affinity = affinity
+        self.annotations = annotations
+        self.volumes = volumes
+        self.volume_mounts = volume_mounts
+        self.tolerations = tolerations
+        self.labels = labels or {}
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
-               "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
-               "node_selectors={}, affinity={})" \
+               "limit_memory={}, limit_cpu={}, limit_gpu={}, gcp_service_account_key={}, " \
+               "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
+               "volume_mounts={}, tolerations={}, labels={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
-                    self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity)
+                    self.limit_cpu, self.limit_gpu, self.gcp_service_account_key, self.node_selectors,
+                    self.affinity, self.annotations, self.volumes, self.volume_mounts,
+                    self.tolerations, self.labels)
 
     @staticmethod
     def from_dict(obj):
@@ -77,9 +93,15 @@ class KubernetesExecutorConfig:
             request_cpu=namespaced.get('request_cpu', None),
             limit_memory=namespaced.get('limit_memory', None),
             limit_cpu=namespaced.get('limit_cpu', None),
+            limit_gpu=namespaced.get('limit_gpu', None),
             gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
             node_selectors=namespaced.get('node_selectors', None),
-            affinity=namespaced.get('affinity', None)
+            affinity=namespaced.get('affinity', None),
+            annotations=namespaced.get('annotations', {}),
+            volumes=namespaced.get('volumes', []),
+            volume_mounts=namespaced.get('volume_mounts', []),
+            tolerations=namespaced.get('tolerations', None),
+            labels=namespaced.get('labels', {}),
         )
 
     def as_dict(self):
@@ -90,9 +112,15 @@ class KubernetesExecutorConfig:
             'request_cpu': self.request_cpu,
             'limit_memory': self.limit_memory,
             'limit_cpu': self.limit_cpu,
+            'limit_gpu': self.limit_gpu,
             'gcp_service_account_key': self.gcp_service_account_key,
             'node_selectors': self.node_selectors,
-            'affinity': self.affinity
+            'affinity': self.affinity,
+            'annotations': self.annotations,
+            'volumes': self.volumes,
+            'volume_mounts': self.volume_mounts,
+            'tolerations': self.tolerations,
+            'labels': self.labels,
         }
 
 
@@ -104,7 +132,12 @@ class KubeConfig:
         configuration_dict = configuration.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
-        self.airflow_home = configuration.get(self.core_section, 'airflow_home')
+        self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
+        self.env_from_configmap_ref = configuration.get(self.kubernetes_section,
+                                                        'env_from_configmap_ref')
+        self.env_from_secret_ref = configuration.get(self.kubernetes_section,
+                                                     'env_from_secret_ref')
+        self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
         self.worker_container_repository = configuration.get(
@@ -117,12 +150,23 @@ class KubeConfig:
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
+        self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
+        self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
-
+        self.worker_pods_creation_batch_size = conf.getint(
+            self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
+
+        # NOTE: user can build the dags into the docker image directly,
+        # this will set to True if so
+        self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
+
+        # Run as user for pod security context
+        self.worker_run_as_user = self._get_security_context_val('run_as_user')
+        self.worker_fs_group = self._get_security_context_val('fs_group')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -131,11 +175,24 @@ class KubeConfig:
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
+        # Optionally, the root directory for git operations
+        self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
+        # Optionally, the name at which to publish the checked-out files under --root
+        self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, if git_dags_folder_mount_point is set the worker will use
+        # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
+        self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
+                                                    'git_dags_folder_mount_point')
 
-        # Optionally a user may supply a `git_user` and `git_password` for private
-        # repositories
+        # Optionally a user may supply a (`git_user` AND `git_password`) OR
+        # (`git_ssh_key_secret_name` AND `git_ssh_key_secret_key`) for private repositories
         self.git_user = conf.get(self.kubernetes_section, 'git_user')
         self.git_password = conf.get(self.kubernetes_section, 'git_password')
+        self.git_ssh_key_secret_name = conf.get(self.kubernetes_section, 'git_ssh_key_secret_name')
+        self.git_ssh_known_hosts_configmap_name = conf.get(self.kubernetes_section,
+                                                           'git_ssh_known_hosts_configmap_name')
+        self.git_sync_credentials_secret = conf.get(self.kubernetes_section,
+                                                    'git_sync_credentials_secret')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
@@ -153,6 +210,12 @@ class KubeConfig:
         # on a SubPath
         self.logs_volume_subpath = conf.get(
             self.kubernetes_section, 'logs_volume_subpath')
+
+        # Optionally, hostPath volume containing DAGs
+        self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
+
+        # Optionally, write logs to a hostPath Volume
+        self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
@@ -184,41 +247,90 @@ class KubeConfig:
         self.git_sync_init_container_name = conf.get(
             self.kubernetes_section, 'git_sync_init_container_name')
 
+        self.git_sync_run_as_user = self._get_security_context_val('git_sync_run_as_user')
+
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
 
+        affinity_json = conf.get(self.kubernetes_section, 'affinity')
+        if affinity_json:
+            self.kube_affinity = json.loads(affinity_json)
+        else:
+            self.kube_affinity = None
+
+        tolerations_json = conf.get(self.kubernetes_section, 'tolerations')
+        if tolerations_json:
+            self.kube_tolerations = json.loads(tolerations_json)
+        else:
+            self.kube_tolerations = None
+
+        kube_client_request_args = conf.get(self.kubernetes_section, 'kube_client_request_args')
+        if kube_client_request_args:
+            self.kube_client_request_args = json.loads(kube_client_request_args)
+            if self.kube_client_request_args['_request_timeout'] and \
+                    isinstance(self.kube_client_request_args['_request_timeout'], list):
+                self.kube_client_request_args['_request_timeout'] = \
+                    tuple(self.kube_client_request_args['_request_timeout'])
+        else:
+            self.kube_client_request_args = {}
         self._validate()
 
+    # pod security context items should return integers
+    # and only return a blank string if contexts are not set.
+    def _get_security_context_val(self, scontext):
+        val = configuration.get(self.kubernetes_section, scontext)
+        if len(val) == 0:
+            return val
+        else:
+            return int(val)
+
     def _validate(self):
-        if not self.dags_volume_claim and (not self.git_repo or not self.git_branch):
+        # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
+        if not self.dags_volume_claim \
+           and not self.dags_volume_host \
+           and not self.dags_in_image \
+           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch`')
+                'config section: `dags_volume_claim` '
+                'or `dags_volume_host` '
+                'or `dags_in_image` '
+                'or `git_repo and git_branch and git_dags_folder_mount_point`')
+        if self.git_repo \
+           and (self.git_user or self.git_password) \
+           and self.git_ssh_key_secret_name:
+            raise AirflowConfigException(
+                'In kubernetes mode, using `git_repo` to pull the DAGs: '
+                'for private repositories, either `git_user` and `git_password` '
+                'must be set for authentication through user credentials; '
+                'or `git_ssh_key_secret_name` must be set for authentication '
+                'through ssh key, but not both')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
-    def __init__(self, namespace, watcher_queue, resource_version, worker_uuid):
+    def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace
         self.worker_uuid = worker_uuid
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
+        self.kube_config = kube_config
 
     def run(self):
         kube_client = get_kube_client()
         while True:
             try:
                 self.resource_version = self._run(kube_client, self.resource_version,
-                                                  self.worker_uuid)
+                                                  self.worker_uuid, self.kube_config)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise
             else:
-                self.log.warn('Watch died gracefully, starting back up with: '
-                              'last resource_version: %s', self.resource_version)
+                self.log.warning('Watch died gracefully, starting back up with: '
+                                 'last resource_version: %s', self.resource_version)
 
-    def _run(self, kube_client, resource_version, worker_uuid):
+    def _run(self, kube_client, resource_version, worker_uuid, kube_config):
         self.log.info(
             'Event: and now my watch begins starting at resource_version: %s',
             resource_version
@@ -228,6 +340,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
         kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid)}
         if resource_version:
             kwargs['resource_version'] = resource_version
+        if kube_config.kube_client_request_args:
+            for key, value in kube_config.kube_client_request_args.items():
+                kwargs[key] = value
 
         last_resource_version = None
         for event in watcher.stream(kube_client.list_namespaced_pod, self.namespace,
@@ -277,15 +392,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
         elif status == 'Running':
             self.log.info('Event: %s is Running', pod_id)
         else:
-            self.log.warn(
+            self.log.warning(
                 'Event: Invalid state: %s on pod: %s with labels: %s with '
                 'resource_version: %s', status, pod_id, labels, resource_version
             )
 
 
 class AirflowKubernetesScheduler(LoggingMixin):
-    def __init__(self, kube_config, task_queue, result_queue, session,
-                 kube_client, worker_uuid):
+    def __init__(self, kube_config, task_queue, result_queue, kube_client, worker_uuid):
         self.log.debug("Creating Kubernetes executor")
         self.kube_config = kube_config
         self.task_queue = task_queue
@@ -295,15 +409,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_client = kube_client
         self.launcher = PodLauncher(kube_client=self.kube_client)
         self.worker_configuration = WorkerConfiguration(kube_config=self.kube_config)
-        self.watcher_queue = multiprocessing.Queue()
-        self._session = session
+        self._manager = multiprocessing.Manager()
+        self.watcher_queue = self._manager.Queue()
         self.worker_uuid = worker_uuid
         self.kube_watcher = self._make_kube_watcher()
 
     def _make_kube_watcher(self):
-        resource_version = KubeResourceVersion.get_current_resource_version(self._session)
+        resource_version = KubeResourceVersion.get_current_resource_version()
         watcher = KubernetesJobWatcher(self.namespace, self.watcher_queue,
-                                       resource_version, self.worker_uuid)
+                                       resource_version, self.worker_uuid, self.kube_config)
         watcher.start()
         return watcher
 
@@ -332,23 +446,25 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, worker_uuid=self.worker_uuid,
             pod_id=self._create_pod_id(dag_id, task_id),
-            dag_id=dag_id, task_id=task_id,
+            dag_id=self._make_safe_label_value(dag_id),
+            task_id=self._make_safe_label_value(task_id),
+            try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
         # the watcher will monitor pods, so we do not block.
-        self.launcher.run_pod_async(pod)
+        self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
     def delete_pod(self, pod_id):
-        if self.kube_config.delete_worker_pods:
-            try:
-                self.kube_client.delete_namespaced_pod(
-                    pod_id, self.namespace, body=client.V1DeleteOptions())
-            except ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+        try:
+            self.kube_client.delete_namespaced_pod(
+                pod_id, self.namespace, body=client.V1DeleteOptions(),
+                **self.kube_config.kube_client_request_args)
+        except ApiException as e:
+            # If the pod is already deleted
+            if e.status != 404:
+                raise
 
     def sync(self):
         """
@@ -360,11 +476,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         """
         self._health_check_kube_watcher()
-        while not self.watcher_queue.empty():
-            self.process_watcher_task()
+        while True:
+            try:
+                task = self.watcher_queue.get_nowait()
+                try:
+                    self.process_watcher_task(task)
+                finally:
+                    self.watcher_queue.task_done()
+            except Empty:
+                break
 
-    def process_watcher_task(self):
-        pod_id, state, labels, resource_version = self.watcher_queue.get()
+    def process_watcher_task(self, task):
+        pod_id, state, labels, resource_version = task
         self.log.info(
             'Attempting to finish pod; pod_id: %s; state: %s; labels: %s',
             pod_id, state, labels
@@ -394,7 +517,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
-        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
@@ -408,6 +531,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
         safe_pod_id = safe_key[:MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
 
         return safe_pod_id
+
+    @staticmethod
+    def _make_safe_label_value(string):
+        """
+        Valid label values must be 63 characters or less and must be empty or begin and
+        end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
+        dots (.), and alphanumerics between.
+
+        If the label value is then greater than 63 chars once made safe, or differs in any
+        way from the original value sent to this function, then we need to truncate to
+        53chars, and append it with a unique hash.
+        """
+        MAX_LABEL_LEN = 63
+
+        safe_label = re.sub(r'^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$', '', string)
+
+        if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
+            safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
+            safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+
+        return safe_label
 
     @staticmethod
     def _create_pod_id(dag_id, task_id):
@@ -427,7 +571,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         "_", let's
         replace ":" with "_"
 
-        :param string: string
+        :param string: str
         :return: datetime.datetime object
         """
         return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
@@ -444,31 +588,70 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
     def _labels_to_key(self, labels):
+        try_num = 1
         try:
-            return (
-                labels['dag_id'], labels['task_id'],
-                self._label_safe_datestring_to_datetime(labels['execution_date']),
-                labels['try_number'])
+            try_num = int(labels.get('try_number', '1'))
+        except ValueError:
+            self.log.warning("could not get try_number as an int: %s", labels.get('try_number', '1'))
+
+        try:
+            dag_id = labels['dag_id']
+            task_id = labels['task_id']
+            ex_time = self._label_safe_datestring_to_datetime(labels['execution_date'])
         except Exception as e:
-            self.log.warn(
-                'Error while converting labels to key; labels: %s; exception: %s',
+            self.log.warning(
+                'Error while retrieving labels; labels: %s; exception: %s',
                 labels, e
             )
             return None
+
+        with create_session() as session:
+            tasks = (
+                session
+                .query(TaskInstance)
+                .filter_by(execution_date=ex_time).all()
+            )
+            self.log.info(
+                'Checking %s task instances.',
+                len(tasks)
+            )
+            for task in tasks:
+                if (
+                    self._make_safe_label_value(task.dag_id) == dag_id and
+                    self._make_safe_label_value(task.task_id) == task_id and
+                    task.execution_date == ex_time
+                ):
+                    self.log.info(
+                        'Found matching task %s-%s (%s) with current state of %s',
+                        task.dag_id, task.task_id, task.execution_date, task.state
+                    )
+                    dag_id = task.dag_id
+                    task_id = task.task_id
+                    return (dag_id, task_id, ex_time, try_num)
+        self.log.warning(
+            'Failed to find and match task details to a pod; labels: %s',
+            labels
+        )
+        return None
+
+    def terminate(self):
+        self.watcher_queue.join()
+        self._manager.shutdown()
 
 
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def __init__(self):
         self.kube_config = KubeConfig()
         self.task_queue = None
-        self._session = None
         self.result_queue = None
         self.kube_scheduler = None
         self.kube_client = None
         self.worker_uuid = None
+        self._manager = multiprocessing.Manager()
         super(KubernetesExecutor, self).__init__(parallelism=self.kube_config.parallelism)
 
-    def clear_not_launched_queued_tasks(self):
+    @provide_session
+    def clear_not_launched_queued_tasks(self, session=None):
         """
         If the airflow scheduler restarts with pending "Queued" tasks, the tasks may or
         may not
@@ -484,19 +667,29 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         proper support
         for State.LAUNCHED
         """
-        queued_tasks = self._session.query(
-            TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
+        queued_tasks = session\
+            .query(TaskInstance)\
+            .filter(TaskInstance.state == State.QUEUED).all()
         self.log.info(
             'When executor started up, found %s queued task instances',
             len(queued_tasks)
         )
 
         for task in queued_tasks:
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                .format(task.dag_id, task.task_id,
-                        AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
-                            task.execution_date), self.worker_uuid)
+            dict_string = (
+                "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
+                    AirflowKubernetesScheduler._make_safe_label_value(task.dag_id),
+                    AirflowKubernetesScheduler._make_safe_label_value(task.task_id),
+                    AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                        task.execution_date
+                    ),
+                    self.worker_uuid
+                )
+            )
             kwargs = dict(label_selector=dict_string)
+            if self.kube_config.kube_client_request_args:
+                for key, value in self.kube_config.kube_client_request_args.items():
+                    kwargs[key] = value
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
             if len(pod_list.items) == 0:
@@ -504,13 +697,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     'TaskInstance: %s found in queued state but was not launched, '
                     'rescheduling', task
                 )
-                self._session.query(TaskInstance).filter(
+                session.query(TaskInstance).filter(
                     TaskInstance.dag_id == task.dag_id,
                     TaskInstance.task_id == task.task_id,
                     TaskInstance.execution_date == task.execution_date
                 ).update({TaskInstance.state: State.NONE})
-
-        self._session.commit()
 
     def _inject_secrets(self):
         def _create_or_update_secret(secret_name, secret_path):
@@ -519,7 +710,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.kube_config.executor_namespace, kubernetes.client.V1Secret(
                         data={
                             'key.json': base64.b64encode(open(secret_path, 'r').read())},
-                        metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
+                        metadata=kubernetes.client.V1ObjectMeta(name=secret_name)),
+                    **self.kube_config.kube_client_request_args)
             except ApiException as e:
                 if e.status == 409:
                     return self.kube_client.replace_namespaced_secret(
@@ -527,7 +719,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         kubernetes.client.V1Secret(
                             data={'key.json': base64.b64encode(
                                 open(secret_path, 'r').read())},
-                            metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
+                            metadata=kubernetes.client.V1ObjectMeta(name=secret_name)),
+                        **self.kube_config.kube_client_request_args)
                 self.log.exception(
                     'Exception while trying to inject secret. '
                     'Secret name: %s, error details: %s',
@@ -548,20 +741,18 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def start(self):
         self.log.info('Start Kubernetes executor')
-        self._session = settings.Session()
-        self.worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(
-            self._session)
+        self.worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid()
         self.log.debug('Start with worker_uuid: %s', self.worker_uuid)
         # always need to reset resource version since we don't know
         # when we last started, note for behavior below
         # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs
         # /CoreV1Api.md#list_namespaced_pod
-        KubeResourceVersion.reset_resource_version(self._session)
-        self.task_queue = Queue()
-        self.result_queue = Queue()
+        KubeResourceVersion.reset_resource_version()
+        self.task_queue = self._manager.Queue()
+        self.result_queue = self._manager.Queue()
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
-            self.kube_config, self.task_queue, self.result_queue, self._session,
+            self.kube_config, self.task_queue, self.result_queue,
             self.kube_client, self.worker_uuid
         )
         self._inject_secrets()
@@ -577,47 +768,66 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def sync(self):
         if self.running:
-            self.log.info('self.running: %s', self.running)
+            self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version = None
-        while not self.result_queue.empty():
-            results = self.result_queue.get()
-            key, state, pod_id, resource_version = results
-            last_resource_version = resource_version
-            self.log.info('Changing state of %s to %s', results, state)
-            self._change_state(key, state, pod_id)
+        while True:
+            try:
+                results = self.result_queue.get_nowait()
+                try:
+                    key, state, pod_id, resource_version = results
+                    last_resource_version = resource_version
+                    self.log.info('Changing state of %s to %s', results, state)
+                    try:
+                        self._change_state(key, state, pod_id)
+                    except Exception as e:
+                        self.log.exception('Exception: %s when attempting ' +
+                                           'to change state of %s to %s, re-queueing.', e, results, state)
+                        self.result_queue.put(results)
+                finally:
+                    self.result_queue.task_done()
+            except Empty:
+                break
 
-        KubeResourceVersion.checkpoint_resource_version(
-            last_resource_version, session=self._session)
+        KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        if not self.task_queue.empty():
-            key, command, kube_executor_config = self.task_queue.get()
-            self.kube_scheduler.run_next((key, command, kube_executor_config))
+        for _ in range(self.kube_config.worker_pods_creation_batch_size):
+            try:
+                task = self.task_queue.get_nowait()
+                try:
+                    self.kube_scheduler.run_next(task)
+                except ApiException as e:
+                    self.log.warning('ApiException when attempting to run task, re-queueing. '
+                                     'Message: %s' % json.loads(e.body)['message'])
+                    self.task_queue.put(task)
+                except HTTPError as e:
+                    self.log.warning('HTTPError when attempting to run task, re-queueing. '
+                                     'Exception: %s', str(e))
+                    self.task_queue.put(task)
+                finally:
+                    self.task_queue.task_done()
+            except Empty:
+                break
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
-            self.kube_scheduler.delete_pod(pod_id)
-            try:
+            if self.kube_config.delete_worker_pods:
+                self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
+            try:
                 self.running.pop(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state
-        (dag_id, task_id, ex_time, try_number) = key
-        item = self._session.query(TaskInstance).filter_by(
-            dag_id=dag_id,
-            task_id=task_id,
-            execution_date=ex_time
-        ).one()
-        if state:
-            item.state = state
-            self._session.add(item)
-            self._session.commit()
 
     def end(self):
         self.log.info('Shutting down Kubernetes executor')
         self.task_queue.join()
+        self.result_queue.join()
+        if self.kube_scheduler:
+            self.kube_scheduler.terminate()
+        self._manager.shutdown()

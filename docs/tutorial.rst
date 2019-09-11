@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 
 Tutorial
@@ -32,7 +34,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -260,7 +262,7 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :ref:`macros` section
+in templates, make sure to read through the :doc:`macros`
 
 Setting up Dependencies
 -----------------------
@@ -308,7 +310,7 @@ something like this:
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -368,8 +370,10 @@ Testing
 Running the Script
 ''''''''''''''''''
 
-Time to run some tests. First let's make sure that the pipeline
-parses. Let's assume we're saving the code from the previous step in
+Time to run some tests. First, let's make sure the pipeline
+is parsed successfully.
+
+Let's assume we're saving the code from the previous step in
 ``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
 The default location for your DAGs is ``~/airflow/dags``.
 

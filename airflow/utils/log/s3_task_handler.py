@@ -18,6 +18,8 @@
 # under the License.
 import os
 
+from cached_property import cached_property
+
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -37,7 +39,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = False
         self.upload_on_close = True
 
-    def _build_hook(self):
+    @cached_property
+    def hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks.S3_hook import S3Hook
@@ -48,12 +51,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 'Please make sure that airflow[s3] is installed and '
                 'the S3 connection exists.', remote_conn_id
             )
-
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
 
     def set_context(self, ti):
         super(S3TaskHandler, self).set_context(ti)
@@ -132,7 +129,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: string (path)
+        :type remote_log_location: str (path)
         :param return_error: if True, returns a string error message if an
             error occurs. Otherwise returns '' when an error occurs.
         :type return_error: bool
@@ -151,9 +148,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
         :param log: the log to write to the remote_log_location
-        :type log: string
+        :type log: str
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: string (path)
+        :type remote_log_location: str (path)
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool

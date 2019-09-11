@@ -21,30 +21,29 @@
 import datetime
 import itertools
 import os
-
-import pandas as pd
 import random
+import sys
+import unittest
+from collections import OrderedDict
 
 import mock
-import unittest
-
-from collections import OrderedDict
+import pandas as pd
 from hmsclient import HMSClient
 
+from airflow import DAG, configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow import DAG, configuration
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
-
 configuration.load_test_config()
-
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+NOT_ASSERTLOGS_VERSION = sys.version_info.major + sys.version_info.minor / 10
 
 
 class HiveEnvironmentTest(unittest.TestCase):
@@ -97,6 +96,39 @@ class TestHiveCliHook(unittest.TestCase):
         hook = HiveCliHook()
         hook.run_cli("SHOW DATABASES")
 
+    def test_run_cli_with_hive_conf(self):
+        hql = "set key;\n" \
+              "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n" \
+              "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveCliHook()
+        output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]
+
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_file(self, mock_run_cli):
         filepath = "/path/to/input/file"
@@ -107,7 +139,7 @@ class TestHiveCliHook(unittest.TestCase):
 
         query = (
             "LOAD DATA LOCAL INPATH '{filepath}' "
-            "OVERWRITE INTO TABLE {table} \n"
+            "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
         mock_run_cli.assert_called_with(query)
@@ -126,13 +158,13 @@ class TestHiveCliHook(unittest.TestCase):
                      delimiter=delimiter,
                      encoding=encoding)
 
-        mock_to_csv.assert_called_once()
+        assert mock_to_csv.call_count == 1
         kwargs = mock_to_csv.call_args[1]
         self.assertEqual(kwargs["header"], False)
         self.assertEqual(kwargs["index"], False)
         self.assertEqual(kwargs["sep"], delimiter)
 
-        mock_load_file.assert_called_once()
+        assert mock_load_file.call_count == 1
         kwargs = mock_load_file.call_args[1]
         self.assertEqual(kwargs["delimiter"], delimiter)
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
@@ -151,7 +183,7 @@ class TestHiveCliHook(unittest.TestCase):
                          create=create,
                          recreate=recreate)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args[1]
             self.assertEqual(kwargs["create"], create)
             self.assertEqual(kwargs["recreate"], recreate)
@@ -399,7 +431,23 @@ class TestHiveServer2Hook(unittest.TestCase):
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
-    def test_to_csv(self):
+    @unittest.skipIf(NOT_ASSERTLOGS_VERSION < 3.4, 'assertLogs not support before python 3.4')
+    def test_to_csv_assertlogs(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        csv_filepath = 'query_results.csv'
+        with self.assertLogs() as cm:
+            hook.to_csv(query, csv_filepath, schema=self.database,
+                        delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
+            df = pd.read_csv(csv_filepath, sep=',')
+            self.assertListEqual(df.columns.tolist(), self.columns)
+            self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+            self.assertEqual(len(df), 2)
+            self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
+                          'Written 2 rows so far.', cm.output)
+
+    @unittest.skipIf(NOT_ASSERTLOGS_VERSION >= 3.4, 'test could cover by test_to_csv_assertLogs')
+    def test_to_csv_without_assertlogs(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
@@ -419,3 +467,41 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         results = hook.get_records(sqls, schema=self.database)
         self.assertListEqual(results, [(1, 1), (2, 2)])
+
+    def test_get_results_with_hive_conf(self):
+        hql = ["set key",
+               "set airflow.ctx.dag_id",
+               "set airflow.ctx.dag_run_id",
+               "set airflow.ctx.task_id",
+               "set airflow.ctx.execution_date"]
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveServer2Hook()
+        output = '\n'.join(res_tuple[0]
+                           for res_tuple
+                           in hook.get_results(hql=hql,
+                                               hive_conf={'key': 'value'})['data'])
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]

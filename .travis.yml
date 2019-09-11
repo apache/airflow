@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,97 +15,60 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-sudo: true
-dist: trusty
+---
+dist: xenial
 language: python
-jdk:
-  - openjdk8
-services:
-  - cassandra
-  - mysql
-  - postgresql
-  - rabbitmq
-addons:
-  apt:
-    packages:
-      - slapd
-      - ldap-utils
-      - openssh-server
-      - mysql-server-5.6
-      - mysql-client-core-5.6
-      - mysql-client-5.6
-      - krb5-user
-      - krb5-kdc
-      - krb5-admin-server
-      - oracle-java8-installer
-      - python-selinux
-  postgresql: "9.2"
-python:
-  - "2.7"
-  - "3.5"
 env:
   global:
-    - SLUGIFY_USES_TEXT_UNIDECODE=yes
-    - TRAVIS_CACHE=$HOME/.travis_cache/
-    - KRB5_CONFIG=/etc/krb5.conf
-    - KRB5_KTNAME=/etc/airflow.keytab
-    # Travis on google cloud engine has a global /etc/boto.cfg that
-    # does not work with python 3
-    - BOTO_CONFIG=/tmp/bogusvalue
-  matrix:
-    - TOX_ENV=py27-backend_mysql
-    - TOX_ENV=py27-backend_sqlite
-    - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py35-backend_mysql
-    - TOX_ENV=py35-backend_sqlite
-    - TOX_ENV=py35-backend_postgres
-    - TOX_ENV=flake8
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
-matrix:
-  exclude:
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_mysql
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_sqlite
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_mysql
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_sqlite
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_postgres
-    - python: "2.7"
-      env: TOX_ENV=flake8
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
-cache:
-  directories:
-    - $HOME/.wheelhouse/
-    - $HOME/.travis_cache/
+    - BUILD_ID=${TRAVIS_BUILD_ID}
+    - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - AIRFLOW_CI_SILENT="true"
+    - CI="true"
+python: "3.6"
+stages:
+  - pre-test
+  - test
+jobs:
+  include:
+    - name: "Tests postgres python 3.6"
+      env: BACKEND=postgres ENV=docker
+      python: "3.6"
+      stage: test
+    - name: "Tests sqlite python 3.5"
+      env: BACKEND=sqlite ENV=docker
+      python: "3.5"
+      stage: test
+    - name: "Tests mysql python 2.7"
+      env: BACKEND=mysql ENV=docker
+      python: "2.7"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (git)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 2.7 (persistent)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
+      python: "2.7"
+      stage: test
+    - name: "Tests postgres kubernetes python 2.7 (git)"
+      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0 KUBERNETES_MODE=git_mode
+      python: "2.7"
+      stage: test
+    - name: "Static checks (no licence check)"
+      stage: pre-test
+      script: ./scripts/ci/ci_run_all_static_tests_except_licence.sh
+    - name: "Check licence compliance for Apache"
+      stage: pre-test
+      script: ./scripts/ci/ci_check_license.sh
+    - name: "Build documentation"
+      stage: pre-test
+      script: ./scripts/ci/ci_docs.sh
+services:
+  - docker
 before_install:
-  - yes | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
-  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-  - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-  - chmod 600 ~/.ssh/*
-  - jdk_switcher use openjdk8
-install:
-  - pip install --upgrade pip
-  - pip install tox
-  - pip install codecov
-before_script:
-  - cat "$TRAVIS_BUILD_DIR/scripts/ci/my.cnf" | sudo tee -a /etc/mysql/my.cnf
-  - mysql -e 'drop database if exists airflow; create database airflow' -u root
-  - sudo service mysql restart
-  - psql -c 'create database airflow;' -U postgres
-  - export PATH=${PATH}:/tmp/hive/bin
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - sudo mount --make-shared / && sudo service docker restart
-script:
-  - ./scripts/ci/travis_script.sh
-after_success:
-  - codecov
+  - ./scripts/ci/ci_before_install.sh
+script: "./scripts/ci/ci_run_airflow_testing.sh"

@@ -58,6 +58,17 @@ class KubernetesRequestFactory:
         })
 
     @staticmethod
+    def add_runtime_info_env(env, runtime_info):
+        env.append({
+            'name': runtime_info.name,
+            'valueFrom': {
+                'fieldRef': {
+                    'fieldPath': runtime_info.field_path
+                }
+            }
+        })
+
+    @staticmethod
     def extract_labels(pod, req):
         req['metadata']['labels'] = req['metadata'].get('labels', {})
         for k, v in six.iteritems(pod.labels):
@@ -76,6 +87,12 @@ class KubernetesRequestFactory:
             req['spec']['affinity'][k] = v
 
     @staticmethod
+    def extract_node_selector(pod, req):
+        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
+        for k, v in six.iteritems(pod.node_selectors):
+            req['spec']['nodeSelector'][k] = v
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 
@@ -84,10 +101,11 @@ class KubernetesRequestFactory:
         req['spec']['containers'][0]['args'] = pod.args
 
     @staticmethod
-    def extract_node_selector(pod, req):
-        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
-        for k, v in six.iteritems(pod.node_selectors):
-            req['spec']['nodeSelector'][k] = v
+    def attach_ports(pod, req):
+        req['spec']['containers'][0]['ports'] = (
+            req['spec']['containers'][0].get('ports', []))
+        if len(pod.ports) > 0:
+            req['spec']['containers'][0]['ports'].extend(pod.ports)
 
     @staticmethod
     def attach_volumes(pod, req):
@@ -131,14 +149,22 @@ class KubernetesRequestFactory:
 
     @staticmethod
     def extract_env_and_secrets(pod, req):
-        env_secrets = [s for s in pod.secrets if s.deploy_type == 'env']
-        if len(pod.envs) > 0 or len(env_secrets) > 0:
+        envs_from_key_secrets = [
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is not None
+        ]
+
+        if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0 or len(pod.pod_runtime_info_envs) > 0:
             env = []
             for k in pod.envs.keys():
                 env.append({'name': k, 'value': pod.envs[k]})
-            for secret in env_secrets:
+            for secret in envs_from_key_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
+            for runtime_info in pod.pod_runtime_info_envs:
+                KubernetesRequestFactory.add_runtime_info_env(env, runtime_info)
+
             req['spec']['containers'][0]['env'] = env
+
+        KubernetesRequestFactory._apply_env_from(pod, req)
 
     @staticmethod
     def extract_resources(pod, req):
@@ -158,12 +184,15 @@ class KubernetesRequestFactory:
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
-            if pod.resources.request_memory:
+            if pod.resources.limit_memory:
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
+            if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
+            if pod.resources.limit_gpu:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'nvidia.com/gpu'] = pod.resources.limit_gpu
 
     @staticmethod
     def extract_init_containers(pod, req):
@@ -181,6 +210,11 @@ class KubernetesRequestFactory:
             req['spec']['hostNetwork'] = pod.hostnetwork
 
     @staticmethod
+    def extract_dnspolicy(pod, req):
+        if pod.dnspolicy:
+            req['spec']['dnsPolicy'] = pod.dnspolicy
+
+    @staticmethod
     def extract_image_pull_secrets(pod, req):
         if pod.image_pull_secrets:
             req['spec']['imagePullSecrets'] = [{
@@ -191,3 +225,35 @@ class KubernetesRequestFactory:
     def extract_tolerations(pod, req):
         if pod.tolerations:
             req['spec']['tolerations'] = pod.tolerations
+
+    @staticmethod
+    def extract_security_context(pod, req):
+        if pod.security_context:
+            req['spec']['securityContext'] = pod.security_context
+
+    @staticmethod
+    def _apply_env_from(pod, req):
+        envs_from_secrets = [
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is None
+        ]
+
+        if pod.configmaps or envs_from_secrets:
+            req['spec']['containers'][0]['envFrom'] = []
+
+        for secret in envs_from_secrets:
+            req['spec']['containers'][0]['envFrom'].append(
+                {
+                    'secretRef': {
+                        'name': secret.secret
+                    }
+                }
+            )
+
+        for configmap in pod.configmaps:
+            req['spec']['containers'][0]['envFrom'].append(
+                {
+                    'configMapRef': {
+                        'name': configmap
+                    }
+                }
+            )

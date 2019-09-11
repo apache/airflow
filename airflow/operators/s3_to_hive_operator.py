@@ -78,6 +78,17 @@ class S3ToHiveTransfer(BaseOperator):
     :type delimiter: str
     :param aws_conn_id: source s3 connection
     :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     :param hive_cli_conn_id: destination hive connection
     :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
@@ -107,6 +118,7 @@ class S3ToHiveTransfer(BaseOperator):
             check_headers=False,
             wildcard_match=False,
             aws_conn_id='aws_default',
+            verify=None,
             hive_cli_conn_id='hive_cli_default',
             input_compressed=False,
             tblproperties=None,
@@ -125,6 +137,7 @@ class S3ToHiveTransfer(BaseOperator):
         self.wildcard_match = wildcard_match
         self.hive_cli_conn_id = hive_cli_conn_id
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
         self.input_compressed = input_compressed
         self.tblproperties = tblproperties
         self.select_expression = select_expression
@@ -136,7 +149,7 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id)
+        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 
@@ -161,8 +174,9 @@ class S3ToHiveTransfer(BaseOperator):
                 NamedTemporaryFile(mode="wb",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
-            self.log.info("Dumping S3 key {0} contents to local file {1}"
-                          .format(s3_key_object.key, f.name))
+            self.log.info(
+                "Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name
+            )
             if self.select_expression:
                 option = {}
                 if self.headers:
@@ -245,24 +259,23 @@ class S3ToHiveTransfer(BaseOperator):
             raise AirflowException("Unable to retrieve header row from file")
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
-            self.log.warning("Headers count mismatch"
-                             "File headers:\n {header_list}\n"
-                             "Field names: \n {field_names}\n"
-                             .format(**locals()))
+            self.log.warning(
+                "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
+            )
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
-            self.log.warning("Headers do not match field names"
-                             "File headers:\n {header_list}\n"
-                             "Field names: \n {field_names}\n"
-                             .format(**locals()))
+            self.log.warning(
+                "Headers do not match field names File headers:\n %s\nField names: \n %s\n",
+                header_list, field_names
+            )
             return False
         else:
             return True
 
+    @staticmethod
     def _delete_top_row_and_compress(
-            self,
             input_file_name,
             output_file_ext,
             dest_dir):
@@ -275,7 +288,7 @@ class S3ToHiveTransfer(BaseOperator):
 
         os_fh_output, fn_output = \
             tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
-        with open(input_file_name, 'rb') as f_in,\
+        with open(input_file_name, 'rb') as f_in, \
                 open_fn(fn_output, 'wb') as f_out:
             f_in.seek(0)
             next(f_in)

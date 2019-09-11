@@ -18,20 +18,14 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 try:
     from mesos.interface import mesos_pb2
     from airflow.contrib.executors.mesos_executor import AirflowMesosScheduler
     mock_mesos = True
 except ImportError:
-    mock_mesos = None
+    mock_mesos = None  # type: ignore
 
 from airflow import configuration
 from queue import Queue

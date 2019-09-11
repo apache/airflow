@@ -18,9 +18,11 @@
 # under the License.
 #
 from flask import (
-    url_for, Markup, Blueprint, redirect,
+    url_for, Blueprint, redirect,
 )
-import markdown
+
+from airflow import jobs
+from airflow.www import utils as wwwutils
 
 routes = Blueprint('routes', __name__)
 
@@ -32,6 +34,28 @@ def index():
 
 @routes.route('/health')
 def health():
-    """ We can add an array of tests here to check the server's health """
-    content = Markup(markdown.markdown("The server is healthy!"))
-    return content
+    """
+    An endpoint helping check the health status of the Airflow instance,
+    including metadatabase and scheduler.
+    """
+
+    payload = {
+        'metadatabase': {'status': 'unhealthy'}
+    }
+    latest_scheduler_heartbeat = None
+    scheduler_status = 'unhealthy'
+    payload['metadatabase'] = {'status': 'healthy'}
+    try:
+        scheduler_job = jobs.SchedulerJob.most_recent_job()
+
+        if scheduler_job:
+            latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+            if scheduler_job.is_alive():
+                scheduler_status = 'healthy'
+    except Exception:
+        payload['metadatabase']['status'] = 'unhealthy'
+
+    payload['scheduler'] = {'status': scheduler_status,
+                            'latest_scheduler_heartbeat': latest_scheduler_heartbeat}
+
+    return wwwutils.json_response(payload)

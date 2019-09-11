@@ -36,7 +36,7 @@ def _integrate_plugins():
         globals()[executors_module._name] = executors_module
 
 
-def GetDefaultExecutor():
+def get_default_executor():
     """Creates a new instance of the configured executor if none exists and returns it"""
     global DEFAULT_EXECUTOR
 

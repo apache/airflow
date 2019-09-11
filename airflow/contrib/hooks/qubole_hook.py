@@ -22,18 +22,19 @@ import os
 import time
 import datetime
 import six
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+from airflow.models import TaskInstance
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
     PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
-    DbImportCommand
-
+    DbImportCommand, SqlCommand
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,
@@ -44,36 +45,56 @@ COMMAND_CLASSES = {
     "sparkcmd": SparkCommand,
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
-    "dbimportcmd": DbImportCommand
+    "dbimportcmd": DbImportCommand,
+    "sqlcmd": SqlCommand
 }
 
-HYPHEN_ARGS = ['cluster_label', 'app_id', 'note_id']
-
-POSITIONAL_ARGS = ['sub_command', 'parameters']
-
-COMMAND_ARGS = {
-    "hivecmd": ['query', 'script_location', 'macros', 'tags', 'sample_size',
-                'cluster_label', 'name'],
-    'prestocmd': ['query', 'script_location', 'macros', 'tags', 'cluster_label', 'name'],
-    'hadoopcmd': ['sub_command', 'tags', 'cluster_label', 'name'],
-    'shellcmd': ['script', 'script_location', 'files', 'archives', 'parameters', 'tags',
-                 'cluster_label', 'name'],
-    'pigcmd': ['script', 'script_location', 'parameters', 'tags', 'cluster_label',
-               'name'],
-    'dbtapquerycmd': ['db_tap_id', 'query', 'macros', 'tags', 'name'],
-    'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags',
-                 'cluster_label', 'language', 'app_id', 'name', 'arguments', 'note_id',
-                 'user_program_arguments'],
-    'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
-                    'db_update_mode', 'db_update_keys', 'export_dir',
-                    'fields_terminated_by', 'tags', 'name'],
-    'dbimportcmd': ['mode', 'hive_table', 'dbtap_id', 'db_table', 'where_clause',
-                    'parallelism', 'extract_query', 'boundary_query', 'split_column',
-                    'tags', 'name']
+POSITIONAL_ARGS = {
+    'hadoopcmd': ['sub_command'],
+    'shellcmd': ['parameters'],
+    'pigcmd': ['parameters']
 }
 
 
-class QuboleHook(BaseHook, LoggingMixin):
+def flatten_list(list_of_lists):
+    return [element for array in list_of_lists for element in array]
+
+
+def filter_options(options):
+    options_to_remove = ["help", "print-logs-live", "print-logs"]
+    return [option for option in options if option not in options_to_remove]
+
+
+def get_options_list(command_class):
+    options_list = [option.get_opt_string().strip("--") for option in command_class.optparser.option_list]
+    return filter_options(options_list)
+
+
+def build_command_args():
+    command_args, hyphen_args = {}, set()
+    for cmd in COMMAND_CLASSES:
+
+        # get all available options from the class
+        opts_list = get_options_list(COMMAND_CLASSES[cmd])
+
+        # append positional args if any for the command
+        if cmd in POSITIONAL_ARGS:
+            opts_list += POSITIONAL_ARGS[cmd]
+
+        # get args with a hyphen and replace them with underscore
+        for index, opt in enumerate(opts_list):
+            if "-" in opt:
+                opts_list[index] = opt.replace("-", "_")
+                hyphen_args.add(opts_list[index])
+
+        command_args[cmd] = opts_list
+    return command_args, list(hyphen_args)
+
+
+COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
+
+
+class QuboleHook(BaseHook):
     def __init__(self, *args, **kwargs):
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -82,6 +103,7 @@ class QuboleHook(BaseHook, LoggingMixin):
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd = None
+        self.task_instance = None
 
     @staticmethod
     def handle_failure_retry(context):
@@ -103,6 +125,7 @@ class QuboleHook(BaseHook, LoggingMixin):
     def execute(self, context):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
+        self.task_instance = context['task_instance']
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
         self.log.info(
             "Qubole command created with Id: %s and Status: %s",
@@ -123,11 +146,15 @@ class QuboleHook(BaseHook, LoggingMixin):
 
     def kill(self, ti):
         """
-        Kill (cancel) a Qubole commmand
+        Kill (cancel) a Qubole command
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: response from Qubole
         """
         if self.cmd is None:
+            if not ti and not self.task_instance:
+                raise Exception("Unable to cancel Qubole Command, context is unavailable!")
+            elif not ti:
+                ti = self.task_instance
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
@@ -176,23 +203,43 @@ class QuboleHook(BaseHook, LoggingMixin):
         """
         Get jobs associated with a Qubole commands
         :param ti: Task Instance of the dag, used to determine the Quboles command id
-        :return: Job informations assoiciated with command
+        :return: Job information associated with command
         """
         if self.cmd is None:
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(self.cls, cmd_id)
 
+    def get_extra_links(self, operator, dttm):
+        """
+        Get link to qubole command result page.
+
+        :param operator: operator
+        :param dttm: datetime
+        :return: url link
+        """
+        conn = BaseHook.get_connection(operator.kwargs['qubole_conn_id'])
+        if conn and conn.host:
+            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+        else:
+            host = 'https://api.qubole.com/v2/analyze?command_id='
+
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
+        url = host + str(qds_command_id) if qds_command_id else ''
+        return url
+
     def create_cmd_args(self, context):
         args = []
         cmd_type = self.kwargs['command_type']
         inplace_args = None
-        tags = set([self.dag_id, self.task_id, context['run_id']])
+        tags = {self.dag_id, self.task_id, context['run_id']}
+        positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
         for k, v in self.kwargs.items():
             if k in COMMAND_ARGS[cmd_type]:
                 if k in HYPHEN_ARGS:
                     args.append("--{0}={1}".format(k.replace('_', '-'), v))
-                elif k in POSITIONAL_ARGS:
+                elif k in positional_args_list:
                     inplace_args = v
                 elif k == 'tags':
                     if isinstance(v, six.string_types):

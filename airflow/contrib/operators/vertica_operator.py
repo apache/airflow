@@ -26,7 +26,7 @@ class VerticaOperator(BaseOperator):
     Executes sql code in a specific Vertica database
 
     :param vertica_conn_id: reference to a specific Vertica database
-    :type vertica_conn_id: string
+    :type vertica_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -46,4 +46,4 @@ class VerticaOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
         hook = VerticaHook(vertica_conn_id=self.vertica_conn_id)
-        hook.run(self.sql)
+        hook.run(sql=self.sql)

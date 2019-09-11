@@ -29,6 +29,7 @@ from airflow import models
 from airflow import settings
 from airflow.utils import timezone
 from airflow.utils.state import State
+from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
@@ -37,16 +38,9 @@ EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
 
 class TestLocalClient(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        super(TestLocalClient, cls).setUpClass()
-        session = settings.Session()
-        session.query(models.Pool).delete()
-        session.commit()
-        session.close()
-
     def setUp(self):
         super(TestLocalClient, self).setUp()
+        clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
         self.session = settings.Session()
 
@@ -127,15 +121,16 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('foo1', 1, ''), ('foo2', 2, '')])
+        self.assertEqual(pools, [('default_pool', 128, 'Default pool'),
+                                 ('foo1', 1, ''), ('foo2', 2, '')])
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        self.assertEqual(self.session.query(models.Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        self.assertEqual(self.session.query(models.Pool).count(), 2)
         self.client.delete_pool(name='foo')
-        self.assertEqual(self.session.query(models.Pool).count(), 0)
+        self.assertEqual(self.session.query(models.Pool).count(), 1)

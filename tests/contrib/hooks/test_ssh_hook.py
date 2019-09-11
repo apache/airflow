@@ -19,16 +19,9 @@
 
 import unittest
 from airflow import configuration
+from airflow.models import Connection
 from airflow.utils import db
-from airflow import models
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
@@ -132,15 +125,18 @@ class SSHHookTest(unittest.TestCase):
 
     def test_conn_with_extra_parameters(self):
         db.merge_conn(
-            models.Connection(conn_id='ssh_with_extra',
-                              host='localhost',
-                              conn_type='ssh',
-                              extra='{"compress" : true, "no_host_key_check" : "true"}'
-                              )
+            Connection(
+                conn_id='ssh_with_extra',
+                host='localhost',
+                conn_type='ssh',
+                extra='{"compress" : true, "no_host_key_check" : "true", '
+                      '"allow_host_key_change": false}'
+            )
         )
         ssh_hook = SSHHook(ssh_conn_id='ssh_with_extra')
         self.assertEqual(ssh_hook.compress, True)
         self.assertEqual(ssh_hook.no_host_key_check, True)
+        self.assertEqual(ssh_hook.allow_host_key_change, False)
 
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')

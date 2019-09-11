@@ -23,6 +23,7 @@ from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.samba_hook import SambaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class Hive2SambaOperator(BaseOperator):
@@ -31,11 +32,11 @@ class Hive2SambaOperator(BaseOperator):
     results of the query as a csv to a Samba location.
 
     :param hql: the hql to be exported. (templated)
-    :type hql: string
+    :type hql: str
     :param hiveserver2_conn_id: reference to the hiveserver2 service
-    :type hiveserver2_conn_id: string
+    :type hiveserver2_conn_id: str
     :param samba_conn_id: reference to the samba destination
-    :type samba_conn_id: string
+    :type samba_conn_id: str
     """
 
     template_fields = ('hql', 'destination_filepath')
@@ -60,6 +61,7 @@ class Hive2SambaOperator(BaseOperator):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         tmpfile = tempfile.NamedTemporaryFile()
         self.log.info("Fetching file from Hive")
-        hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name)
+        hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name,
+                    hive_conf=context_to_airflow_vars(context))
         self.log.info("Pushing to samba")
         samba.push_from_local(self.destination_filepath, tmpfile.name)

@@ -171,7 +171,7 @@ class FileTaskHandler(logging.Handler):
         """
         Create log directory and give it correct permissions.
         :param ti: task instance object
-        :return relative log path of the given task instance
+        :return: relative log path of the given task instance
         """
         # To handle log writing when tasks are impersonated, the log files need to
         # be writable by the user that runs the Airflow command and the user

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,17 +42,17 @@ class CliUtilTest(unittest.TestCase):
                     'task_id': 'bar',
                     'execution_date': exec_date}
         for k, v in expected.items():
-            self.assertEquals(v, metrics.get(k))
+            self.assertEqual(v, metrics.get(k))
 
         self.assertTrue(metrics.get('start_datetime') <= datetime.utcnow())
         self.assertTrue(metrics.get('full_command'))
 
         log_dao = metrics.get('log')
         self.assertTrue(log_dao)
-        self.assertEquals(log_dao.dag_id, metrics.get('dag_id'))
-        self.assertEquals(log_dao.task_id, metrics.get('task_id'))
-        self.assertEquals(log_dao.execution_date, metrics.get('execution_date'))
-        self.assertEquals(log_dao.owner, metrics.get('user'))
+        self.assertEqual(log_dao.dag_id, metrics.get('dag_id'))
+        self.assertEqual(log_dao.task_id, metrics.get('task_id'))
+        self.assertEqual(log_dao.execution_date, metrics.get('execution_date'))
+        self.assertEqual(log_dao.owner, metrics.get('user'))
 
     def test_fail_function(self):
         """

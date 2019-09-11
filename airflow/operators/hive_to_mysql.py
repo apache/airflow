@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from tempfile import NamedTemporaryFile
+
 from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from tempfile import NamedTemporaryFile
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class HiveToMySqlTransfer(BaseOperator):
@@ -88,7 +89,8 @@ class HiveToMySqlTransfer(BaseOperator):
         if self.bulk_load:
             tmpfile = NamedTemporaryFile()
             hive.to_csv(self.sql, tmpfile.name, delimiter='\t',
-                        lineterminator='\n', output_header=False)
+                        lineterminator='\n', output_header=False,
+                        hive_conf=context_to_airflow_vars(context))
         else:
             results = hive.get_records(self.sql)
 

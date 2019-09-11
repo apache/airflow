@@ -54,7 +54,10 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__base_url = base_url
         self.__version = version
         self.__tls = tls
-        self.__registry = conn.host
+        if conn.port:
+            self.__registry = "{}:{}".format(conn.host, conn.port)
+        else:
+            self.__registry = conn.host
         self.__username = conn.login
         self.__password = conn.password
         self.__email = extra_options.get('email')

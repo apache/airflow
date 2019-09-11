@@ -23,6 +23,9 @@ Revises: cc1e65623dc7
 Create Date: 2017-08-14 16:06:31.568971
 
 """
+from alembic import op
+import dill
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'bdaa763e6c56'
@@ -30,15 +33,10 @@ down_revision = 'cc1e65623dc7'
 branch_labels = None
 depends_on = None
 
-from alembic import op
-import dill
-import sqlalchemy as sa
-
 
 def upgrade():
     # There can be data truncation here as LargeBinary can be smaller than the pickle
     # type.
-
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("xcom") as batch_op:
         batch_op.alter_column('value', type_=sa.LargeBinary())

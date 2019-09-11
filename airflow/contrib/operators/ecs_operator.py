@@ -18,12 +18,14 @@
 # under the License.
 import sys
 import re
+from datetime import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 
 
 class ECSOperator(BaseOperator):
@@ -46,6 +48,28 @@ class ECSOperator(BaseOperator):
     :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type launch_type: str
+    :param group: the name of the task group associated with the task
+    :type group: str
+    :param placement_constraints: an array of placement constraint objects to use for
+        the task
+    :type placement_constraints: list
+    :param platform_version: the platform version on which your task is running
+    :type platform_version: str
+    :param network_configuration: the network configuration for the task
+    :type network_configuration: dict
+    :param awslogs_group: the CloudWatch group where your ECS container logs are stored.
+        Only required if you want logs to be shown in the Airflow UI after your job has
+        finished.
+    :type awslogs_group: str
+    :param awslogs_region: the region in which your CloudWatch logs are stored.
+        If None, this is the same as the `region_name` parameter. If that is also None,
+        this is the default AWS region based on your connection settings.
+    :type awslogs_region: str
+    :param awslogs_stream_prefix: the stream prefix that is used for the CloudWatch logs.
+        This is usually based on some custom name combined with the name of the container.
+        Only required if you want logs to be shown in the Airflow UI after your job has
+        finished.
+    :type awslogs_stream_prefix: str
     """
 
     ui_color = '#f0ede4'
@@ -55,7 +79,10 @@ class ECSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, task_definition, cluster, overrides,
-                 aws_conn_id=None, region_name=None, launch_type='EC2', **kwargs):
+                 aws_conn_id=None, region_name=None, launch_type='EC2',
+                 group=None, placement_constraints=None, platform_version='LATEST',
+                 network_configuration=None, awslogs_group=None,
+                 awslogs_region=None, awslogs_stream_prefix=None, **kwargs):
         super(ECSOperator, self).__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -64,6 +91,17 @@ class ECSOperator(BaseOperator):
         self.cluster = cluster
         self.overrides = overrides
         self.launch_type = launch_type
+        self.group = group
+        self.placement_constraints = placement_constraints
+        self.platform_version = platform_version
+        self.network_configuration = network_configuration
+
+        self.awslogs_group = awslogs_group
+        self.awslogs_stream_prefix = awslogs_stream_prefix
+        self.awslogs_region = awslogs_region
+
+        if self.awslogs_region is None:
+            self.awslogs_region = region_name
 
         self.hook = self.get_hook()
 
@@ -79,13 +117,23 @@ class ECSOperator(BaseOperator):
             region_name=self.region_name
         )
 
-        response = self.client.run_task(
-            cluster=self.cluster,
-            taskDefinition=self.task_definition,
-            overrides=self.overrides,
-            startedBy=self.owner,
-            launchType=self.launch_type
-        )
+        run_opts = {
+            'cluster': self.cluster,
+            'taskDefinition': self.task_definition,
+            'overrides': self.overrides,
+            'startedBy': self.owner,
+            'launchType': self.launch_type,
+        }
+
+        if self.launch_type == 'FARGATE':
+            run_opts['platformVersion'] = self.platform_version
+        if self.group is not None:
+            run_opts['group'] = self.group
+        if self.placement_constraints is not None:
+            run_opts['placementConstraints'] = self.placement_constraints
+        if self.network_configuration is not None:
+            run_opts['networkConfiguration'] = self.network_configuration
+        response = self.client.run_task(**run_opts)
 
         failures = response['failures']
         if len(failures) > 0:
@@ -112,6 +160,15 @@ class ECSOperator(BaseOperator):
             tasks=[self.arn]
         )
         self.log.info('ECS Task stopped, check status: %s', response)
+
+        # Get logs from CloudWatch if the awslogs log driver was used
+        if self.awslogs_group and self.awslogs_stream_prefix:
+            self.log.info('ECS Task logs output:')
+            task_id = self.arn.split("/")[-1]
+            stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
+            for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
+                dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
+                self.log.info("[{}] {}".format(dt.isoformat(), event['message']))
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
@@ -142,6 +199,12 @@ class ECSOperator(BaseOperator):
     def get_hook(self):
         return AwsHook(
             aws_conn_id=self.aws_conn_id
+        )
+
+    def get_logs_hook(self):
+        return AwsLogsHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.awslogs_region
         )
 
     def on_kill(self):

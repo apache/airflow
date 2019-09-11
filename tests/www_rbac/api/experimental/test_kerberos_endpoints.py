@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,7 @@ import unittest
 from datetime import datetime
 
 from airflow import configuration
-from airflow.api.auth.backend.kerberos_auth import client_auth
+from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www_rbac import app as application
 
 
@@ -64,7 +64,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
-            class Request():
+            class Request(object):
                 headers = {}
 
             response.request = Request()
@@ -74,12 +74,12 @@ class ApiKerberosTests(unittest.TestCase):
             response.connection.send = mock.MagicMock()
 
             # disable mutual authentication for testing
-            client_auth.mutual_authentication = 3
+            CLIENT_AUTH.mutual_authentication = 3
 
             # case can influence the results
-            client_auth.hostname_override = socket.getfqdn()
+            CLIENT_AUTH.hostname_override = socket.getfqdn()
 
-            client_auth.handle_response(response)
+            CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
             response2 = c.post(

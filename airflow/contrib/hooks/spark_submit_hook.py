@@ -33,37 +33,40 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
     It requires that the "spark-submit" binary is in the PATH or the spark_home to be
     supplied.
+
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
     :param conn_id: The connection id as configured in Airflow administration. When an
-                    invalid connection_id is supplied, it will default to yarn.
+        invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
-                  comma. Files will be placed in the working directory of each executor.
-                  For example, serialized objects.
+        comma. Files will be placed in the working directory of each executor.
+        For example, serialized objects.
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
-    :param driver_classpath: Additional, driver-specific, classpath settings.
-    :type driver_classpath: str
+    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+        the application working directory.
+    :param driver_class_path: Additional, driver-specific, classpath settings.
+    :type driver_class_path: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
-    driver and executor classpaths
+        driver and executor classpaths
     :type packages: str
     :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
-    while resolving the dependencies provided in 'packages'
+        while resolving the dependencies provided in 'packages'
     :type exclude_packages: str
     :param repositories: Comma-separated list of additional remote repositories to search
-    for the maven coordinates given with 'packages'
+        for the maven coordinates given with 'packages'
     :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
-    (Default: all the available cores on the worker)
+        (Default: all the available cores on the worker)
     :type total_executor_cores: int
     :param executor_cores: (Standalone, YARN and Kubernetes only) Number of cores per
-    executor (Default: 2)
+        executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -80,17 +83,21 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param application_args: Arguments for the application being submitted
     :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
-                     supports yarn and k8s mode too.
+        supports yarn and k8s mode too.
     :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
+    :param spark_binary: The command to use for spark submit.
+                         Some distros may use spark2-submit.
+    :type spark_binary: str
     """
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
-                 driver_classpath=None,
+                 archives=None,
+                 driver_class_path=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -106,12 +113,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  num_executors=None,
                  application_args=None,
                  env_vars=None,
-                 verbose=False):
+                 verbose=False,
+                 spark_binary=None):
         self._conf = conf
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
-        self._driver_classpath = driver_classpath
+        self._archives = archives
+        self._driver_class_path = driver_class_path
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -131,13 +140,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._submit_sp = None
         self._yarn_application_id = None
         self._kubernetes_driver_pod = None
+        self._spark_binary = spark_binary
 
         self._connection = self._resolve_connection()
         self._is_yarn = 'yarn' in self._connection['master']
         self._is_kubernetes = 'k8s' in self._connection['master']
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
-                "{master} specified by kubernetes dependencies are not installed!".format(
+                "{} specified by kubernetes dependencies are not installed!".format(
                     self._connection['master']))
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
@@ -160,7 +170,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'queue': None,
                      'deploy_mode': None,
                      'spark_home': None,
-                     'spark_binary': 'spark-submit',
+                     'spark_binary': self._spark_binary or "spark-submit",
                      'namespace': 'default'}
 
         try:
@@ -177,10 +187,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['queue'] = extra.get('queue', None)
             conn_data['deploy_mode'] = extra.get('deploy-mode', None)
             conn_data['spark_home'] = extra.get('spark-home', None)
-            conn_data['spark_binary'] = extra.get('spark-binary', 'spark-submit')
+            conn_data['spark_binary'] = self._spark_binary or  \
+                extra.get('spark-binary', "spark-submit")
             conn_data['namespace'] = extra.get('namespace', 'default')
         except AirflowException:
-            self.log.debug(
+            self.log.info(
                 "Could not load connection string %s, defaulting to %s",
                 self._conn_id, conn_data['master']
             )
@@ -238,8 +249,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--files", self._files]
         if self._py_files:
             connection_cmd += ["--py-files", self._py_files]
-        if self._driver_classpath:
-            connection_cmd += ["--driver-classpath", self._driver_classpath]
+        if self._archives:
+            connection_cmd += ["--archives", self._archives]
+        if self._driver_class_path:
+            connection_cmd += ["--driver-class-path", self._driver_class_path]
         if self._jars:
             connection_cmd += ["--jars", self._jars]
         if self._packages:
@@ -390,14 +403,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
-                match = re.search('\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
+                match = re.search(r'\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
                 if match:
                     self._kubernetes_driver_pod = match.groups()[0]
                     self.log.info("Identified spark driver pod: %s",
                                   self._kubernetes_driver_pod)
 
                 # Store the Spark Exit code
-                match_exit_code = re.search('\s*Exit code: (\d+)', line)
+                match_exit_code = re.search(r'\s*Exit code: (\d+)', line)
                 if match_exit_code:
                     self._spark_exit_code = int(match_exit_code.groups()[0])
 
@@ -405,16 +418,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # we need to extract the driver id from the logs. This allows us to poll for
             # the status using the driver id. Also, we can kill the driver when needed.
             elif self._should_track_driver_status and not self._driver_id:
-                match_driver_id = re.search('(driver-[0-9\-]+)', line)
+                match_driver_id = re.search(r'(driver-[0-9\-]+)', line)
                 if match_driver_id:
                     self._driver_id = match_driver_id.groups()[0]
                     self.log.info("identified spark driver id: {}"
                                   .format(self._driver_id))
 
-            else:
-                self.log.info(line)
-
-            self.log.debug("spark submit log: {}".format(line))
+            self.log.info(line)
 
     def _process_spark_status_log(self, itr):
         """
@@ -440,16 +450,25 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
 
         Possible status:
-            SUBMITTED: Submitted but not yet scheduled on a worker
-            RUNNING: Has been allocated to a worker to run
-            FINISHED: Previously ran and exited cleanly
-            RELAUNCHING: Exited non-zero or due to worker failure, but has not yet
+
+        SUBMITTED
+            Submitted but not yet scheduled on a worker
+        RUNNING
+            Has been allocated to a worker to run
+        FINISHED
+            Previously ran and exited cleanly
+        RELAUNCHING
+            Exited non-zero or due to worker failure, but has not yet
             started running again
-            UNKNOWN: The status of the driver is temporarily not known due to
-             master failure recovery
-            KILLED: A user manually killed this driver
-            FAILED: The driver exited non-zero and was not supervised
-            ERROR: Unable to run or restart due to an unrecoverable error
+        UNKNOWN
+            The status of the driver is temporarily not known due to
+            master failure recovery
+        KILLED
+            A user manually killed this driver
+        FAILED
+            The driver exited non-zero and was not supervised
+        ERROR
+            Unable to run or restart due to an unrecoverable error
             (e.g. missing jar file)
         """
 

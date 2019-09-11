@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.s3_to_gcs_operator import \
     S3ToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'
@@ -88,8 +81,8 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         uploaded_files = operator.execute(None)
 
-        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
-        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
+        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
+        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None)
 

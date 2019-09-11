@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,9 +22,10 @@ import collections
 import json
 import unittest
 
-from airflow import configuration, models
+from airflow import configuration
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.utils import db
 
 from mock import patch, call
@@ -59,7 +60,8 @@ class TestSqoopHook(unittest.TestCase):
         'relaxed_isolation': True,
         'extra_export_options': collections.OrderedDict([
             ('update-key', 'id'),
-            ('update-mode', 'allowinsert')
+            ('update-mode', 'allowinsert'),
+            ('fetch-size', 1)
         ])
     }
     _config_import = {
@@ -71,7 +73,8 @@ class TestSqoopHook(unittest.TestCase):
         'driver': 'com.microsoft.jdbc.sqlserver.SQLServerDriver',
         'extra_import_options': {
             'hcatalog-storage-stanza': "\"stored as orcfile\"",
-            'show': ''
+            'show': '',
+            'fetch-size': 1
         }
     }
 
@@ -86,7 +89,7 @@ class TestSqoopHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='sqoop_test', conn_type='sqoop', schema='schema',
                 host='rmdbs', port=5050, extra=json.dumps(self._config_json)
             )
@@ -98,7 +101,8 @@ class TestSqoopHook(unittest.TestCase):
         mock_popen.return_value.stdout = StringIO(u'stdout')
         mock_popen.return_value.stderr = StringIO(u'stderr')
         mock_popen.return_value.returncode = 0
-        mock_popen.return_value.communicate.return_value = [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
+        mock_popen.return_value.communicate.return_value = \
+            [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
 
         # When
         hook = SqoopHook(conn_id='sqoop_test')
@@ -128,6 +132,7 @@ class TestSqoopHook(unittest.TestCase):
              '--export-dir', self._config_export['export_dir'],
              '--update-key', 'id',
              '--update-mode', 'allowinsert',
+             '--fetch-size', str(self._config_export['extra_export_options'].get('fetch-size')),
              '--table', self._config_export['table']], stderr=-2, stdout=-1))
 
     def test_submit_none_mappers(self):
@@ -163,7 +168,7 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("-files {}".format(self._config_json['files']), cmd)
 
         if self._config_json['archives']:
-            self.assertIn( "-archives {}".format(self._config_json['archives']), cmd)
+            self.assertIn("-archives {}".format(self._config_json['archives']), cmd)
 
         self.assertIn("--hcatalog-database {}".format(self._config['hcatalog_database']), cmd)
         self.assertIn("--hcatalog-table {}".format(self._config['hcatalog_table']), cmd)
@@ -173,7 +178,7 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("--verbose", cmd)
 
         if self._config['num_mappers']:
-            self.assertIn( "--num-mappers {}".format(self._config['num_mappers']), cmd)
+            self.assertIn("--num-mappers {}".format(self._config['num_mappers']), cmd)
 
         for key, value in self._config['properties'].items():
             self.assertIn("-D {}={}".format(key, value), cmd)
@@ -248,6 +253,11 @@ class TestSqoopHook(unittest.TestCase):
         if self._config_export['relaxed_isolation']:
             self.assertIn("--relaxed-isolation", cmd)
 
+        if self._config_export['extra_export_options']:
+            self.assertIn("--update-key", cmd)
+            self.assertIn("--update-mode", cmd)
+            self.assertIn("--fetch-size", cmd)
+
     def test_import_cmd(self):
         """
         Tests to verify the hook import command is building correct Sqoop import command.
@@ -298,10 +308,12 @@ class TestSqoopHook(unittest.TestCase):
         # these checks are from the extra import options
         self.assertIn('--show', cmd)
         self.assertIn('hcatalog-storage-stanza \"stored as orcfile\"', cmd)
+        self.assertIn('--fetch-size', cmd)
 
     def test_get_export_format_argument(self):
         """
-        Tests to verify the hook get format function is building correct Sqoop command with correct format type.
+        Tests to verify the hook get format function is building
+        correct Sqoop command with correct format type.
         """
         hook = SqoopHook()
         self.assertIn("--as-avrodatafile",
