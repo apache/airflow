@@ -19,7 +19,10 @@
 """
 This module contains a Google Cloud Translate Speech operator.
 """
+from typing import Optional
+
 from google.protobuf.json_format import MessageToDict
+from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
 from airflow import AirflowException
 from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
@@ -102,17 +105,17 @@ class GcpTranslateSpeechOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        audio,
-        config,
-        target_language,
-        format_,
-        source_language,
-        model,
-        project_id=None,
+        audio: RecognitionAudio,
+        config: RecognitionConfig,
+        target_language: str,
+        format_: str,
+        source_language: str,
+        model: str,
+        project_id: Optional[str] = None,
         gcp_conn_id='google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.audio = audio
         self.config = config

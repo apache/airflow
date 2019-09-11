@@ -20,15 +20,15 @@
 
 import unittest
 from unittest import mock
-from typing import List
+from typing import List, Optional
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check
-from tests.compat import PropertyMock
+    _validate_value, _api_resource_configs_duplication_check, \
+    _validate_src_fmt_configs
 
 bq_available = True
 
@@ -38,77 +38,100 @@ except GoogleAuthError:
     bq_available = False
 
 
-class TestPandasGbqPrivateKey(unittest.TestCase):
+class TestBigQueryHookConnection(unittest.TestCase):
+    hook = None  # type: Optional[hook.BigQueryHook]
+
     def setUp(self):
+        self.hook = hook.BigQueryHook()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryConnection")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryHook._authorize")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.build")
+    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'bigquery', 'v2', http=mock_authorize.return_value, cache_discovery=False
+        )
+        mock_bigquery_connection.assert_called_once_with(
+            service=mock_build.return_value,
+            project_id=self.hook.project_id,
+            use_legacy_sql=self.hook.use_legacy_sql,
+            location=self.hook.location,
+            num_retries=self.hook.num_retries
+        )
+        self.assertEqual(mock_bigquery_connection.return_value, result)
+
+
+class TestPandasGbqCredentials(unittest.TestCase):
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    def test_credentials_provided(self, mock_read_gbq, mock_get_credentials_and_project_id):
         self.instance = hook.BigQueryHook()
-        if not bq_available:
-            self.instance.extras['extra__google_cloud_platform__project'] = 'mock_project'
-
-    @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
-    def test_key_path_provided(self, mock_read_gbq, mock_project_id):
-        private_key_path = '/Fake/Path'
-        self.instance.extras['extra__google_cloud_platform__key_path'] = private_key_path
 
         self.instance.get_pandas_df('select 1')
 
         args, kwargs = mock_read_gbq.call_args
-        self.assertEqual(kwargs['private_key'], private_key_path)
-
-    @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
-    def test_key_json_provided(self, mock_read_gbq, mock_project_id):
-        private_key_json = 'Fake Private Key'
-        self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
-
-        self.instance.get_pandas_df('select 1')
-
-        args, kwargs = mock_read_gbq.call_args
-        self.assertEqual(kwargs['private_key'], private_key_json)
-
-    def test_no_key_provided(self):
-        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
-                        **kwargs: kwargs['private_key']):
-            self.assertEqual(self.instance.get_pandas_df('select 1'), None)
+        self.assertEqual("CREDENTIALS", kwargs['credentials'])
+        self.assertEqual("PROJECT_ID", kwargs['project_id'])
 
 
 class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
         self.instance = hook.BigQueryHook()
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_output_is_dataframe_with_valid_query(self):
+    def test_output_is_dataframe_with_valid_query(self, mock_project_id):
         import pandas as pd
         df = self.instance.get_pandas_df('select 1')
         self.assertIsInstance(df, pd.DataFrame)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_throws_exception_with_invalid_query(self):
+    def test_throws_exception_with_invalid_query(self, mock_project_id):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
         self.assertIn('Reason: ', str(context.exception), "")
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_succeeds_with_explicit_legacy_query(self):
+    def test_succeeds_with_explicit_legacy_query(self, mock_project_id):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_succeeds_with_explicit_std_query(self):
+    def test_succeeds_with_explicit_std_query(self, mock_project_id):
         df = self.instance.get_pandas_df(
             'select * except(b) from (select 1 a, 2 b)', dialect='standard')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_throws_exception_with_incompatible_syntax(self):
+    def test_throws_exception_with_incompatible_syntax(self, mock_project_id):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df(
                 'select * except(b) from (select 1 a, 2 b)', dialect='legacy')
@@ -358,6 +381,28 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "key_one", key_one, {"key_one": False})
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
+
+    def test_validate_src_fmt_configs(self):
+        source_format = "test_format"
+        valid_configs = ["test_config_known", "compatibility_val"]
+        backward_compatibility_configs = {"compatibility_val": "val"}
+
+        with self.assertRaises(ValueError):
+            # This config should raise a value error.
+            src_fmt_configs = {"test_config_unknown": "val"}
+            _validate_src_fmt_configs(source_format,
+                                      src_fmt_configs,
+                                      valid_configs,
+                                      backward_compatibility_configs)
+
+        src_fmt_configs = {"test_config_known": "val"}
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
+        assert "test_config_known" in src_fmt_configs, \
+            "src_fmt_configs should contain al known src_fmt_configs"
+
+        assert "compatibility_val" in src_fmt_configs, \
+            "_validate_src_fmt_configs should add backward_compatibility config"
 
 
 class TestTableDataOperations(unittest.TestCase):
@@ -643,7 +688,6 @@ class TestLabelsInRunJob(unittest.TestCase):
 class TestDatasetsOperations(unittest.TestCase):
 
     def test_create_empty_dataset_no_dataset_id_err(self):
-
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
@@ -658,6 +702,59 @@ class TestDatasetsOperations(unittest.TestCase):
                     "datasetReference":
                         {"datasetId": "test_dataset",
                          "projectId": "project_test2"}})
+
+    def test_create_empty_dataset_with_location_duplicates_call_err(self):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test", location="EU",
+                dataset_reference={
+                    "location": "US",
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test"}})
+
+    def test_create_empty_dataset_with_location(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
+
+    def test_create_empty_dataset_with_location_duplicates_call_no_err(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        location = 'EU'
+        dataset_reference = {"location": "EU"}
+
+        mock_service = mock.Mock()
+        method = mock_service.datasets.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_dataset(project_id=project_id, dataset_id=dataset_id, location=location,
+                                    dataset_reference=dataset_reference)
+
+        expected_body = {
+            "location": "EU",
+            "datasetReference": {
+                "datasetId": "bq_dataset",
+                "projectId": "bq-project"
+            }
+        }
+
+        method.assert_called_once_with(projectId=project_id, body=expected_body)
 
     def test_get_dataset_without_dataset_id(self):
         with mock.patch.object(hook.BigQueryHook, 'get_service'):

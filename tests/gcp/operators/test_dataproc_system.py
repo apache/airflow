@@ -16,18 +16,43 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.contrib.utils.base_gcp_system_test_case import (
+    SKIP_TEST_WARNING,
+    TestDagGcpSystem,
+)
 from tests.contrib.utils.gcp_authenticator import GCP_DATAPROC_KEY
+from tests.contrib.operators.test_dataproc_operator_system_helper import (
+    DataprocTestHelper,
+)
+
+BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
+PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAPROC_KEY), SKIP_TEST_WARNING)
-class DataprocPigOperatorExampleDagsTest(TestDagGcpSystem):
+class DataprocExampleDagsTest(TestDagGcpSystem):
+    def setUp(self):
+        super().setUp()
+        self.gcp_authenticator.gcp_authenticate()
+        self.helper.create_test_bucket(BUCKET)
+        self.helper.upload_test_file(PYSPARK_URI, PYSPARK_MAIN)
+        self.gcp_authenticator.gcp_revoke_authentication()
+
+    def tearDown(self):
+        self.gcp_authenticator.gcp_authenticate()
+        self.helper.delete_gcs_bucket_elements(BUCKET)
+        self.gcp_authenticator.gcp_revoke_authentication()
+        super().tearDown()
+
     def __init__(self, method_name="runTest"):
         super().__init__(
-            method_name, dag_id="example_gcp_dataproc_pig_operator", gcp_key=GCP_DATAPROC_KEY
+            method_name, dag_id="example_gcp_dataproc", gcp_key=GCP_DATAPROC_KEY
         )
+        self.helper = DataprocTestHelper()
 
     def test_run_example_dag(self):
         self._run_dag()

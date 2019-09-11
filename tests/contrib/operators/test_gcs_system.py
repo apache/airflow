@@ -18,17 +18,30 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.contrib.utils.base_gcp_system_test_case import (
+    SKIP_TEST_WARNING,
+    TestDagGcpSystem,
+)
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.contrib.operators.test_gcs_system_helper import GcsSystemTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class CloudStorageExampleDagsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcs_acl',
-            gcp_key=GCP_GCS_KEY)
+class GoogleCloudStorageExampleDagsTest(TestDagGcpSystem):
+    def setUp(self):
+        super().setUp()
+        self.helper.create_test_file()
 
-    def test_run_example_dag_gcs_acl(self):
+    def tearDown(self):
+        self.gcp_authenticator.gcp_authenticate()
+        self.helper.remove_test_files()
+        self.helper.remove_bucket()
+        self.gcp_authenticator.gcp_revoke_authentication()
+        super().tearDown()
+
+    def __init__(self, method_name="runTest"):
+        super().__init__(method_name, dag_id="example_gcs", gcp_key=GCP_GCS_KEY)
+        self.helper = GcsSystemTestHelper()
+
+    def test_run_example_dag(self):
         self._run_dag()

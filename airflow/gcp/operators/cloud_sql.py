@@ -19,6 +19,7 @@
 """
 This module contains Google Cloud SQL operators.
 """
+from typing import Union, List, Optional, Iterable, Dict
 
 from googleapiclient.errors import HttpError
 
@@ -153,18 +154,18 @@ class CloudSqlBaseOperator(BaseOperator):
     """
     @apply_defaults
     def __init__(self,
-                 instance,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 *args, **kwargs):
+                 instance: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance = instance
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
         self._hook = CloudSqlHook(gcp_conn_id=self.gcp_conn_id,
-                                  api_version=self.api_version)
+                                  api_version=self.api_version)  # type: CloudSqlHook
         super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
@@ -235,13 +236,13 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 body,
-                 instance,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 validate_body=True,
-                 *args, **kwargs):
+                 body: dict,
+                 instance: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
@@ -309,12 +310,12 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 body,
-                 instance,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 *args, **kwargs):
+                 body: dict,
+                 instance: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 *args, **kwargs) -> None:
         self.body = body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
@@ -361,11 +362,11 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 *args, **kwargs):
+                 instance: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 *args, **kwargs) -> None:
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
@@ -410,13 +411,13 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 validate_body=True,
-                 *args, **kwargs):
+                 instance: str,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
@@ -483,14 +484,14 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 database,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 validate_body=True,
-                 *args, **kwargs):
+                 instance: str,
+                 database: str,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.database = database
         self.body = body
         self.validate_body = validate_body
@@ -552,12 +553,12 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 database,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 *args, **kwargs):
+                 instance: str,
+                 database: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 *args, **kwargs) -> None:
         self.database = database
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
@@ -614,13 +615,13 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 validate_body=True,
-                 *args, **kwargs):
+                 instance: str,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
@@ -690,13 +691,13 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1beta4',
-                 validate_body=True,
-                 *args, **kwargs):
+                 instance: str,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1beta4',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
@@ -737,7 +738,7 @@ class CloudSqlQueryOperator(BaseOperator):
         you can use CREATE TABLE IF NOT EXISTS to create a table.
     :type sql: str or list[str]
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool
@@ -757,12 +758,12 @@ class CloudSqlQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql,
-                 autocommit=False,
-                 parameters=None,
-                 gcp_conn_id='google_cloud_default',
-                 gcp_cloudsql_conn_id='google_cloud_sql_default',
-                 *args, **kwargs):
+                 sql: Union[List[str], str],
+                 autocommit: bool = False,
+                 parameters: Optional[Union[Dict, Iterable]] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.gcp_conn_id = gcp_conn_id

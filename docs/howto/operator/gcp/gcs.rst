@@ -53,7 +53,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -61,7 +61,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -97,7 +97,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -105,7 +105,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -125,3 +125,11 @@ More information
 
 See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
+* `Product Documentation <https://cloud.google.com/storage/docs/>`__

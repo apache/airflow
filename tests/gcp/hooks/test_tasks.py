@@ -47,6 +47,18 @@ class TestCloudTasksHook(unittest.TestCase):
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksClient")
+    def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.hook._client, result)
+
     @mock.patch(  # type: ignore
         "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.create_queue.return_value": API_RESPONSE},  # type: ignore

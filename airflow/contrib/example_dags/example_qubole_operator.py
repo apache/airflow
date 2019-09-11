@@ -96,7 +96,6 @@ with DAG(
 
     t3 = PythonOperator(
         task_id='compare_result',
-        provide_context=True,
         python_callable=compare_result,
         trigger_rule="all_done"
     )
@@ -215,6 +214,7 @@ with DAG(
         spark.stop()
       }
     }
+
     '''
 
     t11 = QuboleOperator(

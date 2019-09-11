@@ -42,6 +42,7 @@ from tests.compat import mock
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
+TEST_DATASET_LOCATION = 'EU'
 TEST_GCP_PROJECT_ID = 'test-project'
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = 'test-table-id'
@@ -146,7 +147,8 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
         operator = BigQueryCreateEmptyDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_GCP_PROJECT_ID
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION
         )
 
         operator.execute(None)
@@ -157,6 +159,7 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
+                location=TEST_DATASET_LOCATION,
                 dataset_reference={}
             )
 
@@ -378,7 +381,7 @@ class TestBigQueryOperator(unittest.TestCase):
             write_disposition='WRITE_EMPTY',
             allow_large_results=False,
             flatten_results=None,
-            bigquery_conn_id='google_cloud_default',
+            gcp_conn_id='google_cloud_default',
             udf_config=None,
             use_legacy_sql=True,
             maximum_billing_tier=None,

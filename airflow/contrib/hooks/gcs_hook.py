@@ -20,10 +20,10 @@
 """
 This module contains a Google Cloud Storage hook.
 """
-
-from typing import Optional
-import gzip as gz
 import os
+from os import path
+from typing import Optional, Set, Tuple
+import gzip as gz
 import shutil
 
 from urllib.parse import urlparse
@@ -154,13 +154,18 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
             self.log.info('Total Bytes: %s | Bytes Written: %s',
                           total_bytes, bytes_rewritten)
-        self.log.info('Object %s in bucket %s copied to object %s in bucket %s',
+        self.log.info('Object %s in bucket %s rewritten to object %s in bucket %s',
                       source_object.name, source_bucket.name,
                       destination_object, destination_bucket.name)
 
     def download(self, bucket_name, object_name, filename=None):
         """
-        Get a file from Google Cloud Storage.
+        Downloads a file from Google Cloud Storage.
+
+        When no filename is supplied, the operator loads the file into memory and returns its
+        content. When a filename is supplied, it writes the file to the specified location and
+        returns the location. For file sizes that exceed the available memory it is recommended
+        to write to a file.
 
         :param bucket_name: The bucket to fetch from.
         :type bucket_name: str
@@ -176,8 +181,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         if filename:
             blob.download_to_filename(filename)
             self.log.info('File downloaded to %s', filename)
-
-        return blob.download_as_string()
+            return filename
+        else:
+            return blob.download_as_string()
 
     def upload(self, bucket_name, object_name, filename,
                mime_type='application/octet-stream', gzip=False):
@@ -563,6 +569,175 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             ])
 
         self.log.info("Completed successfully.")
+
+    def sync(
+        self,
+        source_bucket: str,
+        destination_bucket: str,
+        source_object: Optional[str] = None,
+        destination_object: Optional[str] = None,
+        recursive: bool = True,
+        allow_overwrite: bool = False,
+        delete_extra_files: bool = False
+    ):
+        """
+        Synchronizes the contents of the buckets.
+
+        Parameters ``source_object`` and ``destination_object`` describe the root sync directories. If they
+        are not passed, the entire bucket will be synchronized. If they are passed, they should point
+        to directories.
+
+        .. note::
+            The synchronization of individual files is not supported. Only entire directories can be
+            synchronized.
+
+        :param source_bucket: The name of the bucket containing the source objects.
+        :type source_bucket: str
+        :param destination_bucket: The name of the bucket containing the destination objects.
+        :type destination_bucket: str
+        :param source_object: The root sync directory in the source bucket.
+        :type source_object: Optional[str]
+        :param destination_object: The root sync directory in the destination bucket.
+        :type destination_object: Optional[str]
+        :param recursive: If True, subdirectories will be considered
+        :type recursive: bool
+        :param recursive: If True, subdirectories will be considered
+        :type recursive: bool
+        :param allow_overwrite: if True, the files will be overwritten if a mismatched file is found.
+            By default, overwriting files is not allowed
+        :type allow_overwrite: bool
+        :param delete_extra_files: if True, deletes additional files from the source that not found in the
+            destination. By default extra files are not deleted.
+
+            .. note::
+                This option can delete data quickly if you specify the wrong source/destination combination.
+
+        :type delete_extra_files: bool
+        :return: none
+        """
+        client = self.get_conn()
+        # Create bucket object
+        source_bucket_obj = client.bucket(source_bucket)
+        destination_bucket_obj = client.bucket(destination_bucket)
+        # Normalize parameters when they are passed
+        source_object = self._normalize_directory_path(source_object)
+        destination_object = self._normalize_directory_path(destination_object)
+        # Calculate the number of characters that remove from the name, because they contain information
+        # about the parent's path
+        source_object_prefix_len = len(source_object) if source_object else 0
+        # Prepare synchronization plan
+        to_copy_blobs, to_delete_blobs, to_rewrite_blobs = self._prepare_sync_plan(
+            source_bucket=source_bucket_obj,
+            destination_bucket=destination_bucket_obj,
+            source_object=source_object,
+            destination_object=destination_object,
+            recursive=recursive
+        )
+        self.log.info(
+            "Planned synchronization. To delete blobs count: %s, to upload blobs count: %s, "
+            "to rewrite blobs count: %s",
+            len(to_delete_blobs),
+            len(to_copy_blobs),
+            len(to_rewrite_blobs),
+        )
+
+        # Copy missing object to new bucket
+        if not to_copy_blobs:
+            self.log.info("Skipped blobs copying.")
+        else:
+            for blob in to_copy_blobs:
+                dst_object = self._calculate_sync_destination_path(
+                    blob, destination_object, source_object_prefix_len
+                )
+                self.copy(
+                    source_bucket=source_bucket_obj.name,
+                    source_object=blob.name,
+                    destination_bucket=destination_bucket_obj.name,
+                    destination_object=dst_object,
+                )
+            self.log.info("Blobs copied.")
+        # Delete redundant files
+        if not to_delete_blobs:
+            self.log.info("Skipped blobs deleting.")
+        elif delete_extra_files:
+            # TODO: Add batch. I tried to do it, but the Google library is not stable at the moment.
+            for blob in to_delete_blobs:
+                self.delete(blob.bucket.name, blob.name)
+            self.log.info("Blobs deleted.")
+
+        # Overwrite files that are different
+        if not to_rewrite_blobs:
+            self.log.info("Skipped blobs overwriting.")
+        elif allow_overwrite:
+            for blob in to_rewrite_blobs:
+                dst_object = self._calculate_sync_destination_path(blob, destination_object,
+                                                                   source_object_prefix_len)
+                self.rewrite(
+                    source_bucket=source_bucket_obj.name,
+                    source_object=blob.name,
+                    destination_bucket=destination_bucket_obj.name,
+                    destination_object=dst_object,
+                )
+            self.log.info("Blobs rewritten.")
+
+        self.log.info("Synchronization finished.")
+
+    def _calculate_sync_destination_path(
+        self,
+        blob: storage.Blob,
+        destination_object: Optional[str],
+        source_object_prefix_len: int
+    ) -> str:
+        return (
+            path.join(destination_object, blob.name[source_object_prefix_len:])
+            if destination_object
+            else blob.name[source_object_prefix_len:]
+        )
+
+    def _normalize_directory_path(self, source_object: Optional[str]) -> Optional[str]:
+        return (
+            source_object + "/" if source_object and not source_object.endswith("/") else source_object
+        )
+
+    @staticmethod
+    def _prepare_sync_plan(
+        source_bucket: storage.Bucket,
+        destination_bucket: storage.Bucket,
+        source_object: Optional[str],
+        destination_object: Optional[str],
+        recursive: bool,
+    ) -> Tuple[Set[storage.Blob], Set[storage.Blob], Set[storage.Blob]]:
+        # Calculate the number of characters that remove from the name, because they contain information
+        # about the parent's path
+        source_object_prefix_len = len(source_object) if source_object else 0
+        destination_object_prefix_len = len(destination_object) if destination_object else 0
+        delimiter = "/" if not recursive else None
+        # Fetch blobs list
+        source_blobs = list(source_bucket.list_blobs(prefix=source_object, delimiter=delimiter))
+        destination_blobs = list(
+            destination_bucket.list_blobs(prefix=destination_object, delimiter=delimiter))
+        # Create indexes that allow you to identify blobs based on their name
+        source_names_index = {a.name[source_object_prefix_len:]: a for a in source_blobs}
+        destination_names_index = {a.name[destination_object_prefix_len:]: a for a in destination_blobs}
+        # Create sets with names without parent object name
+        source_names = set(source_names_index.keys())
+        destination_names = set(destination_names_index.keys())
+        # Determine objects to copy and delete
+        to_copy = source_names - destination_names
+        to_delete = destination_names - source_names
+        to_copy_blobs = {source_names_index[a] for a in to_copy}  # type: Set[storage.Blob]
+        to_delete_blobs = {destination_names_index[a] for a in to_delete}  # type: Set[storage.Blob]
+        # Find names that are in both buckets
+        names_to_check = source_names.intersection(destination_names)
+        to_rewrite_blobs = set()  # type: Set[storage.Blob]
+        # Compare objects based on crc32
+        for current_name in names_to_check:
+            source_blob = source_names_index[current_name]
+            destination_blob = destination_names_index[current_name]
+            # if the objects are different, save it
+            if source_blob.crc32c != destination_blob.crc32c:
+                to_rewrite_blobs.add(source_blob)
+        return to_copy_blobs, to_delete_blobs, to_rewrite_blobs
 
 
 def _parse_gcs_url(gsurl):

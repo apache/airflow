@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,3 +17,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
+from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+
+BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
+
+
+class GcpDatastoreSystemTestHelper(LoggingCommandExecutor):
+    def create_bucket(self):
+        self.execute_cmd(
+            [
+                "gsutil",
+                "mb",
+                "-l",
+                "europe-north1",
+                "gs://{bucket}".format(bucket=BUCKET),
+            ]
+        )
+
+    def delete_bucket(self):
+        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET)])

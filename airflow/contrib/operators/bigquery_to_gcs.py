@@ -20,6 +20,7 @@
 This module contains a Google BigQuery to GCS operator.
 """
 import warnings
+from typing import Dict, List, Optional
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -43,7 +44,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         Storage URI (e.g. gs://some-bucket/some-file.txt). (templated) Follows
         convention defined here:
         https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
-    :type destination_cloud_storage_uris: list
+    :type destination_cloud_storage_uris: List[str]
     :param compression: Type of compression to use.
     :type compression: str
     :param export_format: File format to export.
@@ -64,6 +65,8 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
+    :param location: The location used for the operation.
+    :type location: str
     """
     template_fields = ('source_project_dataset_table',
                        'destination_cloud_storage_uris', 'labels')
@@ -72,18 +75,19 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
-                 source_project_dataset_table,
-                 destination_cloud_storage_uris,
-                 compression='NONE',
-                 export_format='CSV',
-                 field_delimiter=',',
-                 print_header=True,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
-                 delegate_to=None,
-                 labels=None,
+                 source_project_dataset_table: str,
+                 destination_cloud_storage_uris: List[str],
+                 compression: str = 'NONE',
+                 export_format: str = 'CSV',
+                 field_delimiter: str = ',',
+                 print_header: bool = True,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 labels: Optional[Dict] = None,
+                 location: str = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -101,13 +105,15 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
+        self.location = location
 
     def execute(self, context):
         self.log.info('Executing extract of %s into: %s',
                       self.source_project_dataset_table,
                       self.destination_cloud_storage_uris)
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_extract(

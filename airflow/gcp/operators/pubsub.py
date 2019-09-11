@@ -19,6 +19,8 @@
 """
 This module contains Google PubSub operators.
 """
+from typing import List, Optional
+
 from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -75,13 +77,13 @@ class PubSubTopicCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
-            fail_if_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            project: str,
+            topic: str,
+            fail_if_exists: bool = False,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -177,15 +179,15 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
     def __init__(
             self,
             topic_project,
-            topic,
+            topic: str,
             subscription=None,
             subscription_project=None,
-            ack_deadline_secs=10,
-            fail_if_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            ack_deadline_secs: int = 10,
+            fail_if_exists: bool = False,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.topic_project = topic_project
         self.topic = topic
@@ -256,13 +258,13 @@ class PubSubTopicDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
+            project: str,
+            topic: str,
             fail_if_not_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -331,13 +333,13 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            subscription,
+            project: str,
+            subscription: str,
             fail_if_not_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -408,13 +410,13 @@ class PubSubPublishOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
-            messages,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            project: str,
+            topic: str,
+            messages: List,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.gcp_conn_id = gcp_conn_id

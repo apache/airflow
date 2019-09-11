@@ -50,8 +50,7 @@ class TestFileSensor(unittest.TestCase):
         hook = FSHook()
         args = {
             'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-            'provide_context': True
+            'start_date': DEFAULT_DATE
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
