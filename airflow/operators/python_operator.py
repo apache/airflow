@@ -45,7 +45,10 @@ class PythonOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PythonOperator`
 
+
     :param python_callable: A reference to an object that is callable
+                            The signature of the callable passed to the PythonOperator
+                            is inferred and argument values are always automatically provided.
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function

@@ -42,6 +42,10 @@ as an argument of the provided callable, the value will be automatically injecte
     :start-after: [START howto_operator_python_kwargs]
     :end-before: [END howto_operator_python_kwargs]
 
+Previously you would set the `provide_context=True` explicitly if you wanted to inject context
+into the function. This has been deprecated since Airflow 2.0 and this is now automatically
+inferred from the signature of the function.
+
 Templating
 ^^^^^^^^^^
 
