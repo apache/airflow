@@ -418,15 +418,12 @@ Cloud Storage
 The operators are defined in the following module:
 
  * :mod:`airflow.operators.local_to_gcs`
- * :mod:`airflow.contrib.operators.gcs_acl_operator`
- * :mod:`airflow.contrib.operators.gcs_download_operator`
- * :mod:`airflow.contrib.operators.gcs_list_operator`
+ * :mod:`airflow.gcp.operators.gcs`
  * :mod:`airflow.operators.gcs_to_bq`
  * :mod:`airflow.operators.mysql_to_gcs`
- * :mod:`airflow.contrib.sensors.gcs_sensor`
- * :mod:`airflow.contrib.operators.gcs_delete_operator`
+ * :mod:`airflow.gcp.sensors.gcs`
 
-They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
+They also use :class:`airflow.gcp.hooks.gcs.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
 
 
 Transfer Service

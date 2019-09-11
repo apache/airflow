@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Set, Optional
 
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

@@ -23,7 +23,7 @@ This module contains a Google Cloud Storage to BigQuery operator.
 import json
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

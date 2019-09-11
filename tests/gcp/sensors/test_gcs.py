@@ -16,14 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import datetime
+from datetime import datetime, timedelta
 from unittest import TestCase, mock
 
 import pendulum
 
 from airflow.exceptions import AirflowSensorTimeout
-from airflow import DAG
-from airflow.contrib.sensors.gcs_sensor import GoogleCloudStorageObjectSensor, \
+from airflow import models, DAG
+from airflow.settings import Session
+from airflow.gcp.sensors.gcs import GoogleCloudStorageObjectSensor, \
     GoogleCloudStorageObjectUpdatedSensor, ts_function, GoogleCloudStoragePrefixSensor
 
 TEST_DAG_ID = 'test-dag_id'
@@ -38,10 +39,27 @@ TEST_GCP_CONN_ID = 'TEST_GCP_CONN_ID'
 
 TEST_PREFIX = "TEST_PREFIX"
 
+TEST_DAG_ID = 'unit_tests'
+
+DEFAULT_DATE = datetime(2015, 1, 1)
+
+
+def reset(dag_id=TEST_DAG_ID):
+    session = Session()
+    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
+    tis.delete()
+    session.commit()
+    session.close()
+
+
+reset()
+
+MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
+                   for i in range(20)]
+
 
 class TestGoogleCloudStorageObjectSensor(TestCase):
-
-    @mock.patch("airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GoogleCloudStorageObjectSensor(
             task_id="task-id",
@@ -63,33 +81,31 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
 
 
 class TestTsFunction(TestCase):
-
     def test_should_support_datetime(self):
         context = {
-            'dag': DAG(dag_id=TEST_DAG_ID, schedule_interval=datetime.timedelta(days=5)),
-            'execution_date': datetime.datetime(2019, 2, 14, 0, 0)
+            'dag': DAG(dag_id=TEST_DAG_ID, schedule_interval=timedelta(days=5)),
+            'execution_date': datetime(2019, 2, 14, 0, 0)
         }
         result = ts_function(context)
-        self.assertEqual(datetime.datetime(2019, 2, 19, 0, 0), result)
+        self.assertEqual(datetime(2019, 2, 19, 0, 0), result)
 
     def test_should_support_cron(self):
         dag = DAG(
             dag_id=TEST_DAG_ID,
-            start_date=datetime.datetime(2019, 2, 19, 0, 0),
+            start_date=datetime(2019, 2, 19, 0, 0),
             schedule_interval='@weekly'
         )
 
         context = {
             'dag': dag,
-            'execution_date': datetime.datetime(2019, 2, 19),
+            'execution_date': datetime(2019, 2, 19),
         }
         result = ts_function(context)
-        self.assertEqual(pendulum.instance(datetime.datetime(2019, 2, 24)).isoformat(), result.isoformat())
+        self.assertEqual(pendulum.instance(datetime(2019, 2, 24)).isoformat(), result.isoformat())
 
 
 class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
-
-    @mock.patch("airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GoogleCloudStorageObjectUpdatedSensor(
             task_id="task-id",
@@ -110,8 +126,7 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
 
 
 class TestGoogleCloudStoragePrefixSensor(TestCase):
-
-    @mock.patch("airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
     def test_should_pass_arguments_to_hook(self, mock_hook):
         task = GoogleCloudStoragePrefixSensor(
             task_id="task-id",
@@ -130,7 +145,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(True, result)
 
-    @mock.patch("airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
     def test_should_return_false_on_empty_list(self, mock_hook):
         task = GoogleCloudStoragePrefixSensor(
             task_id="task-id",
@@ -144,7 +159,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         self.assertEqual(False, result)
 
-    @mock.patch('airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook')
+    @mock.patch('airflow.gcp.sensors.gcs.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):
         task = GoogleCloudStoragePrefixSensor(
             task_id="task-id",
@@ -165,7 +180,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(response, generated_messages)
 
-    @mock.patch('airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageHook')
+    @mock.patch('airflow.gcp.sensors.gcs.GoogleCloudStorageHook')
     def test_execute_timeout(self, mock_hook):
         task = GoogleCloudStoragePrefixSensor(
             task_id="task-id",

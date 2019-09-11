@@ -32,7 +32,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.operators.check_operator import \
     CheckOperator, ValueCheckOperator, IntervalCheckOperator
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'

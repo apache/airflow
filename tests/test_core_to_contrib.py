@@ -103,7 +103,7 @@ class TestMovingCoreToContrib(TestCase):
             ),
             (
                 "airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook",
-                "airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook"
+                "airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook",
             ),
             (
                 "airflow.gcp.hooks.tasks.CloudTasksHook",
@@ -136,6 +136,10 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.hooks.bigquery.BigQueryHook",
                 "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
+            ),
+            (
+                "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
+                "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
             ),
         ]
     )
@@ -723,6 +727,30 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator",
                 "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
             ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator",
+                "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator",
+                "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator",
+                "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator",
+                "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageListOperator",
+                "airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
+                "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
+            ),
         ]
     )
     def test_operators_paths(self, new_path: str, old_path: str):
@@ -748,7 +776,23 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.sensors.bigquery.BigQueryTableSensor",
                 "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
-            )
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
+            ),
         ]
     )
     def test_sensor_paths(self, new_path: str, old_path: str):

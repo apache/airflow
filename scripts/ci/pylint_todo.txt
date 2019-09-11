@@ -47,7 +47,7 @@
 ./airflow/contrib/operators/aws_sqs_publish_operator.py
 ./airflow/contrib/operators/azure_container_instances_operator.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
-./airflow/contrib/operators/cassandra_to_gcs.py
+./airflow/operators/cassandra_to_gcs.py
 ./airflow/contrib/operators/datastore_export_operator.py
 ./airflow/contrib/operators/datastore_import_operator.py
 ./airflow/contrib/operators/dingding_operator.py
@@ -399,7 +399,7 @@
 ./tests/contrib/operators/test_aws_sqs_publish_operator.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
-./tests/contrib/operators/test_cassandra_to_gcs_operator.py
+./tests/operators/test_cassandra_to_gcs.py
 ./tests/contrib/operators/test_druid_operator.py
 ./tests/contrib/operators/test_ecs_operator.py
 ./tests/contrib/operators/test_emr_add_steps_operator.py

@@ -28,7 +28,7 @@ from google.cloud.texttospeech_v1.types import SynthesisInput, VoiceSelectionPar
 
 from airflow import AirflowException
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

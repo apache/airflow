@@ -28,14 +28,14 @@ import dateutil
 from google.cloud import storage
 from google.cloud import exceptions
 
-from airflow.contrib.hooks import gcs_hook
+from airflow.gcp.hooks import gcs
 from airflow.exceptions import AirflowException
 from airflow.version import version
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
-GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'
+GCS_STRING = 'airflow.gcp.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
 PROJECT_ID_TEST = 'project-id'
@@ -48,21 +48,21 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
         """
 
         self.assertEqual(
-            gcs_hook._parse_gcs_url('gs://bucket/path/to/blob'),
+            gcs._parse_gcs_url('gs://bucket/path/to/blob'),
             ('bucket', 'path/to/blob'))
 
         # invalid URI
-        self.assertRaises(AirflowException, gcs_hook._parse_gcs_url,
+        self.assertRaises(AirflowException, gcs._parse_gcs_url,
                           'gs:/bucket/path/to/blob')
 
         # trailing slash
         self.assertEqual(
-            gcs_hook._parse_gcs_url('gs://bucket/path/to/blob/'),
+            gcs._parse_gcs_url('gs://bucket/path/to/blob/'),
             ('bucket', 'path/to/blob/'))
 
         # bucket only
         self.assertEqual(
-            gcs_hook._parse_gcs_url('gs://bucket/'), ('bucket', ''))
+            gcs._parse_gcs_url('gs://bucket/'), ('bucket', ''))
 
 
 class TestGoogleCloudStorageHook(unittest.TestCase):
@@ -71,7 +71,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             GCS_STRING.format('GoogleCloudBaseHook.__init__'),
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
+            self.gcs_hook = gcs.GoogleCloudStorageHook(
                 google_cloud_storage_conn_id='test')
 
     @mock.patch(
@@ -88,7 +88,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                      mock_client,
                                      mock_get_creds_and_project_id,
                                      mock_client_info):
-        hook = gcs_hook.GoogleCloudStorageHook()
+        hook = gcs.GoogleCloudStorageHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
@@ -570,7 +570,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 class TestGoogleCloudStorageHookUpload(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__')):
-            self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
+            self.gcs_hook = gcs.GoogleCloudStorageHook(
                 google_cloud_storage_conn_id='test'
             )
 
@@ -623,7 +623,7 @@ class TestSyncGcsHook(unittest.TestCase):
         with mock.patch(
             GCS_STRING.format("GoogleCloudBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gcs_hook = gcs_hook.GoogleCloudStorageHook(google_cloud_storage_conn_id="test")
+            self.gcs_hook = gcs.GoogleCloudStorageHook(google_cloud_storage_conn_id="test")
 
     @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
     @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))

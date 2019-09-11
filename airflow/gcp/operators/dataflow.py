@@ -27,7 +27,7 @@ import copy
 from enum import Enum
 from typing import List, Optional
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.dataflow import DataFlowHook
 from airflow.models import BaseOperator
 from airflow.version import version
