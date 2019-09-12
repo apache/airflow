@@ -2903,7 +2903,8 @@ class DagModel(Base):
                       start_date=None,
                       external_trigger=False,
                       conf=None,
-                      session=None):
+                      session=None,
+                      schedule_interval=None):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
@@ -2928,7 +2929,8 @@ class DagModel(Base):
                                             start_date=start_date,
                                             external_trigger=external_trigger,
                                             conf=conf,
-                                            session=session)
+                                            session=session,
+                                            schedule_interval=schedule_interval)
 
 
 @functools.total_ordering
@@ -4083,7 +4085,8 @@ class DAG(BaseDag, LoggingMixin):
                       start_date=None,
                       external_trigger=False,
                       conf=None,
-                      session=None):
+                      session=None,
+                      schedule_interval=None):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
@@ -4108,7 +4111,8 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
-            state=state
+            state=state,
+            schedule_interval=schedule_interval
         )
         session.add(run)
 
@@ -4640,6 +4644,7 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
+    schedule_interval= Column(Text, default="")
 
     dag = None
 

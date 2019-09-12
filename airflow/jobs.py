@@ -863,12 +863,14 @@ class SchedulerJob(BaseJob):
                         execution_date=previous_execution_period,
                         start_date=dag.start_date,
                         state=State.SUCCESS,
-                        external_trigger=False
+                        external_trigger=False,
+                        schedule_interval=dag.schedule_interval
                     )
 
                     return
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
+
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)
@@ -888,6 +890,7 @@ class SchedulerJob(BaseJob):
                     dag.start_date, next_run_date
                 )
 
+
             # don't ever schedule in the future or if next_run_date is None
             if not next_run_date or next_run_date > timezone.utcnow():
                 return
@@ -897,6 +900,7 @@ class SchedulerJob(BaseJob):
             if dag.schedule_interval == '@once':
                 period_end = next_run_date
             elif next_run_date:
+                # get the next period end
                 period_end = dag.following_schedule(next_run_date)
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
@@ -912,13 +916,34 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
+            """
+             This is a hack to address a notorious issue with changing schedule intervals for already existing dags.
+             When the schedule interval is changed, airflow will create a new dag run for the previous period with the
+             new schedule interval. THIS IS NOT AN EXPECTED BEHAVIOR!!! Work arounds in the past have included changing
+             the dag name, but this is also unacceptable. Instead this hack will check if the schedule interval changed
+             and if it did, it will create a DUMMY dag run for the previous period with the new schedule interval. 
+             Unfortunately, a DUMMY dag run must be created since airflow's scheduler looks at the last period.
+            """
+            if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow():
+                previous_execution_period = dag.previous_schedule(dag.previous_schedule(timezone.utcnow()))
+                dag.create_dagrun(
+                    run_id=DagRun.ID_PREFIX + previous_execution_period.isoformat(),
+                    execution_date=previous_execution_period,
+                    start_date=dag.start_date,
+                    state=State.SUCCESS,
+                    external_trigger=False,
+                    schedule_interval=dag.schedule_interval
+                )
+                return
+
             if next_run_date and period_end and period_end <= timezone.utcnow():
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,
                     start_date=timezone.utcnow(),
                     state=State.RUNNING,
-                    external_trigger=False
+                    external_trigger=False,
+                    schedule_interval=dag.schedule_interval
                 )
                 return next_run
 
