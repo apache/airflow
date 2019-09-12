@@ -30,7 +30,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Set, Optional
 
-from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
+from airflow.gcp.hooks.dataproc import DataProcHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

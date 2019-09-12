@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 from google.cloud.redis_v1.gapic.enums import Instance, FailoverInstanceRequest
 
 from airflow import models
-from airflow.contrib.operators.gcs_acl_operator import GoogleCloudStorageBucketCreateAclEntryOperator
+from airflow.gcp.operators.gcs import GoogleCloudStorageBucketCreateAclEntryOperator
 from airflow.gcp.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceOperator,
     CloudMemorystoreDeleteInstanceOperator,

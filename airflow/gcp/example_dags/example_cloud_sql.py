@@ -38,7 +38,7 @@ from airflow.gcp.operators.cloud_sql import CloudSqlInstanceCreateOperator, \
     CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceExportOperator, \
     CloudSqlInstanceImportOperator
-from airflow.contrib.operators.gcs_acl_operator import \
+from airflow.gcp.operators.gcs import \
     GoogleCloudStorageBucketCreateAclEntryOperator, \
     GoogleCloudStorageObjectCreateAclEntryOperator
 
