@@ -433,10 +433,16 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - Guide
      - Operators
 
-   * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__ m
+   * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.operators.adls_to_gcs`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     - :mod:`airflow.operators.s3_to_gcs`
+       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
@@ -451,7 +457,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_mysql.py`
+     - :mod:`airflow.operators.bigquery_to_mysql`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -465,8 +471,10 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`
+     - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
+       :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.operators.gcs_to_gcs`
+       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
