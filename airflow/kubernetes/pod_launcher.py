@@ -38,6 +38,7 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+from airflow.kubernetes.istio import Istio
 
 
 class PodStatus:
@@ -45,6 +46,20 @@ class PodStatus:
     RUNNING = 'running'
     FAILED = 'failed'
     SUCCEEDED = 'succeeded'
+
+
+class SleepConfig:
+    ''' Configure sleeps used for polling
+    '''
+    # Only polls during the start of a pod
+    POD_STARTING_POLL = 1
+    # Used to detect all cleanup jobs are completed
+    # and the entire Pod is cleaned up
+    POD_RUNNING_POLL = 1
+    # Polls for the duration of the task execution
+    # to detect when the task is done. The difference
+    # between this and POD_RUNNING_POLL is sidecars.
+    BASE_CONTAINER_RUNNING_POLL = 2
 
 
 class PodLauncher(LoggingMixin):
@@ -67,6 +82,7 @@ class PodLauncher(LoggingMixin):
                                                       cluster_context=cluster_context)
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
+        self.istio = Istio(self._client)
 
     def run_pod_async(self, pod, **kwargs):
         """Runs POD asynchronously
@@ -140,7 +156,8 @@ class PodLauncher(LoggingMixin):
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
-                time.sleep(1)
+                time.sleep(SleepConfig.POD_STARTING_POLL)
+            self.log.debug('Pod not yet started')
 
     def monitor_pod(self, pod, get_logs):
         """
@@ -155,16 +172,17 @@ class PodLauncher(LoggingMixin):
             for line in logs:
                 self.log.info(line)
         result = None
+        while self.base_container_is_running(pod):
+            self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
+            time.sleep(SleepConfig.BASE_CONTAINER_RUNNING_POLL)
         if self.extract_xcom:
-            while self.base_container_is_running(pod):
-                self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
-                time.sleep(2)
             result = self._extract_xcom(pod)
             self.log.info(result)
             result = json.loads(result)
+        self.istio.handle_istio_proxy(self.read_pod(pod))
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
-            time.sleep(2)
+            time.sleep(SleepConfig.POD_RUNNING_POLL)
         return self._task_status(self.read_pod(pod)), result
 
     def _task_status(self, event):
