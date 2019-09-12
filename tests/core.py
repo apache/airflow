@@ -698,6 +698,13 @@ class CoreTest(unittest.TestCase):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
 
+    def test_variable_set_existing_value_to_blank(self):
+        test_value = 'Some value'
+        test_key = 'test_key'
+        Variable.set(test_key, test_value)
+        Variable.set(test_key, '')
+        self.assertEqual(None, Variable.get('test_key'))
+
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
