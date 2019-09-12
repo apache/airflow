@@ -21,6 +21,7 @@ import os
 import psycopg2
 import psycopg2.extensions
 from contextlib import closing
+import gzip
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -97,7 +98,19 @@ class PostgresHook(DbApiHook):
                     cur.copy_expert(sql, file)
                     file.truncate(file.tell())
                     conn.commit()
-
+   
+    
+    def copy_expert_gzip(self,sql,filename,open=open):
+        """
+        Copies gzip files to postgres table
+        file must be with .gzip extension
+        """
+        with gzip.open(filename,compresslevel=9,mode='rt') as f:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.copy_expert(sql, file)
+                    conn.commit()
+    
     def bulk_load(self, table, tmp_file):
         """
         Loads a tab-delimited file into a database table
