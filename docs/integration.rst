@@ -119,8 +119,7 @@ The AzureContainerRegistryHook requires a host/login/password to be defined in t
 AWS: Amazon Web Services
 ------------------------
 
-Airflow has extensive support for Amazon Web Services. But note that the Hooks, Sensors and
-Operators are in the contrib section.
+Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
 Logging
 '''''''
@@ -128,84 +127,156 @@ Logging
 Airflow can be configured to read and write task logs in Amazon Simple Storage Service (Amazon S3).
 See :ref:`write-logs-amazon`.
 
+Operators and Hooks
+'''''''''''''''''''
 
-AWS EMR
-'''''''
+All hooks are based on :mod:`airflow.contrib.hooks.aws_hook`.
 
-The operators are defined in the following modules:
+Service operators and hooks
+"""""""""""""""""""""""""""
 
-* :mod:`airflow.contrib.operators.emr_add_steps_operator`
-* :mod:`airflow.contrib.operators.emr_create_job_flow_operator`
-* :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
+These integrations allow you to perform various operations within the Amazon Web Services.
 
-They also use :class:`airflow.contrib.hooks.emr_hook.EmrHook` to communicate with Amazon Web Service.
+.. list-table::
+   :header-rows: 1
 
-AWS S3
-''''''
+   * - Service name
+     - Hook
+     - Operators
+     - Sensors
 
-The operators are defined in the following modules:
+   * - `Amazon Athena <https://aws.amazon.com/athena/>`__
+     - :mod:`airflow.contrib.hooks.aws_athena_hook`
+     - :mod:`airflow.contrib.operators.aws_athena_operator`
+     - :mod:`airflow.contrib.sensors.aws_athena_sensor`
 
-* :mod:`airflow.operators.s3_file_transform_operator`
-* :mod:`airflow.contrib.operators.s3_list_operator`
-* :mod:`airflow.contrib.operators.s3_to_gcs_operator`
-* :mod:`airflow.contrib.operators.s3_to_gcs_transfer_operator`
-* :mod:`airflow.operators.s3_to_hive_operator`
+   * - `AWS Batch <https://aws.amazon.com/athena/>`__
+     -
+     - :mod:`airflow.contrib.operators.awsbatch_operator`
+     -
 
-They also use :class:`airflow.hooks.S3_hook.S3Hook` to communicate with Amazon Web Service.
+   * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
+     - :mod:`airflow.contrib.hooks.aws_logs_hook`
+     -
+     -
 
-AWS Batch Service
-'''''''''''''''''
+   * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
+     -
+     -
 
-The operator is defined in the :class:`airflow.contrib.operators.awsbatch_operator.AWSBatchOperator` module.
+   * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
+     -
+     - :mod:`airflow.contrib.operators.ecs_operator`
+     -
 
-AWS RedShift
-''''''''''''
+   * - `Amazon EMR <https://aws.amazon.com/emr/>`__
+     - :mod:`airflow.contrib.hooks.emr_hook`
+     - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
+       :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
+       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`.
+     - :mod:`airflow.contrib.sensors.emr_base_sensor`,
+       :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
+       :mod:`airflow.contrib.sensors.emr_step_sensor`.
 
-The operators are defined in the following modules:
+   * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
+     - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
+     -
+     - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
 
-* :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
-* :mod:`airflow.operators.redshift_to_s3_operator`
-* :mod:`airflow.operators.s3_to_redshift_operator`
+   * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
+     - :mod:`airflow.contrib.hooks.aws_firehose_hook`
+     -
+     -
 
-They also use :class:`airflow.contrib.hooks.redshift_hook.RedshiftHook` to communicate with Amazon Web Service.
+   * - `AWS Lambda <https://aws.amazon.com/kinesis/>`__
+     - :mod:`airflow.contrib.hooks.aws_lambda_hook`
+     -
+     -
 
+   * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
+     - :mod:`airflow.contrib.hooks.redshift_hook`
+     -
+     - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
 
-AWS DynamoDB
-''''''''''''
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     - :mod:`airflow.hooks.S3_hook`
+     - :mod:`airflow.operators.s3_file_transform_operator`
+       :mod:`airflow.contrib.operators.s3_copy_object_operator`,
+       :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
+       :mod:`airflow.contrib.operators.s3_list_operator`.
+     - :mod:`airflow.sensors.s3_key_sensor`,
+       :mod:`airflow.sensors.s3_prefix_sensor`,
 
-The operator is defined in the :class:`airflow.contrib.operators.hive_to_dynamodb` module.
+   * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
+     - :mod:`airflow.contrib.hooks.sagemaker_hook`,
+     - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_endpoint_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_model_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_training_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_transform_operator`,
+       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`.
+     - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
+       :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
+       :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,
+       :mod:`airflow.contrib.sensors.sagemaker_transform_sensor`,
+       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`.
 
-It uses :class:`airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook` to communicate with Amazon Web Service.
+   * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
+     - :mod:`airflow.contrib.hooks.aws_sns_hook`
+     - :mod:`airflow.contrib.operators.sns_publish_operator`
+     -
 
+   * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sns/>`__
+     - :mod:`airflow.contrib.hooks.aws_sqs_hook`
+     - :mod:`airflow.contrib.operators.aws_sqs_publish_operator`
+     - :mod:`airflow.contrib.sensors.aws_sqs_sensor`
 
-AWS Lambda
-''''''''''
+Transfer operators and hooks
+""""""""""""""""""""""""""""
 
-It uses :class:`airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook` to communicate with Amazon Web Service.
+These integrations allow you to copy data from/to Amazon Web Services.
 
-AWS Kinesis
-'''''''''''
+.. list-table::
+   :header-rows: 1
 
-It uses :class:`airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook` to communicate with Amazon Web Service.
+   * - Source
+     - Destination
+     - Guide
+     - Operators
 
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     -
+     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
 
-Amazon SageMaker
-''''''''''''''''
+   * - `MongoDB <https://www.mongodb.com/>`__
+     - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     -
+     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
 
-For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`
+       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
-.. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
+   * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.operators.redshift_to_s3_operator`
 
-The operators are defined in the following modules:
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.s3_to_hive_operator`
 
-:mod:`airflow.contrib.operators.sagemaker_training_operator`
-:mod:`airflow.contrib.operators.sagemaker_tuning_operator`
-:mod:`airflow.contrib.operators.sagemaker_model_operator`
-:mod:`airflow.contrib.operators.sagemaker_transform_operator`
-:mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`
-:mod:`airflow.contrib.operators.sagemaker_endpoint_operator`
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
+     -
+     - :mod:`airflow.operators.s3_to_redshift_operator`
 
-They uses :class:`airflow.contrib.hooks.sagemaker_hook.SageMakerHook` to communicate with Amazon Web Service.
 
 .. _Databricks:
 
