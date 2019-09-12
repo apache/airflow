@@ -225,6 +225,7 @@ kerberos = ['pykerberos>=1.1.13',
             'thrift_sasl>=0.2.0',
             'snakebite[kerberos]>=2.7.8']
 kubernetes = ['kubernetes>=3.0.0',
+              'packaging>=19.1',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
