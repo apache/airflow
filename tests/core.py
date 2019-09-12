@@ -698,7 +698,6 @@ class CoreTest(unittest.TestCase):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
 
-
     def test_variable_set_existing_value_to_blank(self):
         test_value = 'Some value'
         test_key = 'test_key'
