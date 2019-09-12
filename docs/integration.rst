@@ -223,9 +223,7 @@ The operators are defined in the :class:`airflow.contrib.operators.databricks_op
 GCP: Google Cloud Platform
 --------------------------
 
-Airflow has extensive support for the Google Cloud Platform. But note that most Hooks and
-Operators are in the contrib section. Meaning that they have a *beta* status, meaning that
-they can have breaking changes between minor releases.
+Airflow has extensive support for the `Google Cloud Platform <https://cloud.google.com/>`__.
 
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
@@ -237,229 +235,281 @@ Airflow can be configured to read and write task logs in Google Cloud Storage.
 See :ref:`write-logs-gcp`.
 
 
-GoogleCloudBaseHook
+Operators and Hooks
 '''''''''''''''''''
 
 All hooks are based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`.
 
-
-BigQuery
-''''''''
-
-The operators are defined in the following modules:
- * :mod:`airflow.gcp.operators.bigquery`
- * :mod:`airflow.gcp.sensors.bigquery`
- * :mod:`airflow.operators.bigquery_to_bigquery`
- * :mod:`airflow.operators.bigquery_to_gcs`
- * :mod:`airflow.operators.bigquery_to_mysql`
-
-They also use :class:`airflow.gcp.hooks.bigquery.BigQueryHook` to communicate with Google Cloud Platform.
-
-BigQuery Data Transfer Service
-''''''''''''''''''''''''''''''
-The operators are defined in the following module:
-
- * :mod:`airflow.gcp.operators.bigquery_dts`
- * :mod:`airflow.gcp.sensors.bigquery_dts`
-
-The operator is defined in the :class:`airflow.gcp.operators.spanner` package.
-
-They also use :class:`airflow.gcp.hooks.bigquery_dts.BiqQueryDataTransferServiceHook` to communicate with Google Cloud Platform.
-
-
-Cloud Spanner
-'''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.spanner` package.
-
-They also use :class:`airflow.gcp.hooks.spanner.CloudSpannerHook` to communicate with Google Cloud Platform.
-
-
-Cloud SQL
-'''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.cloud_sql` package.
-
-They also use :class:`airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook` and :class:`airflow.gcp.hooks.cloud_sql.CloudSqlHook` to communicate with Google Cloud Platform.
-
-
-Cloud Bigtable
-''''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.bigtable` package.
-
-They also use :class:`airflow.gcp.hooks.bigtable.BigtableHook` to communicate with Google Cloud Platform.
-
-Cloud Build
-'''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.cloud_build` package.
-
-They also use :class:`airflow.gcp.hooks.cloud_build.CloudBuildHook` to communicate with Google Cloud Platform.
-
-
-Compute Engine
-''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.compute` package.
-
-They also use :class:`airflow.gcp.hooks.compute.GceHook` to communicate with Google Cloud Platform.
-
-
-Cloud Functions
-'''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.functions` package.
-
-They also use :class:`airflow.gcp.hooks.functions.GcfHook` to communicate with Google Cloud Platform.
-
-
-Cloud DataFlow
-''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.dataflow` package.
-
-They also use :class:`airflow.gcp.hooks.dataflow.DataFlowHook` to communicate with Google Cloud Platform.
-
-
-Cloud DataProc
-''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.dataproc` package.
-
-
-Cloud Datastore
-'''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.datastore` package.
-
-They also use :class:`airflow.gcp.hooks.datastore.DatastoreHook` to communicate with Google Cloud Platform.
-
-
-Cloud ML Engine
-'''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.mlengine` package.
-
-They also use :class:`airflow.gcp.hooks.mlengine.MLEngineHook` to communicate with Google Cloud Platform.
-
-Cloud Storage
-'''''''''''''
-
-The operators are defined in the following module:
-
- * :mod:`airflow.operators.local_to_gcs`
- * :mod:`airflow.gcp.operators.gcs`
- * :mod:`airflow.operators.gcs_to_bq`
- * :mod:`airflow.operators.mysql_to_gcs`
- * :mod:`airflow.gcp.sensors.gcs`
-
-They also use :class:`airflow.gcp.hooks.gcs.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
-
-
-Transfer Service
-''''''''''''''''
-
-The operators are defined in the following module:
-
- * :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
- * :mod:`airflow.gcp.sensors.cloud_storage_transfer_service`
-
-They also use :class:`airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook` to communicate with Google Cloud Platform.
-
-
-Cloud Vision
-''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.vision` package.
-
-They also use :class:`airflow.gcp.hooks.vision.CloudVisionHook` to communicate with Google Cloud Platform.
-
-Cloud Text to Speech
-''''''''''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.text_to_speech` package.
-
-They also use :class:`airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
-
-Cloud Speech to Text
-''''''''''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.speech_to_text` package.
-
-They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
-
-Cloud Speech Translate
-''''''''''''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.translate_speech` package.
-
-They also use :class:`airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook` and
-    :class:`airflow.gcp.hooks.translate.CloudTranslateHook` to communicate with Google Cloud Platform.
-
-Cloud Translate
-'''''''''''''''
-
-The operator is defined in the :class:`airflow.gcp.operators.translate` package.
-
-Cloud Video Intelligence
-''''''''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.video_intelligence` package.
-
-They also use :class:`airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook` to communicate with Google Cloud Platform.
-
-Google Kubernetes Engine
-''''''''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.kubernetes_engine` package.
-
-They also use :class:`airflow.gcp.hooks.kubernetes_engine.GKEClusterHook` to communicate with Google Cloud Platform.
-
-
-Google Natural Language
-'''''''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.natural_language` package.
-
-They also use :class:`airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
-
-
-Google Cloud Data Loss Prevention (DLP)
-'''''''''''''''''''''''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.dlp` package.
-
-They also use :class:`airflow.gcp.hooks.dlp.CloudDLPHook` to communicate with Google Cloud Platform.
-
-
-Google Cloud Tasks
-''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.tasks` package.
-
-They also use :class:`airflow.gcp.hooks.tasks.CloudTasksHook` to communicate with Google Cloud Platform.
-
-Google Natural Language
-'''''''''''''''''''''''
-
-The operators are defined in the :class:`airflow.gcp.operators.automl` package.
-
-They also use :class:`airflow.gcp.hooks.automl.CloudAutoMLHook` to communicate with Google Cloud Platform.
-
-Google Discovery API
-''''''''''''''''''''
-
-Airflow also has support for requesting data from any Google Service via Google's Discovery API.
-
-:class:`airflow.contrib.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer`
-    Transfers data from any Google Service into an AWS S3 Bucket.
+Service operators and hooks
+"""""""""""""""""""""""""""
+
+These integrations allow you to perform various operations within the Google Cloud Platform.
+
+..
+  PLEASE KEEP THE ALPHABETICAL ORDER OF THE LIST BELOW, BUT OMIT THE "Cloud" PREFIX
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `AutoML <https://cloud.google.com/automl/>`__
+     - :doc:`How to use <howto/operator/gcp/automl>`
+     - :mod:`airflow.gcp.hooks.automl`
+     -
+     -
+
+   * - `BigQuery <https://cloud.google.com/bigquery/>`__
+     -
+     - :mod:`airflow.gcp.hooks.bigquery`
+     - :mod:`airflow.gcp.operators.bigquery`
+     - :mod:`airflow.gcp.sensors.bigquery`
+
+   * - `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/transfer/>`__
+     - :doc:`How to use <howto/operator/gcp/bigquery_dts>`
+     - :mod:`airflow.gcp.hooks.bigquery_dts`
+     - :mod:`airflow.gcp.operators.bigquery_dts`
+     - :mod:`airflow.gcp.sensors.bigquery_dts`
+
+   * - `Bigtable <https://cloud.google.com/bigtable/>`__
+     - :doc:`How to use <howto/operator/gcp/bigtable>`
+     - :mod:`airflow.gcp.hooks.bigtable`
+     - :mod:`airflow.gcp.operators.bigtable`
+     - :mod:`airflow.gcp.sensors.bigtable`
+
+   * - `Cloud Build <https://cloud.google.com/cloud-build/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_build>`
+     - :mod:`airflow.gcp.hooks.cloud_build`
+     - :mod:`airflow.gcp.operators.cloud_build`
+     -
+
+   * - `Compute Engine <https://cloud.google.com/compute/>`__
+     - :doc:`How to use <howto/operator/gcp/compute>`
+     - :mod:`airflow.gcp.hooks.compute`
+     - :mod:`airflow.gcp.operators.compute`
+     -
+
+   * - `Dataflow <https://cloud.google.com/dataflow/>`__
+     -
+     - :mod:`airflow.gcp.hooks.dataflow`
+     - :mod:`airflow.gcp.operators.dataflow`
+     -
+
+   * - `Dataproc <https://cloud.google.com/dataproc/>`__
+     -
+     - :mod:`airflow.gcp.hooks.dataproc`
+     - :mod:`airflow.gcp.operators.dataproc`
+     -
+
+   * - `Datastore <https://cloud.google.com/datastore/>`__
+     -
+     - :mod:`airflow.gcp.hooks.datastore`
+     - :mod:`airflow.gcp.operators.datastore`
+     -
+
+   * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
+     -
+     - :mod:`airflow.gcp.hooks.dlp`
+     - :mod:`airflow.gcp.operators.dlp`
+     -
+
+   * - `Cloud Functions <https://cloud.google.com/functions/>`__
+     - :doc:`How to use <howto/operator/gcp/functions>`
+     - :mod:`airflow.gcp.hooks.functions`
+     - :mod:`airflow.gcp.operators.functions`
+     -
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/gcs>`
+     - :mod:`airflow.gcp.hooks.gcs`
+     - :mod:`airflow.gcp.operators.gcs`
+     - :mod:`airflow.gcp.sensors.gcs`
+
+   * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
+     -
+     - :mod:`airflow.gcp.hooks.kms`
+     -
+     -
+
+   * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
+     -
+     - :mod:`airflow.gcp.hooks.kubernetes_engine`
+     - :mod:`airflow.gcp.operators.kubernetes_engine`
+     -
+
+   * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
+     - :mod:`airflow.gcp.hooks.cloud_memorystore`
+     - :mod:`airflow.gcp.operators.cloud_memorystore`
+     -
+
+   * - `Machine Learning Engine <https://cloud.google.com/ml-engine/>`__
+     -
+     - :mod:`airflow.gcp.hooks.mlengine`
+     - :mod:`airflow.gcp.operators.mlengine`
+     -
+
+   * - `Natural Language <https://cloud.google.com/natural-language/>`__
+     - :doc:`How to use <howto/operator/gcp/natural_language>`
+     - :mod:`airflow.gcp.hooks.natural_language`
+     - :mod:`airflow.gcp.operators.natural_language`
+     -
+
+   * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
+     -
+     - :mod:`airflow.gcp.hooks.pubsub`
+     - :mod:`airflow.gcp.operators.pubsub`
+     - :mod:`airflow.gcp.sensors.pubsub`
+
+   * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
+     - :doc:`How to use <howto/operator/gcp/spanner>`
+     - :mod:`airflow.gcp.hooks.spanner`
+     - :mod:`airflow.gcp.operators.spanner`
+     -
+
+   * - `Cloud Speech-to-Text <https://cloud.google.com/speech-to-text/>`__
+     - :doc:`How to use <howto/operator/gcp/speech>`
+     - :mod:`airflow.gcp.hooks.speech_to_text`
+     - :mod:`airflow.gcp.operators.speech_to_text`
+     -
+
+   * - `Cloud SQL <https://cloud.google.com/sql/>`__
+     - :doc:`How to use <howto/operator/gcp/sql>`
+     - :mod:`airflow.gcp.hooks.cloud_sql`
+     - :mod:`airflow.gcp.operators.cloud_sql`
+     -
+
+   * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     - :mod:`airflow.gcp.hooks.cloud_storage_transfer_service`
+     - :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.gcp.sensors.cloud_storage_transfer_service`
+
+   * - `Cloud Tasks <https://cloud.google.com/tasks/>`__
+     -
+     - :mod:`airflow.gcp.hooks.tasks`
+     - :mod:`airflow.gcp.operators.tasks`
+     -
+
+   * - `Cloud Text-to-Speech <https://cloud.google.com/text-to-speech/>`__
+     - :doc:`How to use <howto/operator/gcp/speech>`
+     - :mod:`airflow.gcp.hooks.text_to_speech`
+     - :mod:`airflow.gcp.operators.text_to_speech`
+     -
+
+   * - `Cloud Translation <https://cloud.google.com/translate/>`__
+     - :doc:`How to use <howto/operator/gcp/translate>`
+     - :mod:`airflow.gcp.hooks.translate`
+     - :mod:`airflow.gcp.operators.translate`
+     -
+
+   * - `Cloud Video Intelligence <https://cloud.google.com/video_intelligence/>`__
+     - :doc:`How to use <howto/operator/gcp/video_intelligence>`
+     - :mod:`airflow.gcp.hooks.video_intelligence`
+     - :mod:`airflow.gcp.operators.video_intelligence`
+     -
+
+   * - `Cloud Vision <https://cloud.google.com/vision/>`__
+     - :doc:`How to use <howto/operator/gcp/vision>`
+     - :mod:`airflow.gcp.hooks.vision`
+     - :mod:`airflow.gcp.operators.vision`
+     -
+
+
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to copy data from/to Google Cloud Platform.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__ m
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.adls_to_gcs`
+
+   * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
+     - `Google BigQuery <https://cloud.google.com/bigquery/>`__
+     -
+     - :mod:`airflow.operators.bigquery_to_bigquery`
+
+   * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.bigquery_to_gcs`
+
+   * - `BigQuery <https://cloud.google.com/bigquery/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.operators.bigquery_to_mysql.py`
+
+   * - `Apache Cassandra <http://cassandra.apache.org/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.cassandra_to_gcs`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google BigQuery <https://cloud.google.com/bigquery/>`__
+     -
+     - :mod:`airflow.operators.gcs_to_bq`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`
+     - :mod:`airflow.operators.gcs_to_gcs`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.operators.gcs_to_s3`
+
+   * - Local
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.local_to_gcs`
+
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.mssql_to_gcs`
+
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.mysql_to_gcs`
+
+   * - `PostgresSQL <https://www.postgresql.org/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.postgres_to_gcs`
+
+   * - SQL
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.sql_to_gcs`
+
+Google Discovery Operators
+""""""""""""""""""""""""""
+
+Airflow also has support for requesting data from any Google Service using
+`Discovery API <https://developers.google.com/discovery/>`__.
+
+The operator are defined in the :mod:`airflow.contrib.operators.google_api_to_s3_transfer` module.
 
 They also use :class:`airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook` to communicate with
 Google Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode. Therefore it is recommended that you use the custom GCP Service
 Operators for working with the Google Cloud Platform.
-
 
 .. _Qubole:
 
