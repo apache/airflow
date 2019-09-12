@@ -466,6 +466,7 @@ kubernetes = [
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
     'kubernetes>=21.7.0,<24',
+    'packaging>=19.1',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
