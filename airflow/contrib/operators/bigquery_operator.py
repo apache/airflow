@@ -645,12 +645,11 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
 
-        self.log.info('Dataset id: %s', self.dataset_id)
-        self.log.info('Project id: %s', self.project_id)
-
         super(BigQueryDeleteDatasetOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
+        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
+
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
@@ -708,12 +707,11 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
 
-        self.log.info('Dataset id: %s', self.dataset_id)
-        self.log.info('Project id: %s', self.project_id)
-
         super(BigQueryCreateEmptyDatasetOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
+        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
+
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 

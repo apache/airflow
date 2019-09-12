@@ -32,7 +32,7 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-AIRFLOW_ROOT="${MY_DIR}/../../.."
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 ENV=${ENV:=docker}
@@ -103,9 +103,12 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
     popd &>/dev/null || exit 1
 fi
 
+export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
-    echo "Using ${HADOOP_DISTRO:=} distribution of Hadoop from ${HADOOP_HOME:=}"
+    echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
 fi
 
@@ -118,13 +121,12 @@ export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
-export HADOOP_DISTRO
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
 if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo mkdir -p /home/travis/build/apache
-  sudo ln -s "${AIRFLOW_ROOT}" /home/travis/build/apache/airflow
+  sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
 # Fix file permissions

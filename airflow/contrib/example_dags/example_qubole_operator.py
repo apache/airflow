@@ -198,7 +198,7 @@ import org.apache.spark._
 
 /** Computes an approximation to pi */
 object SparkPi {
-  def main(args: Array[String]) {
+  def main(args: Array[string]) {  # noqa
     val conf = new SparkConf().setAppName("Spark Pi")
     val spark = new SparkContext(conf)
     val slices = if (args.length > 0) args(0).toInt else 2

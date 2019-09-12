@@ -16,24 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euxo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
 
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
+export AIRFLOW_SOURCES
 
-export PYTHON_VERSION=3.5
+gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+gosu "${AIRFLOW_USER}" \
+    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
+                    "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
 
-basic_sanity_checks
+echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
 
-script_start
+chmod +x "${HOME}/run-tests-complete"
 
-rebuild_ci_slim_image_if_needed
+chmod +x "${HOME}/run-tests"
 
-run_mypy "$@"
-
-script_end
+chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"

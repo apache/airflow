@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import re
 import logging
 import sys
 import warnings
@@ -31,6 +32,17 @@ import six
 from builtins import object
 from contextlib import contextmanager
 from logging import Handler, StreamHandler
+
+# 7-bit C1 ANSI escape sequences
+ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+
+
+def remove_escape_codes(text):
+    """
+    Remove ANSI escapes codes from string. It's used to remove
+    "colors" from log messages.
+    """
+    return ANSI_ESCAPE.sub("", text)
 
 
 class LoggingMixin(object):
@@ -83,6 +95,22 @@ class StreamLogWriter(object):
         self.level = level
         self._buffer = str()
 
+    @property
+    def closed(self):
+        """
+        Returns False to indicate that the stream is not closed (as it will be
+        open for the duration of Airflow's lifecycle).
+
+        For compatibility with the io.IOBase interface.
+        """
+        return False
+
+    def _propagate_log(self, message):
+        """
+        Propagate message removing escape codes.
+        """
+        self.logger.log(self.level, remove_escape_codes(message))
+
     def write(self, message):
         """
         Do whatever it takes to actually log the specified logging record
@@ -92,7 +120,7 @@ class StreamLogWriter(object):
             self._buffer += message
         else:
             self._buffer += message
-            self.logger.log(self.level, self._buffer.rstrip())
+            self._propagate_log(self._buffer.rstrip())
             self._buffer = str()
 
     def flush(self):
@@ -100,7 +128,7 @@ class StreamLogWriter(object):
         Ensure all logging output has been flushed
         """
         if len(self._buffer) > 0:
-            self.logger.log(self.level, self._buffer)
+            self._propagate_log(self._buffer)
             self._buffer = str()
 
     def isatty(self):

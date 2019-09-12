@@ -31,7 +31,7 @@ class TestCgroupTaskRunner(unittest.TestCase):
         This test ensures that initiating CgroupTaskRunner object
         calls init method of BaseTaskRunner,
         and when task finishes, CgroupTaskRunner.on_finish() calls
-        super().on_finish() to delete the temp cfg file.
+        super.on_finish() to delete the temp cfg file.
         """
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()

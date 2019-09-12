@@ -16,7 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+import contextlib
+import io
 
 import logging
 import os
@@ -44,6 +45,22 @@ if PY2:
     import unittest2 as unittest
 else:
     import unittest
+
+if PY2:
+    @contextlib.contextmanager
+    def redirect_stdout(target):
+        original = sys.stdout
+        sys.stdout = target
+        yield
+        sys.stdout = original
+else:
+    redirect_stdout = contextlib.redirect_stdout
+
+
+class ByteableIO(io.StringIO):
+    def write(self, message):
+        if isinstance(message, str):
+            super(ByteableIO, self).write(message.decode('utf-8'))
 
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -362,6 +379,42 @@ class TestCLI(unittest.TestCase):
             verbose=False,
         )
         mock_run.reset_mock()
+
+    def test_show_dag_print(self):
+        temp_stdout = ByteableIO() if PY2 else io.StringIO()
+        with redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'show_dag', 'example_bash_operator']))
+        out = temp_stdout.getvalue()
+        self.assertIn("label=example_bash_operator", out)
+        self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
+        self.assertIn("runme_2 -> run_after_loop", out)
+
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_dave(self, mock_render_dag):
+        temp_stdout = ByteableIO() if PY2 else io.StringIO()
+        with redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'show_dag', 'example_bash_operator', '--save', 'awesome.png']
+            ))
+        out = temp_stdout.getvalue()
+        mock_render_dag.return_value.render.assert_called_once_with(
+            cleanup=True, filename='awesome', format='png'
+        )
+        self.assertIn("File awesome.png saved", out)
+
+    @mock.patch("airflow.bin.cli.subprocess.Popen")
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
+        mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
+        mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
+        temp_stdout = ByteableIO() if PY2 else io.StringIO()
+        with redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'show_dag', 'example_bash_operator', '--imgcat']
+            ))
+        mock_render_dag.return_value.pipe.assert_called_once_with(format='png')
+        mock_popen.return_value.communicate.assert_called_once_with(b'DOT_DATA')
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_cli_backfill_depends_on_past(self, mock_run):

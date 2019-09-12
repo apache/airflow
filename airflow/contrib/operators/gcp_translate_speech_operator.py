@@ -130,7 +130,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
         )
         recognize_dict = MessageToDict(recognize_result)
 
-        self.log.info("recognition operation finished", recognize_dict)
+        self.log.info("Recognition operation finished")
 
         if len(recognize_dict['results']) == 0:
             self.log.info("No recognition results")

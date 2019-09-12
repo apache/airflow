@@ -32,10 +32,11 @@ repos:
         name: Check if licences are OK for Apache
         entry: ./scripts/ci/ci_check_license.sh
         language: system
-        files: ^\.pre-commit-config\.yaml$
-        pass_filenames: true
-  - repo: https://github.com/potiuk/pre-commit-hooks
-    rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
+        files: ^.*LICENSE.*$|^.*LICENCE.*$
+        pass_filenames: false
+        require_serial: true
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.7
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
@@ -94,7 +95,7 @@ repos:
         name: Add licence for shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -158,6 +159,7 @@ repos:
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
         language: python
+        additional_dependencies: ['yamllint']
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
       - id: shellcheck
@@ -165,7 +167,8 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$
+        exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
@@ -181,3 +184,23 @@ repos:
         language: system
         entry: ./scripts/ci/ci_flake8.sh
         files: \.py$
+      - id: python2-fastcheck
+        language: pygrep
+        name: Find common Python 3 vs. 2.7 compatibility problems
+        entry: >
+          (?x)
+            (?!.*\#\ noqa)(?!.*//\ noqa)(           # Exclude lines with '# noqa' or '// noqa' comment
+                .super\(\).*|                       # Matches super() call from Python 3
+                ^\s*def\s*\S*\([^:#)]*:.*|          # Matches function param with Python3 type
+                ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
+            )$
+        files: \.py$
+        exclude: ^airflow/_vendor
+        pass_filenames: true
+      - id: python2-compile
+        name: Compile code using python2
+        language: system
+        entry: python2.7 -m py_compile
+        files: \.py$
+        pass_filenames: true
+        require_serial: true

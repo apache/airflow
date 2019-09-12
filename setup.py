@@ -231,6 +231,8 @@ ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
+papermill = ['papermill[all]>=1.0.0',
+             'nteract-scrapbook[all]>=0.2.1']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -260,10 +262,17 @@ zendesk = ['zdesk']
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
     + cassandra + mongo
 
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
+    'coverage',
+    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'freezegun',
@@ -285,6 +294,11 @@ devel = [
     'requests_mock',
     'yamllint'
 ]
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from the above list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 
 if PY3:
     devel += ['mypy']
@@ -298,7 +312,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
-             atlas + azure_container_instances + cgroups + virtualenv)
+             atlas + azure_container_instances + cgroups + papermill + virtualenv)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -325,6 +339,11 @@ def do_setup():
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         install_requires=[
             'alembic>=1.0, <2.0',
             'cached_property~=1.5',
@@ -332,7 +351,6 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'dumb-init>=1.2.2',
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
@@ -343,12 +361,14 @@ def do_setup():
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
+            'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
+            'marshmallow-sqlalchemy>=0.16.1, <0.19.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
             'psutil>=4.2.0, <6.0.0',
@@ -368,6 +388,11 @@ def do_setup():
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
         ],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         setup_requires=[
             'docutils>=0.14, <1.0',
             'gitpython>=2.0.2',
@@ -414,6 +439,7 @@ def do_setup():
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'papermill': papermill,
             'password': password,
             'pinot': pinot,
             'postgres': postgres,

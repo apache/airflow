@@ -39,7 +39,7 @@ class LoggingCommandExecutor(LoggingMixin):
             self.log.info("Stdout: {}".format(output))
             self.log.info("Stderr: {}".format(err))
             if retcode:
-                print("Error when executing '{}'".format(" ".join(cmd)))
+                self.log.warning("Error when executing %s", " ".join(cmd))
             return retcode
 
     def check_output(self, cmd):

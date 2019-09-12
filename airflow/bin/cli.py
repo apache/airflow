@@ -19,6 +19,7 @@
 # under the License.
 
 from __future__ import print_function
+import errno
 import importlib
 import logging
 
@@ -34,6 +35,7 @@ import reprlib
 import argparse
 from builtins import input
 
+from airflow.utils.dot_renderer import render_dag
 from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
@@ -419,6 +421,33 @@ def set_is_paused(is_paused, args):
     )
 
     print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
+
+
+def show_dag(args):
+    dag = get_dag(args)
+    dot = render_dag(dag)
+    if args.save:
+        filename, _, fileformat = args.save.rpartition('.')
+        dot.render(filename=filename, format=fileformat, cleanup=True)
+        print("File {} saved".format(args.save))
+    elif args.imgcat:
+        data = dot.pipe(format='png')
+        try:
+            proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                raise AirflowException(
+                    "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
+                )
+            else:
+                raise
+        out, err = proc.communicate(data)
+        if out:
+            print(out.decode('utf-8'))
+        if err:
+            print(err.decode('utf-8'))
+    else:
+        print(dot.source)
 
 
 def _run(args, dag, ti):
@@ -1634,6 +1663,26 @@ class CLIFactory(object):
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
+        # show_dag
+        'save': Arg(
+            ("-s", "--save"),
+            "Saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.dot\n"
+        ),
+        'imgcat': Arg(
+            ("--imgcat", ),
+            "Displays graph using the imgcat tool. \n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html",
+            action='store_true'),
         # trigger_dag
         'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
@@ -1993,6 +2042,10 @@ class CLIFactory(object):
             'func': delete_dag,
             'help': "Delete all DB records related to the specified DAG",
             'args': ('dag_id', 'yes',),
+        }, {
+            'func': show_dag,
+            'help': "Displays DAG's tasks with their dependencies",
+            'args': ('dag_id', 'subdir', 'save', 'imgcat',),
         }, {
             'func': pool,
             'help': "CRUD operations on pools",
