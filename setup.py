@@ -265,6 +265,7 @@ kerberos = [
 kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0',
+    'packaging>=19.1',
 ]
 ldap = [
     'ldap3>=2.5.1',
