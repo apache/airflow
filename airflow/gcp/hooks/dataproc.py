@@ -565,6 +565,83 @@ class DataProcHook(GoogleCloudBaseHook):
             jobId=job_id
         )
 
+    def _get_final_cluster_state(self, project_id, region, cluster_name, logger):
+        while True:
+            state = DataProcHook._get_cluster_state(self.get_conn(), project_id, region, cluster_name)
+            if state is None:
+                logger.info("No state for cluster '%s'", cluster_name)
+                time.sleep(15)
+            else:
+                logger.info("State for cluster '%s' is %s", cluster_name, state)
+                return state
+
+    @staticmethod
+    def _get_cluster_state(service, project_id, region, cluster_name):
+        cluster = DataProcHook._get_cluster(service, project_id, region, cluster_name)
+        if cluster and 'status' in cluster:
+            return cluster['status']['state']
+        else:
+            return None
+
+    @staticmethod
+    def _get_cluster(service, project_id, region, cluster_name):
+        cluster_list = DataProcHook._get_cluster_list_for_project(service, project_id, region)
+        cluster = [c for c in cluster_list if c['clusterName'] == cluster_name]
+        if cluster:
+            return cluster[0]
+        return None
+
+    @staticmethod
+    def _get_cluster_list_for_project(service, project_id, region):
+        result = service.projects().regions().clusters().list(
+            projectId=project_id,
+            region=region
+        ).execute()
+        return result.get('clusters', [])
+
+    @staticmethod
+    def _execute_dataproc_diagnose(service, project_id, region, cluster_name):
+        response = service.projects().regions().clusters().diagnose(
+            projectId=project_id,
+            region=region,
+            clusterName=cluster_name,
+            body={}
+        ).execute()
+        operation_name = response['name']
+        return operation_name
+
+    @staticmethod
+    def _execute_delete(service, project_id, region, cluster_name):
+        response = service.projects().regions().clusters().delete(
+            projectId=project_id,
+            region=region,
+            clusterName=cluster_name
+        ).execute(num_retries=5)
+        operation_name = response['name']
+        return operation_name
+
+    @staticmethod
+    # Return the response object when done
+    def _wait_for_operation_done(service, operation_name):
+        while True:
+            response = service.projects().regions().operations().get(
+                name=operation_name
+            ).execute(num_retries=5)
+
+            if response.get('done'):
+                return response
+            time.sleep(15)
+
+    @staticmethod
+    def _wait_for_operation_done_or_error(service, operation_name):
+
+        response = DataProcHook._wait_for_operation_done(service, operation_name)
+        if response.get('done'):
+            if 'error' in response:
+                raise AirflowException(str(response['error']))
+            else:
+                return
+
 
 setattr(
     DataProcHook,
