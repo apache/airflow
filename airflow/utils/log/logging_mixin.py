@@ -19,7 +19,6 @@
 import re
 import logging
 import sys
-import warnings
 
 from contextlib import contextmanager
 from logging import Handler, StreamHandler
@@ -42,19 +41,6 @@ class LoggingMixin:
     """
     def __init__(self, context=None):
         self._set_context(context)
-
-    # We want to deprecate the logger property in Airflow 2.0
-    # The log property is the de facto standard in most programming languages
-    @property
-    def logger(self):
-        warnings.warn(
-            'Initializing logger for {} using logger(), which will '
-            'be replaced by .log in Airflow 2.0'.format(
-                self.__class__.__module__ + '.' + self.__class__.__name__
-            ),
-            DeprecationWarning
-        )
-        return self.log
 
     @property
     def log(self):

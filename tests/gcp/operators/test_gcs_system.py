@@ -23,7 +23,7 @@ from tests.contrib.utils.base_gcp_system_test_case import (
     TestDagGcpSystem,
 )
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.contrib.operators.test_gcs_system_helper import GcsSystemTestHelper
+from tests.gcp.operators.test_gcs_system_helper import GcsSystemTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)

@@ -32,7 +32,7 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-AIRFLOW_ROOT="${MY_DIR}/../../.."
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 ENV=${ENV:=docker}
@@ -126,7 +126,7 @@ export AIRFLOW__CORE__UNIT_TEST_MODE=True
 # TODO: Check this - this should be made travis-independent
 if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo mkdir -p /home/travis/build/apache
-  sudo ln -s "${AIRFLOW_ROOT}" /home/travis/build/apache/airflow
+  sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
 # Fix file permissions

@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
-This module contains a Google Cloud Storage hook.
+This module is deprecated. Please use `airflow.gcp.hooks.gcs`.
 """
+from typing import Union
 import os
 from os import path
 from typing import Optional, Set, Tuple
@@ -186,8 +186,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         else:
             return blob.download_as_string()
 
-    def upload(self, bucket_name, object_name, filename=None,
-               data=None, mime_type=None, gzip=False, encoding='utf-8'):
+    def upload(self, bucket_name: str, object_name: str, filename: str=None,
+               data: Union[str=None, bytes=None], mime_type: str=None, gzip: bool=False,
+               encoding: str='utf-8') -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
         :param bucket_name: The bucket to upload to.
@@ -204,6 +205,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type gzip: bool
         :param encoding: bytes encoding for file data if provided as string
         :type encoding: str
+        :return: none
+        :rtype: None
+        :raises ValueError: if filename and data param are both provided or missing
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -764,18 +768,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 to_rewrite_blobs.add(source_blob)
         return to_copy_blobs, to_delete_blobs, to_rewrite_blobs
 
+import warnings
 
-def _parse_gcs_url(gsurl):
-    """
-    Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
-    tuple containing the corresponding bucket and blob.
-    """
+# pylint: disable=unused-import
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url  # noqa
 
-    parsed_url = urlparse(gsurl)
-    if not parsed_url.netloc:
-        raise AirflowException('Please provide a bucket name')
-    else:
-        bucket = parsed_url.netloc
-        # Remove leading '/' but NOT trailing one
-        blob = parsed_url.path.lstrip('/')
-        return bucket, blob
+warnings.warn(
+    "This module is deprecated. Please use `airflow.gcp.hooks.gcs`.",
+    DeprecationWarning
+)

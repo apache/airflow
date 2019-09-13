@@ -21,6 +21,8 @@
 import copy
 import unittest
 
+from parameterized import parameterized
+
 from airflow.gcp.hooks.dataflow import (DataFlowHook, _Dataflow,
                                         _DataflowJob)
 from tests.compat import MagicMock, mock
@@ -74,6 +76,7 @@ TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
+DEFAULT_PY_INTERPRETER = 'python2'
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
@@ -96,12 +99,19 @@ class TestDataFlowHook(unittest.TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
 
+    @parameterized.expand([
+        ('default_to_python2', "python2"),
+        ('major_version_2', 'python2'),
+        ('major_version_3', 'python3'),
+        ('minor_version', 'python3.6')
+    ])
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_python_dataflow(self, mock_conn,
+    def test_start_python_dataflow(self, name, py, mock_conn,
                                    mock_dataflow, mock_dataflowjob, mock_uuid):
+        del name  # unused variable
         mock_uuid.return_value = MOCK_UUID
         mock_conn.return_value = None
         dataflow_instance = mock_dataflow.return_value
@@ -110,8 +120,10 @@ class TestDataFlowHook(unittest.TestCase):
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
-            dataflow=PY_FILE, py_options=PY_OPTIONS)
-        expected_cmd = ['python2', '-m', PY_FILE,
+            dataflow=PY_FILE, py_options=PY_OPTIONS,
+            py_interpreter=py)
+        expected_interpreter = py if py else DEFAULT_PY_INTERPRETER
+        expected_cmd = [expected_interpreter, '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',

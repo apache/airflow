@@ -37,9 +37,51 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Airflow Master
 
+### Remove provide_context
+
+`provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
+
+```python
+def myfunc(execution_date):
+    print(execution_date)
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
+```
+
+Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
+
+All context variables can still be provided with a double-asterisk argument:
+
+```python
+def myfunc(**context):
+    print(context)  # all variables will be provided to context
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
+```
+
+The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
+
+```python
+def myfunc(dag):
+    # raises a ValueError because "dag" is a reserved name
+    # valid signature example: myfunc(mydag)
+
+python_operator = PythonOperator(
+    task_id='mytask',
+    op_args=[1],
+    python_callable=myfunc,
+)
+```
+
+The change is backwards compatible, setting `provide_context` will add the `provide_context` variable to the `kwargs` (but won't do anything).
+
+PR: [#5990](https://github.com/apache/airflow/pull/5990)
+
 ### Changes to FileSensor
+
 FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
 
 ### Change dag loading duration metric name

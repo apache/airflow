@@ -199,20 +199,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 
     def test_context(self):
-        def f(**kwargs):
-            return kwargs['templates_dict']['ds']
+        def f(templates_dict):
+            return templates_dict['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
-
-    def test_provide_context(self):
-        def fn():
-            pass
-        task = PythonVirtualenvOperator(
-            python_callable=fn,
-            python_version=sys.version_info[0],
-            task_id='task',
-            dag=self.dag,
-            provide_context=True,
-        )
-        self.assertTrue(
-            task.provide_context
-        )

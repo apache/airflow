@@ -25,7 +25,8 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set, Any
+from dateutil.relativedelta import relativedelta
+from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
 
 import jinja2
 
@@ -48,6 +49,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
 @functools.total_ordering
@@ -221,14 +224,14 @@ class BaseOperator(LoggingMixin):
     # Defines which files extensions to look for in the templated fields
     template_ext = []  # type: Iterable[str]
     # Defines the color in the UI
-    ui_color = '#fff'
-    ui_fgcolor = '#000'
+    ui_color = '#fff'  # type str
+    ui_fgcolor = '#000'  # type str
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs = ('user_defined_macros',
                                          'user_defined_filters',
                                          'params',
-                                         '_log',)
+                                         '_log',)  # type: Iterable[str]
 
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs = ()  # type: Iterable[str]
@@ -266,13 +269,13 @@ class BaseOperator(LoggingMixin):
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: int = None,
+        retries: Optional[int] = None,
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        schedule_interval=None,  # not hooked as of now
+        schedule_interval: Optional[ScheduleInterval] = None,  # not hooked as of now
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
         dag: Optional[DAG] = None,

@@ -404,7 +404,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         variables: Dict,
         dataflow: str,
         py_options: List[str],
-        append_job_name: bool = True
+        append_job_name: bool = True,
+        py_interpreter: str = "python2"
     ):
         """
         Starts Dataflow job.
@@ -419,6 +420,11 @@ class DataFlowHook(GoogleCloudBaseHook):
         :type py_options: list
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
+        :param py_interpreter: Python version of the beam pipeline.
+            If None, this defaults to the python2.
+            To track python versions supported by beam and related
+            issues check: https://issues.apache.org/jira/browse/BEAM-1251
+        :type py_interpreter: str
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
@@ -427,7 +433,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
 
-        self._start_dataflow(variables, name, ["python2"] + py_options + [dataflow],
+        self._start_dataflow(variables, name, [py_interpreter] + py_options + [dataflow],
                              label_formatter)
 
     @staticmethod

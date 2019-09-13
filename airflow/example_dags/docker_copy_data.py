@@ -69,7 +69,6 @@ TODO: Review the workflow, change it accordingly to
 #
 # t_is_data_available = ShortCircuitOperator(
 #         task_id='check_if_data_available',
-#         provide_context=True,
 #         python_callable=is_data_available,
 #         dag=dag)
 #

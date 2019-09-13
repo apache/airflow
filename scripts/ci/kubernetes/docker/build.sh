@@ -18,8 +18,8 @@
 
 IMAGE=${IMAGE:-airflow}
 TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")" && pwd)
-AIRFLOW_ROOT="${DIRNAME}/../../../.."
+DIRNAME=$(cd "$(dirname "$0")" || exit 1; pwd)
+AIRFLOW_SOURCES=$(cd "${DIRNAME}/../../../.." || exit 1; pwd)
 PYTHON_DOCKER_IMAGE=python:3.6-slim
 
 set -e
@@ -37,19 +37,19 @@ if [[ "${VM_DRIVER:-none}" != "none" ]]; then
     fi
 fi
 
-echo "Airflow directory ${AIRFLOW_ROOT}"
+echo "Airflow directory ${AIRFLOW_SOURCES}"
 echo "Airflow Docker directory ${DIRNAME}"
 
-cd "${AIRFLOW_ROOT}"
-docker run -ti --rm -v "${AIRFLOW_ROOT}:/airflow" \
+cd "${AIRFLOW_SOURCES}"
+docker run -ti --rm -v "${AIRFLOW_SOURCES}:/airflow" \
     -w /airflow "${PYTHON_DOCKER_IMAGE}" ./scripts/ci/kubernetes/docker/compile.sh
 
-pip freeze | grep -v airflow | grep -v mysql> ${DIRNAME}/requirements.txt
+pip freeze | grep -v airflow | grep -v mysql> "${DIRNAME}/requirements.txt"
 
-sudo rm -rf "${AIRFLOW_ROOT}/airflow/www/node_modules"
-sudo rm -rf "${AIRFLOW_ROOT}/airflow/www_rbac/node_modules"
+sudo rm -rf "${AIRFLOW_SOURCES}/airflow/www/node_modules"
+sudo rm -rf "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules"
 
-echo "Copy distro ${AIRFLOW_ROOT}/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
-cp "${AIRFLOW_ROOT}"/dist/*.tar.gz "${DIRNAME}/airflow.tar.gz"
+echo "Copy distro ${AIRFLOW_SOURCES}/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
+cp "${AIRFLOW_SOURCES}"/dist/*.tar.gz "${DIRNAME}/airflow.tar.gz"
 cd "${DIRNAME}" && docker build --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
 rm "${DIRNAME}/airflow.tar.gz"

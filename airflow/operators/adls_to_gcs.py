@@ -27,7 +27,7 @@ from typing import Optional
 
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
 from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 

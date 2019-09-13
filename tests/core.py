@@ -568,7 +568,6 @@ class TestCore(unittest.TestCase):
 
         t = PythonOperator(
             task_id='test_py_op',
-            provide_context=True,
             python_callable=test_py_op,
             templates_dict={'ds': "{{ ds }}"},
             dag=self.dag)
@@ -2178,6 +2177,7 @@ class TestWebHDFSHook(unittest.TestCase):
 
 HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
 snakebite = None  # type: None
+
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")

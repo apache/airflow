@@ -25,8 +25,8 @@ from typing import List, Optional
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
-from airflow.contrib.hooks import bigquery_hook as hook
-from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
+from airflow.gcp.hooks import bigquery as hook
+from airflow.gcp.hooks.bigquery import _cleanse_time_partitioning, \
     _validate_value, _api_resource_configs_duplication_check, \
     _validate_src_fmt_configs
 
@@ -44,9 +44,9 @@ class TestBigQueryHookConnection(unittest.TestCase):
     def setUp(self):
         self.hook = hook.BigQueryHook()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryConnection")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.BigQueryHook._authorize")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.build")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryConnection")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook._authorize")
+    @mock.patch("airflow.gcp.hooks.bigquery.build")
     def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -67,7 +67,7 @@ class TestPandasGbqCredentials(unittest.TestCase):
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
-    @mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq')
+    @mock.patch('airflow.gcp.hooks.bigquery.read_gbq')
     def test_credentials_provided(self, mock_read_gbq, mock_get_credentials_and_project_id):
         self.instance = hook.BigQueryHook()
 

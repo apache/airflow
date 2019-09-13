@@ -24,21 +24,15 @@ import os
 import airflow
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
-from airflow.contrib.operators.gcs_operator import (
-    GoogleCloudStorageCreateBucketOperator,
-)
-from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
-from airflow.contrib.operators.gcs_download_operator import (
-    GoogleCloudStorageDownloadOperator,
-)
-from airflow.contrib.operators.gcs_delete_operator import (
-    GoogleCloudStorageDeleteOperator,
-)
 from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
 from airflow.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
-from airflow.contrib.operators.gcs_acl_operator import (
+from airflow.gcp.operators.gcs import (
     GoogleCloudStorageBucketCreateAclEntryOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator,
+    GoogleCloudStorageListOperator,
+    GoogleCloudStorageDeleteOperator,
+    GoogleCloudStorageDownloadOperator,
+    GoogleCloudStorageCreateBucketOperator
 )
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}

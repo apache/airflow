@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`."""
+"""This module is deprecated. Please use `airflow.gcp.sensors.cloud_storage_transfer_service`."""
 
 import warnings
 
@@ -26,6 +26,6 @@ from airflow.gcp.sensors.cloud_storage_transfer_service import (  # noqa
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.",
+    "This module is deprecated. Please use `airflow.gcp.sensors.cloud_storage_transfer_service`.",
     DeprecationWarning,
 )
