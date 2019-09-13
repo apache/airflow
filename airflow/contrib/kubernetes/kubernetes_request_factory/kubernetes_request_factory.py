@@ -155,12 +155,12 @@ class KubernetesRequestFactory:
 
         if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0 or len(pod.pod_runtime_info_envs) > 0:
             env = []
+            for runtime_info in pod.pod_runtime_info_envs:
+                KubernetesRequestFactory.add_runtime_info_env(env, runtime_info)
             for k in pod.envs.keys():
                 env.append({'name': k, 'value': pod.envs[k]})
             for secret in envs_from_key_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
-            for runtime_info in pod.pod_runtime_info_envs:
-                KubernetesRequestFactory.add_runtime_info_env(env, runtime_info)
 
             req['spec']['containers'][0]['env'] = env
 

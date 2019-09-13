@@ -234,6 +234,30 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         self.input_req['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertEqual(self.input_req, self.expected)
 
+    def test_extract_env_and_secret_order(self):
+        envs = {
+            'ENV': 'val1',
+        }
+        pod_runtime_envs = [PodRuntimeInfoEnv('RUNTIME_ENV', 'status.podIP')]
+        pod = Pod(
+            image='v3.14',
+            envs=envs,
+            cmds=[],
+            pod_runtime_info_envs=pod_runtime_envs)
+        self.expected['spec']['containers'][0]['env'] = [
+            {
+                'name': 'RUNTIME_ENV',
+                'valueFrom': {
+                    'fieldRef': {
+                        'fieldPath': 'status.podIP'
+                    }
+                }
+            },
+            {'name': 'ENV', 'value': 'val1'}
+        ]
+        KubernetesRequestFactory.extract_env_and_secrets(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
     def test_extract_resources(self):
         # Test when resources is not empty
         resources = Resources(
