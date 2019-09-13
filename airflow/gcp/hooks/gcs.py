@@ -447,7 +447,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       bucket_name, location, storage_class)
 
         # Add airflow-version label to the bucket
-        labels = {} or labels
+        labels = labels or {}
         labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
 
         client = self.get_conn()
