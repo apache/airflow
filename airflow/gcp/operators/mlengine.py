@@ -136,8 +136,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :type uri: str
 
     :param max_worker_count: The maximum number of workers to be used
-        for parallel processing. Defaults to 10 if not specified.
-    :type max_worker_count: int
+        for parallel processing. Defaults to 10 if not specified. Should be a
+        string representing the worker count ("10" instead of 10, "50" instead
+        of 50, etc.)
+    :type max_worker_count: string
 
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
