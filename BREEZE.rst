@@ -177,7 +177,7 @@ Once you enter the environment you are dropped into bash shell and you can run t
 Choosing environment
 --------------------
 
-You can choose the optional flags you need with ``breezs``
+You can choose the optional flags you need with ``breeze``
 
 You can specify for example python version to use, backend to use and environment
 for testing - you can recreate the same environments as we have in matrix builds in Travis CI.
