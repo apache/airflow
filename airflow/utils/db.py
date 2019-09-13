@@ -264,6 +264,15 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="livy_default",
+            conn_type="livy",
+            host="livy",
+            port=8998
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="local_mysql",
             conn_type="mysql",
             host="localhost",
