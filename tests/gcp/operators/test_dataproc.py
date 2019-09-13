@@ -834,7 +834,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -919,7 +919,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -1004,7 +1004,7 @@ class TestDataProcPigOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -1094,7 +1094,7 @@ class TestDataProcPySparkOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -1182,7 +1182,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
