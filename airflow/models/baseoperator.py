@@ -25,11 +25,13 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set, Any
+from dateutil.relativedelta import relativedelta
+from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
 
 import jinja2
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import prepare_lineage, apply_lineage, DataSet
 from airflow.models.dag import DAG
@@ -47,6 +49,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
 @functools.total_ordering
@@ -220,14 +224,14 @@ class BaseOperator(LoggingMixin):
     # Defines which files extensions to look for in the templated fields
     template_ext = []  # type: Iterable[str]
     # Defines the color in the UI
-    ui_color = '#fff'
-    ui_fgcolor = '#000'
+    ui_color = '#fff'  # type str
+    ui_fgcolor = '#000'  # type str
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs = ('user_defined_macros',
                                          'user_defined_filters',
                                          'params',
-                                         '_log',)
+                                         '_log',)  # type: Iterable[str]
 
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs = ()  # type: Iterable[str]
@@ -261,17 +265,17 @@ class BaseOperator(LoggingMixin):
     def __init__(
         self,
         task_id: str,
-        owner: str = configuration.conf.get('operators', 'DEFAULT_OWNER'),
+        owner: str = conf.get('operators', 'DEFAULT_OWNER'),
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: int = None,
+        retries: Optional[int] = None,
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        schedule_interval=None,  # not hooked as of now
+        schedule_interval: Optional[ScheduleInterval] = None,  # not hooked as of now
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
         dag: Optional[DAG] = None,
@@ -279,7 +283,7 @@ class BaseOperator(LoggingMixin):
         default_args: Optional[Dict] = None,
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
-        queue: str = configuration.conf.get('celery', 'default_queue'),
+        queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
@@ -348,7 +352,7 @@ class BaseOperator(LoggingMixin):
             )
         self._schedule_interval = schedule_interval
         self.retries = retries if retries is not None else \
-            configuration.conf.getint('core', 'default_task_retries', fallback=0)
+            conf.getint('core', 'default_task_retries', fallback=0)
         self.queue = queue
         self.pool = pool
         self.sla = sla

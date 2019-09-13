@@ -125,3 +125,11 @@ Templating
     :dedent: 4
     :start-after: [START gcp_speech_to_text_synthesize_template_fields]
     :end-before: [END gcp_speech_to_text_synthesize_template_fields]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Product Documentation <https://cloud.google.com/speech/>`__

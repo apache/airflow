@@ -57,8 +57,8 @@ def build_recording_function(calls_collection):
     Then using this custom function recording custom Call objects for further testing
     (replacing Mock.assert_called_with assertion method)
     """
-    def recording_function(*args, **kwargs):
-        calls_collection.append(Call(*args, **kwargs))
+    def recording_function(*args):
+        calls_collection.append(Call(*args))
     return recording_function
 
 
@@ -129,11 +129,10 @@ class TestPythonOperator(unittest.TestCase):
                 task_id='python_operator',
                 dag=self.dag)
 
-    def _assertCallsEqual(self, first, second):
+    def _assert_calls_equal(self, first, second):
         self.assertIsInstance(first, Call)
         self.assertIsInstance(second, Call)
         self.assertTupleEqual(first.args, second.args)
-        self.assertDictEqual(first.kwargs, second.kwargs)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""
@@ -148,7 +147,7 @@ class TestPythonOperator(unittest.TestCase):
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
-            python_callable=(build_recording_function(recorded_calls)),
+            python_callable=build_recording_function(recorded_calls),
             op_args=[
                 4,
                 date(2019, 1, 1),
@@ -167,7 +166,7 @@ class TestPythonOperator(unittest.TestCase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         self.assertEqual(1, len(recorded_calls))
-        self._assertCallsEqual(
+        self._assert_calls_equal(
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
@@ -183,7 +182,7 @@ class TestPythonOperator(unittest.TestCase):
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
-            python_callable=(build_recording_function(recorded_calls)),
+            python_callable=build_recording_function(recorded_calls),
             op_kwargs={
                 'an_int': 4,
                 'a_date': date(2019, 1, 1),
@@ -200,7 +199,7 @@ class TestPythonOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         self.assertEqual(1, len(recorded_calls))
-        self._assertCallsEqual(
+        self._assert_calls_equal(
             recorded_calls[0],
             Call(an_int=4,
                  a_date=date(2019, 1, 1),
@@ -250,6 +249,74 @@ class TestPythonOperator(unittest.TestCase):
                            python_callable=self._env_var_check_callback
                            )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_conflicting_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        # dag is not allowed since it is a reserved keyword
+        def fn(dag):
+            # An ValueError should be triggered since we're using dag as a
+            # reserved keyword
+            raise RuntimeError("Should not be triggered, dag: {}".format(dag))
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_args=[1],
+            python_callable=fn,
+            dag=self.dag
+        )
+
+        with self.assertRaises(ValueError) as context:
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
+
+    def test_context_with_conflicting_op_args(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def fn(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=fn,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_context_with_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def fn(**context):
+            # check if context is being set
+            self.assertGreater(len(context), 0, "Context has not been injected")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=fn,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
 class TestBranchOperator(unittest.TestCase):

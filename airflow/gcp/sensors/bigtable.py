@@ -62,20 +62,19 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        self.hook = BigtableHook(gcp_conn_id=gcp_conn_id)
         super().__init__(*args, **kwargs)
 
     def poke(self, context):
-        instance = self.hook.get_instance(project_id=self.project_id,
-                                          instance_id=self.instance_id)
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             self.log.info("Dependency: instance '%s' does not exist.", self.instance_id)
             return False
 
         try:
-            cluster_states = self.hook.get_cluster_states_for_table(instance=instance,
-                                                                    table_id=self.table_id)
+            cluster_states = hook.get_cluster_states_for_table(instance=instance, table_id=self.table_id)
         except google.api_core.exceptions.NotFound:
             self.log.info(
                 "Dependency: table '%s' does not exist in instance '%s'.",

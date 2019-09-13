@@ -1182,3 +1182,11 @@ More information
 
 See `Google Cloud Vision Safe Search Detection documentation
 <https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.safe_search_detection>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/vision/index.html>`__
+* `Product Documentation <https://cloud.google.com/vision/docs/>`__

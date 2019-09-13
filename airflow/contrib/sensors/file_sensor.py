@@ -19,7 +19,7 @@
 #
 
 import os
-import stat
+from glob import glob
 
 from airflow.contrib.hooks.fs_hook import FSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -37,7 +37,7 @@ class FileSensor(BaseSensorOperator):
         connection id
     :type fs_conn_id: str
     :param filepath: File or folder name (relative to
-        the base path set within the connection)
+        the base path set within the connection), can be a glob.
     :type fs_conn_id: str
     """
     template_fields = ('filepath',)
@@ -58,14 +58,12 @@ class FileSensor(BaseSensorOperator):
         basepath = hook.get_path()
         full_path = os.path.join(basepath, self.filepath)
         self.log.info('Poking for file %s', full_path)
-        try:
-            if stat.S_ISDIR(os.stat(full_path).st_mode):
-                for _, _, files in os.walk(full_path):
-                    if len(files):
-                        return True
-            else:
-                # full_path was a file directly
+
+        for path in glob(full_path):
+            if os.path.isfile(path):
                 return True
-        except OSError:
-            return False
+
+            for _, _, files in os.walk(full_path):
+                if len(files) > 0:
+                    return True
         return False

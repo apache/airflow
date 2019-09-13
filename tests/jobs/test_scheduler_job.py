@@ -30,7 +30,7 @@ from parameterized import parameterized
 
 import airflow.example_dags
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
@@ -79,20 +79,17 @@ class TestSchedulerJob(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-
-        def getboolean(section, key):
-            if section.lower() == 'core' and key.lower() == 'load_examples':
-                return False
-            else:
-                return configuration.conf.getboolean(section, key)
-
-        cls.patcher = mock.patch('airflow.jobs.scheduler_job.conf.getboolean')
-        cls.mock_getboolean = cls.patcher.start()
-        cls.mock_getboolean.side_effect = getboolean
+        cls.old_val = None
+        if conf.has_option('core', 'load_examples'):
+            cls.old_val = conf.get('core', 'load_examples')
+        conf.set('core', 'load_examples', 'false')
 
     @classmethod
     def tearDownClass(cls):
-        cls.patcher.stop()
+        if cls.old_val is not None:
+            conf.set('core', 'load_examples', cls.old_val)
+        else:
+            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -2276,7 +2273,7 @@ class TestSchedulerJob(unittest.TestCase):
                          schedule_interval='* * * * *',
                          start_date=six_hours_ago_to_the_hour,
                          catchup=True)
-        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = conf.getboolean('scheduler', 'catchup_by_default')
         self.assertEqual(default_catchup, True)
         self.assertEqual(dag1.catchup, True)
 

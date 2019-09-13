@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 
 import dill
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
 from airflow.gcp.operators.dataflow import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
@@ -223,6 +223,7 @@ def create_evaluate_ops(task_prefix,  # pylint:disable=too-many-arguments
             "metric_fn_encoded": metric_fn_encoded,
             "metric_keys": ','.join(metric_keys)
         },
+        py_interpreter='python2',
         dag=dag)
     evaluate_summary.set_upstream(evaluate_prediction)
 
@@ -240,7 +241,6 @@ def create_evaluate_ops(task_prefix,  # pylint:disable=too-many-arguments
     evaluate_validation = PythonOperator(
         task_id=(task_prefix + "-validation"),
         python_callable=apply_validate_fn,
-        provide_context=True,
         templates_dict={"prediction_path": prediction_path},
         dag=dag)
     evaluate_validation.set_upstream(evaluate_summary)

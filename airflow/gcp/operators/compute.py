@@ -21,7 +21,7 @@ This module contains Google Compute Engine operators.
 """
 
 from copy import deepcopy
-from typing import Dict
+from typing import Dict, Optional, List, Any
 from json_merge_patch import merge
 
 from googleapiclient.errors import HttpError
@@ -41,12 +41,12 @@ class GceBaseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 zone,
-                 resource_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 *args, **kwargs):
+                 zone: str,
+                 resource_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.zone = zone
         self.resource_id = resource_id
@@ -98,12 +98,12 @@ class GceInstanceStartOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 zone,
-                 resource_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 *args, **kwargs):
+                 zone: str,
+                 resource_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 *args, **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
@@ -146,12 +146,12 @@ class GceInstanceStopOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 zone,
-                 resource_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 *args, **kwargs):
+                 zone: str,
+                 resource_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 *args, **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
@@ -204,16 +204,16 @@ class GceSetMachineTypeOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 zone,
-                 resource_id,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 validate_body=True,
-                 *args, **kwargs):
+                 zone: str,
+                 resource_id: str,
+                 body: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body = body
-        self._field_validator = None
+        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
                 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version)
@@ -262,7 +262,7 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
         dict(name="guestAccelerators", optional=True),  # not validating deeper
         dict(name="minCpuPlatform", optional=True),
     ]),
-]
+]  # type: List[Dict[str, Any]]
 
 GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
     "kind",
@@ -326,17 +326,17 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 resource_id,
-                 body_patch,
-                 project_id=None,
+                 resource_id: str,
+                 body_patch: dict,
+                 project_id: Optional[str] = None,
                  request_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 validate_body=True,
-                 *args, **kwargs):
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.body_patch = body_patch
         self.request_id = request_id
-        self._field_validator = None
+        self._field_validator = None  # Optional[GcpBodyFieldValidator]
         if 'name' not in self.body_patch:
             raise AirflowException("The body '{}' should contain at least "
                                    "name for the new operator in the 'name' field".
@@ -436,16 +436,16 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 resource_id,
-                 zone,
-                 source_template,
-                 destination_template,
-                 project_id=None,
+                 resource_id: str,
+                 zone: str,
+                 source_template: str,
+                 destination_template: str,
+                 project_id: Optional[str] = None,
                  update_policy=None,
                  request_id=None,
-                 gcp_conn_id='google_cloud_default',
+                 gcp_conn_id: str = 'google_cloud_default',
                  api_version='beta',
-                 *args, **kwargs):
+                 *args, **kwargs) -> None:
         self.zone = zone
         self.source_template = source_template
         self.destination_template = destination_template

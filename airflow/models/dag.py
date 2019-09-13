@@ -35,7 +35,8 @@ from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
 
-from airflow import configuration, settings, utils
+from airflow import settings, utils
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException, AirflowDagCycleException
 from airflow.executors import LocalExecutor, get_default_executor
@@ -208,13 +209,13 @@ class DAG(BaseDag, LoggingMixin):
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
-        concurrency: int = configuration.conf.getint('core', 'dag_concurrency'),
-        max_active_runs: int = configuration.conf.getint('core', 'max_active_runs_per_dag'),
+        concurrency: int = conf.getint('core', 'dag_concurrency'),
+        max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
         default_view: Optional[str] = None,
-        orientation: str = configuration.conf.get('webserver', 'dag_orientation'),
-        catchup: bool = configuration.conf.getboolean('scheduler', 'catchup_by_default'),
+        orientation: str = conf.get('webserver', 'dag_orientation'),
+        catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[Callable] = None,
         on_failure_callback: Optional[Callable] = None,
         doc_md: Optional[str] = None,
@@ -360,7 +361,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
         if self._default_view is None:
-            return configuration.conf.get('webserver', 'dag_default_view').lower()
+            return conf.get('webserver', 'dag_default_view').lower()
         else:
             return self._default_view
 
@@ -1202,7 +1203,7 @@ class DAG(BaseDag, LoggingMixin):
             mark_success=False,
             local=False,
             executor=None,
-            donot_pickle=configuration.conf.getboolean('core', 'donot_pickle'),
+            donot_pickle=conf.getboolean('core', 'donot_pickle'),
             ignore_task_deps=False,
             ignore_first_depends_on_past=False,
             pool=None,
@@ -1493,7 +1494,7 @@ class DagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = configuration.conf\
+    is_paused_at_creation = conf\
         .getboolean('core',
                     'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
@@ -1545,7 +1546,7 @@ class DagModel(Base):
 
     def get_default_view(self):
         if self.default_view is None:
-            return configuration.conf.get('webserver', 'dag_default_view').lower()
+            return conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
 

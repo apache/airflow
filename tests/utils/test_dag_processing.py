@@ -26,7 +26,7 @@ import unittest
 from unittest import mock
 from unittest.mock import (MagicMock, PropertyMock)
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.jobs import DagFileProcessor
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,
