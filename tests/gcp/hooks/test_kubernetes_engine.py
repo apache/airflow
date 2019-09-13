@@ -43,7 +43,7 @@ class TestGKEClusterHookClient(unittest.TestCase):
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.container_v1.ClusterManagerClient")
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds, mock_client_info):
 
-        result = self.gke_hook.get_client()
+        result = self.gke_hook.get_conn()
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value,
             client_info=mock_client_info.return_value
@@ -246,7 +246,7 @@ class TestGKEClusterHook(unittest.TestCase):
     @mock.patch('airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._get_credentials')
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None
-        self.gke_hook.get_client()
+        self.gke_hook.get_conn()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
