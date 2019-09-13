@@ -244,8 +244,10 @@ class PythonVirtualenvOperator(PythonOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param output_encoding: The string representing how to decode the output of the
+        python_callable running in virtualenv.
+    :type output_encoding: str
     """
-
     @apply_defaults
     def __init__(
         self,
@@ -259,6 +261,7 @@ class PythonVirtualenvOperator(PythonOperator):
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[Iterable[str]] = None,
+        output_encoding: Optional[str] = None,
         *args,
         **kwargs
     ):
@@ -275,6 +278,8 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        self.output_encoding = output_encoding
+
         # check that dill is present if needed
         dill_in_requirements = map(lambda x: x.lower().startswith('dill'),
                                    self.requirements)
@@ -335,10 +340,17 @@ class PythonVirtualenvOperator(PythonOperator):
             output = subprocess.check_output(cmd,
                                              stderr=subprocess.STDOUT,
                                              close_fds=True)
+            if self.output_encoding:
+                output = output.decode(self.output_encoding)
+
             if output:
                 self.log.info("Got output\n%s", output)
         except subprocess.CalledProcessError as e:
-            self.log.info("Got error output\n%s", e.output)
+            output = e.output
+            if self.output_encoding:
+                output = output.decode(self.output_encoding)
+
+            self.log.info("Got error output\n%s", output)
             raise
 
     def _write_string_args(self, filename):
