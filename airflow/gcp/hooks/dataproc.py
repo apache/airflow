@@ -565,7 +565,7 @@ class DataProcHook(GoogleCloudBaseHook):
             jobId=job_id
         )
 
-    def _get_final_cluster_state(self, project_id, region, cluster_name, logger):
+    def get_final_cluster_state(self, project_id, region, cluster_name, logger):
         while True:
             state = DataProcHook.get_cluster_state(self.get_conn(), project_id, region, cluster_name)
             if state is None:

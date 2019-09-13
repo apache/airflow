@@ -480,8 +480,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 'Cluster %s already exists... Checking status...',
                 self.cluster_name
             )
-            existing_status = self.hook._get_final_cluster_state(self.project_id,
-                                                                 self.region, self.cluster_name, self.log)
+            existing_status = self.hook.get_final_cluster_state(self.project_id,
+                                                                self.region, self.cluster_name, self.log)
 
             if existing_status == 'RUNNING':
                 self.log.info('Cluster exists and is already running. Using it.')

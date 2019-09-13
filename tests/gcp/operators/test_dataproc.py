@@ -530,6 +530,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
     def test_create_cluster_deletes_error_cluster(self):
         # Setup service.projects().regions().clusters().create()
         #              .execute()
+        # pylint:disable=attribute-defined-outside-init
         self.operation = {'name': 'operation', 'done': True}
         self.mock_execute = Mock()
         self.mock_execute.execute.return_value = self.operation
@@ -550,7 +551,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
-            hook._get_final_cluster_state.return_value = "ERROR"
+            hook.get_final_cluster_state.return_value = "ERROR"
 
             dataproc_task = DataprocClusterCreateOperator(
                 task_id=TASK_ID,
