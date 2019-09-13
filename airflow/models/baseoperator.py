@@ -249,7 +249,6 @@ class BaseOperator(LoggingMixin):
         'retry_exponential_backoff',
         'max_retry_delay',
         'start_date',
-        'schedule_interval',
         'depends_on_past',
         'wait_for_downstream',
         'priority_weight',
@@ -275,7 +274,6 @@ class BaseOperator(LoggingMixin):
         max_retry_delay: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        schedule_interval: Optional[ScheduleInterval] = None,  # not hooked as of now
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
         dag: Optional[DAG] = None,
