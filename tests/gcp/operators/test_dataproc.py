@@ -546,8 +546,8 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         self.mock_conn = Mock()
         self.mock_conn.projects.return_value = self.mock_projects
 
-        with patch(HOOK) as MockHook:
-            hook = MockHook()
+        with patch(HOOK) as mock_hook:
+            hook = mock_hook()
             hook.get_conn.return_value = self.mock_conn
             hook.wait.return_value = None
             hook._get_final_cluster_state.return_value = "ERROR"

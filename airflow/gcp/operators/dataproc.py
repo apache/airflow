@@ -282,7 +282,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         if state == 'DELETING':
             raise Exception('Tried to create a cluster but it\'s in DELETING, something went wrong.')
         if state == 'ERROR':
-            cluster = DataProcHook._get_cluster(service, self.project_id, self.region, self.cluster_name)
+            cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
             try:
                 error_details = cluster['status']['details']
             except KeyError:
@@ -292,12 +292,12 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             self.log.info('Dataproc cluster creation resulted in an ERROR state running diagnostics')
             self.log.info(error_details)
             diagnose_operation_name = \
-                DataProcHook._execute_dataproc_diagnose(service, self.project_id,
-                                                        self.region, self.cluster_name)
-            diagnose_result = DataProcHook._wait_for_operation_done(service, diagnose_operation_name)
+                DataProcHook.execute_dataproc_diagnose(service, self.project_id,
+                                                       self.region, self.cluster_name)
+            diagnose_result = DataProcHook.wait_for_operation_done(service, diagnose_operation_name)
             if diagnose_result.get('response') and diagnose_result.get('response').get('outputUri'):
-                outputUri = diagnose_result.get('response').get('outputUri')
-                self.log.info('Diagnostic information for ERROR cluster available at [%s]', outputUri)
+                output_uri = diagnose_result.get('response').get('outputUri')
+                self.log.info('Diagnostic information for ERROR cluster available at [%s]', output_uri)
             else:
                 self.log.info('Diagnostic information could not be retrieved!')
 
@@ -474,7 +474,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         return cluster_data
 
     def _usable_existing_cluster_present(self, service):
-        existing_cluster = DataProcHook._get_cluster(service, self.project_id, self.region, self.cluster_name)
+        existing_cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
         if existing_cluster:
             self.log.info(
                 'Cluster %s already exists... Checking status...',
@@ -488,19 +488,19 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 return True
 
             elif existing_status == 'DELETING':
-                while DataProcHook._get_cluster(service, self.project_id, self.region, self.cluster_name) \
-                    and DataProcHook._get_cluster_state(service, self.project_id,
-                                                        self.region, self.cluster_name) == 'DELETING':
+                while DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name) \
+                    and DataProcHook.get_cluster_state(service, self.project_id,
+                                                       self.region, self.cluster_name) == 'DELETING':
                     self.log.info('Existing cluster is deleting, waiting for it to finish')
                     time.sleep(15)
 
             elif existing_status == 'ERROR':
                 self.log.info('Existing cluster in ERROR state, deleting it first')
 
-                operation_name = DataProcHook._execute_delete(service, self.project_id,
-                                                              self.region, self.cluster_name)
+                operation_name = DataProcHook.execute_delete(service, self.project_id,
+                                                             self.region, self.cluster_name)
                 self.log.info("Cluster delete operation name: %s", operation_name)
-                DataProcHook._wait_for_operation_done_or_error(service, operation_name)
+                DataProcHook.wait_for_operation_done_or_error(service, operation_name)
 
         return False
 
