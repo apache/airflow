@@ -40,6 +40,40 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Normalize gcp_conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use 
+conn_id as parameter for GCP connection. There is currently one parameter 
+which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
+``google_cloud_storage_conn_id`` and similar have been deprecated.
+
+Following components were affected by normalization:
+  * airflow.gcp.hooks.DatastoreHook
+  * airflow.gcp.hooks.BigQueryHook
+  * airflow.gcp.hooks.GoogleCloudStorageHook
+  * airflow.gcp.operators.BigQueryCheckOperator
+  * airflow.gcp.operators.BigQueryValueCheckOperator
+  * airflow.gcp.operators.BigQueryIntervalCheckOperator
+  * airflow.gcp.operators.BigQueryGetDataOperator
+  * airflow.gcp.operators.BigQueryOperator
+  * airflow.gcp.operators.BigQueryDeleteDatasetOperator
+  * airflow.gcp.operators.BigQueryCreateEmptyDatasetOperator
+  * airflow.gcp.operators.BigQueryTableDeleteOperator
+  * airflow.gcp.operators.GoogleCloudStorageCreateBucketOperator
+  * airflow.gcp.operators.GoogleCloudStorageListOperator
+  * airflow.gcp.operators.GoogleCloudStorageDownloadOperator
+  * airflow.gcp.operators.GoogleCloudStorageDeleteOperator
+  * airflow.gcp.operators.GoogleCloudStorageBucketCreateAclEntryOperator
+  * airflow.gcp.operators.GoogleCloudStorageObjectCreateAclEntryOperator
+  * airflow.operators.BaseSQLToGoogleCloudStorageOperator
+  * airflow.operators.AdlsToGoogleCloudStorageOperator
+  * airflow.operators.GoogleCloudStorageToS3Operator
+  * airflow.operators.GoogleCloudStorageToGoogleCloudStorageOperator
+  * airflow.operators.BigQueryToCloudStorageOperator
+  * airflow.operators.FileToGoogleCloudStorageOperator
+  * airflow.operators.CassandraToGoogleCloudStorageOperator
+  * airflow.operators.BigQueryToBigQueryOperator
+
 ### Changes to propagating Kubernetes worker annotations
 
 `kubernetes_annotations` configuration section has been removed. 
@@ -56,7 +90,6 @@ it should be rewritten to
 [kubernetes]
 worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
 ```
-
 
 ### Changes to import paths and names of GCP operators and hooks
 
