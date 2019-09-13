@@ -187,9 +187,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         else:
             return blob.download_as_string()
 
-    def upload(self, bucket_name: str, object_name: str, filename: str=None,
-               data: Union[str=None, bytes=None], mime_type: str=None, gzip: bool=False,
-               encoding: str='utf-8') -> None:
+    def upload(self, bucket_name: str, object_name: str, filename: str = None,
+               data: Union[str, bytes] = None, mime_type: str = None, gzip: bool = False,
+               encoding: str = 'utf-8') -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
         :param bucket_name: The bucket to upload to.

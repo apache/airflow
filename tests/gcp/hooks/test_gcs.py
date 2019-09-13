@@ -606,9 +606,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        upload_method = mock_service.return_value.get_bucket.return_value\
-            .blob.return_value.upload_from_filename
-
         self.gcs_hook.upload(test_bucket,
                              test_object,
                              filename=self.testfile.name,
@@ -657,7 +654,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_string
 
-        self.gcs_hook.upload(test_bucket,  
+        self.gcs_hook.upload(test_bucket,
                              test_object,
                              data=self.testdata_str,
                              gzip=True)
@@ -675,7 +672,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_string
 
-        self.gcs_hook.upload(test_bucket,  
+        self.gcs_hook.upload(test_bucket,
                              test_object,
                              data=self.testdata_bytes,
                              gzip=True)
@@ -695,14 +692,11 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         no_params_excep = """'filename' and 'data' parameter missing.
                              One is required to upload to gcs."""
 
-        upload_method = mock_service.return_value.get_bucket.return_value\
-            .blob.return_value.upload_from_string
-
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object)
         the_exception = cm.exception
-        self.assertEqual(no_params_excep, the_exception.message)        
-        
+        self.assertEqual(no_params_excep, the_exception.message)
+
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object,
                                  filename=self.testfile.name, data=self.testdata_str)
