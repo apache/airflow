@@ -591,7 +591,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_filename
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,
                              test_object,
@@ -609,7 +608,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_filename
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,
                              test_object,
@@ -624,7 +622,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,
                              test_object,
@@ -642,7 +639,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,
                              test_object,
@@ -660,7 +656,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_string
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,  
                              test_object,
@@ -679,7 +674,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_string
-        upload_method.return_value = None
 
         self.gcs_hook.upload(test_bucket,  
                              test_object,
@@ -703,7 +697,6 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 
         upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_string
-        upload_method.return_value = None
 
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object)

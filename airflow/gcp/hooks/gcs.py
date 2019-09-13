@@ -1,4 +1,4 @@
-i# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -187,7 +187,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         else:
             return blob.download_as_string()
 
-   
     def upload(self, bucket_name: str, object_name: str, filename: str=None,
                data: Union[str=None, bytes=None], mime_type: str=None, gzip: bool=False,
                encoding: str='utf-8') -> None:
