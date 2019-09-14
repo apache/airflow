@@ -23,6 +23,7 @@ import tempfile
 import unittest
 import copy
 from datetime import datetime
+import gzip as gz
 
 import dateutil
 from google.cloud import storage
@@ -650,8 +651,9 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
     def test_upload_data_str_gzip(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
+        encoding = 'utf-8'
 
-        upload_method = mock_service.return_value.get_bucket.return_value\
+        upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
 
         self.gcs_hook.upload(test_bucket,
@@ -659,9 +661,15 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_str,
                              gzip=True)
 
+        data = bytes(self.testdata_str, encoding)
+        out = io.BytesIO()
+        with gz.GzipFile(fileobj=out, mode="w") as f:
+            f.write(data)
+        data = out.getvalue()
+
         upload_method.assert_called_once_with(
-                self.testdata_str,
-                content_type='text/plain'
+            data,
+            content_type='text/plain'
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -669,7 +677,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        upload_method = mock_service.return_value.get_bucket.return_value\
+        upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
 
         self.gcs_hook.upload(test_bucket,
@@ -677,31 +685,35 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_bytes,
                              gzip=True)
 
+        data = self.testdata_bytes
+        out = io.BytesIO()
+        with gz.GzipFile(fileobj=out, mode="w") as f:
+            f.write(data)
+        data = out.getvalue()
+
         upload_method.assert_called_once_with(
-                self.testdata_bytes,
-                content_type='text/plain'
+            data,
+            content_type='text/plain'
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_upload_exceptions(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
-        both_params_excep = """'filename' and 'data' parameter provided. Please
-                               specify a single parameter, either 'filename' for
-                               local file uploads or 'data' for file content uploads."""
-        no_params_excep = """'filename' and 'data' parameter missing.
-                             One is required to upload to gcs."""
+        both_params_excep = "'filename' and 'data' parameter provided. Please " \
+                            "specify a single parameter, either 'filename' for " \
+                            "local file uploads or 'data' for file content uploads."
+        no_params_excep = "'filename' and 'data' parameter missing. " \
+                          "One is required to upload to gcs."
 
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object)
-        the_exception = cm.exception
-        self.assertEqual(no_params_excep, the_exception.message)
+        self.assertEqual(no_params_excep, str(cm.exception))
 
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object,
                                  filename=self.testfile.name, data=self.testdata_str)
-        the_exception = cm.exception
-        self.assertEqual(both_params_excep, the_exception.message)
+        self.assertEqual(both_params_excep, str(cm.exception))
 
 
 class TestSyncGcsHook(unittest.TestCase):
