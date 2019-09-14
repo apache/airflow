@@ -22,6 +22,7 @@ This module contains a Google Kubernetes Engine Hook.
 """
 
 import time
+import warnings
 from typing import Dict, Union, Optional
 
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -58,7 +59,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         self._client = None
         self.location = location
 
-    def get_client(self) -> container_v1.ClusterManagerClient:
+    def get_conn(self) -> container_v1.ClusterManagerClient:
         """
         Returns ClusterManagerCLinet object.
 
@@ -71,6 +72,13 @@ class GKEClusterHook(GoogleCloudBaseHook):
                 client_info=self.client_info
             )
         return self._client
+
+    # To preserve backward compatibility
+    # TODO: remove one day
+    def get_client(self) -> container_v1.ClusterManagerClient:  # pylint: disable=missing-docstring
+        warnings.warn("The get_client method has been deprecated. "
+                      "You should use the get_conn method.", DeprecationWarning)
+        return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
         """
@@ -106,9 +114,9 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: The new, updated operation from Google Cloud
         """
-        return self.get_client().get_operation(project_id=project_id or self.project_id,
-                                               zone=self.location,
-                                               operation_id=operation_name)
+        return self.get_conn().get_operation(project_id=project_id or self.project_id,
+                                             zone=self.location,
+                                             operation_id=operation_name)
 
     @staticmethod
     def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
@@ -166,11 +174,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
         )
 
         try:
-            resource = self.get_client().delete_cluster(project_id=project_id or self.project_id,
-                                                        zone=self.location,
-                                                        cluster_id=name,
-                                                        retry=retry,
-                                                        timeout=timeout)
+            resource = self.get_conn().delete_cluster(project_id=project_id or self.project_id,
+                                                      zone=self.location,
+                                                      cluster_id=name,
+                                                      retry=retry,
+                                                      timeout=timeout)
             resource = self.wait_for_operation(resource)
             # Returns server-defined url for the resource
             return resource.self_link
@@ -224,11 +232,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.project_id, self.location, cluster.name
         )
         try:
-            resource = self.get_client().create_cluster(project_id=project_id or self.project_id,
-                                                        zone=self.location,
-                                                        cluster=cluster,
-                                                        retry=retry,
-                                                        timeout=timeout)
+            resource = self.get_conn().create_cluster(project_id=project_id or self.project_id,
+                                                      zone=self.location,
+                                                      cluster=cluster,
+                                                      retry=retry,
+                                                      timeout=timeout)
             resource = self.wait_for_operation(resource)
 
             return resource.target_link
@@ -265,8 +273,8 @@ class GKEClusterHook(GoogleCloudBaseHook):
             project_id or self.project_id, self.location, name
         )
 
-        return self.get_client().get_cluster(project_id=project_id or self.project_id,
-                                             zone=self.location,
-                                             cluster_id=name,
-                                             retry=retry,
-                                             timeout=timeout).self_link
+        return self.get_conn().get_cluster(project_id=project_id or self.project_id,
+                                           zone=self.location,
+                                           cluster_id=name,
+                                           retry=retry,
+                                           timeout=timeout).self_link
