@@ -416,9 +416,9 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GcpTransferServiceOperationsListOperator`
 
-    :param filter: (Required) A request filter, as described in
+    :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
-    :type filter: dict
+    :type request_filter: dict
     :param gcp_conn_id: The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
