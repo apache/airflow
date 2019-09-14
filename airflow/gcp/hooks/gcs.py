@@ -64,8 +64,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
              destination_object=None):
         """
         Copies an object from a bucket to another, with renaming if requested.
+
         destination_bucket or destination_object can be omitted, in which case
         source bucket/object is used, but not both.
+
         :param source_bucket: The bucket of the object to copy from.
         :type source_bucket: str
         :param source_object: The object to copy.
@@ -109,7 +111,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Has the same functionality as copy, except that will work on files
         over 5 TB, as well as when copying between locations and/or storage
         classes.
+
         destination_object can be omitted, in which case source_object is used.
+
         :param source_bucket: The bucket of the object to copy from.
         :type source_bucket: str
         :param source_object: The object to copy.
@@ -158,10 +162,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def download(self, bucket_name, object_name, filename=None):
         """
         Downloads a file from Google Cloud Storage.
+
         When no filename is supplied, the operator loads the file into memory and returns its
         content. When a filename is supplied, it writes the file to the specified location and
         returns the location. For file sizes that exceed the available memory it is recommended
         to write to a file.
+
         :param bucket_name: The bucket to fetch from.
         :type bucket_name: str
         :param object_name: The object to fetch.
@@ -185,6 +191,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                encoding: str = 'utf-8') -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
+
         :param bucket_name: The bucket to upload to.
         :type bucket_name: str
         :param object_name: The object name to set when uploading the file.
@@ -199,9 +206,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type gzip: bool
         :param encoding: bytes encoding for file data if provided as string
         :type encoding: str
-        :return: none
-        :rtype: None
-        :raises ValueError: if filename and data param are both provided or missing
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -246,6 +250,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def exists(self, bucket_name, object_name):
         """
         Checks for the existence of a file in Google Cloud Storage.
+
         :param bucket_name: The Google cloud storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the blob_name to check in the Google cloud
@@ -260,6 +265,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def is_updated_after(self, bucket_name, object_name, ts):
         """
         Checks if an blob_name is updated in Google Cloud Storage.
+
         :param bucket_name: The Google cloud storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
@@ -294,6 +300,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def delete(self, bucket_name, object_name):
         """
         Deletes an object from the bucket.
+
         :param bucket_name: name of the bucket, where the object resides
         :type bucket_name: str
         :param object_name: name of the object to delete
@@ -309,6 +316,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None):
         """
         List all objects from the bucket with the give string prefix in name
+
         :param bucket_name: bucket name
         :type bucket_name: str
         :param versions: if true, list all versions of the objects
@@ -355,11 +363,13 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_size(self, bucket_name, object_name):
         """
         Gets the size of a file in Google Cloud Storage.
+
         :param bucket_name: The Google cloud storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google
             cloud storage bucket_name.
         :type object_name: str
+
         """
         self.log.info('Checking the file size of object: %s in bucket_name: %s',
                       object_name,
@@ -374,6 +384,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_crc32c(self, bucket_name, object_name):
         """
         Gets the CRC32c checksum of an object in Google Cloud Storage.
+
         :param bucket_name: The Google cloud storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
@@ -392,6 +403,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_md5hash(self, bucket_name, object_name):
         """
         Gets the MD5 hash of an object in Google Cloud Storage.
+
         :param bucket_name: The Google cloud storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
@@ -420,9 +432,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Creates a new bucket. Google Cloud Storage uses a flat namespace, so
         you can't create a bucket with a name that is already in use.
+
         .. seealso::
             For more information, see Bucket Naming Guidelines:
             https://cloud.google.com/storage/docs/bucketnaming.html#requirements
+
         :param bucket_name: The name of the bucket.
         :type bucket_name: str
         :param resource: An optional dict with parameters for creating the bucket.
@@ -431,19 +445,23 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type resource: dict
         :param storage_class: This defines how objects in the bucket are stored
             and determines the SLA and the cost of storage. Values include
+
             - ``MULTI_REGIONAL``
             - ``REGIONAL``
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
         :type storage_class: str
         :param location: The location of the bucket.
             Object data for objects in the bucket resides in physical storage
             within this region. Defaults to US.
+
             .. seealso::
                 https://developers.google.com/storage/docs/bucket-locations
+
         :type location: str
         :param project_id: The ID of the GCP Project.
         :type project_id: str
@@ -476,6 +494,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Creates a new ACL entry on the specified bucket_name.
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
+
         :param bucket_name: Name of a bucket_name.
         :type bucket_name: str
         :param entity: The entity holding the permission, in one of the following forms:
@@ -505,6 +524,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Creates a new ACL entry on the specified object.
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
+
         :param bucket_name: Name of a bucket_name.
         :type bucket_name: str
         :param object_name: Name of the object. For information about how to URL encode
@@ -543,9 +563,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def compose(self, bucket_name, source_objects, destination_object):
         """
         Composes a list of existing object into a new object in the same storage bucket_name
+
         Currently it only supports up to 32 objects that can be concatenated
         in a single operation
+
         https://cloud.google.com/storage/docs/json_api/v1/objects/compose
+
         :param bucket_name: The name of the bucket containing the source objects.
             This is also the same bucket to store the composed destination object.
         :type bucket_name: str
@@ -586,12 +609,15 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     ):
         """
         Synchronizes the contents of the buckets.
+
         Parameters ``source_object`` and ``destination_object`` describe the root sync directories. If they
         are not passed, the entire bucket will be synchronized. If they are passed, they should point
         to directories.
+
         .. note::
             The synchronization of individual files is not supported. Only entire directories can be
             synchronized.
+
         :param source_bucket: The name of the bucket containing the source objects.
         :type source_bucket: str
         :param destination_bucket: The name of the bucket containing the destination objects.
@@ -609,8 +635,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type allow_overwrite: bool
         :param delete_extra_files: if True, deletes additional files from the source that not found in the
             destination. By default extra files are not deleted.
+
             .. note::
                 This option can delete data quickly if you specify the wrong source/destination combination.
+
         :type delete_extra_files: bool
         :return: none
         """
