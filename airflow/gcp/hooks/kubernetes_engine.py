@@ -22,6 +22,7 @@ This module contains a Google Kubernetes Engine Hook.
 """
 
 import time
+import warnings
 from typing import Dict, Union, Optional
 
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -71,6 +72,13 @@ class GKEClusterHook(GoogleCloudBaseHook):
                 client_info=self.client_info
             )
         return self._client
+
+    # To preserve backward compatibility
+    # TODO: remove one day
+    def get_client(self) -> container_v1.ClusterManagerClient:  # pylint: disable=missing-docstring
+        warnings.warn("The get_client method has been deprecated. "
+                      "You should use the get_conn method.", DeprecationWarning)
+        return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
         """
