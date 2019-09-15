@@ -46,7 +46,12 @@ class PodDefaults:
         name=SIDECAR_CONTAINER_NAME,
         command=['sh', '-c', XCOM_CMD],
         image='alpine',
-        volume_mounts=[VOLUME_MOUNT]
+        volume_mounts=[VOLUME_MOUNT],
+        resources=k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+            }
+        ),
     )
 
 
