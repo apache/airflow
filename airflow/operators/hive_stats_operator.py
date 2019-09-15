@@ -113,7 +113,6 @@ class HiveStatsCollectionOperator(BaseOperator):
             ('', 'count'): 'COUNT(*)'
         }
         for col, col_type in list(field_types.items()):
-            d = {}
             if self.assignment_func:
                 d = self.assignment_func(col, col_type)
                 if d is None:
