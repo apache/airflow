@@ -407,7 +407,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
 
         elif self.custom_image:
-            project_id = self.custom_image_project_id if (self.custom_image_project_id) else self.project_id
+            project_id = self.custom_image_project_id if self.custom_image_project_id else self.project_id
             custom_image_url = 'https://www.googleapis.com/compute/beta/projects/' \
                                '{}/global/images/{}'.format(project_id,
                                                             self.custom_image)
