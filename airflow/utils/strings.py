@@ -28,4 +28,4 @@ def get_random_string(length=8, choices=string.ascii_letters + string.digits):
     '''
     Generate random string
     '''
-    return ''.join([choice(choices) for i in range(length)])
+    return ''.join([choice(choices) for _ in range(length)])
