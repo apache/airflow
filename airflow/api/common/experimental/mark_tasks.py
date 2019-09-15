@@ -74,7 +74,7 @@ def set_state(
     for past tasks. Will verify integrity of past dag runs in order to create
     tasks that did not exist. It will not create dag runs that are missing
     on the schedule (but it will as for subdag dag runs if needed).
-    :param task: the task from which to work. task.task.dag needs to be set
+    :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
     :param execution_date: the execution date from which to start looking
     :param upstream: Mark all parents (upstream tasks)
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
