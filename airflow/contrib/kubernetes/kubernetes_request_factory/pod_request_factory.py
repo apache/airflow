@@ -98,6 +98,9 @@ spec:
       volumeMounts:
         - name: xcom
           mountPath: {xcomMountPath}
+      resources:
+        requests:
+          cpu: 1m
   restartPolicy: Never
     """.format(xcomMountPath=XCOM_MOUNT_PATH, sidecarContainerName=SIDECAR_CONTAINER_NAME)
 

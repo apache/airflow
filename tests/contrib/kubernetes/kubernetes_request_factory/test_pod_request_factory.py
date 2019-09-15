@@ -161,7 +161,8 @@ class TestPodRequestFactory(unittest.TestCase):
                     'name': 'xcom',
                     'mountPath': '/airflow/xcom'
                 }
-            ]
+            ],
+            'resources': {'requests': {'cpu': '1m'}},
         }
         self.expected['spec']['containers'].append(container_two)
         self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {
