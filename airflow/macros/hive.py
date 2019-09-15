@@ -93,6 +93,10 @@ def closest_ds_partition(
     :type ds: list[datetime.date]
     :param before: closest before (True), after (False) or either side of ds
     :type before: bool or None
+    :param schema: table schema
+    :type schema: str
+    :param metastore_conn_id: which matastore connection to use
+    :type metastore_conn_id: str
     :returns: The closest date
     :rtype: str or None
 
