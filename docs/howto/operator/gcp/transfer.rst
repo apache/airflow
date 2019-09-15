@@ -24,6 +24,11 @@ Google Cloud Transfer Service Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcpTransferServiceJobCreateOperator:
 
 GcpTransferServiceJobCreateOperator

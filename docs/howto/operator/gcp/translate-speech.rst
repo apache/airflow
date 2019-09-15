@@ -39,6 +39,11 @@ Google Cloud Speech Translate Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcpTranslateSpeechOperator:
 
 GcpTranslateSpeechOperator
