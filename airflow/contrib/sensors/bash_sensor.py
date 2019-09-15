@@ -81,7 +81,6 @@ class BashSensor(BaseSensorOperator):
                 self.sp = sp
 
                 self.log.info("Output:")
-                line = ''
                 for line in iter(sp.stdout.readline, b''):
                     line = line.decode(self.output_encoding).strip()
                     self.log.info(line)
