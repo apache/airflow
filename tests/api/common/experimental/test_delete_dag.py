@@ -21,7 +21,7 @@ import unittest
 
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
-from airflow.exceptions import DagNotFound, DagFileExists
+from airflow.exceptions import DagNotFound
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session
@@ -48,28 +48,6 @@ class TestDeleteDAGCatchError(unittest.TestCase):
     def test_delete_dag_non_existent_dag(self):
         with self.assertRaises(DagNotFound):
             delete_dag("non-existent DAG")
-
-    def test_delete_dag_dag_still_in_dagbag(self):
-        with create_session() as session:
-            models_to_check = ['DagModel', 'DagRun', 'TaskInstance']
-            record_counts = {}
-
-            for model_name in models_to_check:
-                m = getattr(models, model_name)
-                record_counts[model_name] = session.query(m).filter(m.dag_id == self.dag_id).count()
-
-            with self.assertRaises(DagFileExists):
-                delete_dag(self.dag_id)
-
-            # No change should happen in DB
-            for model_name in models_to_check:
-                m = getattr(models, model_name)
-                self.assertEqual(
-                    session.query(m).filter(
-                        m.dag_id == self.dag_id
-                    ).count(),
-                    record_counts[model_name]
-                )
 
 
 class TestDeleteDAGSuccessfulDelete(unittest.TestCase):

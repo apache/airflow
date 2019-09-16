@@ -43,7 +43,7 @@ from time import sleep
 from bs4 import BeautifulSoup
 
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable, TaskInstance
+from airflow.models import DagModel, Variable, TaskInstance
 
 
 from airflow import jobs, models, DAG, utils, settings, exceptions
@@ -1485,6 +1485,19 @@ class CliTests(unittest.TestCase):
                 'does_not_exist_dag',
                 '--yes'])
         )
+
+    def test_delete_dag_existing_file(self):
+        # Test to check that the DAG should be deleted even if
+        # the file containing it is not deleted
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        with tempfile.NamedTemporaryFile() as f:
+            session.add(DM(dag_id=key, fileloc=f.name))
+            session.commit()
+            cli.delete_dag(self.parser.parse_args([
+                'delete_dag', key, '--yes']))
+            self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
 
     def test_pool_create(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
