@@ -30,7 +30,7 @@ JOB = 'test-job'
 GCP_REGION = 'global'
 TASK_ID = 'test-task-id'
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 DATAPROC_STRING = 'airflow.gcp.hooks.dataproc.{}'
 
 

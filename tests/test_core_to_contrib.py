@@ -141,6 +141,10 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
                 "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
             ),
+            (
+                "airflow.gcp.hooks.base.GoogleCloudBaseHook",
+                "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
+            ),
         ]
     )
     def test_hooks_paths(self, new_path: str, old_path: str):

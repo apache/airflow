@@ -45,7 +45,7 @@ from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException, LoggingMixin
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"

@@ -58,7 +58,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -83,7 +83,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -104,7 +104,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -127,7 +127,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -155,7 +155,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -242,7 +242,7 @@ class TestGKEClusterHook(unittest.TestCase):
 
     @mock.patch('airflow.gcp.hooks.kubernetes_engine.container_v1.'
                 'ClusterManagerClient')
-    @mock.patch('airflow.contrib.hooks.gcp_api_base_hook.ClientInfo')
+    @mock.patch('airflow.gcp.hooks.base.ClientInfo')
     @mock.patch('airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._get_credentials')
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None

@@ -30,7 +30,7 @@ from typing import Dict, List, Union, Set, Optional
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10

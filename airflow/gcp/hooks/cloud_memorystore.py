@@ -29,7 +29,7 @@ from google.cloud.redis_v1 import CloudRedisClient
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudMemorystoreHook(GoogleCloudBaseHook):

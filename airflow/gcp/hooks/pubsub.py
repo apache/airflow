@@ -25,7 +25,7 @@ from uuid import uuid4
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 def _format_subscription(project, subscription):

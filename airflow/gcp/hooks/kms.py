@@ -28,7 +28,7 @@ from typing import Optional, Sequence, Tuple
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 def _b64encode(s: bytes) -> str:

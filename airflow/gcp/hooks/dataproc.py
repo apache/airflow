@@ -29,7 +29,7 @@ from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version
 

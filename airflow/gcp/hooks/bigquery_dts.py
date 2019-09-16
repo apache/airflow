@@ -32,7 +32,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
     TransferRun,
 )
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 def get_object_id(obj: dict) -> str:

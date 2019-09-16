@@ -41,7 +41,7 @@ from google.cloud.dlp_v2.types import (ByteContentItem, ContentItem,
                                        StoredInfoTypeConfig)
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 # Time to sleep between active checks of the operation results

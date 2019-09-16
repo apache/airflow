@@ -25,7 +25,7 @@ from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
 from google.cloud.speech_v1.types import RecognitionConfig, RecognitionAudio
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class GCPSpeechToTextHook(GoogleCloudBaseHook):

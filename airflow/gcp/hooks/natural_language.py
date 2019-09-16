@@ -35,7 +35,7 @@ from google.cloud.language_v1.types import (
 )
 from google.cloud.language_v1 import enums
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 # noinspection PyAbstractClass

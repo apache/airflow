@@ -26,7 +26,7 @@ from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
 from google.api_core.operation import Operation
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
