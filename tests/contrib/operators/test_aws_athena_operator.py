@@ -53,7 +53,6 @@ class TestAWSAthenaOperator(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
 
         self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once',

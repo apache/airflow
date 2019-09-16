@@ -43,6 +43,7 @@ TABLE_INPUT = {
     }
 }
 
+
 @unittest.skipIf(mock_glue is None,
                  "Skipping test because moto.mock_glue is not available")
 class TestAwsGlueCatalogHook(unittest.TestCase):
@@ -96,7 +97,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
                                      page_size=2,
                                      max_items=3)
 
-        self.assertEqual(result, set([('2015-01-01',)]))
+        self.assertEqual(result, {('2015-01-01',)})
         mock_conn.get_paginator.assert_called_once_with('get_partitions')
         mock_paginator.paginate.assert_called_once_with(DatabaseName='db',
                                                         TableName='tbl',
@@ -108,7 +109,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'get_partitions')
     def test_check_for_partition(self, mock_get_partitions):
-        mock_get_partitions.return_value = set([('2018-01-01',)])
+        mock_get_partitions.return_value = {('2018-01-01',)}
         hook = AwsGlueCatalogHook(region_name="us-east-1")
 
         self.assertTrue(hook.check_for_partition('db', 'tbl', 'expr'))

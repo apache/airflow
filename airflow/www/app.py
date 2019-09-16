@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Optional
 import logging
 import socket
 
@@ -26,17 +27,17 @@ from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from typing import Any
 from urllib.parse import urlparse
-from werkzeug.contrib.fixers import ProxyFix
-from werkzeug.wsgi import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import settings
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any
-appbuilder = None
+appbuilder = None  # type: Optional[AppBuilder]
 csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)
@@ -46,7 +47,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=None,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=1
+        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
@@ -72,8 +81,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     api.load_auth()
     api.API_AUTH.api_auth.init_app(app)
 
-    # flake8: noqa: F841
-    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     from airflow.www.blueprints import routes
     app.register_blueprint(routes)
@@ -82,7 +90,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-
         from airflow.www.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
             AirflowSecurityManager
@@ -100,6 +107,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         def init_views(appbuilder):
             from airflow.www import views
+            # Remove the session from scoped_session registry to avoid
+            # reusing a session with a disconnected connection
+            appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())
@@ -195,14 +205,23 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
         @app.context_processor
-        def jinja_globals():
-            return {
+        def jinja_globals():  # pylint: disable=unused-variable
+
+            globals = {
                 'hostname': socket.getfqdn(),
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
+            if 'analytics_tool' in conf.getsection('webserver'):
+                globals.update({
+                    'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
+                    'analytics_id': conf.get('webserver', 'ANALYTICS_ID')
+                })
+
+            return globals
+
         @app.teardown_appcontext
-        def shutdown_session(exception=None):
+        def shutdown_session(exception=None):  # pylint: disable=unused-variable
             settings.Session.remove()
 
     return app, appbuilder

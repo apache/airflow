@@ -44,9 +44,15 @@ def upgrade():
 
     conn = op.get_bind()
 
-    # alembic creates an invalid SQL for mssql dialect
-    if conn.dialect.name not in ('mssql'):
-        columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
+    # alembic creates an invalid SQL for mssql and mysql dialects
+    if conn.dialect.name in ("mysql"):
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id")
+        )
+    elif conn.dialect.name not in ("mssql"):
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
+        )
 
     table = op.create_table(
         RESOURCE_TABLE,

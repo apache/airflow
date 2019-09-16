@@ -17,18 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains AWS SQS hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 class SQSHook(AwsHook):
     """
-    Get the SQS client using boto3 library
-
-    :return: SQS client
-    :rtype: botocore.client.SQS
+    Interact with Amazon Simple Queue Service.
     """
 
     def get_conn(self):
+        """
+        Get the SQS client using boto3 library
+
+        :return: SQS client
+        :rtype: botocore.client.SQS
+        """
         return self.get_client_type('sqs')
 
     def create_queue(self, queue_name, attributes=None):

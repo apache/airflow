@@ -26,7 +26,7 @@ from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
 
-class ValidStateDepTest(unittest.TestCase):
+class TestValidStateDep(unittest.TestCase):
 
     def test_valid_state(self):
         """

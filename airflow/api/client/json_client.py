@@ -44,7 +44,7 @@ class Client(api_client.Client):
                 data = resp.json()
             except Exception:  # pylint: disable=broad-except
                 data = {}
-            raise IOError(data.get('error', 'Server error'))
+            raise OSError(data.get('error', 'Server error'))
 
         return resp.json()
 

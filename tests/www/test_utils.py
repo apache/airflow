@@ -27,7 +27,7 @@ from bs4 import BeautifulSoup
 from airflow.www import utils
 
 
-class UtilsTest(unittest.TestCase):
+class TestUtils(unittest.TestCase):
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -135,14 +135,14 @@ class UtilsTest(unittest.TestCase):
         with mock.patch(
                 'io.open', mock.mock_open(read_data="data")) as mock_file:
             utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
+            mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
         path = '/path/to/fakearchive.zip.other/file.txt'
         with mock.patch(
                 'io.open', mock.mock_open(read_data="data")) as mock_file:
             utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
+            mock_file.assert_called_once_with(path, mode='r')
 
     @mock.patch("zipfile.is_zipfile")
     @mock.patch("zipfile.ZipFile")
@@ -212,13 +212,13 @@ class UtilsTest(unittest.TestCase):
         self.assertNotIn('<b2>', html)
 
 
-class AttrRendererTest(unittest.TestCase):
+class TestAttrRenderer(unittest.TestCase):
 
     def setUp(self):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable(self):
+        def example_callable(unused_self):
             print("example")
         rendered = self.attr_renderer["python_callable"](example_callable)
         self.assertIn('&quot;example&quot;', rendered)

@@ -35,12 +35,12 @@ import signal
 
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
@@ -90,18 +90,6 @@ def ask_yesno(question):
             return False
         else:
             print("Please respond by yes or no.")
-
-
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
 
 
 def is_container(obj):
@@ -294,7 +282,11 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     if pid == os.getpid():
         raise RuntimeError("I refuse to kill myself")
 
-    parent = psutil.Process(pid)
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        # Race condition - the process already exited
+        return
 
     children = parent.children(recursive=True)
     children.append(parent)
@@ -308,15 +300,25 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         raise
 
     log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
+    try:
+        os.killpg(os.getpgid(pid), sig)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            return
+        raise
 
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except OSError as err:
+            if err.errno == errno.ESRCH:
+                return
+            raise
 
         gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
@@ -351,3 +353,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

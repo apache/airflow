@@ -74,7 +74,7 @@ def set_state(
     for past tasks. Will verify integrity of past dag runs in order to create
     tasks that did not exist. It will not create dag runs that are missing
     on the schedule (but it will as for subdag dag runs if needed).
-    :param task: the task from which to work. task.task.dag needs to be set
+    :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
     :param execution_date: the execution date from which to start looking
     :param upstream: Mark all parents (upstream tasks)
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
@@ -251,6 +251,11 @@ def get_execution_dates(dag, execution_date, future, past):
     start_date = execution_date if not past else start_date
     if dag.schedule_interval == '@once':
         dates = [start_date]
+    elif not dag.schedule_interval:
+        # If schedule_interval is None, need to look at existing DagRun if the user wants future or
+        # past runs.
+        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
+        dates = sorted({d.execution_date for d in dag_runs})
     else:
         dates = dag.date_range(start_date=start_date, end_date=end_date)
     return dates

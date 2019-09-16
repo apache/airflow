@@ -40,7 +40,7 @@ class JSONFormatter(logging.Formatter):
     """
     # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
-        super(JSONFormatter, self).__init__(fmt, datefmt, style)
+        super().__init__(fmt, datefmt, style)
         if extras is None:
             extras = {}
         if json_fields is None:
@@ -49,7 +49,7 @@ class JSONFormatter(logging.Formatter):
         self.extras = extras
 
     def format(self, record):
-        super(JSONFormatter, self).format(record)
+        super().format(record)
         record_dict = {label: getattr(record, label, None)
                        for label in self.json_fields}
         merged_record = merge_dicts(record_dict, self.extras)

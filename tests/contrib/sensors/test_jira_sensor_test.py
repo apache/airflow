@@ -81,7 +81,7 @@ class TestJiraSensor(unittest.TestCase):
         self.assertTrue(jira_mock.return_value.issue.called)
 
     @staticmethod
-    def field_checker_func(context, issue):
+    def field_checker_func(context, issue):  # pylint: disable=unused-argument
         return "test-label-1" in issue['fields']['labels']
 
 
