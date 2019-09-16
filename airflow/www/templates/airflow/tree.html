@@ -82,14 +82,15 @@
 <script>
 $('span.status_square').tooltip({html: true});
 
+var devicePixelRatio = window.devicePixelRatio || 1;
 var data = {{ data|tojson|safe }};
 var barHeight = 20;
 var axisHeight = 40;
-var square_x = 500;
+var square_x = parseInt(500 * devicePixelRatio);
 var square_size = 10;
 var square_spacing = 2;
 var margin = {top: barHeight/2 + axisHeight, right: 0, bottom: 0, left: barHeight/2},
-    width = 960 - margin.left - margin.right,
+    width = parseInt(960 * devicePixelRatio) - margin.left - margin.right,
     barWidth = width * 0.9;
 
 var i = 0,
