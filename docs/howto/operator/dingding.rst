@@ -79,7 +79,6 @@ or ``on_retry_callback``. Here we use ``on_failure_callback`` as an example:
 
 .. exampleinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_dingding_failure_callback]
     :end-before: [END howto_operator_dingding_failure_callback]
 
