@@ -170,11 +170,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
         """
 
         self.log.info(
-            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", self.project_id, self.location, name
+            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", project_id, self.location, name
         )
 
         try:
-            resource = self.get_conn().delete_cluster(project_id=project_id or self.project_id,
+            resource = self.get_conn().delete_cluster(project_id=project_id,
                                                       zone=self.location,
                                                       cluster_id=name,
                                                       retry=retry,
@@ -229,10 +229,10 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         self.log.info(
             "Creating (project_id=%s, zone=%s, cluster_name=%s)",
-            self.project_id, self.location, cluster.name
+            project_id, self.location, cluster.name
         )
         try:
-            resource = self.get_conn().create_cluster(project_id=project_id or self.project_id,
+            resource = self.get_conn().create_cluster(project_id=project_id,
                                                       zone=self.location,
                                                       cluster=cluster,
                                                       retry=retry,
@@ -273,7 +273,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             project_id or self.project_id, self.location, name
         )
 
-        return self.get_conn().get_cluster(project_id=project_id or self.project_id,
+        return self.get_conn().get_cluster(project_id=project_id,
                                            zone=self.location,
                                            cluster_id=name,
                                            retry=retry,
