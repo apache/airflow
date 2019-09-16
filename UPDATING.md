@@ -48,31 +48,31 @@ which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_
 ``google_cloud_storage_conn_id`` and similar have been deprecated.
 
 Following components were affected by normalization:
-  * airflow.gcp.hooks.DatastoreHook
-  * airflow.gcp.hooks.BigQueryHook
-  * airflow.gcp.hooks.GoogleCloudStorageHook
-  * airflow.gcp.operators.BigQueryCheckOperator
-  * airflow.gcp.operators.BigQueryValueCheckOperator
-  * airflow.gcp.operators.BigQueryIntervalCheckOperator
-  * airflow.gcp.operators.BigQueryGetDataOperator
-  * airflow.gcp.operators.BigQueryOperator
-  * airflow.gcp.operators.BigQueryDeleteDatasetOperator
-  * airflow.gcp.operators.BigQueryCreateEmptyDatasetOperator
-  * airflow.gcp.operators.BigQueryTableDeleteOperator
-  * airflow.gcp.operators.GoogleCloudStorageCreateBucketOperator
-  * airflow.gcp.operators.GoogleCloudStorageListOperator
-  * airflow.gcp.operators.GoogleCloudStorageDownloadOperator
-  * airflow.gcp.operators.GoogleCloudStorageDeleteOperator
-  * airflow.gcp.operators.GoogleCloudStorageBucketCreateAclEntryOperator
-  * airflow.gcp.operators.GoogleCloudStorageObjectCreateAclEntryOperator
-  * airflow.operators.BaseSQLToGoogleCloudStorageOperator
-  * airflow.operators.AdlsToGoogleCloudStorageOperator
-  * airflow.operators.GoogleCloudStorageToS3Operator
-  * airflow.operators.GoogleCloudStorageToGoogleCloudStorageOperator
-  * airflow.operators.BigQueryToCloudStorageOperator
-  * airflow.operators.FileToGoogleCloudStorageOperator
-  * airflow.operators.CassandraToGoogleCloudStorageOperator
-  * airflow.operators.BigQueryToBigQueryOperator
+  * airflow.gcp.hooks.datastore.DatastoreHook
+  * airflow.gcp.hooks.bigquery.BigQueryHook
+  * airflow.gcp.hooks.gcs.GoogleCloudStorageHook
+  * airflow.gcp.operators.bigquery.BigQueryCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryValueCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryGetDataOperator
+  * airflow.gcp.operators.bigquery.BigQueryOperator
+  * airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageListOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator
+  * airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator
+  * airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+  * airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
+  * airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+  * airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator
+  * airflow.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
 
 ### Changes to propagating Kubernetes worker annotations
 

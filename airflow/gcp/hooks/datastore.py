@@ -51,7 +51,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         if datastore_conn_id:
             warnings.warn(
                 "The datastore_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning)
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = datastore_conn_id
         super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.connection = None

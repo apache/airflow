@@ -89,7 +89,7 @@ class BigQueryCheckOperator(CheckOperator):
                  use_legacy_sql: bool = True,
                  *args, **kwargs) -> None:
         super().__init__(sql=sql, *args, **kwargs)
-        if not bigquery_conn_id:
+        if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
