@@ -566,6 +566,15 @@ class DataProcHook(GoogleCloudBaseHook):
         )
 
     def get_final_cluster_state(self, project_id, region, cluster_name, logger):
+        """
+        Poll for the state of a cluster until one is available
+
+        :param project_id:
+        :param region:
+        :param cluster_name:
+        :param logger:
+        :return:
+        """
         while True:
             state = DataProcHook.get_cluster_state(self.get_conn(), project_id, region, cluster_name)
             if state is None:
@@ -577,6 +586,14 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def get_cluster_state(service, project_id, region, cluster_name):
+        """
+        Get the state of a cluster if it has one, otherwise None
+        :param service:
+        :param project_id:
+        :param region:
+        :param cluster_name:
+        :return:
+        """
         cluster = DataProcHook.find_cluster(service, project_id, region, cluster_name)
         if cluster and 'status' in cluster:
             return cluster['status']['state']
@@ -585,6 +602,14 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def find_cluster(service, project_id, region, cluster_name):
+        """
+        Retrieve a cluster from the project/region if it exists, otherwise None
+        :param service:
+        :param project_id:
+        :param region:
+        :param cluster_name:
+        :return:
+        """
         cluster_list = DataProcHook.get_cluster_list_for_project(service, project_id, region)
         cluster = [c for c in cluster_list if c['clusterName'] == cluster_name]
         if cluster:
@@ -593,6 +618,13 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def get_cluster_list_for_project(service, project_id, region):
+        """
+        List all clusters for a given project/region, an empty list if none exist
+        :param service:
+        :param project_id:
+        :param region:
+        :return:
+        """
         result = service.projects().regions().clusters().list(
             projectId=project_id,
             region=region
@@ -601,6 +633,15 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def execute_dataproc_diagnose(service, project_id, region, cluster_name):
+        """
+        Execute the diagonse command against a given cluster, useful to get debugging
+        information if something has gone wrong or cluster creation failed.
+        :param service:
+        :param project_id:
+        :param region:
+        :param cluster_name:
+        :return:
+        """
         response = service.projects().regions().clusters().diagnose(
             projectId=project_id,
             region=region,
@@ -612,6 +653,14 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def execute_delete(service, project_id, region, cluster_name):
+        """
+        Delete a specified cluster
+        :param service:
+        :param project_id:
+        :param region:
+        :param cluster_name:
+        :return: The identifier of the operation being executed
+        """
         response = service.projects().regions().clusters().delete(
             projectId=project_id,
             region=region,
@@ -621,8 +670,13 @@ class DataProcHook(GoogleCloudBaseHook):
         return operation_name
 
     @staticmethod
-    # Return the response object when done
     def wait_for_operation_done(service, operation_name):
+        """
+        Poll for the completion of a specific GCP operation
+        :param service:
+        :param operation_name:
+        :return: The response code of the completed operation
+        """
         while True:
             response = service.projects().regions().operations().get(
                 name=operation_name
@@ -634,7 +688,13 @@ class DataProcHook(GoogleCloudBaseHook):
 
     @staticmethod
     def wait_for_operation_done_or_error(service, operation_name):
-
+        """
+        Block until the specified operation is done. Throws an AirflowException if
+        the operation completed but had an error
+        :param service:
+        :param operation_name:
+        :return:
+        """
         response = DataProcHook.wait_for_operation_done(service, operation_name)
         if response.get('done'):
             if 'error' in response:
