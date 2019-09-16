@@ -141,6 +141,10 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
                 "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
             ),
+            (
+                "airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook",
+                "airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook",
+            ),
         ]
     )
     def test_hooks_paths(self, new_path: str, old_path: str):
@@ -750,6 +754,10 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
                 "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
+            ),
+            (
+                "airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer",
+                "airflow.contrib.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer",
             ),
         ]
     )

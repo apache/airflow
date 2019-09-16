@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch, Mock
 
 from airflow import configuration, models
-from airflow.contrib.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
+from airflow.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils import db
 
@@ -65,9 +65,9 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
             'dag': None
         }
 
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.S3Hook.load_string')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.json.dumps')
+    @patch('airflow.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
+    @patch('airflow.operators.google_api_to_s3_transfer.S3Hook.load_string')
+    @patch('airflow.operators.google_api_to_s3_transfer.json.dumps')
     def test_execute(self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query):
         context = {'task_instance': Mock()}
 
@@ -88,9 +88,9 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
         context['task_instance'].xcom_pull.assert_not_called()
         context['task_instance'].xcom_push.assert_not_called()
 
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.S3Hook.load_string')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.json.dumps')
+    @patch('airflow.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
+    @patch('airflow.operators.google_api_to_s3_transfer.S3Hook.load_string')
+    @patch('airflow.operators.google_api_to_s3_transfer.json.dumps')
     def test_execute_with_xcom(self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query):
         context = {'task_instance': Mock()}
         xcom_kwargs = {
@@ -123,10 +123,10 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
             value=mock_google_api_hook_query.return_value
         )
 
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.S3Hook.load_string')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.json.dumps')
-    @patch('airflow.contrib.operators.google_api_to_s3_transfer.sys.getsizeof', return_value=MAX_XCOM_SIZE)
+    @patch('airflow.operators.google_api_to_s3_transfer.GoogleDiscoveryApiHook.query')
+    @patch('airflow.operators.google_api_to_s3_transfer.S3Hook.load_string')
+    @patch('airflow.operators.google_api_to_s3_transfer.json.dumps')
+    @patch('airflow.operators.google_api_to_s3_transfer.sys.getsizeof', return_value=MAX_XCOM_SIZE)
     def test_execute_with_xcom_exceeded_max_xcom_size(
         self,
         mock_sys_getsizeof,
