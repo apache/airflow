@@ -22,7 +22,7 @@ import unittest
 import mock
 
 from airflow.contrib.hooks.gdrive_hook import GoogleDriveHook
-from tests.contrib.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
+from tests.gcp.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
 
 
 class TestGoogleDriveHook(unittest.TestCase):

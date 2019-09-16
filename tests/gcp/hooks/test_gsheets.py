@@ -24,7 +24,7 @@ Unit Tests for the GSheets Hook
 import unittest
 
 from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 from airflow.gcp.hooks.gsheets import GSheetsHook
 from airflow import AirflowException

@@ -21,7 +21,7 @@ import unittest
 
 from google.cloud.videointelligence_v1 import enums
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests.compat import mock
 
 from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook

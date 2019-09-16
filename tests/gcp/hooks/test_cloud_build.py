@@ -26,7 +26,7 @@ from unittest import mock
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_build import CloudBuildHook
 from tests.compat import PropertyMock
-from tests.contrib.utils.base_gcp_mock import (
+from tests.gcp.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
     GCP_PROJECT_ID_HOOK_UNIT_TEST)

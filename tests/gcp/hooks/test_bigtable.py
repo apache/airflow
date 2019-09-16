@@ -24,7 +24,7 @@ import google
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
 from tests.compat import mock, PropertyMock
 

@@ -22,7 +22,7 @@ import unittest
 
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
 from tests.compat import patch, PropertyMock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT = {"text": "test text"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}

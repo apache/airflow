@@ -35,7 +35,7 @@ from airflow import AirflowException, LoggingMixin
 from airflow.contrib.hooks import gcp_api_base_hook as hook
 from airflow.hooks.base_hook import BaseHook
 from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
 default_project = None
