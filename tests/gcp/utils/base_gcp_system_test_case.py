@@ -79,20 +79,17 @@ DAG_FOLDER = os.path.join(AIRFLOW_HOME, "dags")
 SKIP_TEST_WARNING = """
 The test is only run when the test is run in with GCP-system-tests enabled
 environment. You can enable it in one of two ways:
-
 * Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
   directory which keeps variables.env file with environment variables to set
   and keys directory which keeps service account keys in .json format
 * Run this test within automated environment variable workspace where
   config directory is checked out next to the airflow one.
-
 """.format(__file__)
 
 SKIP_LONG_TEST_WARNING = """
 The test is only run when the test is run in with GCP-system-tests enabled
 environment. And environment variable GCP_ENABLE_LONG_TESTS is set to True.
 You can enable it in one of two ways:
-
 * Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
   directory which keeps variables.env file with environment variables to set
   and keys directory which keeps service account keys in .json format and
@@ -242,11 +239,9 @@ class TestDagGcpSystem(TestBaseGcpSystem):
 Please set AIRFLOW_CONFIG variable to '{}'
 and make sure you have a Postgres server running locally and
 airflow/airflow.db database created.
-
 You can create the database via these commands:
 'createuser root'
 'createdb airflow/airflow.db`
-
 """.format(postgres_path))
 
     # noinspection PyPep8Naming
