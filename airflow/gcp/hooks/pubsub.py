@@ -34,20 +34,13 @@ from airflow.version import version
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
-def _format_subscription(project, subscription):
-    return 'projects/{}/subscriptions/{}'.format(project, subscription)
-
-
-def _format_topic(project, topic):
-    return 'projects/{}/topics/{}'.format(project, topic)
-
-
 class PubSubException(Exception):
     """
     Alias for Exception.
     """
 
 
+# noinspection PyAbstractClass
 class PubSubHook(GoogleCloudBaseHook):
     """
     Hook for accessing Google Pub/Sub.
@@ -119,8 +112,7 @@ class PubSubHook(GoogleCloudBaseHook):
                     **message.get('attributes', {})
                 )
         except GoogleAPICallError as e:
-            raise PubSubException(
-                'Error publishing to topic {}'.format(topic_path), e)
+            raise PubSubException('Error publishing to topic {}'.format(topic_path), e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 
@@ -192,10 +184,9 @@ class PubSubHook(GoogleCloudBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            message = 'Topic already exists: {}'.format(topic)
-            self.log.warning(message)
+            self.log.warning('Topic already exists: %s', topic)
             if fail_if_exists:
-                raise PubSubException(message)
+                raise PubSubException('Topic already exists: {}'.format(topic))
         except GoogleAPICallError as e:
             raise PubSubException('Error creating topic {}'.format(topic), e)
 
@@ -245,10 +236,9 @@ class PubSubHook(GoogleCloudBaseHook):
                 metadata=metadata,
             )
         except NotFound:
-            message = 'Topic does not exist: {}'.format(topic_path)
-            self.log.warning(message)
+            self.log.warning('Topic does not exist: %s', topic_path)
             if fail_if_not_exists:
-                raise PubSubException(message)
+                raise PubSubException('Topic does not exist: {}'.format(topic_path))
         except GoogleAPICallError as e:
             raise PubSubException('Error deleting topic {}'.format(topic), e)
         self.log.info("Deleted topic (path) %s", topic_path)
@@ -269,7 +259,6 @@ class PubSubHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-
     ) -> str:
         """
         Creates a Pub/Sub subscription, if it does not already exist.
@@ -278,8 +267,7 @@ class PubSubHook(GoogleCloudBaseHook):
             subscription will be bound to.
         :type topic_project: str
         :param topic: the Pub/Sub topic name that the subscription will be bound
-            to create; do not include the ``projects/{project}/subscriptions/``
-            prefix.
+            to create; do not include the ``projects/{project}/subscriptions/`` prefix.
         :type topic: str
         :param subscription: the Pub/Sub subscription name. If empty, a random
             name will be generated using the uuid module
@@ -356,10 +344,9 @@ class PubSubHook(GoogleCloudBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            message = 'Subscription already exists: {}'.format(subscription_path)
-            self.log.warning(message)
+            self.log.warning('Subscription already exists: %s', subscription_path)
             if fail_if_exists:
-                raise PubSubException(message)
+                raise PubSubException('Subscription already exists: {}'.format(subscription_path))
         except GoogleAPICallError as e:
             raise PubSubException('Error creating subscription {}'.format(subscription_path), e)
 
@@ -409,10 +396,9 @@ class PubSubHook(GoogleCloudBaseHook):
             )
 
         except NotFound:
-            message = 'Subscription does not exist: {}'.format(subscription_path)
-            self.log.warning(message)
+            self.log.warning('Subscription does not exist: %s', subscription_path)
             if fail_if_not_exists:
-                raise PubSubException(message)
+                raise PubSubException('Subscription does not exist: {}'.format(subscription_path))
         except GoogleAPICallError as e:
             raise PubSubException('Error deleting subscription {}'.format(subscription_path), e)
 
@@ -472,16 +458,10 @@ class PubSubHook(GoogleCloudBaseHook):
                 metadata=metadata,
             )
             result = getattr(response, 'received_messages', [])
-            self.log.info("Pulled %d messages from subscription (path) %s", len(result),
-                          subscription_path)
+            self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
             return result
-        except HttpError as e:
-            raise PubSubException(
-                'Error pulling messages from subscription {}'.format(
-                    subscription_path), e)
-        except GoogleAPICallError as e:
-            raise PubSubException(
-                'Error pulling messages from subscription {}'.format(subscription_path), e)
+        except (HttpError, GoogleAPICallError) as e:
+            raise PubSubException('Error pulling messages from subscription {}'.format(subscription_path), e)
 
     def acknowledge(
         self,
@@ -527,15 +507,9 @@ class PubSubHook(GoogleCloudBaseHook):
                 timeout=timeout,
                 metadata=metadata,
             )
-        except HttpError as e:
+        except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
                 'Error acknowledging {} messages pulled from subscription {}'
                 .format(len(ack_ids), subscription_path), e)
-        except GoogleAPICallError as e:
-            raise PubSubException(
-                'Error acknowledging {} messages pulled from subscription {}'.format(
-                    len(ack_ids), subscription_path
-                ), e
-            )
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
