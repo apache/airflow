@@ -174,25 +174,3 @@ repos:
         language: system
         entry: ./scripts/ci/ci_lint_dockerfile.sh
         files: ^Dockerfile.*$
-      - id: mypy
-        name: Run mypy
-        language: system
-        entry: ./scripts/ci/ci_mypy.sh
-        files: \.py$
-        exclude: ^airflow/_vendor/.*$
-      - id: pylint
-        name: Run pylint for main sources
-        language: system
-        entry: ./scripts/ci/ci_pylint_main.sh
-        files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
-      - id: pylint
-        name: Run pylint for tests
-        language: system
-        entry: ./scripts/ci/ci_pylint_tests.sh
-        files: ^tests/.*\.py$
-      - id: flake8
-        name: Run flake8
-        language: system
-        entry: ./scripts/ci/ci_flake8.sh
-        files: \.py$
