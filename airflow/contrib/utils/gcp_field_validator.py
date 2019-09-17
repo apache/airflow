@@ -31,5 +31,5 @@ from airflow.gcp.utils.field_validator import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.utils.field_validator`.",
-    DeprecationWarning
+    DeprecationWarning, stacklevel=2
 )

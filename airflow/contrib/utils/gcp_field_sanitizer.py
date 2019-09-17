@@ -27,5 +27,5 @@ from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer, GcpFieldSan
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.utils.field_sanitizer`.",
-    DeprecationWarning
+    DeprecationWarning, stacklevel=2
 )
