@@ -40,6 +40,18 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### The gcp_conn_id parameter in GKEPodOperator is required
+
+In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
+operator, which resulted in credentials being determined according to the
+[Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
+
+Now this parameter requires a value. To restore the previous behavior, configure the connection without
+specifying the service account.
+
+Detailed information about connection management is available:
+[Google Cloud Platform Connection](https://airflow.apache.org/howto/connection/gcp.html).
+
 ### Normalize gcp_conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use 
