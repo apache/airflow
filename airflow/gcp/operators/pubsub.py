@@ -517,7 +517,7 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
     """
-    template_fields = ['project_id', 'subscription']
+    template_fields = ['project', 'project_id', 'subscription']
     ui_color = '#cb4335'
 
     @apply_defaults
@@ -620,7 +620,7 @@ class PubSubPublishOperator(BaseOperator):
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
     """
-    template_fields = ['project_id', 'topic', 'messages']
+    template_fields = ['project', 'project_id', 'topic', 'messages']
     ui_color = '#0273d4'
 
     @apply_defaults
