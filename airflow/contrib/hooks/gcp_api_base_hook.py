@@ -300,8 +300,8 @@ class GoogleCloudBaseHook(BaseHook):
     @contextmanager
     def provide_gcp_credential_file_as_context(self):
         """
-        Context manager that provides a GCP credentials for application supporting ``Application
-        Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>``__.
+        Context manager that provides a GCP credentials for application supporting `Application
+        Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
 
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
