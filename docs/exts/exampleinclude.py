@@ -228,7 +228,7 @@ def doctree_read(app, doctree):
         )
         modname = relative_path.replace("/", ".")[:-3]
         show_button = register_source(app, env, modname)
-        onlynode = create_node(app, env, relative_path, show_button)
+        onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
 
