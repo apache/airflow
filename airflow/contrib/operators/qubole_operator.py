@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Qubole operator"""
 
 from typing import Iterable
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -25,7 +26,7 @@ from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_A
 
 
 class QDSLink(BaseOperatorLink):
-
+    """Link to QDS"""
     name = 'Go to QDS'
 
     def get_link(self, operator, dttm):
@@ -191,16 +192,19 @@ class QuboleOperator(BaseOperator):
             self.get_hook().kill(ti)
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
+        """get_results from Qubole"""
         return self.get_hook().get_results(ti, fp, inline, delim, fetch)
 
     def get_log(self, ti):
+        """get_log from Qubole"""
         return self.get_hook().get_log(ti)
 
     def get_jobs_id(self, ti):
+        """get jobs_id from Qubole"""
         return self.get_hook().get_jobs_id(ti)
 
     def get_hook(self):
-        # Reinitiating the hook, as some template fields might have changed
+        """Reinitialising the hook, as some template fields might have changed"""
         return QuboleHook(*self.args, **self.kwargs)
 
     def __getattribute__(self, name):

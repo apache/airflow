@@ -92,10 +92,20 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for shell files
+        name: Add licence for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [shell]
         files: ^breeze$|^breeze-complete$|\.sh$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for all python files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [python]
         args:
           - --comment-style
           - "|#|"
@@ -113,7 +123,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for yaml files
+        name: Add licence for all yaml files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [yaml]
         args:

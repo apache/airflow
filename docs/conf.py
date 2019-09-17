@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#
 # flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
@@ -19,6 +18,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 
 # Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
