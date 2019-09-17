@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Airflow models"""
 from airflow.models.base import Base, ID_LEN  # noqa: F401
 from airflow.models.baseoperator import BaseOperator  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401

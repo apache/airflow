@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""Sends lineage metadata to a backend"""
 
 
 class LineageBackend(object):
+    """Sends lineage metadata to a backend"""
     def send_lineage(self,
                      operator=None, inlets=None, outlets=None, context=None):
         """
