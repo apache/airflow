@@ -20,6 +20,7 @@
 import getpass
 import os
 import warnings
+from io import StringIO
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -45,8 +46,10 @@ class SSHHook(BaseHook):
     :type username: str
     :param password: password of the username to connect to the remote_host
     :type password: str
-    :param key_file: key file to use to connect to the remote_host.
+    :param key_file: path to key file to use to connect to the remote_host
     :type key_file: str
+    :param private_key: content of key file to use to connect to remote_host
+    :type: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
     :param timeout: timeout for the attempt to connect to the remote_host.
@@ -62,6 +65,7 @@ class SSHHook(BaseHook):
                  username=None,
                  password=None,
                  key_file=None,
+                 private_key=None,
                  port=None,
                  timeout=10,
                  keepalive_interval=30
@@ -72,6 +76,8 @@ class SSHHook(BaseHook):
         self.username = username
         self.password = password
         self.key_file = key_file
+        self.private_key = private_key
+        self.pkey = None
         self.port = port
         self.timeout = timeout
         self.keepalive_interval = keepalive_interval
@@ -101,6 +107,9 @@ class SSHHook(BaseHook):
                 if "key_file" in extra_options and self.key_file is None:
                     self.key_file = extra_options.get("key_file")
 
+                if not self.private_key:
+                    self.private_key = extra_options.get('private_key')
+
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
@@ -115,6 +124,13 @@ class SSHHook(BaseHook):
                         and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
+
+        if self.private_key and self.key_file:
+            raise AirflowException(
+                "Params key_file and private_key both provided.  Must provide no more than one.")
+
+        if self.private_key:
+            self.pkey = paramiko.RSAKey.from_private_key(StringIO(self.private_key))
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -151,6 +167,7 @@ class SSHHook(BaseHook):
 
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
+
         if not self.allow_host_key_change:
             self.log.warning('Remote Identification Change is not verified. '
                              'This wont protect against Man-In-The-Middle attacks')
@@ -160,24 +177,26 @@ class SSHHook(BaseHook):
                              'against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        connect_kwargs = dict(
+            hostname=self.remote_host,
+            username=self.username,
+            timeout=self.timeout,
+            compress=self.compress,
+            port=self.port,
+            sock=self.host_proxy
+        )
 
-        if self.password and self.password.strip():
-            client.connect(hostname=self.remote_host,
-                           username=self.username,
-                           password=self.password,
-                           key_filename=self.key_file,
-                           timeout=self.timeout,
-                           compress=self.compress,
-                           port=self.port,
-                           sock=self.host_proxy)
-        else:
-            client.connect(hostname=self.remote_host,
-                           username=self.username,
-                           key_filename=self.key_file,
-                           timeout=self.timeout,
-                           compress=self.compress,
-                           port=self.port,
-                           sock=self.host_proxy)
+        if self.password:
+            password = self.password.strip()
+            connect_kwargs.update(password=password)
+
+        if self.pkey:
+            connect_kwargs.update(pkey=self.pkey)
+
+        if self.key_file:
+            connect_kwargs.update(key_filename=self.key_file)
+
+        client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
             client.get_transport().set_keepalive(self.keepalive_interval)
