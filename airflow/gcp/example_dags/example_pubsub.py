@@ -25,7 +25,6 @@ import os
 import airflow
 from airflow import models
 
-
 from airflow.gcp.operators.pubsub import (
     PubSubTopicCreateOperator,
     PubSubSubscriptionDeleteOperator,
@@ -54,11 +53,11 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
 ) as example_dag:
     create_topic = PubSubTopicCreateOperator(
-        task_id="create_topic", topic=TOPIC, project=GCP_PROJECT_ID
+        task_id="create_topic", topic=TOPIC, project_id=GCP_PROJECT_ID
     )
 
     subscribe_task = PubSubSubscriptionCreateOperator(
-        task_id="subscribe_task", topic_project=GCP_PROJECT_ID, topic=TOPIC
+        task_id="subscribe_task", project_id=GCP_PROJECT_ID, topic=TOPIC
     )
     subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
 
@@ -75,19 +74,18 @@ with models.DAG(
 
     publish_task = PubSubPublishOperator(
         task_id="publish_task",
-        project=GCP_PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         topic=TOPIC,
         messages=[MESSAGE, MESSAGE, MESSAGE],
     )
-
     unsubscribe_task = PubSubSubscriptionDeleteOperator(
         task_id="unsubscribe_task",
-        project=GCP_PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         subscription="{{ task_instance.xcom_pull('subscribe_task') }}",
     )
 
     delete_topic = PubSubTopicDeleteOperator(
-        task_id="delete_topic", topic=TOPIC, project=GCP_PROJECT_ID
+        task_id="delete_topic", topic=TOPIC, project_id=GCP_PROJECT_ID
     )
 
     create_topic >> subscribe_task >> publish_task

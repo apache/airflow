@@ -19,6 +19,7 @@
 """
 This module contains Google PubSub operators.
 """
+import warnings
 from typing import List, Optional, Sequence, Tuple, Dict, Union
 
 from google.api_core.retry import Retry
@@ -59,8 +60,9 @@ class PubSubTopicCreateOperator(BaseOperator):
     Both ``project`` and ``topic`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID where the topic will be created
-    :type project: str
+    :param project_id: Optional, the GCP project ID where the topic will be created.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
     :param topic: the topic to create. Do not include the
         full topic path. In other words, instead of
         ``projects/{project}/topics/{topic}``, provide only
@@ -96,16 +98,18 @@ class PubSubTopicCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
+    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :type project: str
     """
-    template_fields = ['project', 'topic']
+    template_fields = ['project_id', 'topic']
     ui_color = '#0273d4'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
-            project: str,
             topic: str,
+            project_id: Optional[str] = None,
             fail_if_exists: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
@@ -115,11 +119,20 @@ class PubSubTopicCreateOperator(BaseOperator):
             retry: Optional[Retry] = None,
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
+            project: Optional[str] = None,
             *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
-        self.project = project
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if project:
+            warnings.warn(
+                "The project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = project
+
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
         self.topic = topic
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
@@ -137,7 +150,7 @@ class PubSubTopicCreateOperator(BaseOperator):
 
         self.log.info("Creating topic %s", self.topic)
         hook.create_topic(
-            project=self.project,
+            project_id=self.project_id,
             topic=self.topic,
             fail_if_exists=self.fail_if_exists,
             labels=self.labels,
@@ -197,8 +210,9 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
     ``topic_project``, ``topic``, ``subscription``, and
     ``subscription`` are templated so you can use variables in them.
 
-    :param topic_project: the GCP project ID where the topic exists
-    :type topic_project: str
+    :param project_id: Optional, the GCP project ID where the topic exists.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
     :param topic: the topic to create. Do not include the
         full topic path. In other words, instead of
         ``projects/{project}/topics/{topic}``, provide only
@@ -207,9 +221,9 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
     :param subscription: the Pub/Sub subscription name. If empty, a random
         name will be generated using the uuid module
     :type subscription: str
-    :param subscription_project: the GCP project ID where the subscription
+    :param subscription_project_id: the GCP project ID where the subscription
         will be created. If empty, ``topic_project`` will be used.
-    :type subscription_project: str
+    :type subscription_project_id: str
     :param ack_deadline_secs: Number of seconds that a subscriber has to
         acknowledge each message pulled from the subscription
     :type ack_deadline_secs: int
@@ -249,19 +263,23 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
+    :param topic_project: (Deprecated) the GCP project ID where the topic exists
+    :type topic_project: str
+    :param subscription_project: (Deprecated) the GCP project ID where the subscription
+        will be created. If empty, ``topic_project`` will be used.
+    :type subscription_project: str
     """
-    template_fields = ['topic_project', 'topic', 'subscription',
-                       'subscription_project']
+    template_fields = ['project_id', 'topic', 'subscription', 'subscription_project_id']
     ui_color = '#0273d4'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
-            topic_project,
             topic: str,
-            subscription=None,
-            subscription_project=None,
+            project_id: Optional[str] = None,
+            subscription: str = None,
+            subscription_project_id: str = None,
             ack_deadline_secs: int = 10,
             fail_if_exists: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
@@ -273,13 +291,29 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
             retry: Optional[Retry] = None,
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
+            topic_project: Optional[str] = None,
+            subscription_project: Optional[str] = None,
             *args,
             **kwargs) -> None:
+
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if topic_project:
+            warnings.warn(
+                "The topic_project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = topic_project
+        if subscription_project:
+            warnings.warn(
+                "The project_id parameter has been deprecated. You should pass "
+                "the subscription_project parameter.", DeprecationWarning, stacklevel=2)
+            subscription_project_id = subscription_project
+
         super().__init__(*args, **kwargs)
-        self.topic_project = topic_project
+        self.project_id = project_id
         self.topic = topic
         self.subscription = subscription
-        self.subscription_project = subscription_project
+        self.subscription_project_id = subscription_project_id
         self.ack_deadline_secs = ack_deadline_secs
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
@@ -298,10 +332,10 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 
         self.log.info("Creating subscription for topic %s", self.topic)
         result = hook.create_subscription(
-            topic_project=self.topic_project,
+            project_id=self.project_id,
             topic=self.topic,
             subscription=self.subscription,
-            subscription_project=self.subscription_project,
+            subscription_project_id=self.subscription_project_id,
             ack_deadline_secs=self.ack_deadline_secs,
             fail_if_exists=self.fail_if_exists,
             push_config=self.push_config,
@@ -343,8 +377,9 @@ class PubSubTopicDeleteOperator(BaseOperator):
     Both ``project`` and ``topic`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID in which to work (templated)
-    :type project: str
+    :param project_id: Optional, the GCP project ID in which to work (templated).
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
     :param topic: the topic to delete. Do not include the
         full topic path. In other words, instead of
         ``projects/{project}/topics/{topic}``, provide only
@@ -369,26 +404,37 @@ class PubSubTopicDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
+    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :type project: str
     """
-    template_fields = ['project', 'topic']
+    template_fields = ['project_id', 'topic']
     ui_color = '#cb4335'
 
     @apply_defaults
     def __init__(
             self,
-            project: str,
             topic: str,
+            project_id: Optional[str] = None,
             fail_if_not_exists=False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             retry: Optional[Retry] = None,
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
+            project: Optional[str] = None,
             *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
-        self.project = project
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if project:
+            warnings.warn(
+                "The project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = project
+
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
         self.topic = topic
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
@@ -403,7 +449,7 @@ class PubSubTopicDeleteOperator(BaseOperator):
 
         self.log.info("Deleting topic %s", self.topic)
         hook.delete_topic(
-            project=self.project,
+            project_id=self.project_id,
             topic=self.topic,
             fail_if_not_exists=self.fail_if_not_exists,
             retry=self.retry,
@@ -441,8 +487,9 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     ``project``, and ``subscription`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID in which to work (templated)
-    :type project: str
+    :param project_id: Optional, the GCP project ID in which to work (templated).
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
     :param subscription: the subscription to delete. Do not include the
         full subscription path. In other words, instead of
         ``projects/{project}/subscription/{subscription}``, provide only
@@ -467,26 +514,37 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
+    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :type project: str
     """
-    template_fields = ['project', 'subscription']
+    template_fields = ['project_id', 'subscription']
     ui_color = '#cb4335'
 
     @apply_defaults
     def __init__(
             self,
-            project: str,
             subscription: str,
+            project_id: Optional[str] = None,
             fail_if_not_exists=False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             retry: Optional[Retry] = None,
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
+            project: Optional[str] = None,
             *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
-        self.project = project
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if project:
+            warnings.warn(
+                "The project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = project
+
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
         self.subscription = subscription
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
@@ -501,7 +559,7 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
 
         self.log.info("Deleting subscription %s", self.subscription)
         hook.delete_subscription(
-            project=self.project,
+            project_id=self.project_id,
             subscription=self.subscription,
             fail_if_not_exists=self.fail_if_not_exists,
             retry=self.retry,
@@ -535,8 +593,9 @@ class PubSubPublishOperator(BaseOperator):
     ``project`` , ``topic``, and ``messages`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID in which to work (templated)
-    :type project: str
+    :param project_id: Optional, the GCP project ID in which to work (templated).
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
     :param topic: the topic to which to publish. Do not include the
         full topic path. In other words, instead of
         ``projects/{project}/topics/{topic}``, provide only
@@ -558,32 +617,43 @@ class PubSubPublishOperator(BaseOperator):
         For this to work, the service account making the request
         must have domain-wide delegation enabled.
     :type delegate_to: str
+    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :type project: str
     """
-    template_fields = ['project', 'topic', 'messages']
+    template_fields = ['project_id', 'topic', 'messages']
     ui_color = '#0273d4'
 
     @apply_defaults
     def __init__(
             self,
-            project: str,
             topic: str,
             messages: List,
+            project_id: Optional[str] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
+            project: Optional[str] = None,
             *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.project = project
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if project:
+            warnings.warn(
+                "The project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = project
+
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
         self.topic = topic
         self.messages = messages
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
 
     def execute(self, context):
         hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
                           delegate_to=self.delegate_to)
 
         self.log.info("Publishing to topic %s", self.topic)
-        hook.publish(self.project, self.topic, self.messages)
+        hook.publish(project_id=self.project_id, topic=self.topic, messages=self.messages)
         self.log.info("Published to topic %s", self.topic)

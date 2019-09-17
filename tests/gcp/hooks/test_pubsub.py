@@ -88,7 +88,7 @@ class TestPubSubHook(unittest.TestCase):
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_nonexistent_topic(self, mock_service):
         create_method = mock_service.return_value.create_topic
-        self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC)
+        self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
             name=EXPANDED_TOPIC,
             labels=LABELS,
@@ -102,7 +102,7 @@ class TestPubSubHook(unittest.TestCase):
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_topic(self, mock_service):
         delete_method = mock_service.return_value.delete_topic
-        self.pubsub_hook.delete_topic(TEST_PROJECT, TEST_TOPIC)
+        self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         delete_method.assert_called_once_with(
             topic=EXPANDED_TOPIC,
             retry=None,
@@ -116,7 +116,7 @@ class TestPubSubHook(unittest.TestCase):
             'Topic does not exists: %s' % EXPANDED_TOPIC
         )
         with self.assertRaises(PubSubException) as e:
-            self.pubsub_hook.delete_topic(TEST_PROJECT, TEST_TOPIC, True)
+            self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_not_exists=True)
 
         self.assertEqual(str(e.exception), 'Topic does not exist: %s' % EXPANDED_TOPIC)
 
@@ -126,7 +126,7 @@ class TestPubSubHook(unittest.TestCase):
             'Error deleting topic: %s' % EXPANDED_TOPIC
         )
         with self.assertRaises(PubSubException):
-            self.pubsub_hook.delete_topic(TEST_PROJECT, TEST_TOPIC, True)
+            self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_not_exists=True)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_preexisting_topic_failifexists(self, mock_service):
@@ -134,7 +134,7 @@ class TestPubSubHook(unittest.TestCase):
             'Topic already exists: %s' % TEST_TOPIC
         )
         with self.assertRaises(PubSubException) as e:
-            self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC, True)
+            self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True)
         self.assertEqual(str(e.exception), 'Topic already exists: %s' % TEST_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -142,7 +142,7 @@ class TestPubSubHook(unittest.TestCase):
         mock_service.return_value.create_topic.side_effect = AlreadyExists(
             'Topic already exists: %s' % EXPANDED_TOPIC
         )
-        self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC)
+        self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_topic_api_call_error(self, mock_service):
@@ -150,13 +150,15 @@ class TestPubSubHook(unittest.TestCase):
             'Error creating topic: %s' % TEST_TOPIC
         )
         with self.assertRaises(PubSubException):
-            self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC, True)
+            self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     def test_create_nonexistent_subscription(self, mock_service):
         create_method = mock_service.create_subscription
 
-        response = self.pubsub_hook.create_subscription(TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION)
+        response = self.pubsub_hook.create_subscription(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
+        )
         create_method.assert_called_once_with(
             name=EXPANDED_SUBSCRIPTION,
             topic=EXPANDED_TOPIC,
@@ -175,7 +177,10 @@ class TestPubSubHook(unittest.TestCase):
     def test_create_subscription_different_project_topic(self, mock_service):
         create_method = mock_service.create_subscription
         response = self.pubsub_hook.create_subscription(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, 'a-different-project'
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            subscription_project_id='a-different-project'
         )
         expected_subscription = 'projects/{}/subscriptions/{}'.format(
             'a-different-project', TEST_SUBSCRIPTION
@@ -197,7 +202,7 @@ class TestPubSubHook(unittest.TestCase):
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     def test_delete_subscription(self, mock_service):
-        self.pubsub_hook.delete_subscription(TEST_PROJECT, TEST_SUBSCRIPTION)
+        self.pubsub_hook.delete_subscription(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION)
         delete_method = mock_service.delete_subscription
         delete_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
@@ -212,7 +217,9 @@ class TestPubSubHook(unittest.TestCase):
             'Subscription does not exists: %s' % EXPANDED_SUBSCRIPTION
         )
         with self.assertRaises(PubSubException) as e:
-            self.pubsub_hook.delete_subscription(TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=True)
+            self.pubsub_hook.delete_subscription(
+                project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, fail_if_not_exists=True
+            )
         self.assertEqual(str(e.exception), 'Subscription does not exist: %s' % EXPANDED_SUBSCRIPTION)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -221,7 +228,9 @@ class TestPubSubHook(unittest.TestCase):
             'Error deleting subscription %s' % EXPANDED_SUBSCRIPTION
         )
         with self.assertRaises(PubSubException):
-            self.pubsub_hook.delete_subscription(TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=True)
+            self.pubsub_hook.delete_subscription(
+                project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, fail_if_not_exists=True
+            )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     @mock.patch(PUBSUB_STRING.format('uuid4'), new_callable=mock.Mock(return_value=lambda: TEST_UUID))
@@ -229,7 +238,7 @@ class TestPubSubHook(unittest.TestCase):
         create_method = mock_service.create_subscription
         expected_name = EXPANDED_SUBSCRIPTION.replace(TEST_SUBSCRIPTION, 'sub-%s' % TEST_UUID)
 
-        response = self.pubsub_hook.create_subscription(TEST_PROJECT, TEST_TOPIC)
+        response = self.pubsub_hook.create_subscription(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
             name=expected_name,
             topic=EXPANDED_TOPIC,
@@ -249,7 +258,7 @@ class TestPubSubHook(unittest.TestCase):
         create_method = mock_service.create_subscription
 
         response = self.pubsub_hook.create_subscription(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, ack_deadline_secs=30
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, ack_deadline_secs=30
         )
         create_method.assert_called_once_with(
             name=EXPANDED_SUBSCRIPTION,
@@ -272,7 +281,7 @@ class TestPubSubHook(unittest.TestCase):
         )
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.create_subscription(
-                TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, fail_if_exists=True
+                project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, fail_if_exists=True
             )
         self.assertEqual(str(e.exception), 'Subscription already exists: %s' % EXPANDED_SUBSCRIPTION)
 
@@ -283,7 +292,7 @@ class TestPubSubHook(unittest.TestCase):
         )
         with self.assertRaises(PubSubException):
             self.pubsub_hook.create_subscription(
-                TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, fail_if_exists=True
+                project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, fail_if_exists=True
             )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -291,14 +300,16 @@ class TestPubSubHook(unittest.TestCase):
         mock_service.create_subscription.side_effect = AlreadyExists(
             'Subscription already exists: %s' % EXPANDED_SUBSCRIPTION
         )
-        response = self.pubsub_hook.create_subscription(TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION)
+        response = self.pubsub_hook.create_subscription(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
+        )
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_publish(self, mock_service):
         publish_method = mock_service.return_value.publish
 
-        self.pubsub_hook.publish(TEST_PROJECT, TEST_TOPIC, TEST_MESSAGES)
+        self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
         calls = [
             mock.call(topic=EXPANDED_TOPIC, data=message.get("data", b''), **message.get('attributes', {}))
             for message in TEST_MESSAGES
@@ -313,7 +324,7 @@ class TestPubSubHook(unittest.TestCase):
         )
 
         with self.assertRaises(PubSubException):
-            self.pubsub_hook.publish(TEST_PROJECT, TEST_TOPIC, TEST_MESSAGES)
+            self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     def test_pull(self, mock_service):
@@ -323,7 +334,9 @@ class TestPubSubHook(unittest.TestCase):
             pulled_messages.append({'ackId': i, 'message': msg})
         pull_method.return_value.received_messages = pulled_messages
 
-        response = self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
+        response = self.pubsub_hook.pull(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10
+        )
         pull_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             max_messages=10,
@@ -339,7 +352,9 @@ class TestPubSubHook(unittest.TestCase):
         pull_method = mock_service.pull
         pull_method.return_value.received_messages = []
 
-        response = self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
+        response = self.pubsub_hook.pull(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10
+        )
         pull_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             max_messages=10,
@@ -362,7 +377,7 @@ class TestPubSubHook(unittest.TestCase):
         pull_method.side_effect = exception
 
         with self.assertRaises(PubSubException):
-            self.pubsub_hook.pull(TEST_PROJECT, TEST_SUBSCRIPTION, 10)
+            self.pubsub_hook.pull(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10)
             pull_method.assert_called_once_with(
                 subscription=EXPANDED_SUBSCRIPTION,
                 max_messages=10,
@@ -376,7 +391,11 @@ class TestPubSubHook(unittest.TestCase):
     def test_acknowledge(self, mock_service):
         ack_method = mock_service.acknowledge
 
-        self.pubsub_hook.acknowledge(TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3'])
+        self.pubsub_hook.acknowledge(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            ack_ids=['1', '2', '3']
+        )
         ack_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,
             ack_ids=['1', '2', '3'],
@@ -398,7 +417,10 @@ class TestPubSubHook(unittest.TestCase):
 
         with self.assertRaises(PubSubException):
             self.pubsub_hook.acknowledge(
-                TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3'])
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                ack_ids=['1', '2', '3']
+            )
             ack_method.assert_called_once_with(
                 subscription=EXPANDED_SUBSCRIPTION,
                 ack_ids=['1', '2', '3'],
