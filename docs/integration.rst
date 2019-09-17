@@ -615,5 +615,5 @@ These integrations allow you to perform various operations within various servic
    * - `Databricks <https://databricks.com/>`__
      -
      - :mod:`airflow.contrib.hooks.databricks_hook`
-     - :class:`airflow.contrib.operators.databricks_operator`
+     - :mod:`airflow.contrib.operators.databricks_operator`
      -
