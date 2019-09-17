@@ -161,7 +161,7 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+                  {% set last_run = dag.get_last_dagrun_by_run_date(include_externally_triggered=True) %}
                   {% if last_run and last_run.execution_date %}
                     <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
                       Link to last run

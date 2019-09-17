@@ -249,6 +249,20 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
+def get_last_dagrun_by_run_date(dag_id, session, include_externally_triggered=False):
+    """
+    Returns the last dag run for a dag, None if there was none.
+    Last dag run can be any type of run eg. scheduled or backfilled.
+    Overridden DagRuns are ignored.
+    """
+    DR = DagRun
+    query = session.query(DR).filter(DR.dag_id == dag_id)
+    if not include_externally_triggered:
+        query = query.filter(DR.external_trigger == False)  # noqa
+    query = query.order_by(DR.start_date.desc())
+    return query.first()
+
+
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     Returns the last dag run for a dag, None if there was none.
@@ -2884,6 +2898,11 @@ class DagModel(Base):
             return self.default_view
 
     @provide_session
+    def get_last_dagrun_by_run_date(self, session=None, include_externally_triggered=False):
+        return get_last_dagrun_by_run_date(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
+
+    @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(self.dag_id, session=session,
                                include_externally_triggered=include_externally_triggered)
@@ -3344,6 +3363,11 @@ class DAG(BaseDag, LoggingMixin):
             return following
 
         return dttm
+
+    @provide_session
+    def get_last_dagrun_by_run_date(self, session=None, include_externally_triggered=False):
+        return get_last_dagrun_by_run_date(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
