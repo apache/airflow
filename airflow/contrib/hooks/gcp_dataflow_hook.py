@@ -29,5 +29,5 @@ from airflow.gcp.hooks.dataflow import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dataflow`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -38,5 +38,5 @@ from airflow.gcp.operators.cloud_sql import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

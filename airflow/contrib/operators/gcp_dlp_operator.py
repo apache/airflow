@@ -56,5 +56,5 @@ from airflow.gcp.operators.dlp import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.dlp`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

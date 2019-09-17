@@ -41,5 +41,5 @@ from airflow.gcp.operators.tasks import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.tasks`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

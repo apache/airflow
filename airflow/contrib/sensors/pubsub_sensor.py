@@ -25,5 +25,5 @@ from airflow.gcp.sensors.pubsub import PubSubPullSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.pubsub`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

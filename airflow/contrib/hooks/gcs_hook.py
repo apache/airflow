@@ -26,5 +26,5 @@ from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.gcs`.",
-    DeprecationWarning
+    DeprecationWarning, stacklevel=2
 )
