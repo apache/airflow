@@ -31,5 +31,5 @@ from airflow.gcp.operators.video_intelligence import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.video_intelligence`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

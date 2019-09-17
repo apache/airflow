@@ -25,5 +25,5 @@ from airflow.gcp.hooks.kms import GoogleCloudKMSHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.kms`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

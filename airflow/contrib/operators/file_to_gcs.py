@@ -27,5 +27,5 @@ from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator  # n
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.local_to_gcs`,",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

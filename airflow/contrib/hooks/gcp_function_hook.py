@@ -25,5 +25,5 @@ from airflow.gcp.hooks.functions import GcfHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
