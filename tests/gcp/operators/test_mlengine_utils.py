@@ -111,7 +111,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
                 'airflow.gcp.utils.mlengine_prediction_summary',
-                ['-m'])
+                ['-m'], py_interpreter='python2')
 
         with patch('airflow.gcp.utils.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:

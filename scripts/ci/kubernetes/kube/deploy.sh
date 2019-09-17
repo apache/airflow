@@ -18,14 +18,23 @@
 
 set -x
 
-AIRFLOW_IMAGE=${IMAGE:-airflow}
-AIRFLOW_TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
-TEMPLATE_DIRNAME="${DIRNAME}/templates"
-BUILD_DIRNAME="${DIRNAME}/build"
+export AIRFLOW_IMAGE=${IMAGE:-airflow}
+export AIRFLOW_TAG=${TAG:-latest}
+DIRNAME=$(cd "$(dirname "$0")" || exit 1; pwd)
+export DIRNAME
+export TEMPLATE_DIRNAME="${DIRNAME}/templates"
+export BUILD_DIRNAME="${DIRNAME}/build"
+AIRFLOW_SOURCES=$(cd "${DIRNAME}/../../../../" || exit 1 ; pwd)
+export AIRFLOW_SOURCES
 
-# shellcheck source=hooks/_default_branch.sh
-. "${DIRNAME}/../../../../hooks/_default_branch.sh"
+# shellcheck source=common/_autodetect_variables.sh
+. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+
+# Source branch will be set in DockerHub
+SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
+# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
+# or default branch for the sources
+AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
 
 usage() {
     cat << EOF

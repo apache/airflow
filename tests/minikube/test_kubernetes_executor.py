@@ -17,19 +17,19 @@
 
 
 import os
+import re
+import time
 import unittest
+
 from subprocess import check_call, check_output
 import requests.exceptions
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import time
-
-import re
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
-except Exception as e:
+except Exception as e:  # pylint: disable=broad-except
     if os.environ.get('KUBERNETES_VERSION'):
         raise e
     else:

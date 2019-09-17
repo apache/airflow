@@ -42,6 +42,15 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_no_default_project_id):
             self.gce_hook_no_project_id = GceHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.compute.GceHook._authorize")
+    @mock.patch("airflow.gcp.hooks.compute.build")
+    def test_gce_client_creation(self, mock_build, mock_authorize):
+        result = self.gce_hook_no_project_id.get_conn()
+        mock_build.assert_called_once_with(
+            'compute', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
     def test_start_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
@@ -354,9 +363,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_default_project_id):
             self.gce_hook = GceHook(gcp_conn_id='test')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_start_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_start_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -389,9 +403,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_stop_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_stop_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -424,9 +443,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_set_machine_type_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_set_machine_type_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         execute_method = get_conn.return_value.instances.return_value.setMachineType.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
@@ -457,9 +481,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
                                                                operation_name='operation_id',
                                                                zone='zone')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_get_instance_template(self, wait_for_operation_to_complete, get_conn):
+    def test_get_instance_template(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         get_method = get_conn.return_value.instanceTemplates.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -486,9 +515,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_insert_instance_template(self, wait_for_operation_to_complete, get_conn):
+    def test_insert_instance_template(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         insert_method = get_conn.return_value.instanceTemplates.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -521,9 +555,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_get_instance_group_manager(self, wait_for_operation_to_complete, get_conn):
+    def test_get_instance_group_manager(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         get_method = get_conn.return_value.instanceGroupManagers.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -558,9 +597,14 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')
-    def test_patch_instance_group_manager(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_instance_group_manager(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         patch_method = get_conn.return_value.instanceGroupManagers.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}

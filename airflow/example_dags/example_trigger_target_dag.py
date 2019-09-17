@@ -69,7 +69,6 @@ def run_this_func(**kwargs):
 
 run_this = PythonOperator(
     task_id='run_this',
-    provide_context=True,
     python_callable=run_this_func,
     dag=dag,
 )

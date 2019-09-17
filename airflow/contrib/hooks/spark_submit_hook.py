@@ -175,7 +175,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'deploy_mode': None,
                      'spark_home': None,
                      'spark_binary': self._spark_binary or "spark-submit",
-                     'namespace': 'default'}
+                     'namespace': None}
 
         try:
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
@@ -193,7 +193,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['spark_home'] = extra.get('spark-home', None)
             conn_data['spark_binary'] = self._spark_binary or  \
                 extra.get('spark-binary', "spark-submit")
-            conn_data['namespace'] = extra.get('namespace', 'default')
+            conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s",
@@ -246,7 +246,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         elif self._env_vars and self._connection['deploy_mode'] == "cluster":
             raise AirflowException(
                 "SparkSubmitHook env_vars is not supported in standalone-cluster mode.")
-        if self._is_kubernetes:
+        if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += ["--conf", "spark.kubernetes.namespace={}".format(
                 self._connection['namespace'])]
         if self._files:

@@ -35,8 +35,8 @@ repos:
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/potiuk/pre-commit-hooks
-    rev: d5bee8590ea3405a299825e68dbfa0e1b951a2be
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.7
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
@@ -92,10 +92,20 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for shell files
+        name: Add licence for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add licence for all python files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [python]
         args:
           - --comment-style
           - "|#|"
@@ -113,7 +123,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for yaml files
+        name: Add licence for all yaml files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [yaml]
         args:
@@ -167,7 +177,8 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$
+        exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system

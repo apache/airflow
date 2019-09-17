@@ -40,7 +40,7 @@ ENV_FILE_RETRIEVER = os.path.join(AIRFLOW_PARENT_FOLDER,
 
 
 # Retrieve environment variables from parent directory retriever - it should be
-# in the path ${AIRFLOW_ROOT}/../../get_system_test_environment_variables.py
+# in the path ${AIRFLOW_SOURCES}/../../get_system_test_environment_variables.py
 # and it should print all the variables in form of key=value to the stdout
 class RetrieveVariables:
     @staticmethod
@@ -64,8 +64,8 @@ RetrieveVariables.retrieve_variables()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
-CONTRIB_OPERATORS_EXAMPLES_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, "airflow", "contrib", "example_dags")
+GCP_OPERATORS_EXAMPLES_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "gcp", "example_dags")
 
 OPERATORS_EXAMPLES_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
@@ -142,7 +142,7 @@ class TestDagGcpSystem(TestBaseGcpSystem):
                  dag_id=None,
                  dag_name=None,
                  require_local_executor=False,
-                 example_dags_folder=CONTRIB_OPERATORS_EXAMPLES_DAG_FOLDER,
+                 example_dags_folder=GCP_OPERATORS_EXAMPLES_DAG_FOLDER,
                  project_extra=None):
         super().__init__(method_name=method_name,
                          gcp_key=gcp_key,
@@ -224,7 +224,7 @@ class TestDagGcpSystem(TestBaseGcpSystem):
                 "the dag {} was not symlinked to the DAGs folder. "
                 "The content of the {} folder is {}".
                 format(self.dag_id,
-                       self.dag_id + ".py",
+                       self.dag_name,
                        dag_folder,
                        os.listdir(dag_folder)))
         dag.clear(reset_dag_runs=True)

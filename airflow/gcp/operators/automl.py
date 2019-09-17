@@ -22,7 +22,7 @@
 This module contains Google AutoML operators.
 """
 import ast
-from typing import Sequence, Tuple, Union, List, Dict
+from typing import Sequence, Tuple, Union, List, Dict, Optional
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
@@ -30,6 +30,8 @@ from google.protobuf.json_format import MessageToDict
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.gcp.hooks.automl import CloudAutoMLHook
+
+MetaData = Sequence[Tuple[str, str]]
 
 
 class AutoMLTrainModelOperator(BaseOperator):
@@ -66,14 +68,14 @@ class AutoMLTrainModelOperator(BaseOperator):
         self,
         model: dict,
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model = model
@@ -142,15 +144,15 @@ class AutoMLPredictOperator(BaseOperator):
         model_id: str,
         location: str,
         payload: dict,
-        params: Dict[str, str] = None,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        params: Optional[Dict[str, str]] = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model_id = model_id
@@ -236,15 +238,15 @@ class AutoMLBatchPredictOperator(BaseOperator):
         input_config: dict,
         output_config: dict,
         location: str,
-        project_id: str = None,
-        params: Dict[str, str] = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        params: Optional[Dict[str, str]] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model_id = model_id
@@ -314,14 +316,14 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self,
         dataset: dict,
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.dataset = dataset
@@ -391,14 +393,14 @@ class AutoMLImportDataOperator(BaseOperator):
         dataset_id: str,
         location: str,
         input_config: dict,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.dataset_id = dataset_id
@@ -482,17 +484,17 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         dataset_id: str,
         table_spec_id: str,
         location: str,
-        field_mask: dict = None,
-        filter_: str = None,
-        page_size: int = None,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        field_mask: Optional[dict] = None,
+        filter_: Optional[str] = None,
+        page_size: Optional[int] = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.dataset_id = dataset_id
         self.table_spec_id = table_spec_id
@@ -567,15 +569,15 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self,
         dataset: dict,
         location: str,
-        project_id: str = None,
-        update_mask: dict = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        update_mask: Optional[dict] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.dataset = dataset
@@ -638,14 +640,14 @@ class AutoMLGetModelOperator(BaseOperator):
         self,
         model_id: str,
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model_id = model_id
@@ -705,14 +707,14 @@ class AutoMLDeleteModelOperator(BaseOperator):
         self,
         model_id: str,
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model_id = model_id
@@ -782,15 +784,15 @@ class AutoMLDeployModelOperator(BaseOperator):
         self,
         model_id: str,
         location: str,
-        project_id: str = None,
-        image_detection_metadata: dict = None,
+        project_id: Optional[str] = None,
+        image_detection_metadata: Optional[dict] = None,
         metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.model_id = model_id
@@ -862,16 +864,16 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         self,
         dataset_id: str,
         location: str,
-        page_size: int = None,
-        filter_: str = None,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        page_size: Optional[int] = None,
+        filter_: Optional[str] = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.dataset_id = dataset_id
         self.filter_ = filter_
@@ -933,14 +935,14 @@ class AutoMLListDatasetOperator(BaseOperator):
     def __init__(
         self,
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
@@ -1005,14 +1007,14 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         self,
         dataset_id: Union[str, List[str]],
         location: str,
-        project_id: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
-        timeout: float = None,
-        retry: Retry = None,
+        project_id: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
+        timeout: Optional[float] = None,
+        retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.dataset_id = dataset_id

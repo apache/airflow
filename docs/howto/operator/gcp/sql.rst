@@ -17,12 +17,17 @@
 
 
 
-Google Cloud Sql Operators
+Google Cloud SQL Operators
 ==========================
 
 .. contents::
   :depth: 1
   :local:
+
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudSqlInstanceDatabaseCreateOperator:
 
@@ -644,3 +649,12 @@ More information
 
 See Google Cloud SQL documentation for `MySQL <https://cloud.google.com/sql/docs/mysql/sql-proxy>`_ and
 `PostgreSQL <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_ related proxies.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud API - MySQL Documentation <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/>`__
+* `Google Cloud API - PostgresSQL Documentation <https://cloud.google.com/sql/docs/postgres/admin-api/v1beta4/>`__
+* `Product Documentation <https://cloud.google.com/sql/docs/>`__

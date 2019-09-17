@@ -97,7 +97,6 @@ t2 = QuboleOperator(
 
 t3 = PythonOperator(
     task_id='compare_result',
-    provide_context=True,
     python_callable=compare_result,
     trigger_rule="all_done",
     dag=dag)

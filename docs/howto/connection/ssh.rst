@@ -66,4 +66,4 @@ Extra (optional)
 
     .. code-block:: bash
 
-        ssh://user:pass@localhost:22?timeout=10&compress=false&no_host_key_check=false&allow_host_key_change=true&key_file=%2Fhome%2Fairflow%2F.ssh%2Fid_rsa
+        export AIRFLOW_CONN_MAIN_SERVER='ssh://user:pass@localhost:22?timeout=10&compress=false&no_host_key_check=false&allow_host_key_change=true&key_file=%2Fhome%2Fairflow%2F.ssh%2Fid_rsa'

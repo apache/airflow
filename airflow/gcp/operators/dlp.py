@@ -23,6 +23,7 @@ This module contains various GCP Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
+from typing import Optional
 
 from airflow.gcp.hooks.dlp import CloudDLPHook
 from airflow.models import BaseOperator
@@ -58,11 +59,11 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     def __init__(
         self,
         dlp_job_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -127,13 +128,13 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         deidentify_template=None,
         template_id=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -196,15 +197,15 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         inspect_job=None,
         risk_job=None,
         job_id=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
         wait_until_finished=True,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -275,13 +276,13 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         inspect_template=None,
         template_id=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -340,13 +341,13 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         job_trigger=None,
         trigger_id=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -412,13 +413,13 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         config=None,
         stored_info_type_id=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -497,16 +498,16 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         deidentify_config=None,
         inspect_config=None,
         item=None,
         inspect_template_name=None,
         deidentify_template_name=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -570,11 +571,11 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -629,11 +630,11 @@ class CloudDLPDeleteDlpJobOperator(BaseOperator):
     def __init__(
         self,
         dlp_job_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -689,11 +690,11 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -747,11 +748,11 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     def __init__(
         self,
         job_trigger_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -812,11 +813,11 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         self,
         stored_info_type_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -875,11 +876,11 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -934,11 +935,11 @@ class CloudDLPGetDlpJobOperator(BaseOperator):
     def __init__(
         self,
         dlp_job_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -995,11 +996,11 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1054,11 +1055,11 @@ class CloudDLPGetJobTripperOperator(BaseOperator):
     def __init__(
         self,
         job_trigger_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1120,11 +1121,11 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         self,
         stored_info_type_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1191,14 +1192,14 @@ class CloudDLPInspectContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         inspect_config=None,
         item=None,
         inspect_template_name=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1262,13 +1263,13 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         page_size=None,
         order_by=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1332,15 +1333,15 @@ class CloudDLPListDlpJobsOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         results_filter=None,
         page_size=None,
         job_type=None,
         order_by=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1401,9 +1402,9 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         language_code=None,
         results_filter=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1463,13 +1464,13 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         page_size=None,
         order_by=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1531,14 +1532,14 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         page_size=None,
         order_by=None,
         results_filter=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1602,13 +1603,13 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     def __init__(
         self,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         page_size=None,
         order_by=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1681,15 +1682,15 @@ class CloudDLPRedactImageOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         inspect_config=None,
         image_redaction_configs=None,
         include_findings=None,
         byte_item=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1767,16 +1768,16 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
+        project_id: Optional[str] = None,
         reidentify_config=None,
         inspect_config=None,
         item=None,
         inspect_template_name=None,
         reidentify_template_name=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1852,13 +1853,13 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         deidentify_template=None,
         update_mask=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -1932,13 +1933,13 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         self,
         template_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         inspect_template=None,
         update_mask=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -2007,13 +2008,13 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     def __init__(
         self,
         job_trigger_id,
-        project_id=None,
+        project_id: Optional[str] = None,
         job_trigger=None,
         update_mask=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -2086,13 +2087,13 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         self,
         stored_info_type_id,
         organization_id=None,
-        project_id=None,
+        project_id: Optional[str] = None,
         config=None,
         update_mask=None,
         retry=None,
-        timeout=None,
+        timeout: Optional[float] = None,
         metadata=None,
-        gcp_conn_id="google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):

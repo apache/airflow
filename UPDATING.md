@@ -40,7 +40,6 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-
 ### Changes to `aws_default` Connection's default region
 
 The region of Airflow's default connection to AWS (`aws_default`) has

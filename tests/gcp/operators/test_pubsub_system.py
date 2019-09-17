@@ -26,7 +26,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_PUBSUB_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_PUBSUB_KEY), SKIP_TEST_WARNING)
-class AutoMLDatasetOperationsSystemTest(TestDagGcpSystem):
+class PubSubSystemTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
         super().__init__(
             method_name,
