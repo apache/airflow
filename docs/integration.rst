@@ -27,9 +27,7 @@ Integration
 Azure: Microsoft Azure
 ----------------------
 
-Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
-Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and
-Azure Data Lake Hook are in contrib section.
+Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`__.
 
 Logging
 '''''''
@@ -38,80 +36,78 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 See :ref:`write-logs-azure`.
 
 
-Azure Blob Storage
-''''''''''''''''''
+Operators and Hooks
+'''''''''''''''''''
 
-All classes communicate via the Window Azure Storage Blob protocol. Make sure that a
-Airflow connection of type `wasb` exists. Authorization can be done by supplying a
-login (=Storage account name) and password (=KEY), or login and SAS token in the extra
-field (see connection `wasb_default` for an example).
+Service operators and hooks
+"""""""""""""""""""""""""""
 
-The operators are defined in the following module:
-
-* :mod:`airflow.contrib.sensors.wasb_sensor`
-* :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
-* :mod:`airflow.contrib.sensors.wasb_sensor`
-* :mod:`airflow.contrib.operators.file_to_wasb`
-
-They use :class:`airflow.contrib.hooks.wasb_hook.WasbHook` to communicate with Microsoft Azure.
-
-Azure File Share
-''''''''''''''''
-
-Cloud variant of a SMB file share. Make sure that a Airflow connection of
-type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
-and password (=Storage account key), or login and SAS token in the extra field
-(see connection `wasb_default` for an example).
-
-It uses :class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook` to communicate with Microsoft Azure.
-
-Azure CosmosDB
-''''''''''''''
-
-AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
-Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
-login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
-default database and collection to use (see connection `azure_cosmos_default` for an example).
-
-The operators are defined in the following modules:
-
-* :mod:`airflow.contrib.operators.azure_cosmos_operator`
-* :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
-
-They also use :class:`airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook` to communicate with Microsoft Azure.
-
-Azure Data Lake
-'''''''''''''''
-
-AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
-Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
-login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
-(see connection `azure_data_lake_default` for an example).
-
-The operators are defined in the following modules:
-
-* :mod:`airflow.contrib.operators.adls_list_operator`
-* :mod:`airflow.contrib.operators.adls_to_gcs`
-
-They also use :class:`airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook` to communicate with Microsoft Azure.
+These integrations allow you to perform various operations within the Microsoft Azure.
 
 
-Azure Container Instances
-'''''''''''''''''''''''''
+.. list-table::
+   :header-rows: 1
 
-Azure Container Instances provides a method to run a docker container without having to worry
-about managing infrastructure. The AzureContainerInstanceHook requires a service principal. The
-credentials for this principal can either be defined in the extra field ``key_path``, as an
-environment variable named ``AZURE_AUTH_LOCATION``,
-or by providing a login/password and tenantId in extras.
+   * - Service name
+     - Hook
+     - Operators
+     - Sensors
 
-The operator is defined in the :mod:`airflow.contrib.operators.azure_container_instances_operator` module.
+   * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
+     -
+     - :mod:`airflow.contrib.operators.wasb_delete_blob_operator`,
+     - :mod:`airflow.contrib.sensors.wasb_sensor`
 
-They also use :class:`airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook`,
-:class:`airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook` and
-:class:`airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook` to communicate with Microsoft Azure.
+   * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
+     - :mod:`airflow.contrib.hooks.azure_container_instance_hook`
+       :mod:`airflow.contrib.hooks.azure_container_registry_hook`
+       :mod:`airflow.contrib.hooks.azure_container_volume_hook`
+     - :mod:`airflow.contrib.operators.azure_container_instances_operator`
+     -
 
-The AzureContainerRegistryHook requires a host/login/password to be defined in the connection.
+   * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
+     - :mod:`airflow.contrib.hooks.azure_cosmos_hook`
+     - :mod:`airflow.contrib.operators.azure_cosmos_operator`
+     - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
+
+   * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
+     - :mod:`airflow.contrib.hooks.azure_data_lake_hook`
+     - :mod:`airflow.contrib.operators.adls_list_operator`
+     -
+
+   * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
+     - :mod:`airflow.contrib.hooks.azure_fileshare_hook`
+     -
+     -
+
+
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to copy data from/to Microsoft Azure.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.contrib.operators.adls_to_gcs`
+
+   * - Local
+     - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
+     -
+     - :mod:`airflow.contrib.operators.file_to_wasb`
+
+   * - `Oracle <https://www.oracle.com/pl/database/>`__
+     - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
+     -
+     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
 
 
 .. _AWS:
@@ -578,7 +574,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
 :class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
-Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.`
+Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
