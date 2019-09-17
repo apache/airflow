@@ -43,9 +43,9 @@ assists users migrating to a new version.
 ### Normalize gcp_conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use 
-conn_id as parameter for GCP connection. There is currently one parameter 
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter 
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
-``google_cloud_storage_conn_id`` and similar have been deprecated.
+``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
 Following components were affected by normalization:
   * airflow.gcp.hooks.datastore.DatastoreHook
