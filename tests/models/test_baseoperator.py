@@ -220,7 +220,7 @@ class TestBaseOperator(unittest.TestCase):
         self.assertEqual("'ClassWithCustomAttributes' object has no attribute 'missing_field'",
                          str(e.exception))
 
-    def test_jinja_invalid_expression_is_just_porpagated(self):
+    def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
             task = DummyOperator(task_id="op1")
