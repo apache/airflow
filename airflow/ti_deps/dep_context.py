@@ -145,6 +145,13 @@ BACKFILL_QUEUED_DEPS = {
     DagrunRunningDep(),
 }
 
+# dag level deps
+DAGRUN_CREATION_DEPS = {
+    DagUnpausedDep(),
+    DagrunRunningDep(),
+    DagTISlotsAvailableDep(),
+}
+
 # TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
 # in any way and could easily be modified or removed from the scheduler causing
 # this dependency to become outdated and incorrect. This coupling should be created

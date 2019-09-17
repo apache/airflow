@@ -624,11 +624,7 @@ class TaskInstance(Base, LoggingMixin):
             session=None):
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
-            for dep_status in dep.get_dep_statuses(
-                    self,
-                    session,
-                    dep_context):
-
+            for dep_status in dep.get_dep_statuses(self, session, dep_context):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self, dep_status.dep_name, dep_status.passed, dep_status.reason

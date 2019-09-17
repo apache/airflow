@@ -553,7 +553,9 @@ class SchedulerJob(BaseJob):
         for a DAG based on scheduling interval.
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
+        # TODO: PING
         if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
+            # TODO:
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
@@ -563,6 +565,8 @@ class SchedulerJob(BaseJob):
             # return if already reached maximum active runs and no timeout setting
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
                 return
+
+            # TODO: PING
             timedout_runs = 0
             for dr in active_runs:
                 if (
@@ -667,6 +671,7 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
+            # TODO: PING
             if next_run_date and period_end and period_end <= timezone.utcnow():
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),

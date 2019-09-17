@@ -21,6 +21,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import provide_session
 
 
+# TODO: PING, dag level
 class DagTISlotsAvailableDep(BaseTIDep):
     NAME = "Task Instance Slots Available"
     IGNOREABLE = True
