@@ -277,18 +277,6 @@ These integrations allow you to copy data from/to Amazon Web Services.
      -
      - :mod:`airflow.operators.s3_to_redshift_operator`
 
-
-.. _Databricks:
-
-Databricks
-----------
-
-With contributions from `Databricks <https://databricks.com/>`__, Airflow has several operators
-which enable the submitting and running of jobs to the Databricks platform. Internally the
-operators talk to the ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
-
-The operators are defined in the :class:`airflow.contrib.operators.databricks_operator` module.
-
 .. _GCP:
 
 GCP: Google Cloud Platform
@@ -595,17 +583,37 @@ Please note that this library is in maintenance mode hence it won't fully suppor
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
 
-.. _Qubole:
+.. _other:
 
-Qubole
-------
+Other integrations
+------------------
 
-Apache Airflow has a native operator and hooks to talk to `Qubole <https://qubole.com/>`__,
-which lets you submit your big data jobs directly to Qubole from Apache Airflow.
+Operators and Hooks
+'''''''''''''''''''
 
-The operators are defined in the following module:
+Service operators and hooks
+"""""""""""""""""""""""""""
 
- * :mod:`airflow.contrib.operators.qubole_operator`
- * :mod:`airflow.contrib.sensors.qubole_sensor`
- * :mod:`airflow.contrib.sensors.qubole_sensor`
- * :mod:`airflow.contrib.operators.qubole_check_operator`
+These integrations allow you to perform various operations within various services.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Qubole <https://www.qubole.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.qubole_hook`
+     - :mod:`airflow.contrib.operators.qubole_operator`,
+       :mod:`airflow.contrib.operators.qubole_check_operator`
+     - :mod:`airflow.contrib.sensors.qubole_sensor`
+
+   * - `Databricks <https://databricks.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.databricks_hook`
+     - :class:`airflow.contrib.operators.databricks_operator`
+     -
