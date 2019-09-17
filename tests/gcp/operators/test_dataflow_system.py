@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -15,19 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Sends lineage metadata to a backend"""
+
+import unittest
+
+from tests.contrib.utils.base_gcp_system_test_case import TestDagGcpSystem, SKIP_TEST_WARNING
+from tests.contrib.utils.gcp_authenticator import GCP_DATAFLOW_KEY
 
 
-class LineageBackend:
-    """Sends lineage metadata to a backend"""
-    def send_lineage(self,
-                     operator=None, inlets=None, outlets=None, context=None):
-        """
-        Sends lineage metadata to a backend
-        :param operator: the operator executing a transformation on the inlets and outlets
-        :param inlets: the inlets to this operator
-        :param outlets: the outlets from this operator
-        :param context: the current context of the task instance
-        """
-        raise NotImplementedError()
+@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAFLOW_KEY), SKIP_TEST_WARNING)
+class CloudDataflowExampleDagsSystemTest(TestDagGcpSystem):
+    def __init__(self, method_name='runTest'):
+        super().__init__(
+            method_name, dag_id='example_gcp_dataflow', gcp_key=GCP_DATAFLOW_KEY
+        )
+
+    def test_run_example_dag_function(self):
+        self._run_dag()

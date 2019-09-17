@@ -16,12 +16,12 @@
 # under the License.
 #
 
+from datetime import datetime
 import unittest
 import re
 import string
 import random
 from urllib3 import HTTPResponse
-from datetime import datetime
 
 from tests.compat import mock
 try:
@@ -33,6 +33,7 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
+# pylint: disable=unused-argument
 class TestAirflowKubernetesScheduler(unittest.TestCase):
     @staticmethod
     def _gen_random_string(seed, str_len):
@@ -86,15 +87,15 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             self.assertTrue(self._is_safe_label_value(safe_dag_id))
             safe_task_id = AirflowKubernetesScheduler._make_safe_label_value(task_id)
             self.assertTrue(self._is_safe_label_value(safe_task_id))
-            id = "my_dag_id"
+            dag_id = "my_dag_id"
             self.assertEqual(
-                id,
-                AirflowKubernetesScheduler._make_safe_label_value(id)
+                dag_id,
+                AirflowKubernetesScheduler._make_safe_label_value(dag_id)
             )
-            id = "my_dag_id_" + "a" * 64
+            dag_id = "my_dag_id_" + "a" * 64
             self.assertEqual(
                 "my_dag_id_" + "a" * 43 + "-0ce114c45",
-                AirflowKubernetesScheduler._make_safe_label_value(id)
+                AirflowKubernetesScheduler._make_safe_label_value(dag_id)
             )
 
     @unittest.skipIf(AirflowKubernetesScheduler is None,
@@ -122,43 +123,43 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_run_next_exception(self, mock_get_kube_client, mock_kubernetes_job_watcher):
 
         # When a quota is exceeded this is the ApiException we get
-        r = HTTPResponse(
+        response = HTTPResponse(
             body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
                  '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
                  'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
                  '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}')
-        r.status = 403
-        r.reason = "Forbidden"
+        response.status = 403
+        response.reason = "Forbidden"
 
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock(
-            side_effect=ApiException(http_resp=r))
+            side_effect=ApiException(http_resp=response))
         mock_get_kube_client.return_value = mock_kube_client
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
 
-        kubernetesExecutor = KubernetesExecutor()
-        kubernetesExecutor.start()
+        kubernetes_executor = KubernetesExecutor()
+        kubernetes_executor.start()
 
         # Execute a task while the Api Throws errors
         try_number = 1
-        kubernetesExecutor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
-                                         command='command', executor_config={})
-        kubernetesExecutor.sync()
-        kubernetesExecutor.sync()
+        kubernetes_executor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
+                                          command='command', executor_config={})
+        kubernetes_executor.sync()
+        kubernetes_executor.sync()
 
         assert mock_kube_client.create_namespaced_pod.called
-        self.assertFalse(kubernetesExecutor.task_queue.empty())
+        self.assertFalse(kubernetes_executor.task_queue.empty())
 
         # Disable the ApiException
         mock_kube_client.create_namespaced_pod.side_effect = None
 
         # Execute the task without errors should empty the queue
-        kubernetesExecutor.sync()
+        kubernetes_executor.sync()
         assert mock_kube_client.create_namespaced_pod.called
-        self.assertTrue(kubernetesExecutor.task_queue.empty())
+        self.assertTrue(kubernetes_executor.task_queue.empty())
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.sync')
@@ -207,6 +208,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
         mock_delete_pod.assert_called_once_with('pod_id')
+# pylint: enable=unused-argument
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')

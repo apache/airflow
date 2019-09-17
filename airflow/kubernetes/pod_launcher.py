@@ -14,27 +14,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Launches PODs"""
 import json
 import time
-import tenacity
+from datetime import datetime as dt
 from typing import Tuple, Optional
+
+from requests.exceptions import BaseHTTPError
+
+import tenacity
+
+from kubernetes import watch, client
+from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream as kubernetes_stream
+from kubernetes.client.models.v1_pod import V1Pod
 
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from datetime import datetime as dt
-from kubernetes.client.models.v1_pod import V1Pod
-from kubernetes import watch, client
-from kubernetes.client.rest import ApiException
-from kubernetes.stream import stream as kubernetes_stream
 from airflow import AirflowException
-from requests.exceptions import BaseHTTPError
-from .kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
+
+from .kube_client import get_kube_client
 
 
 class PodStatus:
+    """Status of the PODs"""
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'
@@ -42,8 +47,20 @@ class PodStatus:
 
 
 class PodLauncher(LoggingMixin):
-    def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
-                 extract_xcom=False):
+    """Launches PODS"""
+    def __init__(self,
+                 kube_client: client.CoreV1Api = None,
+                 in_cluster: bool = True,
+                 cluster_context: str = None,
+                 extract_xcom: bool = False):
+        """
+        Creates the launcher.
+
+        :param kube_client: kubernetes client
+        :param in_cluster: whether we are in cluster
+        :param cluster_context: context of the cluster
+        :param extract_xcom: whether we should extract xcom
+        """
         super().__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster,
                                                       cluster_context=cluster_context)
@@ -51,6 +68,7 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
+        """Runs POD asynchronously"""
         pod_mutation_hook(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
@@ -68,6 +86,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def delete_pod(self, pod: V1Pod):
+        """Deletes POD"""
         try:
             self._client.delete_namespaced_pod(
                 pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions())
@@ -127,14 +146,17 @@ class PodLauncher(LoggingMixin):
         return status
 
     def pod_not_started(self, pod: V1Pod):
+        """Tests if pod has not started"""
         state = self._task_status(self.read_pod(pod))
         return state == State.QUEUED
 
     def pod_is_running(self, pod: V1Pod):
+        """Tests if pod is running"""
         state = self._task_status(self.read_pod(pod))
-        return state != State.SUCCESS and state != State.FAILED
+        return state not in (State.SUCCESS, State.FAILED)
 
     def base_container_is_running(self, pod: V1Pod):
+        """Tests if base container is running"""
         event = self.read_pod(pod)
         status = next(iter(filter(lambda s: s.name == 'base',
                                   event.status.container_statuses)), None)
@@ -148,6 +170,7 @@ class PodLauncher(LoggingMixin):
         reraise=True
     )
     def read_pod_logs(self, pod: V1Pod):
+        """Reads log from the POD"""
         try:
             return self._client.read_namespaced_pod_log(
                 name=pod.metadata.name,
@@ -168,6 +191,7 @@ class PodLauncher(LoggingMixin):
         reraise=True
     )
     def read_pod(self, pod: V1Pod):
+        """Read POD information"""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
@@ -203,8 +227,10 @@ class PodLauncher(LoggingMixin):
                 if resp.peek_stderr():
                     self.log.info(resp.read_stderr())
                     break
+        return None
 
     def process_status(self, job_id, status):
+        """Process status infomration for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED

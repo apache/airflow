@@ -1871,7 +1871,7 @@ class CLIFactory:
             help="Variable key"),
         'var_value': Arg(
             ("value",),
-            metavar=('VALUE'),
+            metavar='VALUE',
             help="Variable value"),
         'default': Arg(
             ("-d", "--default"),

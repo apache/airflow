@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Sends lineage metadata to a backend"""
 
+set -euo pipefail
 
-class LineageBackend:
-    """Sends lineage metadata to a backend"""
-    def send_lineage(self,
-                     operator=None, inlets=None, outlets=None, context=None):
-        """
-        Sends lineage metadata to a backend
-        :param operator: the operator executing a transformation on the inlets and outlets
-        :param inlets: the inlets to this operator
-        :param outlets: the outlets from this operator
-        :param context: the current context of the task instance
-        """
-        raise NotImplementedError()
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="false"}
+export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
+
+# shellcheck source=scripts/ci/_utils.sh
+. "${MY_DIR}/_utils.sh"
+
+basic_sanity_checks
+
+script_start
+
+rebuild_ci_slim_image_if_needed
+
+refresh_pylint_todo
+
+script_end

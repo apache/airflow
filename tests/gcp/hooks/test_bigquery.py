@@ -68,8 +68,8 @@ class TestPandasGbqCredentials(unittest.TestCase):
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch('airflow.gcp.hooks.bigquery.read_gbq')
-    def test_credentials_provided(self, mock_read_gbq, mock_get_credentials_and_project_id):
-        self.instance = hook.BigQueryHook()
+    def test_credentials_provided(self, mock_read_gbq, _):
+        self.instance = hook.BigQueryHook()  # pylint: disable=attribute-defined-outside-init
 
         self.instance.get_pandas_df('select 1')
 
@@ -268,6 +268,8 @@ def mock_poll_job_complete(job_id):
     return job_id in mock_canceled_jobs
 
 
+# pylint: disable=invalid-name
+# noinspection PyUnusedLocal
 def mock_job_cancel(projectId, jobId):  # pylint: disable=unused-argument
     mock_canceled_jobs.append(jobId)
     return mock.Mock()

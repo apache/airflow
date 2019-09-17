@@ -19,7 +19,6 @@
 """
 This module is deprecated. Please use `airflow.gcp.hooks.gcs`.
 """
-
 import warnings
 
 # pylint: disable=unused-import

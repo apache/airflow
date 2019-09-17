@@ -25,7 +25,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 class SQSHook(AwsHook):
     """
-    Interact with Amazon Simple Notification Service.
+    Interact with Amazon Simple Queue Service.
     """
 
     def get_conn(self):

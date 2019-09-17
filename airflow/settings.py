@@ -169,7 +169,7 @@ def configure_orm(disable_connection_pool=False):
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=False)
+        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
         log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
                  "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
@@ -186,8 +186,7 @@ def configure_orm(disable_connection_pool=False):
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
-    reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
-    setup_event_handlers(engine, reconnect_timeout)
+    setup_event_handlers(engine)
 
     Session = scoped_session(
         sessionmaker(autocommit=False,

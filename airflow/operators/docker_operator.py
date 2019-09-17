@@ -16,19 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+Implements Docker operator
+"""
 import json
 from typing import Union, List, Dict, Iterable
+
+import ast
+from docker import APIClient, tls
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import APIClient, tls
-import ast
 
 
+# pylint: disable=too-many-instance-attributes
 class DockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
@@ -119,6 +123,7 @@ class DockerOperator(BaseOperator):
     template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
 
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
             self,
@@ -184,7 +189,12 @@ class DockerOperator(BaseOperator):
         self.cli = None
         self.container = None
 
-    def get_hook(self):
+    def get_hook(self) -> DockerHook:
+        """
+        Retrieves hook for the operator.
+
+        :return: The Docker Hook
+        """
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
             base_url=self.docker_url,
@@ -238,6 +248,8 @@ class DockerOperator(BaseOperator):
             if self.do_xcom_push:
                 return self.cli.logs(container=self.container['Id']) \
                     if self.xcom_all else line.encode('utf-8')
+            else:
+                return None
 
     def execute(self, context):
 
@@ -253,10 +265,10 @@ class DockerOperator(BaseOperator):
             )
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
-        if self.force_pull or len(self.cli.images(name=self.image)) == 0:
+        if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
-            for l in self.cli.pull(self.image, stream=True):
-                output = json.loads(l.decode('utf-8').strip())
+            for line in self.cli.pull(self.image, stream=True):
+                output = json.loads(line.decode('utf-8').strip())
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
@@ -265,6 +277,12 @@ class DockerOperator(BaseOperator):
         self._run_image()
 
     def get_command(self):
+        """
+        Retrieve command(s). if command string starts with [, it returns the command list)
+
+        :return: the command (or commands)
+        :rtype: str | List[str]
+        """
         if isinstance(self.command, str) and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
         else:
@@ -279,11 +297,14 @@ class DockerOperator(BaseOperator):
     def __get_tls_config(self):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
+            # it should be string
+            # noinspection PyTypeChecker
             tls_config = tls.TLSConfig(
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,
+                ssl_version=self.tls_ssl_version,  # type: ignore
                 assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')

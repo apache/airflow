@@ -24,6 +24,11 @@ Google Cloud Storage Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GoogleCloudStorageToBigQueryOperator:
 
 GoogleCloudStorageToBigQueryOperator

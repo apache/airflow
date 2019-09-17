@@ -31,10 +31,10 @@ GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
 GCP_BIGQUERY_KEY = 'gcp_bigquery.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
-GCP_BIGQUERY_KEY = 'gcp_bigquery.json'
 GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_COMPUTE_KEY = 'gcp_compute.json'
+GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
 GCP_DATAPROC_KEY = 'gcp_dataproc.json'
 GCP_DATASTORE_KEY = 'gcp_datastore.json'
 GCP_DLP_KEY = 'gcp_dlp.json'
@@ -60,20 +60,16 @@ AIRFLOW_MAIN_FOLDER = os.path.realpath(
 
 class GcpAuthenticator(LoggingCommandExecutor):
     """
-    Manages authentication to Google Cloud Platform. It helps to manage
-    connection - it can authenticate with the gcp key name specified
+    Initialises the authenticator.
+
+    :param gcp_key: name of the key to use for authentication (see GCP_*_KEY values)
+    :param project_extra: optional extra project parameter passed to google cloud
+           connection
     """
 
     original_account = None  # type: Optional[str]
 
-    def __init__(self, gcp_key, project_extra=None):
-        """
-        Initialises the authenticator.
-
-        :param gcp_key: name of the key to use for authentication (see GCP_*_KEY values)
-        :param project_extra: optional extra project parameter passed to google cloud
-               connection
-        """
+    def __init__(self, gcp_key: str, project_extra: str = None):
         super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra

@@ -16,10 +16,13 @@
     under the License.
 
 Transfer data in Google Cloud Storage
--------------------------------------
+=====================================
 
 This page will show operators whose purpose is to copy data as part of the Google Cloud Service.
 Each of them has its own specific use cases, as well as limitations.
+
+Overview
+--------
 
 Cloud Storage Transfer Service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,15 +47,21 @@ from the source after they are transferred to the sink.
 Source objects can be specified using include and exclusion prefixes, as well as based on the file
 modification date.
 
-If you need information on how to use it, look at the guide: :doc:`transfer`
+If you need information on how to use it, look at the guide: :doc:`cloud_storage_transfer_service`
 
 Local transfer
 ~~~~~~~~~~~~~~
 
 There are two operators that are used to copy data, where the entire process is controlled locally.
 
+In the next section they will be described.
+
+Operators
+---------
+
 GoogleCloudStorageToGoogleCloudStorageOperator
-----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 :class:`~airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator` allows you to copy
 one or more files. The copying always takes place without taking into account the initial state of
@@ -68,7 +77,7 @@ well as based on the file modification date.
 The way this operator works can be compared to the ``cp`` command.
 
 GoogleCloudStorageSynchronizeBuckets
-------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :class:`~airflow.operators.gcs_to_gcs.GoogleCloudStorageSynchronizeBuckets`
 operator checks the initial state of the destination bucket, and then compares it with the source bucket.

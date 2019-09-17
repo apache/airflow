@@ -276,8 +276,36 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             )
         ), "num_workers == 0 means single node mode - no preemptibles allowed"
 
+    def _cluster_ready(self, state, service):
+        if state == 'RUNNING':
+            return True
+        if state == 'DELETING':
+            raise Exception('Tried to create a cluster but it\'s in DELETING, something went wrong.')
+        if state == 'ERROR':
+            cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
+            try:
+                error_details = cluster['status']['details']
+            except KeyError:
+                error_details = 'Unknown error in cluster creation, ' \
+                                'check Google Cloud console for details.'
+
+            self.log.info('Dataproc cluster creation resulted in an ERROR state running diagnostics')
+            self.log.info(error_details)
+            diagnose_operation_name = \
+                DataProcHook.execute_dataproc_diagnose(service, self.project_id,
+                                                       self.region, self.cluster_name)
+            diagnose_result = DataProcHook.wait_for_operation_done(service, diagnose_operation_name)
+            if diagnose_result.get('response') and diagnose_result.get('response').get('outputUri'):
+                output_uri = diagnose_result.get('response').get('outputUri')
+                self.log.info('Diagnostic information for ERROR cluster available at [%s]', output_uri)
+            else:
+                self.log.info('Diagnostic information could not be retrieved!')
+
+            raise Exception(error_details)
+        return False
+
     def _get_init_action_timeout(self):
-        match = re.match(r"^(\d+)(s|m)$", self.init_action_timeout)
+        match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
             if match.group(2) == "s":
                 return self.init_action_timeout
@@ -407,7 +435,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
 
         elif self.custom_image:
-            project_id = self.custom_image_project_id if (self.custom_image_project_id) else self.project_id
+            project_id = self.custom_image_project_id or self.project_id
             custom_image_url = 'https://www.googleapis.com/compute/beta/projects/' \
                                '{}/global/images/{}'.format(project_id,
                                                             self.custom_image)
@@ -445,11 +473,51 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
         return cluster_data
 
+    def _usable_existing_cluster_present(self, service):
+        existing_cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
+        if existing_cluster:
+            self.log.info(
+                'Cluster %s already exists... Checking status...',
+                self.cluster_name
+            )
+            existing_status = self.hook.get_final_cluster_state(self.project_id,
+                                                                self.region, self.cluster_name, self.log)
+
+            if existing_status == 'RUNNING':
+                self.log.info('Cluster exists and is already running. Using it.')
+                return True
+
+            elif existing_status == 'DELETING':
+                while DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name) \
+                    and DataProcHook.get_cluster_state(service, self.project_id,
+                                                       self.region, self.cluster_name) == 'DELETING':
+                    self.log.info('Existing cluster is deleting, waiting for it to finish')
+                    time.sleep(15)
+
+            elif existing_status == 'ERROR':
+                self.log.info('Existing cluster in ERROR state, deleting it first')
+
+                operation_name = DataProcHook.execute_delete(service, self.project_id,
+                                                             self.region, self.cluster_name)
+                self.log.info("Cluster delete operation name: %s", operation_name)
+                DataProcHook.wait_for_operation_done_or_error(service, operation_name)
+
+        return False
+
     def start(self):
         """
         Create a new cluster on Google Cloud Dataproc.
         """
         self.log.info('Creating cluster: %s', self.cluster_name)
+        hook = DataProcHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
+        service = hook.get_conn()
+
+        if self._usable_existing_cluster_present(service):
+            return True
+
         cluster_data = self._build_cluster_data()
 
         return (
@@ -542,7 +610,7 @@ class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
 
     @staticmethod
     def _get_graceful_decommission_timeout(timeout):
-        match = re.match(r"^(\d+)(s|m|h|d)$", timeout)
+        match = re.match(r"^(\d+)([smdh])$", timeout)
         if match:
             if match.group(2) == "s":
                 return timeout
