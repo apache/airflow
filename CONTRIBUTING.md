@@ -333,6 +333,9 @@ run pre-commit hooks manually as needed.
 *You can skip one or more of the checks by specifying comma-separated list of checks to skip in SKIP variable:*
 `SKIP=pylint,mypy pre-commit run --all-files`
 
+*You can run only one mypy checks manually on a single file (or list of files) by running:*
+`pre-commit run mypy --files PATH_TO_FILE`. Example: `pre-commit run mypy --files airflow/operators/bash_operator.py`
+
 ## Skipping pre-commit hooks
 
 You can always skip running the tests by providing `--no-verify` flag to `git commit` command.
