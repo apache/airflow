@@ -40,6 +40,24 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to propagating Kubernetes worker annotations
+
+`kubernetes_annotations` configuration section has been removed. 
+A new key `worker_annotations` has been added to existing `kubernetes` section instead. 
+That is to remove restriction on the character set for k8s annotation keys.
+All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+```
+[kubernetes_annotations]
+annotation_key = annotation_value
+annotation_key2 = annotation_value2
+```
+it should be rewritten to
+```
+[kubernetes]
+worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
+```
+
+
 ### Changes to import paths and names of GCP operators and hooks
 
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 
