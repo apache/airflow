@@ -89,7 +89,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  replace: bool = False,
                  batch_size: int = 1000,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)

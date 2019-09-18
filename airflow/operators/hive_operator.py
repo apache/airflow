@@ -18,7 +18,7 @@
 # under the License.
 
 import re
-from typing import Dict
+from typing import Dict, Optional
 
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.configuration import conf
@@ -73,13 +73,13 @@ class HiveOperator(BaseOperator):
             hql: str,
             hive_cli_conn_id: str = 'hive_cli_default',
             schema: str = 'default',
-            hiveconfs: Dict = None,
+            hiveconfs: Optional[Dict] = None,
             hiveconf_jinja_translate: bool = False,
-            script_begin_tag: str = None,
+            script_begin_tag: Optional[str] = None,
             run_as_owner: bool = False,
-            mapred_queue: str = None,
-            mapred_queue_priority: str = None,
-            mapred_job_name: str = None,
+            mapred_queue: Optional[str] = None,
+            mapred_queue_priority: Optional[str] = None,
+            mapred_job_name: Optional[str] = None,
             *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)

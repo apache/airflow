@@ -44,10 +44,10 @@ class SlackAPIOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 slack_conn_id: str = None,
-                 token: str = None,
-                 method: str = None,
-                 api_params: Dict = None,
+                 slack_conn_id: Optional[str] = None,
+                 token: Optional[str] = None,
+                 method: Optional[str] = None,
+                 api_params: Optional[Dict] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -116,7 +116,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
                              'https://www.youtube.com/watch?v=J---aiyznGQ',
                  icon_url: str = 'https://raw.githubusercontent.com/apache/'
                                  'airflow/master/airflow/www/static/pin_100.jpg',
-                 attachments: List = None,
+                 attachments: Optional[List] = None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel

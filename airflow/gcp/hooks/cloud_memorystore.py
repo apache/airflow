@@ -47,7 +47,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None):
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None):
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None  # type: Optional[CloudRedisClient]
 
@@ -87,10 +87,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Creates a Redis instance based on the specified tier and memory size.
@@ -162,10 +162,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self,
         location: str,
         instance: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Deletes a specific Redis instance.  Instance stops serving and data is deleted.
@@ -205,10 +205,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Export Redis instance data into a Redis RDB format file in Cloud Storage.
@@ -251,10 +251,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Initiates a failover of the master node to current replica node for a specific STANDARD tier Cloud
@@ -299,10 +299,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self,
         location: str,
         instance: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Gets the details of a specific Redis instance.
@@ -335,10 +335,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Import a Redis RDB snapshot file from Cloud Storage into a Redis instance.
@@ -381,10 +381,10 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self,
         location: str,
         page_size: int,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Lists all Redis instances owned by a project in either the specified location (region) or all
@@ -424,12 +424,12 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
-        location: str = None,
-        instance_id: str = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        instance_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the metadata and configuration of a specific Redis instance.

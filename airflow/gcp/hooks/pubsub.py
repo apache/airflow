@@ -50,7 +50,7 @@ class PubSubHook(GoogleCloudBaseHook):
     the project embedded in the Connection referenced by gcp_conn_id.
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to=delegate_to)
 
     def get_conn(self) -> Any:

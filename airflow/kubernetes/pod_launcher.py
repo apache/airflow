@@ -51,7 +51,7 @@ class PodLauncher(LoggingMixin):
     def __init__(self,
                  kube_client: client.CoreV1Api = None,
                  in_cluster: bool = True,
-                 cluster_context: str = None,
+                 cluster_context: Optional[str] = None,
                  extract_xcom: bool = False):
         """
         Creates the launcher.

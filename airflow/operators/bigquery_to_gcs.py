@@ -85,7 +85,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
