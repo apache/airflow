@@ -131,7 +131,7 @@ in [LOCAL_VIRTUALENV.rst](LOCAL_VIRTUALENV.rst)
 It is **STRONGLY** encouraged to also install and use [Pre commit hooks](#pre-commit-hooks) for your local
 development environment. Pre-commit hooks can speed up your development cycle a lot.
 
-Advantage of local installation is that you have packages installed locally. Youu do not have to
+Advantage of local installation is that you have packages installed locally. You do not have to
 enter Docker/container environment and you can easily debug the code locally.
 You can also have access to python virtualenv that contains the necessary requirements
 and use it in your local IDE - this aids autocompletion, and run tests directly from within the IDE.
@@ -139,7 +139,7 @@ and use it in your local IDE - this aids autocompletion, and run tests directly 
 The disadvantage is that you have to maintain your dependencies and local environment consistent with
 other development environments that you have on your local machine.
 
-Another disadvantage is that you you cannot run tests that require
+Another disadvantage is that you cannot run tests that require
 external components - mysql, postgres database, hadoop, mongo, cassandra, redis etc..
 The tests in Airflow are a mixture of unit and integration tests and some of them
 require those components to be setup. Only real unit tests can be run by default in local environment.
@@ -148,7 +148,7 @@ If you want to run integration tests, you can technically configure and install 
 but it is usually complex and it's better to use
 [Breeze development environment](#breeze-development-environment) instead.
 
-Yet another disdvantage of using local virtualenv is that it is very difficult to make sure that your
+Yet another disadvantage of using local virtualenv is that it is very difficult to make sure that your
 local environment is consistent with other developer's environments. This can often lead to "works for me"
 syndrome. The Breeze development environment provides reproducible environment that is
 consistent with other developers.
