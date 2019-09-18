@@ -670,14 +670,18 @@ class BaseOperator(LoggingMixin):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        for attr_name in self.template_fields:
-            content = getattr(self, attr_name)
-            if content:
-                rendered_content = self.render_template(content, context, jinja_env)
-                setattr(self, attr_name, rendered_content)
+        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    def render_template(self, content, context, jinja_env=None):
-        # type: (Any, Dict, Optional[jinja2.Environment]) -> Any
+    def _do_render_template_fields(self, parent, template_fields, context, jinja_env, seen_oids):
+        # type: (Any, Iterable[str], Dict, jinja2.Environment, Set) -> None
+        for attr_name in template_fields:
+            content = getattr(parent, attr_name)
+            if content:
+                rendered_content = self.render_template(content, context, jinja_env, seen_oids)
+                setattr(parent, attr_name, rendered_content)
+
+    def render_template(self, content, context, jinja_env=None, seen_oids=None):
+        # type: (Any, Dict, Optional[jinja2.Environment], Optional[Set]) -> Any
         """
         Render a templated string. The content can be a collection holding multiple templated strings and will
         be templated recursively.
@@ -689,6 +693,8 @@ class BaseOperator(LoggingMixin):
         :param jinja_env: Jinja environment. Can be provided to avoid re-creating Jinja environments during
             recursion.
         :type jinja_env: jinja2.Environment
+        :param seen_oids: template fields already rendered (to avoid RecursionError on circular dependencies)
+        :type seen_oids: set
         :return: Templated content
         """
 
@@ -721,7 +727,22 @@ class BaseOperator(LoggingMixin):
             return {self.render_template(element, context, jinja_env) for element in content}
 
         else:
+            if seen_oids is None:
+                seen_oids = set()
+            self._render_nested_template_fields(content, context, jinja_env, seen_oids)
             return content
+
+    def _render_nested_template_fields(self, content, context, jinja_env, seen_oids):
+        # type: (Any, Dict, jinja2.Environment, Set) -> None
+        if id(content) not in seen_oids:
+            seen_oids.add(id(content))
+            try:
+                nested_template_fields = content.template_fields
+            except AttributeError:
+                # content has no inner template fields
+                return
+
+            self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
 
     def get_template_env(self):  # type: () -> jinja2.Environment
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
