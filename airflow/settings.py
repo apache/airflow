@@ -22,9 +22,11 @@ import logging
 import os
 import pendulum
 import sys
+import socket
+import time
 
 from sqlalchemy import create_engine, exc
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, Query
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
@@ -46,6 +48,68 @@ except Exception:
     pass
 log.info("Configured default timezone %s" % TIMEZONE)
 
+
+class RetryingQuery(Query):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.max_tries = 1 + conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRIES')
+
+        try:
+            self.max_retry_time_seconds = max(0, conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS'))
+        except conf.AirflowConfigException:
+            self.max_retry_time_seconds = 30
+
+    def __iter__(self):
+        try_number = 1
+        last_exc = None
+        while try_number <= self.max_tries:
+            try:
+                return super().__iter__()
+
+            except Exception as ex:
+                log.warning(f'Try {try_number}/{self.max_tries} failed to perform db action.', exc_info=ex)
+                last_exc = ex
+                time.sleep(min(float(self.max_retry_time_seconds), 0.1 * (1 << try_number)))
+
+            try_number += 1
+
+        log.error(f'Failed to perform db action after {self.max_tries} attempts.')
+        raise last_exc
+
+
+class DummyStatsLogger(object):
+    @classmethod
+    def incr(cls, stat, count=1, rate=1):
+        pass
+
+    @classmethod
+    def decr(cls, stat, count=1, rate=1):
+        pass
+
+    @classmethod
+    def gauge(cls, stat, value, rate=1, delta=False):
+        pass
+
+    @classmethod
+    def timing(cls, stat, dt):
+        pass
+
+
+Stats = DummyStatsLogger
+
+try:
+    if conf.getboolean('scheduler', 'statsd_on'):
+        from statsd import StatsClient
+
+        statsd = StatsClient(
+            host=conf.get('scheduler', 'statsd_host'),
+            port=conf.getint('scheduler', 'statsd_port'),
+            prefix=conf.get('scheduler', 'statsd_prefix'))
+        Stats = statsd
+except (socket.gaierror, ImportError) as e:
+    log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
 
 HEADER = '\n'.join([
     r'  ____________       _____________',
@@ -182,6 +246,35 @@ def configure_orm(disable_connection_pool=False):
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
+    # Use the RetryingQuery subclass to perform retries against the database
+    # when the maximum number of total tries is greater than 1 (i.e. max_retries > 0).
+    query_cls = Query
+    try:
+        if conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRIES') > 0:
+            query_cls = RetryingQuery
+
+    except conf.AirflowConfigException:
+        query_cls = Query
+
+    if 'postgres' in SQL_ALCHEMY_CONN:
+        # set connect/statement timeouts
+        connect_args = {}
+
+        try:
+            connect_timeout_seconds = conf.getint('core', 'SQL_ALCHEMY_CONNECT_TIMEOUT_SECONDS')
+            connect_args['connect_timeout'] = connect_timeout_seconds
+        except conf.AirflowConfigException:
+            pass
+
+        try:
+            statement_timeout_seconds = conf.getint('core', 'SQL_ALCHEMY_STATEMENT_TIMEOUT_SECONDS')
+            connect_args['options'] = '-c statement_timeout={}'.format(statement_timeout_seconds * 1000)
+        except conf.AirflowConfigException:
+            pass
+
+        if len(connect_args) > 0:
+            engine_args['connect_args'] = connect_args
+
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
     reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
     setup_event_handlers(engine, reconnect_timeout)
@@ -190,7 +283,8 @@ def configure_orm(disable_connection_pool=False):
         sessionmaker(autocommit=False,
                      autoflush=False,
                      bind=engine,
-                     expire_on_commit=False))
+                     expire_on_commit=False,
+                     query_cls=query_cls))
 
 
 def dispose_orm():

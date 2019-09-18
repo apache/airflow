@@ -69,8 +69,8 @@ class KubernetesPodOperator(BaseOperator):
     :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
-    :param resources: A dict containing a group of resources requests and limits
-    :type resources: dict
+    :param resources: An instance of Resources or a dict containing a group of resources requests and limits
+    :type resources: Resources or dict
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
     :param node_selectors: A dict containing a group of scheduling rules
@@ -161,11 +161,14 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     def _set_resources(self, resources):
-        inputResource = Resources()
-        if resources:
-            for item in resources.keys():
-                setattr(inputResource, item, resources[item])
-        return inputResource
+        if isinstance(resources, Resources):
+            return resources
+        else:
+            inputResource = Resources()
+            if resources:
+                for item in resources.keys():
+                    setattr(inputResource, item, resources[item])
+            return inputResource
 
     @apply_defaults
     def __init__(self,
