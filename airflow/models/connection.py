@@ -131,12 +131,17 @@ class Connection(Base, LoggingMixin):
         conn_type = uri_parts.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
+        elif conn_type == 'https':
+            conn_type = 'http'
         elif '-' in conn_type:
             conn_type = conn_type.replace('-', '_')
         self.conn_type = conn_type
         self.host = parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
-        self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
+        if conn_type == 'http':
+            self.schema = uri_parts.scheme
+        else:
+            self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) \
             if uri_parts.username else uri_parts.username
         self.password = unquote(uri_parts.password) \

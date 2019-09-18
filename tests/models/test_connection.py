@@ -212,31 +212,31 @@ class TestConnection(unittest.TestCase):
             (
                 "http://:password@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login='', password="password", host="host", port=80, schema="database"
+                    conn_type="http", login='', password="password", host="host", port=80, schema="http"
                 ),
             ),
             (
                 "http://user:@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password=None, host="host", port=80, schema="database"
+                    conn_type="http", login="user", password=None, host="host", port=80, schema="http"
                 ),
             ),
             (
                 "http://user:password@/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema="database"
+                    conn_type="http", login="user", password="password", host="", port=None, schema="http"
                 ),
             ),
             (
                 "http://user:password@host:80/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                    conn_type="http", login="user", password="password", host="host", port=80, schema="http"
                 ),
             ),
             (
                 "http://user:password@/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                    conn_type="http", login="user", password="password", host="", port=None, schema="http"
                 ),
             ),
             (
@@ -270,6 +270,34 @@ class TestConnection(unittest.TestCase):
                     host="/tmp/z6rqdzqh/example:europe-west1:testdb",
                     port=None,
                     schema="",
+                ),
+            ),
+            (
+                "https://user:password@host:443/",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="host", port=443, schema="https"
+                ),
+            ),
+            (
+                "https://user:password@host:10443/",
+                ConnectionParts(
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="host",
+                    port=10443,
+                    schema="https"
+                ),
+            ),
+            (
+                "https://user:password@host/",
+                ConnectionParts(
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="host",
+                    port=None,
+                    schema="https"
                 ),
             ),
         ]
