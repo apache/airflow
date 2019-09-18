@@ -28,6 +28,7 @@ basic_sanity_checks
 script_start
 
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+export VERBOSE="true"
 
 # Cleanup docker installation. It should be empty in CI but let's not risk
 docker system prune --all --force

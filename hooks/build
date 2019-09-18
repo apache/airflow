@@ -26,8 +26,11 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "My dir: ${MY_DIR}"
 
-AIRFLOW_SOURCES=$(cd "${MY_DIR}"; cd ..; pwd)
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/.." || exit 1; pwd)
 cd "${AIRFLOW_SOURCES}"
+
+# shellcheck source=common/_default_branch.sh
+source "${AIRFLOW_SOURCES}/common/_default_branch.sh"
 
 echo
 echo "Airflow root directory: ${AIRFLOW_SOURCES}"
@@ -43,7 +46,11 @@ LAST_STEP_START_TIME=${BUILD_START_TIME}
 LAST_STEP_NAME=""
 STEP_STARTED="false"
 PYTHON_VERSION_FOR_DEFAULT_IMAGE=3.6
-AIRFLOW_CI_VERBOSE=${AIRFLOW_CI_VERBOSE:="false"}
+VERBOSE=${VERBOSE:="false"}
+
+if [[ ${VERBOSE} == "true" ]]; then
+    set -x
+fi
 
 function end_step {
     if [[ "${STEP_STARTED}" != "true" ]]; then
@@ -84,12 +91,6 @@ function add_image_to_push {
     echo "List of tags to push now: '${IMAGES_BUILT}'"
     echo
 }
-
-function save_to_file {
-    # shellcheck disable=SC2005
-    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
-}
-
 
 function build_python_image {
     NAME="${1}"
@@ -158,7 +159,7 @@ AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="false"}
 # If cache is not used, there is no point in pulling images for cache
 if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE:=}" == "true" ]]; then
     echo
-    echo "Pulling images is disabled becaue cache is not used"
+    echo "Pulling images is disabled because cache is not used"
     echo
     AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE="false"
 fi
@@ -222,10 +223,6 @@ echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
 # Skips downloading and building the checklicence image - one used for checking the licences
 export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE=${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE:="false"}
 echo "Skip CHECKLICENCE image: ${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}"
-
-# Skips pulling the airflow images - this will use cache but will build it all from scratch
-export AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES=${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES:="false"}
-echo "Skip pulling Airflow images: ${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}"
 
 # Fixes permissions for git-checked out files. This is needed to have consistent build cache across
 # Dockerhub, TravisCI and locally checked out code
@@ -325,19 +322,16 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         fi
     fi
     IMAGES_TO_PULL=""
-    if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
-        echo "Skip downloading the CI Airflow image"
-    else
+    if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" != "true" ]]; then
+        echo "Downloading the CI Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CI_IMAGE}"
     fi
-    if [[ "${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}" == "true" ]]; then
-        echo "Skip downloading the slim Airflow image"
-    else
+    if [[ "${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}" != "true" ]]; then
+        echo "Downloading the slim Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_SLIM_CI_IMAGE}"
     fi
-    if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
-        echo "Skip downloading the CHECKLICENCE Airflow image"
-    else
+    if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" != "true" ]]; then
+        echo "Downloading the CHECKLICENCE Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
@@ -374,17 +368,11 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
                 fi
             fi
             if [[ "${PULL_IMAGE}" == "true" ]]; then
-                if [[ "${AIRFLOW_CONTAINER_SKIP_PULLING_AIRFLOW_IMAGES}" == "true" ]]; then
-                    echo
-                    echo "Skipping pulling image ${IMAGE}"
-                    echo
-                else
-                    echo
-                    set -x
-                    docker pull "${IMAGE}" || true
-                    set +x
-                    echo
-                fi
+                echo
+                set -x
+                docker pull "${IMAGE}" || true
+                set +x
+                echo
             fi
             if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
                 DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
@@ -497,11 +485,11 @@ if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == 
         ACCESS_RIGHTS=$("${STAT_BIN}" -c "%A" "${FILE}" || echo "--------")
         # check if the file is group/other writeable
         if [[ "${ACCESS_RIGHTS:5:1}" != "-" || "${ACCESS_RIGHTS:8:1}" != "-" ]]; then
-            if [[ "${AIRFLOW_CI_VERBOSE}" == "true" ]]; then
+            if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
                 "${STAT_BIN}" --printf "%a %A %F \t%s \t->    " "${FILE}"
             fi
             chmod og-w "${FILE}"
-            if [[ "${AIRFLOW_CI_VERBOSE}" == "true" ]]; then
+            if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
                 "${STAT_BIN}" --printf "%a %A %F \t%s \t%n\n" "${FILE}"
             fi
         fi
@@ -523,20 +511,16 @@ else
                 "${AIRFLOW_SLIM_CI_IMAGE}" \
                 "main" \
                 "airflow-apt-deps-ci-slim"
-    save_to_file AIRFLOW_SLIM_CI_IMAGE
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
         docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
         add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
-        save_to_file AIRFLOW_SLIM_CI_IMAGE_DEFAULT
     fi
     if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
         docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
         add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
-        save_to_file AIRFLOW_SLIM_CI_IMAGE_LATEST
         if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
             docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
             add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
-            save_to_file AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT
         fi
     fi
 fi
@@ -552,21 +536,17 @@ else
                 "devel_ci" \
                 "root" \
                 "/root"
-    save_to_file AIRFLOW_CI_IMAGE
 
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_DEFAULT}"
         add_image_to_push "${AIRFLOW_CI_IMAGE_DEFAULT}"
-        save_to_file AIRFLOW_CI_IMAGE_DEFAULT
     fi
     if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST}"
         add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST}"
-        save_to_file AIRFLOW_CI_IMAGE_LATEST
         if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
             docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
             add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
-            save_to_file AIRFLOW_CI_IMAGE_LATEST_DEFAULT
         fi
     fi
 fi
@@ -576,10 +556,8 @@ if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
 else
     start_step "Build Airflow CHECKLICENCE image"
     docker build . -f Dockerfile-checklicence \
-        "${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[@]}" -t ${AIRFLOW_CHECKLICENCE_IMAGE}
+        "${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[@]}" -t "${AIRFLOW_CHECKLICENCE_IMAGE}"
     add_image_to_push "${AIRFLOW_CHECKLICENCE_IMAGE}"
-
-    save_to_file AIRFLOW_CHECKLICENCE_IMAGE
 fi
 
 
