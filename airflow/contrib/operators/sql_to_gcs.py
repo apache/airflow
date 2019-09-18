@@ -30,6 +30,7 @@ import unicodecsv as csv
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 PY3 = sys.version_info[0] == 3
 
@@ -79,6 +80,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
+    @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
                  sql,
                  bucket,
