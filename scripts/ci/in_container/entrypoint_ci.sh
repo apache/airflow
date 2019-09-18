@@ -218,18 +218,7 @@ if [[ "${RUN_TESTS}" == "false" ]]; then
 fi
 
 if [[ ${#ARGS} == 0 ]]; then
-    ARGS=("--with-coverage"
-          "--cover-erase"
-          "--cover-html"
-          "--cover-package=airflow"
-          "--cover-html-dir=airflow/www/static/coverage"
-          "--with-ignore-docstrings"
-          "--rednose"
-          "--with-xunit"
-          "--xunit-file=${XUNIT_FILE}"
-          "--with-timer"
-          "-v"
-          "--logging-level=INFO")
+    ARGS=("--junitxml=${XUNIT_FILE}")
     echo
     echo "Running ALL Tests"
     echo

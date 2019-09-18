@@ -2176,9 +2176,6 @@ class TestHDFSHook(unittest.TestCase):
         self.assertIsInstance(client, snakebite.client.HAClient)
 
 
-send_email_test = mock.Mock()
-
-
 class TestEmail(unittest.TestCase):
     def setUp(self):
         conf.remove_option('email', 'EMAIL_BACKEND')
@@ -2191,7 +2188,8 @@ class TestEmail(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        with conf_vars({('email', 'email_backend'): 'tests.core.send_email_test'}):
+        from tests.test_utils.mocks import send_email_test
+        with conf_vars({('email', 'email_backend'): 'tests.test_utils.mocks.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_once_with(
             'to', 'subject', 'content', files=None, dryrun=False,

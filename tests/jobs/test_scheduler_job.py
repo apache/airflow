@@ -26,6 +26,7 @@ from tempfile import mkdtemp
 
 import psutil
 import six
+from flaky import flaky
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -42,8 +43,8 @@ from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
-from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
+from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
@@ -843,8 +844,8 @@ class TestSchedulerJob(unittest.TestCase):
             ti.refresh_from_db()
             self.assertEqual(State.QUEUED, ti.state)
 
-    @unittest.skipUnless("INTEGRATION" in os.environ,
-                         "The test is flaky with nondeterministic result")
+    @flaky(max_runs=4, min_passes=1)
+    @unittest.skipUnless("INTEGRATION" in os.environ, "The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 

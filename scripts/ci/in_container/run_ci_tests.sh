@@ -30,7 +30,7 @@ in_container_basic_sanity_check
 in_container_script_start
 
 # any argument received is overriding the default nose execution arguments:
-NOSE_ARGS=( "$@" )
+PYTEST_ARGS=( "$@" )
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
@@ -43,32 +43,16 @@ if [[ "${KUBERNETES_VERSION}" == "" ]]; then
 fi
 
 echo
-echo "Starting the tests with those nose arguments: ${NOSE_ARGS[*]}"
+echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
 echo
 set +e
-nosetests "${NOSE_ARGS[@]}"
+
+pytest "${PYTEST_ARGS[@]}" tests/
+
 RES=$?
 
 set +x
-if [[ "${RES}" != "0" ]]; then
-    if [[ -f "${XUNIT_FILE:=}" ]]; then
-        SEPARATOR_WIDTH=$(tput cols)
-        echo
-        printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
-        echo
-        echo "   Summary of failed tests"
-        echo
-        python "${AIRFLOW_SOURCES:=}/tests/test_utils/print_tests.py" \
-            --xunit-file "${XUNIT_FILE}" --only-failed
-        echo
-        printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
-        echo
-    else
-        echo
-        echo " Not printing summary of failed tests. Missing file: ${XUNIT_FILE}"
-        echo
-    fi
-else
+if [[ "${RES}" 0= "0" ]]; then
     echo "All tests successful"
     bash <(curl -s https://codecov.io/bash)
 fi

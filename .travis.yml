@@ -28,41 +28,41 @@ env:
     - CI="true"
 python: "3.6"
 stages:
-  - pre-test
+#  - pre-test
   - test
 jobs:
   include:
-    - name: "Static checks (no pylint, no license check)"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
-    - name: "Check license compliance for Apache"
-      stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
-      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-    - name: "Pylint checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
-    - name: "Build documentation"
-      stage: pre-test
-      script: ./scripts/ci/ci_docs.sh
-    - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=persistent_mode
-        PYTHON_VERSION=3.6
-      python: "3.6"
-      stage: test
-    - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=git_mode
-        PYTHON_VERSION=3.6
-      python: "3.6"
-      stage: test
+#    - name: "Static checks (no pylint, no license check)"
+#      stage: pre-test
+#      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
+#    - name: "Check license compliance for Apache"
+#      stage: pre-test
+#      script: ./scripts/ci/ci_check_license.sh
+#      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+#    - name: "Pylint checks"
+#      stage: pre-test
+#      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
+#    - name: "Build documentation"
+#      stage: pre-test
+#      script: ./scripts/ci/ci_docs.sh
+#    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+#      env: >-
+#        BACKEND=postgres
+#        ENV=kubernetes
+#        KUBERNETES_VERSION=v1.15.0
+#        KUBERNETES_MODE=persistent_mode
+#        PYTHON_VERSION=3.6
+#      python: "3.6"
+#      stage: test
+#    - name: "Tests postgres kubernetes python 3.6 (git)"
+#      env: >-
+#        BACKEND=postgres
+#        ENV=kubernetes
+#        KUBERNETES_VERSION=v1.15.0
+#        KUBERNETES_MODE=git_mode
+#        PYTHON_VERSION=3.6
+#      python: "3.6"
+#      stage: test
     - name: "Tests postgres python 3.6"
       env: >-
         BACKEND=postgres
@@ -70,22 +70,22 @@ jobs:
         PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
-    - name: "Tests sqlite python 3.5"
-      env:
-        BACKEND=sqlite
-        ENV=docker
-        PYTHON_VERSION=3.5
-      python: "3.5"
-      stage: test
-    - name: "Tests mysql python 3.7"
-      env:
-        BACKEND=mysql
-        ENV=docker
-        PYTHON_VERSION=3.7
-      python: "3.7"
-      stage: test
+#    - name: "Tests sqlite python 3.5"
+#      env:
+#        BACKEND=sqlite
+#        ENV=docker
+#        PYTHON_VERSION=3.5
+#      python: "3.5"
+#      stage: test
+#    - name: "Tests mysql python 3.7"
+#      env:
+#        BACKEND=mysql
+#        ENV=docker
+#        PYTHON_VERSION=3.7
+#      python: "3.7"
+#      stage: test
 services:
   - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
-script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
+script: ./scripts/ci/ci_run_airflow_testing.sh

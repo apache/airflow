@@ -24,14 +24,14 @@ import unittest
 from unittest.mock import MagicMock, call
 
 SETTINGS_FILE_POLICY = """
-def policy(task_instance):
+def test_policy(task_instance):
     task_instance.run_as_user = "myself"
 """
 
 SETTINGS_FILE_POLICY_WITH_DUNDER_ALL = """
-__all__ = ["policy"]
+__all__ = ["test_policy"]
 
-def policy(task_instance):
+def test_policy(task_instance):
     task_instance.run_as_user = "myself"
 
 def not_policy():
@@ -109,7 +109,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             task_instance = MagicMock()
-            settings.policy(task_instance)
+            settings.test_policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
@@ -133,7 +133,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             task_instance = MagicMock()
-            settings.policy(task_instance)
+            settings.test_policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
