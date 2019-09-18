@@ -216,9 +216,7 @@ gcp = [
 ]
 grpc = ['grpcio>=1.15.0']
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
-    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
-    'requests-oauthlib==1.1.0'
+    'Authlib>=0.12.1,<1.0.0',
 ]
 hdfs = ['snakebite>=2.7.8']
 hive = [

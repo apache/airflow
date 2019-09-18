@@ -22,9 +22,10 @@ import flask_login
 # flake8: noqa: F401
 from flask_login import current_user, logout_user, login_required, login_user
 
-from flask import url_for, redirect, request
+from flask import url_for, redirect, request, session
 
-from flask_oauthlib.client import OAuth
+from authlib.client import OAuthError
+from authlib.flask.client import OAuth
 
 from airflow import models
 from airflow.configuration import conf
@@ -92,14 +93,12 @@ class GoogleAuthBackend:
 
         self.google_oauth = OAuth(self.flask_app).remote_app(
             'google',
-            consumer_key=get_config_param('client_id'),
-            consumer_secret=get_config_param('client_secret'),
-            request_token_params={'scope': [
+            client_id=get_config_param('client_id'),
+            client_secret=get_config_param('client_secret'),
+            client_kwargs={'scope': [
                 'https://www.googleapis.com/auth/userinfo.profile',
                 'https://www.googleapis.com/auth/userinfo.email']},
-            base_url='https://www.google.com/accounts/',
-            request_token_url=None,
-            access_token_method='POST',
+            api_base_url='https://www.google.com/accounts/',
             access_token_url='https://accounts.google.com/o/oauth2/token',
             authorize_url='https://accounts.google.com/o/oauth2/auth')
 
@@ -111,22 +110,23 @@ class GoogleAuthBackend:
 
     def login(self, request):
         log.debug('Redirecting user to Google login')
-        return self.google_oauth.authorize(callback=url_for(
-            'google_oauth_callback',
-            _external=True),
-            state=request.args.get('next') or request.referrer or None)
+        redirect_uri = url_for('google_oauth_callback', _external=True)
+        next_url = request.args.get('next') or request.referrer
+        if next_url:
+            session['google_next_url'] = next_url
+        return self.google_oauth.authorize_redirect(redirect_uri)
 
-    def get_google_user_profile_info(self, google_token):
-        resp = self.google_oauth.get(
-            'https://www.googleapis.com/oauth2/v1/userinfo',
-            token=(google_token, ''))
+    def get_google_user_profile_info(self, token):
+        api_url = 'https://www.googleapis.com/oauth2/v1/userinfo'
+        resp = self.google_oauth.get(api_url, token=token)
 
-        if not resp or resp.status != 200:
+        if resp.status_code != 200:
             raise AuthenticationError(
                 'Failed to fetch user profile, status ({0})'.format(
-                    resp.status if resp else 'None'))
+                    resp.status_code))
 
-        return resp.data['name'], resp.data['email']
+        data = resp.json()
+        return data['name'], data['email']
 
     def domain_check(self, email):
         domain = email.split('@')[1]
@@ -147,25 +147,15 @@ class GoogleAuthBackend:
     @provide_session
     def oauth_callback(self, session=None):
         log.debug('Google OAuth callback called')
-
-        next_url = request.args.get('state') or url_for('admin.index')
-
-        resp = self.google_oauth.authorized_response()
-
+        next_url = session.pop('google_next_url', url_for('admin.index'))
         try:
-            if resp is None:
-                raise AuthenticationError(
-                    'Null response from Google, denying access.'
-                )
-
-            google_token = resp['access_token']
-
-            username, email = self.get_google_user_profile_info(google_token)
+            token = self.google_oauth.authorize_access_token()
+            username, email = self.get_google_user_profile_info(token)
 
             if not self.domain_check(email):
                 return redirect(url_for('airflow.noaccess'))
 
-        except AuthenticationError:
+        except OAuthError:
             return redirect(url_for('airflow.noaccess'))
 
         user = session.query(models.User).filter(

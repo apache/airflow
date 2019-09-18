@@ -22,9 +22,10 @@ import flask_login
 # flake8: noqa: F401
 from flask_login import current_user, logout_user, login_required, login_user
 
-from flask import url_for, redirect, request
+from flask import url_for, redirect, request, session
 
-from flask_oauthlib.client import OAuth
+from authlib.client import OAuthError
+from authlib.flask.client import OAuth
 
 from airflow import models
 from airflow.configuration import AirflowConfigException, conf
@@ -101,21 +102,16 @@ class GHEAuthBackend:
 
         self.login_manager.init_app(self.flask_app)
 
+        base_url = 'https://' + self.ghe_host
         self.ghe_oauth = OAuth(self.flask_app).remote_app(
             'ghe',
-            consumer_key=get_config_param('client_id'),
-            consumer_secret=get_config_param('client_secret'),
+            client_id=get_config_param('client_id'),
+            client_secret=get_config_param('client_secret'),
             # need read:org to get team member list
-            request_token_params={'scope': 'user:email,read:org'},
-            base_url=self.ghe_host,
-            request_token_url=None,
-            access_token_method='POST',
-            access_token_url=''.join(['https://',
-                                      self.ghe_host,
-                                      '/login/oauth/access_token']),
-            authorize_url=''.join(['https://',
-                                   self.ghe_host,
-                                   '/login/oauth/authorize']))
+            client_kwargs={'scope': 'user:email,read:org'},
+            api_base_url=base_url,
+            access_token_url=''.join([base_url, '/login/oauth/access_token']),
+            authorize_url=''.join([base_url, '/login/oauth/authorize']))
 
         self.login_manager.user_loader(self.load_user)
 
@@ -125,23 +121,25 @@ class GHEAuthBackend:
 
     def login(self, request):
         log.debug('Redirecting user to GHE login')
-        return self.ghe_oauth.authorize(callback=url_for(
-            'ghe_oauth_callback',
-            _external=True),
-            state=request.args.get('next') or request.referrer or None)
+        redirect_uri = url_for('ghe_oauth_callback', _external=True)
+        next_url = request.args.get('next') or request.referrer
+        if next_url:
+            session['ghe_next_url'] = next_url
+        return self.ghe_oauth.authorize_redirect(redirect_uri)
 
-    def get_ghe_user_profile_info(self, ghe_token):
+    def get_ghe_user_profile_info(self, token):
         resp = self.ghe_oauth.get(self.ghe_api_route('/user'),
-                                  token=(ghe_token, ''))
+                                  token=token)
 
-        if not resp or resp.status != 200:
+        if resp.status_code != 200:
             raise AuthenticationError(
                 'Failed to fetch user profile, status ({0})'.format(
-                    resp.status if resp else 'None'))
+                    resp.status_code))
 
-        return resp.data['login'], resp.data['email']
+        data = resp.json()
+        return data['login'], data['email']
 
-    def ghe_team_check(self, username, ghe_token):
+    def ghe_team_check(self, username, token):
         try:
             # the response from ghe returns the id of the team as an integer
             try:
@@ -160,14 +158,15 @@ class GHEAuthBackend:
 
         # https://developer.github.com/v3/orgs/teams/#list-user-teams
         resp = self.ghe_oauth.get(self.ghe_api_route('/user/teams'),
-                                  token=(ghe_token, ''))
+                                  token=token)
 
-        if not resp or resp.status != 200:
+        if resp.status_code != 200:
             raise AuthenticationError(
                 'Bad response from GHE ({0})'.format(
-                    resp.status if resp else 'None'))
+                    resp.status_code))
 
-        for team in resp.data:
+        data = resp.json()
+        for team in data:
             # mylons: previously this line used to be if team['slug'] in teams
             # however, teams are part of organizations. organizations are unique,
             # but teams are not therefore 'slug' for a team is not necessarily unique.
@@ -194,24 +193,16 @@ class GHEAuthBackend:
     def oauth_callback(self, session=None):
         log.debug('GHE OAuth callback called')
 
-        next_url = request.args.get('state') or url_for('admin.index')
-
-        resp = self.ghe_oauth.authorized_response()
+        next_url = session.pop('ghe_next_url', url_for('admin.index'))
 
         try:
-            if resp is None:
-                raise AuthenticationError(
-                    'Null response from GHE, denying access.'
-                )
+            token = self.ghe_oauth.authorize_access_token()
+            username, email = self.get_ghe_user_profile_info(token)
 
-            ghe_token = resp['access_token']
-
-            username, email = self.get_ghe_user_profile_info(ghe_token)
-
-            if not self.ghe_team_check(username, ghe_token):
+            if not self.ghe_team_check(username, token):
                 return redirect(url_for('airflow.noaccess'))
 
-        except AuthenticationError:
+        except OAuthError:
             log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
