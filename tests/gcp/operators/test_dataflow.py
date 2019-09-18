@@ -36,6 +36,7 @@ PARAMETERS = {
     'output': 'gs://test/output/my_output'
 }
 PY_FILE = 'gs://my-bucket/my-object.py'
+PY_INTERPRETER = 'python2'
 JAR_FILE = 'example/test.jar'
 JOB_CLASS = 'com.test.NotMain'
 PY_OPTIONS = ['-m']
@@ -80,6 +81,7 @@ class TestDataFlowPythonOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.job_name, JOB_NAME)
         self.assertEqual(self.dataflow.py_file, PY_FILE)
         self.assertEqual(self.dataflow.py_options, PY_OPTIONS)
+        self.assertEqual(self.dataflow.py_interpreter, PY_INTERPRETER)
         self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS_PYTHON)
@@ -105,7 +107,7 @@ class TestDataFlowPythonOperator(unittest.TestCase):
         }
         gcs_download_hook.assert_called_once_with(PY_FILE)
         start_python_hook.assert_called_once_with(JOB_NAME, expected_options, mock.ANY,
-                                                  PY_OPTIONS)
+                                                  PY_OPTIONS, py_interpreter=PY_INTERPRETER)
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
 

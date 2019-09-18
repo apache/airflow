@@ -19,9 +19,12 @@
 """
 This module contains Google Cloud Vision operators.
 """
+from typing import Dict, Union, Optional
 
+from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 from google.cloud.videointelligence_v1 import enums
+from google.cloud.videointelligence_v1.types import VideoContext
 
 from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook
 from airflow.models import BaseOperator
@@ -68,17 +71,17 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
 
     def __init__(
         self,
-        input_uri,
-        input_content=None,
-        output_uri=None,
-        video_context=None,
-        location=None,
-        retry=None,
-        timeout=None,
-        gcp_conn_id="google_cloud_default",
+        input_uri: str,
+        input_content: Optional[bytes] = None,
+        output_uri: Optional[str] = None,
+        video_context: Union[Dict, VideoContext] = None,
+        location: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.input_content = input_content
@@ -147,17 +150,17 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
 
     def __init__(
         self,
-        input_uri,
-        output_uri=None,
-        input_content=None,
-        video_context=None,
-        location=None,
-        retry=None,
-        timeout=None,
-        gcp_conn_id="google_cloud_default",
+        input_uri: str,
+        output_uri: Optional[str] = None,
+        input_content: Optional[bytes] = None,
+        video_context: Union[Dict, VideoContext] = None,
+        location: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
@@ -226,17 +229,17 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
 
     def __init__(
         self,
-        input_uri,
-        output_uri=None,
-        input_content=None,
-        video_context=None,
-        location=None,
-        retry=None,
-        timeout=None,
-        gcp_conn_id="google_cloud_default",
+        input_uri: str,
+        output_uri: Optional[str] = None,
+        input_content: Optional[bytes] = None,
+        video_context: Union[Dict, VideoContext] = None,
+        location: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri

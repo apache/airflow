@@ -21,7 +21,7 @@ This module contains Google Cloud Functions operators.
 """
 
 import re
-from typing import Optional, Dict
+from typing import Optional, List, Dict, Any
 
 from googleapiclient.errors import HttpError
 
@@ -80,7 +80,7 @@ CLOUD_FUNCTION_VALIDATION = [
             ])
         ])
     ]),
-]
+]  # type: List[Dict[str, Any]]
 
 
 class GcfFunctionDeployOperator(BaseOperator):
@@ -123,14 +123,14 @@ class GcfFunctionDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 location,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 zip_path=None,
-                 validate_body=True,
-                 *args, **kwargs):
+                 location: str,
+                 body: Dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 zip_path: Optional[str] = None,
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.location = location
         self.body = body
@@ -138,7 +138,7 @@ class GcfFunctionDeployOperator(BaseOperator):
         self.api_version = api_version
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
-        self._field_validator = None
+        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
                                                           api_version=api_version)
@@ -223,13 +223,16 @@ class ZipPathPreprocessor:
 
     :param body: Body passed to the create/update method calls.
     :type body: dict
-    :param zip_path: path to the zip file containing source code.
-    :type body: dict
+    :param zip_path: (optional) Path to zip file containing source code of the function. If the path
+        is set, the sourceUploadUrl should not be specified in the body or it should
+        be empty. Then the zip file will be uploaded using the upload URL generated
+        via generateUploadUrl from the Cloud Functions API.
+    :type zip_path: str
 
     """
     upload_function = None  # type: Optional[bool]
 
-    def __init__(self, body, zip_path):
+    def __init__(self, body: dict, zip_path: Optional[str] = None) -> None:
         self.body = body
         self.zip_path = zip_path
 
@@ -312,10 +315,10 @@ class GcfFunctionDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 name,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 *args, **kwargs):
+                 name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 *args, **kwargs) -> None:
         self.name = name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version

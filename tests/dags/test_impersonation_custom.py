@@ -28,7 +28,7 @@ from airflow.operators.python_operator import PythonOperator
 # import the custom package.
 # This DAG is used to test that impersonation propagates the PYTHONPATH environment
 # variable correctly.
-from tests.test_utils.fake_datetime import FakeDatetime
+from fake_datetime import FakeDatetime
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

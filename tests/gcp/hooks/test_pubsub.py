@@ -56,6 +56,15 @@ class TestPubSubHook(unittest.TestCase):
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook._authorize")
+    @mock.patch("airflow.gcp.hooks.pubsub.build")
+    def test_pubsub_client_creation(self, mock_build, mock_authorize):
+        result = self.pubsub_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'pubsub', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_nonexistent_topic(self, mock_service):
         self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC)

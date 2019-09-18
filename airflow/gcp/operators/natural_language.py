@@ -19,10 +19,17 @@
 """
 This module contains Google Cloud Language operators.
 """
+from typing import Union, Tuple, Sequence, Optional
+
 from google.protobuf.json_format import MessageToDict
+from google.cloud.language_v1.types import Document
+from google.cloud.language_v1 import enums
+from google.api_core.retry import Retry
 
 from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from airflow.models import BaseOperator
+
+MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
@@ -38,14 +45,14 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
         If a dict is provided, it must be of the same form as the protobuf message Document
     :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.types.EncodingType
+    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: seq[tuple[str, str]]]
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
@@ -55,15 +62,15 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
 
     def __init__(
         self,
-        document,
-        encoding_type=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        document: Union[dict, Document],
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
@@ -97,14 +104,14 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         If a dict is provided, it must be of the same form as the protobuf message Document
     :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.types.EncodingType
+    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: seq[tuple[str, str]]]
+    :type metadata: Sequence[Tuple[str, str]]]
     :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -115,15 +122,15 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
 
     def __init__(
         self,
-        document,
-        encoding_type=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        document: Union[dict, Document],
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
@@ -160,7 +167,7 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
         If a dict is provided, it must be of the same form as the protobuf message Document
     :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.types.EncodingType
+    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -178,15 +185,15 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
 
     def __init__(
         self,
-        document,
-        encoding_type=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        document: Union[dict, Document],
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
@@ -234,14 +241,14 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
 
     def __init__(
         self,
-        document,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        document: Union[dict, Document],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.document = document
         self.retry = retry

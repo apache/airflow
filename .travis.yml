@@ -22,6 +22,7 @@ env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"
 python: "3.6"

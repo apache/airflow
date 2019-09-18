@@ -50,6 +50,5 @@ dag1_task1 = PythonOperator(
 dag1_task2 = PythonOperator(
     task_id='test_run_dependent_task',
     python_callable=success,
-    provide_context=True,
     dag=dag1)
 dag1_task1.set_downstream(dag1_task2)

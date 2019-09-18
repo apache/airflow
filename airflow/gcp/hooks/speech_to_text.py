@@ -19,7 +19,7 @@
 """
 This module contains a Google Cloud Speech Hook.
 """
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
@@ -40,7 +40,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None
 
@@ -60,7 +60,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
         retry: Retry = None,
-        timeout: float = None
+        timeout: Optional[float] = None
     ):
         """
         Recognizes audio input

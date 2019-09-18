@@ -451,8 +451,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Note that by default tasks aren't assigned to any pool and their
-execution parallelism is only limited to the executor's setting.
+Note that if tasks are not given a pool, they are assigned to a default
+pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
+can changed through the UI or CLI (though it cannot be removed).
 
 To combine Pools with SubDAGs see the `SubDAGs`_ section.
 
@@ -548,9 +549,12 @@ passed, then a corresponding list of XCom values is returned.
     def push_function():
         return value
 
-    # inside another PythonOperator where provide_context=True
-    def pull_function(**context):
-        value = context['task_instance'].xcom_pull(task_ids='pushing_task')
+    # inside another PythonOperator
+    def pull_function(task_instance):
+        value = task_instance.xcom_pull(task_ids='pushing_task')
+
+When specifying arguments that are part of the context, they will be
+automatically passed to the function.
 
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
@@ -632,8 +636,7 @@ For example:
 
 .. code:: python
 
-  def branch_func(**kwargs):
-      ti = kwargs['ti']
+  def branch_func(ti):
       xcom_value = int(ti.xcom_pull(task_ids='start_task'))
       if xcom_value >= 5:
           return 'continue_task'
@@ -648,7 +651,6 @@ For example:
 
   branch_op = BranchPythonOperator(
       task_id='branch_task',
-      provide_context=True,
       python_callable=branch_func,
       dag=dag)
 
@@ -1090,6 +1092,61 @@ as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
+
+You can also use Jinja templating with nested fields, as long as these nested fields
+are marked as templated in the structure they belong to: fields registered in
+``template_fields`` property will be submitted to template substitution, like the
+``path`` field in the example below:
+
+.. code:: python
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataReader('/tmp/{{ ds }}/my_file')
+      ],
+      dag=dag)
+
+.. note:: ``template_fields`` property can equally be a class variable or an
+   instance variable.
+
+Deep nested fields can also be substituted, as long as all intermediate fields are
+marked as template fields:
+
+.. code:: python
+
+  class MyDataTransformer:
+    template_fields = ['reader']
+
+    def __init__(self, my_reader):
+      self.reader = my_reader
+
+    # [additional code here...]
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
+      ],
+      dag=dag)
 
 You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 One common usage is to avoid Jinja from dropping a trailing newline from a

@@ -1,23 +1,25 @@
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the 'License'); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an 'AS IS' BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """
 This module contains GCP MLEngine operators.
 """
 import re
-
+from typing import List, Optional
 
 from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.exceptions import AirflowException
@@ -28,7 +30,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = LoggingMixin().log
 
 
-def _normalize_mlengine_job_id(job_id):
+def _normalize_mlengine_job_id(job_id: str) -> str:
     """
     Replaces invalid MLEngine job_id characters with '_'.
 
@@ -136,8 +138,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :type uri: str
 
     :param max_worker_count: The maximum number of workers to be used
-        for parallel processing. Defaults to 10 if not specified.
-    :type max_worker_count: int
+        for parallel processing. Defaults to 10 if not specified. Should be a
+        string representing the worker count ("10" instead of 10, "50" instead
+        of 50, etc.)
+    :type max_worker_count: string
 
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
@@ -173,22 +177,22 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint:disable=too-many-arguments
-                 project_id,
-                 job_id,
-                 region,
-                 data_format,
-                 input_paths,
-                 output_path,
-                 model_name=None,
-                 version_name=None,
-                 uri=None,
-                 max_worker_count=None,
-                 runtime_version=None,
-                 signature_name=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
+                 project_id: str,
+                 job_id: str,
+                 region: str,
+                 data_format: str,
+                 input_paths: List[str],
+                 output_path: str,
+                 model_name: Optional[str] = None,
+                 version_name: Optional[str] = None,
+                 uri: Optional[str] = None,
+                 max_worker_count: Optional[int] = None,
+                 runtime_version: Optional[str] = None,
+                 signature_name: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self._project_id = project_id
@@ -317,13 +321,13 @@ class MLEngineModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 model,
-                 operation='create',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
+                 project_id: str,
+                 model: dict,
+                 operation: str = 'create',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model = model
@@ -406,15 +410,15 @@ class MLEngineVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
-                 model_name,
-                 version_name=None,
-                 version=None,
-                 operation='create',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
+                 project_id: str,
+                 model_name: str,
+                 version_name: Optional[str] = None,
+                 version: Optional[dict] = None,
+                 operation: str = 'create',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self._project_id = project_id
@@ -528,22 +532,22 @@ class MLEngineTrainingOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint:disable=too-many-arguments
-                 project_id,
-                 job_id,
-                 package_uris,
-                 training_python_module,
-                 training_args,
-                 region,
-                 scale_tier=None,
-                 master_type=None,
-                 runtime_version=None,
-                 python_version=None,
-                 job_dir=None,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 mode='PRODUCTION',
+                 project_id: str,
+                 job_id: str,
+                 package_uris: str,
+                 training_python_module: str,
+                 training_args: str,
+                 region: str,
+                 scale_tier: Optional[str] = None,
+                 master_type: Optional[str] = None,
+                 runtime_version: Optional[str] = None,
+                 python_version: Optional[str] = None,
+                 job_dir: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 mode: str = 'PRODUCTION',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._job_id = job_id

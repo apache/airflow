@@ -90,7 +90,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-
         from airflow.www.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
             AirflowSecurityManager
@@ -108,6 +107,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         def init_views(appbuilder):
             from airflow.www import views
+            # Remove the session from scoped_session registry to avoid
+            # reusing a session with a disconnected connection
+            appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())

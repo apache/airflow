@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
@@ -84,18 +84,18 @@ class HiveToDruidTransfer(BaseOperator):
             sql: str,
             druid_datasource: str,
             ts_dim: str,
-            metric_spec: List = None,
+            metric_spec: Optional[List] = None,
             hive_cli_conn_id: str = 'hive_cli_default',
             druid_ingest_conn_id: str = 'druid_ingest_default',
             metastore_conn_id: str = 'metastore_default',
-            hadoop_dependency_coordinates: List[str] = None,
-            intervals: List = None,
+            hadoop_dependency_coordinates: Optional[List[str]] = None,
+            intervals: Optional[List] = None,
             num_shards: float = -1,
             target_partition_size: int = -1,
             query_granularity: str = "NONE",
             segment_granularity: str = "DAY",
-            hive_tblproperties: Dict = None,
-            job_properties: Dict = None,
+            hive_tblproperties: Optional[Dict] = None,
+            job_properties: Optional[Dict] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
