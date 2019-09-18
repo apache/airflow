@@ -31,6 +31,9 @@ class DruidHook(BaseHook):
     """
     Connection to Druid overlord for ingestion
 
+    To connect to a Druid cluster that is secured with the druid-basic-security
+    extension, add the username and password to the druid ingestion connection.
+
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
     :type druid_ingest_conn_id: str
@@ -65,6 +68,11 @@ class DruidHook(BaseHook):
             conn_type=conn_type, host=host, port=port, endpoint=endpoint)
 
     def get_auth(self):
+        """
+        Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
+
+        If these details have not been set then returns None.
+        """
         conn = self.get_connection(self.druid_ingest_conn_id)
         user = conn.login
         password = conn.password
