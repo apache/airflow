@@ -617,9 +617,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -t, --test-target <TARGET>
           Run the specified unit test target. There might be multiple
           targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-          as additional options passed to nosetest. For example:
+          as additional options passed to pytest. For example:
 
-          './breeze --test-target tests.core -- --logging-level=DEBUG'
+          './breeze --test-target tests/test_core.py -- --logging-level=DEBUG'
 
   -x, --execute-command <COMMAND>
           Run chosen command instead of entering the environment. The command is run using
@@ -725,7 +725,7 @@ Once you run ``./breeze`` you can also execute various actions via generated con
 
    Enter the environment          : ./.build/cmd_run
    Run command in the environment : ./.build/cmd_run "[command with args]" [bash options]
-   Run tests in the environment   : ./.build/test_run [test-target] [nosetest options]
+   Run tests in the environment   : ./.build/test_run [test-target] [pytest options]
    Run Docker compose command     : ./.build/dc [help/pull/...] [docker-compose options]
 
 Troubleshooting

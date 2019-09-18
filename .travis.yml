@@ -64,6 +64,7 @@ jobs:
       env: >-
         BACKEND=postgres
         ENV=kubernetes
+        START_KUBERNETES_CLUSTER=true
         KUBERNETES_VERSION=v1.15.0
         KUBERNETES_MODE=persistent_mode
         PYTHON_VERSION=3.6

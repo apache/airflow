@@ -33,6 +33,8 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+TRAVIS=${TRAVIS:=}
+
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
@@ -211,53 +213,42 @@ set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
     if [[ ${#ARGS} == 0 ]]; then
-        nohup "${AIRFLOW_SOURCES}/scripts/ci/in_container/run_extract_tests.sh" \
-            >"${AIRFLOW_SOURCES}/logs/extract_tests.log" 2>&1 &
         exec /bin/bash
     else
         exec /bin/bash -c "$(printf "%q " "${ARGS[@]}")"
     fi
 fi
 
-if [[ ${#ARGS} == 0 ]]; then
-    ARGS=("--with-coverage"
-          "--cover-erase"
-          "--cover-html"
-          "--cover-package=airflow"
-          "--cover-html-dir=airflow/www/static/coverage"
-          "--with-ignore-docstrings"
-          "--rednose"
-          "--with-xunit"
-          "--xunit-file=${XUNIT_FILE}"
-          "--with-timer"
-          "-v"
-          "--logging-level=INFO")
-    echo
-    echo "Running ALL Tests"
-    echo
-else
-    echo
-    echo "Running tests with ${ARGS[*]}"
-    echo
-fi
 set -u
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
+if [[ "${TRAVIS}" == "true" ]]; then
+    TRAVIS_ARGS=(
+        "--junitxml=${XUNIT_FILE}"
+        "--durations=100"
+        "--cov=airflow/"
+        "--cov-config=.coveragerc"
+        "--cov-report=html:airflow/www/static/coverage/"
+        "--pythonwarnings=ignore::DeprecationWarning"
+        "--pythonwarnings=ignore::PendingDeprecationWarning"
+        )
+else
+    TRAVIS_ARGS=()
+fi
+
+
 if [[ -z "${KUBERNETES_VERSION}" ]]; then
-    echo
-    echo "Running CI tests with ${ARGS[*]}"
-    echo
+    ARGS=("${TRAVIS_ARGS[@]}" "tests/")
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
+    export SKIP_INIT_DB=true
     echo "Set up Kubernetes cluster for tests"
     "${MY_DIR}/../kubernetes/setup_kubernetes.sh"
     "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
 
-    echo
-    echo "Running CI tests with ${ARGS[*]}"
-    echo
-    "${MY_DIR}/run_ci_tests.sh" tests.integration.kubernetes "${ARGS[@]}"
+    ARGS=("${TRAVIS_ARGS[@]}" "tests/integration/kubernetes")
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
 
 in_container_script_end

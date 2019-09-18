@@ -22,7 +22,6 @@ import unittest
 from typing import List, Optional
 from unittest import mock
 
-from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from airflow.gcp.hooks import bigquery as hook
@@ -32,11 +31,6 @@ from airflow.gcp.hooks.bigquery import (
 )
 
 bq_available = True
-
-try:
-    hook.BigQueryHook().get_service()
-except GoogleAuthError:
-    bq_available = False
 
 
 class TestBigQueryHookConnection(unittest.TestCase):
@@ -88,7 +82,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         new_callable=mock.PropertyMock,
         return_value=None
     )
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_output_is_dataframe_with_valid_query(self, mock_project_id):
         import pandas as pd
         df = self.instance.get_pandas_df('select 1')
@@ -99,7 +93,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         new_callable=mock.PropertyMock,
         return_value=None
     )
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_throws_exception_with_invalid_query(self, mock_project_id):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
@@ -110,7 +104,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         new_callable=mock.PropertyMock,
         return_value=None
     )
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_succeeds_with_explicit_legacy_query(self, mock_project_id):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
@@ -120,7 +114,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         new_callable=mock.PropertyMock,
         return_value=None
     )
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_succeeds_with_explicit_std_query(self, mock_project_id):
         df = self.instance.get_pandas_df(
             'select * except(b) from (select 1 a, 2 b)', dialect='standard')
@@ -131,7 +125,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         new_callable=mock.PropertyMock,
         return_value=None
     )
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_throws_exception_with_incompatible_syntax(self, mock_project_id):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df(

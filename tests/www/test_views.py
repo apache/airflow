@@ -28,7 +28,7 @@ import sys
 import tempfile
 import unittest
 import urllib
-from datetime import timedelta
+from datetime import datetime as dt, timedelta
 from unittest import mock
 from urllib.parse import quote_plus
 
@@ -1172,7 +1172,8 @@ class TestDagACLView(TestBase):
     """
     Test Airflow DAG acl
     """
-    default_date = timezone.datetime(2018, 6, 1)
+    next_year = dt.now().year + 1
+    default_date = timezone.datetime(next_year, 6, 1)
     run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
 
     @classmethod

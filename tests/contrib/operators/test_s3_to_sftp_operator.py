@@ -22,12 +22,10 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow import models
 from airflow.configuration import conf
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
-from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
@@ -42,19 +40,8 @@ LOCAL_FILE_PATH = '/tmp/test_s3_upload'
 SFTP_MOCK_FILE = 'test_sftp_file.csv'
 S3_MOCK_FILES = 'test_1_file.csv'
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_s3_to_sftp'
 DEFAULT_DATE = datetime(2018, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 
 class TestS3ToSFTPOperator(unittest.TestCase):
