@@ -22,12 +22,13 @@ it will create an output notebook "out-<date>". All fields, including the keys i
 templated.
 """
 
+from datetime import timedelta
+
 import airflow
 
 from airflow.models import DAG
 from airflow.operators.papermill_operator import PapermillOperator
 
-from datetime import timedelta
 
 default_args = {
     'owner': 'Airflow',
