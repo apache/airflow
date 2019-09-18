@@ -51,7 +51,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
     core_section = 'core'
     kubernetes_section = 'kubernetes'
 
-    def __init__(self):
+    def __init__(self):  # pylint: disable=too-many-statements
         configuration_dict = conf.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
