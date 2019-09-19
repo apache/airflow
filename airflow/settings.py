@@ -71,13 +71,13 @@ class RetryingQuery(Query):
                 return super().__iter__()
 
             except Exception as ex:
-                log.warning(f'Try {try_number}/{self.max_tries} failed to perform db action.', exc_info=ex)
+                log.warning('Try {}/{} failed to perform db action.'.format(try_number, self.max_tries), exc_info=ex)
                 last_exc = ex
                 time.sleep(min(float(self.max_retry_time_seconds), 0.1 * (1 << try_number)))
 
             try_number += 1
 
-        log.error(f'Failed to perform db action after {self.max_tries} attempts.')
+        log.error('Failed to perform db action after {} attempts.'.format(self.max_tries))
         raise last_exc
 
 
