@@ -36,6 +36,7 @@ from .kube_client import get_kube_client
 
 POD_LOGS_POLL_INTERVAL_SECONDS = 5
 
+
 class PodStatus:
     PENDING = 'pending'
     RUNNING = 'running'
@@ -168,18 +169,19 @@ class PodLauncher(LoggingMixin):
         Reads pod logs from the Kubernetes API until the pod stops.
 
         This explicitly does not use the `follow` parameter due to issues around log rotation
-        (https://github.com/kubernetes/kubernetes/issues/28369). Once that is fixed, using follow instead of polling for
-        pod status should be fine, but deduping on timestamp will still be desired in case the underlying request fails
+        (https://github.com/kubernetes/kubernetes/issues/28369). Once that is fixed, using follow instead
+        of polling for pod status should be fine, but deduping on timestamp will still be desired in case the
+        underlying request fails
 
         :param pod:
         :return:
         """
 
-        # The timestamps returned from the Kubernetes API are in nanoseconds, and appear to never duplicate across lines
-        # so we can use the timestamp to deduplicate log lines across multiple runs
+        # The timestamps returned from the Kubernetes API are in nanoseconds, and appear to never duplicate
+        # across lines so we can use the timestamp to deduplicate log lines across multiple runs
         last_chunk_timestamp = None
-        # We use a variable here instead of looping on self.pod_is_running so that we can get one more read in the loop
-        # before breaking out
+        # We use a variable here instead of looping on self.pod_is_running so that we can get one more read
+        # in the loop before breaking out
         pod_is_running = False
 
         try:
@@ -188,8 +190,8 @@ class PodLauncher(LoggingMixin):
 
                 resp = self._read_pod_log_chunk(pod, last_chunk_timestamp)
 
-                # Just in case the assumption that never duplicating across lines is wrong, we store the previous line's
-                # timestamp and log a warning just in case
+                # Just in case the assumption that never duplicating across lines is wrong, we store the
+                # previous line's timestamp and log a warning just in case
                 last_line_timestamp = None
 
                 for line in resp:
@@ -199,7 +201,10 @@ class PodLauncher(LoggingMixin):
                         continue
                     # Check if we have duplicate timestamps in a single chunk
                     if last_line_timestamp and timestamp == last_line_timestamp:
-                        self.log.warn("Duplicate timestamp found in pod log chunk. This could lead to log line loss")
+                        self.log.warn(
+                            "Duplicate timestamp {} found in pod log chunk. This could lead to log line loss",
+                            timestamp
+                        )
                     yield line
                     last_line_timestamp = timestamp
 

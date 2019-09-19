@@ -502,7 +502,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         Kubernetes pod names must be <= 63 chars (due to the use of hostnames)
         and must pass the following regex for validation
-        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
@@ -723,26 +723,26 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
             for service_account in name_path_pair_list:
                 _create_or_update_secret(service_account['name'], service_account['path'])
-    
+
     def _create_worker_service(self):
         service = kubernetes.client.V1Service(
-                metadata=kubernetes.client.V1ObjectMeta(
-                    name='airflow-worker'
-                ),
-                spec=kubernetes.client.V1ServiceSpec(
-                    cluster_ip='None',
-                    selector={
-                        'app.kubernetes.io/name': 'airflow-worker',
-                    },
-                    ports=[
-                        kubernetes.client.V1ServicePort(
-                            name='logs',
-                            protocol='TCP',
-                            port=8793
-                        )
-                    ]
-                )
+            metadata=kubernetes.client.V1ObjectMeta(
+                name='airflow-worker'
+            ),
+            spec=kubernetes.client.V1ServiceSpec(
+                cluster_ip='None',
+                selector={
+                    'app.kubernetes.io/name': 'airflow-worker',
+                },
+                ports=[
+                    kubernetes.client.V1ServicePort(
+                        name='logs',
+                        protocol='TCP',
+                        port=8793
+                    )
+                ]
             )
+        )
 
         try:
             return self.kube_client.create_namespaced_service(

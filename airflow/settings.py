@@ -57,7 +57,8 @@ class RetryingQuery(Query):
         self.max_tries = 1 + conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRIES')
 
         try:
-            self.max_retry_time_seconds = max(0, conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS'))
+            self.max_retry_time_seconds = max(0, conf.getint(
+                'core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS'))
         except conf.AirflowConfigException:
             self.max_retry_time_seconds = 30
 
