@@ -164,7 +164,7 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod: Pod) -> Generator[str]:
+    def read_pod_logs(self, pod: Pod) -> Generator[str, None, None]:
         """
         Reads pod logs from the Kubernetes API until the pod stops.
 

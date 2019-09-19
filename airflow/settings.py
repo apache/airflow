@@ -28,6 +28,7 @@ import time
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker, Query
 from sqlalchemy.pool import NullPool
+from typing import Any
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.kubernetes.pod import Pod
@@ -98,7 +99,7 @@ class DummyStatsLogger(object):
         pass
 
 
-Stats = DummyStatsLogger
+Stats: Any = DummyStatsLogger
 
 try:
     if conf.getboolean('scheduler', 'statsd_on'):
