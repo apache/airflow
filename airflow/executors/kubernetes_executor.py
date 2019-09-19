@@ -284,8 +284,8 @@ class KubeConfig:
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
                 'config section: `dags_volume_claim` '
-                'or `dags_volume_host` '		
-                'or `dags_in_image` '		
+                'or `dags_volume_host` '
+                'or `dags_in_image` '
                 'or `git_repo and git_branch and git_dags_folder_mount_point`')
         if self.git_repo \
            and (self.git_user or self.git_password) \
