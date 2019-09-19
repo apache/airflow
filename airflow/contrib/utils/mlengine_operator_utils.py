@@ -24,5 +24,5 @@ import warnings
 from airflow.gcp.utils.mlengine_operator_utils import create_evaluate_ops  # noqa
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.utils.mlengine_operator_utils`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
