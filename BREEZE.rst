@@ -916,7 +916,7 @@ There are three images that we currently manage:
 
 * **Slim CI** image that is used for static code checks (size around 500MB) - tag follows the pattern
   of ``<BRANCH>-python<PYTHON_VERSION>-ci-slim`` (for example ``apache/airflow:master-python3.6-ci-slim``).
-  The image is built using the [Dockerfile](Dockerfile) dockerfile.
+  The image is built using the `<Dockerfile>`_ dockerfile.
 * **Full CI image*** that is used for testing - containing a lot more test-related installed software
   (size around 1GB)  - tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
   (for example ``apache/airflow:master-python3.6-ci``). The image is built using the
