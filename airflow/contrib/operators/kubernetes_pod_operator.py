@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Executes task in a Kubernetes POD"""
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -23,7 +23,7 @@ from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.utils.state import State
 
 
-class KubernetesPodOperator(BaseOperator):
+class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Execute a task in a Kubernetes Pod
 
@@ -172,7 +172,7 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
                  namespace,
                  image,
                  name,

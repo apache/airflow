@@ -96,9 +96,9 @@ def _trigger_dag(
 
 def trigger_dag(
         dag_id: str,
-        run_id: str = None,
+        run_id: Optional[str] = None,
         conf: Optional[Union[dict, str]] = None,
-        execution_date: datetime = None,
+        execution_date: Optional[datetime] = None,
         replace_microseconds: bool = True,
 ) -> Optional[DagRun]:
     """Triggers execution of DAG specified by dag_id

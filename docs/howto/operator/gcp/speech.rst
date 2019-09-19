@@ -20,6 +20,11 @@
 Google Cloud Text to Speech Operators
 =====================================
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcpTextToSpeechSynthesizeOperator:
 
 GcpTextToSpeechSynthesizeOperator

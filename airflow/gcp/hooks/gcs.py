@@ -22,9 +22,10 @@ This module contains a Google Cloud Storage hook.
 """
 import os
 from os import path
-from typing import Optional, Set, Tuple
+from typing import Optional, Set, Tuple, Union
 import gzip as gz
 import shutil
+from io import BytesIO
 
 from urllib.parse import urlparse
 from google.cloud import storage
@@ -185,40 +186,66 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         else:
             return blob.download_as_string()
 
-    def upload(self, bucket_name, object_name, filename,
-               mime_type='application/octet-stream', gzip=False):
+    def upload(self, bucket_name: str, object_name: str, filename: Optional[str] = None,
+               data: Optional[Union[str, bytes]] = None, mime_type: Optional[str] = None, gzip: bool = False,
+               encoding: str = 'utf-8') -> None:
         """
-        Uploads a local file to Google Cloud Storage.
+        Uploads a local file or file data as string or bytes to Google Cloud Storage.
 
         :param bucket_name: The bucket to upload to.
         :type bucket_name: str
-        :param object_name: The object name to set when uploading the local file.
+        :param object_name: The object name to set when uploading the file.
         :type object_name: str
         :param filename: The local file path to the file to be uploaded.
         :type filename: str
-        :param mime_type: The MIME type to set when uploading the file.
+        :param data: The file's data as a string or bytes to be uploaded.
+        :type data: str
+        :param mime_type: The file's mime type set when uploading the file.
         :type mime_type: str
-        :param gzip: Option to compress file for upload
+        :param gzip: Option to compress local file or file data for upload
         :type gzip: bool
+        :param encoding: bytes encoding for file data if provided as string
+        :type encoding: str
         """
-
-        if gzip:
-            filename_gz = filename + '.gz'
-
-            with open(filename, 'rb') as f_in:
-                with gz.open(filename_gz, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-                    filename = filename_gz
-
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
-        blob.upload_from_filename(filename=filename,
-                                  content_type=mime_type)
+        if filename and data:
+            raise ValueError("'filename' and 'data' parameter provided. Please "
+                             "specify a single parameter, either 'filename' for "
+                             "local file uploads or 'data' for file content uploads.")
+        elif filename:
+            if not mime_type:
+                mime_type = 'application/octet-stream'
+            if gzip:
+                filename_gz = filename + '.gz'
 
-        if gzip:
-            os.remove(filename)
-        self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
+                with open(filename, 'rb') as f_in:
+                    with gz.open(filename_gz, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                        filename = filename_gz
+
+            blob.upload_from_filename(filename=filename,
+                                      content_type=mime_type)
+            if gzip:
+                os.remove(filename)
+            self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
+        elif data:
+            if not mime_type:
+                mime_type = 'text/plain'
+            if gzip:
+                if isinstance(data, str):
+                    data = bytes(data, encoding)
+                out = BytesIO()
+                with gz.GzipFile(fileobj=out, mode="w") as f:
+                    f.write(data)
+                data = out.getvalue()
+            blob.upload_from_string(data,
+                                    content_type=mime_type)
+            self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
+        else:
+            raise ValueError("'filename' and 'data' parameter missing. "
+                             "One is required to upload to gcs.")
 
     def exists(self, bucket_name, object_name):
         """
@@ -447,7 +474,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       bucket_name, location, storage_class)
 
         # Add airflow-version label to the bucket
-        labels = {} or labels
+        labels = labels or {}
         labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
 
         client = self.get_conn()

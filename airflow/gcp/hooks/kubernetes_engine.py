@@ -22,6 +22,7 @@ This module contains a Google Kubernetes Engine Hook.
 """
 
 import time
+import warnings
 from typing import Dict, Union, Optional
 
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -50,15 +51,15 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None,
-        location: str = None
+        delegate_to: Optional[str] = None,
+        location: Optional[str] = None
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self._client = None
         self.location = location
 
-    def get_client(self) -> container_v1.ClusterManagerClient:
+    def get_conn(self) -> container_v1.ClusterManagerClient:
         """
         Returns ClusterManagerCLinet object.
 
@@ -72,7 +73,14 @@ class GKEClusterHook(GoogleCloudBaseHook):
             )
         return self._client
 
-    def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
+    # To preserve backward compatibility
+    # TODO: remove one day
+    def get_client(self) -> container_v1.ClusterManagerClient:  # pylint: disable=missing-docstring
+        warnings.warn("The get_client method has been deprecated. "
+                      "You should use the get_conn method.", DeprecationWarning)
+        return self.get_conn()
+
+    def wait_for_operation(self, operation: Operation, project_id: Optional[str] = None) -> Operation:
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
@@ -96,7 +104,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name: str, project_id: str = None) -> Operation:
+    def get_operation(self, operation_name: str, project_id: Optional[str] = None) -> Operation:
         """
         Fetches the operation from Google Cloud
 
@@ -106,9 +114,9 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: The new, updated operation from Google Cloud
         """
-        return self.get_client().get_operation(project_id=project_id or self.project_id,
-                                               zone=self.location,
-                                               operation_id=operation_name)
+        return self.get_conn().get_operation(project_id=project_id or self.project_id,
+                                             zone=self.location,
+                                             operation_id=operation_name)
 
     @staticmethod
     def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
@@ -135,7 +143,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def delete_cluster(
         self,
         name: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Optional[str]:
@@ -162,15 +170,15 @@ class GKEClusterHook(GoogleCloudBaseHook):
         """
 
         self.log.info(
-            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", self.project_id, self.location, name
+            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", project_id, self.location, name
         )
 
         try:
-            resource = self.get_client().delete_cluster(project_id=project_id or self.project_id,
-                                                        zone=self.location,
-                                                        cluster_id=name,
-                                                        retry=retry,
-                                                        timeout=timeout)
+            resource = self.get_conn().delete_cluster(project_id=project_id,
+                                                      zone=self.location,
+                                                      cluster_id=name,
+                                                      retry=retry,
+                                                      timeout=timeout)
             resource = self.wait_for_operation(resource)
             # Returns server-defined url for the resource
             return resource.self_link
@@ -182,7 +190,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def create_cluster(
         self,
         cluster: Union[Dict, Cluster],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> str:
@@ -221,14 +229,14 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         self.log.info(
             "Creating (project_id=%s, zone=%s, cluster_name=%s)",
-            self.project_id, self.location, cluster.name
+            project_id, self.location, cluster.name
         )
         try:
-            resource = self.get_client().create_cluster(project_id=project_id or self.project_id,
-                                                        zone=self.location,
-                                                        cluster=cluster,
-                                                        retry=retry,
-                                                        timeout=timeout)
+            resource = self.get_conn().create_cluster(project_id=project_id,
+                                                      zone=self.location,
+                                                      cluster=cluster,
+                                                      retry=retry,
+                                                      timeout=timeout)
             resource = self.wait_for_operation(resource)
 
             return resource.target_link
@@ -240,7 +248,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def get_cluster(
         self,
         name: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Cluster:
@@ -265,8 +273,8 @@ class GKEClusterHook(GoogleCloudBaseHook):
             project_id or self.project_id, self.location, name
         )
 
-        return self.get_client().get_cluster(project_id=project_id or self.project_id,
-                                             zone=self.location,
-                                             cluster_id=name,
-                                             retry=retry,
-                                             timeout=timeout).self_link
+        return self.get_conn().get_cluster(project_id=project_id,
+                                           zone=self.location,
+                                           cluster_id=name,
+                                           retry=retry,
+                                           timeout=timeout).self_link

@@ -19,6 +19,7 @@
 #
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
+"""Exceptions used by Airflow"""
 
 
 class AirflowException(Exception):
@@ -40,11 +41,11 @@ class AirflowNotFoundException(AirflowException):
 
 
 class AirflowConfigException(AirflowException):
-    pass
+    """Raise when there is configuration problem"""
 
 
 class AirflowSensorTimeout(AirflowException):
-    pass
+    """Raise when there is a timeout on sensor polling"""
 
 
 class AirflowRescheduleException(AirflowException):
@@ -52,30 +53,30 @@ class AirflowRescheduleException(AirflowException):
     Raise when the task should be re-scheduled at a later time.
 
     :param reschedule_date: The date when the task should be rescheduled
-    :type reschedule: datetime.datetime
+    :type reschedule_date: datetime.datetime
     """
     def __init__(self, reschedule_date):
         self.reschedule_date = reschedule_date
 
 
 class InvalidStatsNameException(AirflowException):
-    pass
+    """Raise when name of the stats is invalid"""
 
 
 class AirflowTaskTimeout(AirflowException):
-    pass
+    """Raise when the task execution times-out"""
 
 
 class AirflowWebServerTimeout(AirflowException):
-    pass
+    """Raise when the web server times out"""
 
 
 class AirflowSkipException(AirflowException):
-    pass
+    """Raise when the task should be skipped"""
 
 
 class AirflowDagCycleException(AirflowException):
-    pass
+    """Raise when there is a cycle in Dag definition"""
 
 
 class DagNotFound(AirflowNotFoundException):

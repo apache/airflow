@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch, call
 
 from airflow import configuration, models
-from airflow.contrib.hooks.google_discovery_api_hook import GoogleDiscoveryApiHook
+from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.utils import db
 
 
@@ -40,8 +40,8 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             )
         )
 
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.build')
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook._authorize')
+    @patch('airflow.gcp.hooks.discovery_api.build')
+    @patch('airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook._authorize')
     def test_get_conn(self, mock_authorize, mock_build):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id='google_test',
@@ -58,8 +58,8 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             cache_discovery=False
         )
 
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.getattr')
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook.get_conn')
+    @patch('airflow.gcp.hooks.discovery_api.getattr')
+    @patch('airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn')
     def test_query(self, mock_get_conn, mock_getattr):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id='google_test',
@@ -90,8 +90,8 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             call()().execute(num_retries=num_retries)
         ])
 
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.getattr')
-    @patch('airflow.contrib.hooks.google_discovery_api_hook.GoogleDiscoveryApiHook.get_conn')
+    @patch('airflow.gcp.hooks.discovery_api.getattr')
+    @patch('airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn')
     def test_query_with_pagination(self, mock_get_conn, mock_getattr):
         google_api_conn_client_sub_call = mock_getattr.return_value.return_value
         mock_getattr.return_value.side_effect = [

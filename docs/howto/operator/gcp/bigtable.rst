@@ -24,6 +24,15 @@ Google Cloud Bigtable Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
+
+Environment variables
+---------------------
+
 All examples below rely on the following variables, which can be passed via environment variables.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py

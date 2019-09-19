@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,6 +31,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Kerberos security provider"""
 
 from typing import Optional
 import socket
@@ -29,10 +47,16 @@ NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 log = LoggingMixin().log
 
 
-def renew_from_kt(principal, keytab):
+def renew_from_kt(principal: str, keytab: str):
+    """
+    Renew kerberos token from keytab
+
+    :param principal: principal
+    :param keytab: keytab file
+    :return: None
+    """
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
-
     renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
 
     cmd_principal = principal or conf.get('kerberos', 'principal').replace(
@@ -47,7 +71,7 @@ def renew_from_kt(principal, keytab):
         "-c", conf.get('kerberos', 'ccache'),  # specify credentials cache
         cmd_principal
     ]
-    log.info("Reinitting kerberos from keytab: %s", " ".join(cmdv))
+    log.info("Re-initialising kerberos from keytab: %s", " ".join(cmdv))
 
     subp = subprocess.Popen(cmdv,
                             stdout=subprocess.PIPE,
@@ -63,7 +87,7 @@ def renew_from_kt(principal, keytab):
         )
         sys.exit(subp.returncode)
 
-    global NEED_KRB181_WORKAROUND
+    global NEED_KRB181_WORKAROUND  # pylint: disable=global-statement
     if NEED_KRB181_WORKAROUND is None:
         NEED_KRB181_WORKAROUND = detect_conf_var()
     if NEED_KRB181_WORKAROUND:
@@ -73,7 +97,13 @@ def renew_from_kt(principal, keytab):
         perform_krb181_workaround(principal)
 
 
-def perform_krb181_workaround(principal):
+def perform_krb181_workaround(principal: str):
+    """
+    Workaround for Kerberos 1.8.1.
+
+    :param principal: principal name
+    :return: None
+    """
     cmdv = [conf.get('kerberos', 'kinit_path'),
             "-c", conf.get('kerberos', 'ccache'),
             "-R"]  # Renew ticket_cache
@@ -112,7 +142,14 @@ def detect_conf_var() -> bool:
         return b'X-CACHECONF:' in file.read()
 
 
-def run(principal, keytab):
+def run(principal: str, keytab: str):
+    """
+    Run the kerbros renewer.
+
+    :param principal: principal name
+    :param keytab: keytab file
+    :return: None
+    """
     if not keytab:
         log.debug("Keytab renewer not starting, no keytab configured")
         sys.exit(0)

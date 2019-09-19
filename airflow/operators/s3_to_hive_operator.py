@@ -18,7 +18,7 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 
 from airflow.utils.file import TemporaryDirectory
 import gzip
@@ -113,16 +113,16 @@ class S3ToHiveTransfer(BaseOperator):
             delimiter: str = ',',
             create: bool = True,
             recreate: bool = False,
-            partition: Dict = None,
+            partition: Optional[Dict] = None,
             headers: bool = False,
             check_headers: bool = False,
             wildcard_match: bool = False,
             aws_conn_id: str = 'aws_default',
-            verify: Union[bool, str] = None,
+            verify: Optional[Union[bool, str]] = None,
             hive_cli_conn_id: str = 'hive_cli_default',
             input_compressed: bool = False,
-            tblproperties: Dict = None,
-            select_expression: str = None,
+            tblproperties: Optional[Dict] = None,
+            select_expression: Optional[str] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_key = s3_key

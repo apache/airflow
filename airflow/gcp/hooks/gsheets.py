@@ -21,7 +21,7 @@
 This module contains a Google Sheets API hook
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
@@ -50,7 +50,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         spreadsheet_id: str,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v4',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.spreadsheet_id = spreadsheet_id

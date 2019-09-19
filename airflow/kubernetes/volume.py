@@ -25,20 +25,23 @@ from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Volume(K8SModel):
-    def __init__(self, name, configs):
-        """ Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
-        and Persistent Volumes
-        :param name: the name of the volume mount
-        :type name: str
-        :param configs: dictionary of any features needed for volume.
+    """
+    Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
+    and Persistent Volumes
+
+    :param name: the name of the volume mount
+    :type name: str
+    :param configs: dictionary of any features needed for volume.
         We purposely keep this vague since there are multiple volume types with changing
         configs.
-        :type configs: dict
-        """
+    :type configs: dict
+    """
+    def __init__(self, name, configs):
         self.name = name
         self.configs = configs
 
     def to_k8s_client_obj(self) -> Dict[str, str]:
+        """Converts to k8s object"""
         return {
             'name': self.name,
             **self.configs

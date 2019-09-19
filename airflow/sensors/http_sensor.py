@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Callable
+from typing import Dict, Callable, Optional
 
 from airflow.operators.python_operator import PythonOperator
 
@@ -73,10 +73,10 @@ class HttpSensor(BaseSensorOperator):
                  endpoint: str,
                  http_conn_id: str = 'http_default',
                  method: str = 'GET',
-                 request_params: Dict = None,
-                 headers: Dict = None,
-                 response_check: Callable = None,
-                 extra_options: Dict = None, *args, **kwargs):
+                 request_params: Optional[Dict] = None,
+                 headers: Optional[Dict] = None,
+                 response_check: Optional[Callable] = None,
+                 extra_options: Optional[Dict] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id

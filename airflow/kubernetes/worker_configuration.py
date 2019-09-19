@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Configuration of the worker"""
 import os
+from typing import List, Dict
+import kubernetes.client.models as k8s
 
 from airflow.configuration import conf
-import kubernetes.client.models as k8s
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.k8s_model import append_to_pod
-from typing import List, Dict
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -224,7 +224,7 @@ class WorkerConfiguration(LoggingMixin):
         if not self.kube_config.image_pull_secrets:
             return []
         pull_secrets = self.kube_config.image_pull_secrets.split(',')
-        return list(map(lambda name: k8s.V1LocalObjectReference(name), pull_secrets))
+        return list(map(k8s.V1LocalObjectReference, pull_secrets))
 
     def _get_security_context(self) -> k8s.V1PodSecurityContext:
         """Defines the security context"""
@@ -354,6 +354,7 @@ class WorkerConfiguration(LoggingMixin):
         return list(volumes.values())
 
     def generate_dag_volume_mount_path(self) -> str:
+        """Generate path for DAG volume"""
         if self.kube_config.dags_volume_claim or self.kube_config.dags_volume_host:
             return self.worker_airflow_dags
 
@@ -361,6 +362,7 @@ class WorkerConfiguration(LoggingMixin):
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command) -> k8s.V1Pod:
+        """Creates POD."""
         pod_generator = PodGenerator(
             namespace=namespace,
             name=pod_id,

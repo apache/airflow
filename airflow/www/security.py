@@ -340,8 +340,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pvms = (
             sesh.query(sqla_models.PermissionView)
             .filter(or_(
-                sqla_models.PermissionView.permission == None,  # noqa pylint: disable=singleton-comparison
-                sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
+                sqla_models.PermissionView.permission is None,  # noqa pylint: disable=singleton-comparison
+                sqla_models.PermissionView.view_menu is None,  # noqa pylint: disable=singleton-comparison
             ))
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need

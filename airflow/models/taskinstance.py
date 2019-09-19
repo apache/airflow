@@ -525,7 +525,11 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
-    def _get_previous_ti(self, state: str = None, session: Session = None) -> Optional['TaskInstance']:
+    def _get_previous_ti(
+        self,
+        state: Optional[str] = None,
+        session: Session = None
+    ) -> Optional['TaskInstance']:
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)

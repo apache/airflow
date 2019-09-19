@@ -81,7 +81,7 @@ class GoogleCloudBaseHook(BaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict

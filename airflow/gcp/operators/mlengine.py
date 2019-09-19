@@ -1,18 +1,20 @@
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the 'License'); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an 'AS IS' BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """
 This module contains GCP MLEngine operators.
 """
@@ -136,8 +138,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :type uri: str
 
     :param max_worker_count: The maximum number of workers to be used
-        for parallel processing. Defaults to 10 if not specified.
-    :type max_worker_count: int
+        for parallel processing. Defaults to 10 if not specified. Should be a
+        string representing the worker count ("10" instead of 10, "50" instead
+        of 50, etc.)
+    :type max_worker_count: string
 
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.

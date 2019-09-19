@@ -54,7 +54,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
@@ -71,7 +71,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: str = None) -> Dict:
+    def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
         """
         Starts a build with the specified configuration.
 

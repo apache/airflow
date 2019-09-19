@@ -162,6 +162,7 @@ disable=print-statement,
         no-else-return,  # deemed unnecessary
         no-else-raise,  # deemed unnecessary
         too-many-format-args,  # Pylint fails on multiline string format
+        too-many-lines,  # Pylint fails on too many lines and we have several cases of those
         cell-var-from-loop,  # Raises spurious errors
         super-init-not-called,  # BasPH: ignored for now but should be fixed somewhere in the future
         arguments-differ,  # Doesn't always raise valid messages

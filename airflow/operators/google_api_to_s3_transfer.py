@@ -27,7 +27,7 @@ from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
 
-from airflow.contrib.hooks.google_discovery_api_hook import GoogleDiscoveryApiHook
+from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.hooks.S3_hook import S3Hook
 
 

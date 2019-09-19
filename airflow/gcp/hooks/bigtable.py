@@ -19,7 +19,7 @@
 """
 This module contains a Google Cloud Bigtable Hook.
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.cluster import Cluster
@@ -39,7 +39,7 @@ class BigtableHook(GoogleCloudBaseHook):
     """
 
     # pylint: disable=too-many-arguments
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None
 
@@ -54,7 +54,7 @@ class BigtableHook(GoogleCloudBaseHook):
         return self._client
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance_id: str, project_id: str = None) -> Instance:
+    def get_instance(self, instance_id: str, project_id: Optional[str] = None) -> Instance:
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
         Otherwise, returns None.
@@ -74,7 +74,7 @@ class BigtableHook(GoogleCloudBaseHook):
         return instance
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def delete_instance(self, instance_id: str, project_id: str = None) -> None:
+    def delete_instance(self, instance_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes the specified Cloud Bigtable instance.
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
@@ -101,15 +101,15 @@ class BigtableHook(GoogleCloudBaseHook):
         instance_id: str,
         main_cluster_id: str,
         main_cluster_zone: str,
-        project_id: str = None,
-        replica_cluster_id: str = None,
-        replica_cluster_zone: str = None,
-        instance_display_name: str = None,
+        project_id: Optional[str] = None,
+        replica_cluster_id: Optional[str] = None,
+        replica_cluster_zone: Optional[str] = None,
+        instance_display_name: Optional[str] = None,
         instance_type: enums.Instance.Type = enums.Instance.Type.TYPE_UNSPECIFIED,
-        instance_labels: Dict = None,
-        cluster_nodes: int = None,
+        instance_labels: Optional[Dict] = None,
+        cluster_nodes: Optional[int] = None,
         cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
-        timeout: float = None
+        timeout: Optional[float] = None
     ) -> Instance:
         """
         Creates new instance.
@@ -183,8 +183,8 @@ class BigtableHook(GoogleCloudBaseHook):
     def create_table(
         instance: Instance,
         table_id: str,
-        initial_split_keys: List = None,
-        column_families: Dict[str, GarbageCollectionRule] = None
+        initial_split_keys: Optional[List] = None,
+        column_families: Optional[Dict[str, GarbageCollectionRule]] = None
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.
@@ -210,7 +210,7 @@ class BigtableHook(GoogleCloudBaseHook):
         table.create(initial_split_keys, column_families)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def delete_table(self, instance_id: str, table_id: str, project_id: str = None) -> None:
+    def delete_table(self, instance_id: str, table_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes the specified table in Cloud Bigtable.
         Raises google.api_core.exceptions.NotFound if the table does not exist.

@@ -12,7 +12,7 @@ _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 _BREEZE_SHORT_OPTIONS="
 h P: E: B: K: M:
 s b O
-v y C A
+v y n C A
 r R p u
 c D: H: e a
 t: d: k x: S: F:
@@ -21,8 +21,8 @@ t: d: k x: S: F:
 _BREEZE_LONG_OPTIONS="
 help python: env: backend: kubernetes-version: kubernetes-mode:
 skip-mounting-local-sources build-only build-docs
-verbose assume-yes toggle-suppress-cheatsheet toggle-suppress-asciiart
-force-rebuild-images force-rebuild-images-clean force-pull-images push-images
+verbose assume-yes assume-no toggle-suppress-cheatsheet toggle-suppress-asciiart
+force-build-images force-build-images-clean force-pull-images push-images
 cleanup-images dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
 test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
 "

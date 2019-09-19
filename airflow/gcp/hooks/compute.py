@@ -55,7 +55,7 @@ class GceHook(GoogleCloudBaseHook):
         self,
         api_version: str = 'v1',
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
@@ -74,7 +74,7 @@ class GceHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def start_instance(self, zone: str, resource_id: str, project_id: str = None) -> None:
+    def start_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
         """
         Starts an existing instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -106,7 +106,7 @@ class GceHook(GoogleCloudBaseHook):
                                              zone=zone)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def stop_instance(self, zone: str, resource_id: str, project_id: str = None) -> None:
+    def stop_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
         """
         Stops an instance defined by project_id, zone and resource_id
         Must be called with keyword arguments rather than positional.
@@ -138,7 +138,13 @@ class GceHook(GoogleCloudBaseHook):
                                              zone=zone)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def set_machine_type(self, zone: str, resource_id: str, body: Dict, project_id: str = None) -> None:
+    def set_machine_type(
+        self,
+        zone: str,
+        resource_id: str,
+        body: Dict,
+        project_id: Optional[str] = None
+    ) -> None:
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -181,7 +187,7 @@ class GceHook(GoogleCloudBaseHook):
             .execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id: str, project_id: str = None) -> Dict:
+    def get_instance_template(self, resource_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Retrieves instance template by project_id and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -204,7 +210,12 @@ class GceHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def insert_instance_template(self, body: Dict, request_id: str = None, project_id: str = None) -> None:
+    def insert_instance_template(
+        self,
+        body: Dict,
+        request_id: Optional[str] = None,
+        project_id: Optional[str] = None
+    ) -> None:
         """
         Inserts instance template using body specified
         Must be called with keyword arguments rather than positional.
@@ -239,7 +250,12 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def get_instance_group_manager(self, zone: str, resource_id: str, project_id: str = None) -> Dict:
+    def get_instance_group_manager(
+        self,
+        zone: str,
+        resource_id: str,
+        project_id: Optional[str] = None
+    ) -> Dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -270,8 +286,8 @@ class GceHook(GoogleCloudBaseHook):
         zone: str,
         resource_id: str,
         body: Dict,
-        request_id: str = None,
-        project_id: str = None
+        request_id: Optional[str] = None,
+        project_id: Optional[str] = None
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
@@ -314,7 +330,12 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    def _wait_for_operation_to_complete(self, project_id: str, operation_name: str, zone: str = None) -> None:
+    def _wait_for_operation_to_complete(
+        self,
+        project_id: str,
+        operation_name: str,
+        zone: Optional[str] = None
+    ) -> None:
         """
         Waits for the named operation to complete - checks status of the async call.
 
