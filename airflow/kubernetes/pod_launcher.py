@@ -17,23 +17,29 @@
 """Launches PODs"""
 import json
 import time
-from datetime import datetime as dt
-from typing import Optional, Tuple
-
 import tenacity
+
+from datetime import datetime as dt
+from typing import Optional, Tuple, Generator
+from requests.exceptions import BaseHTTPError
+
 from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from requests.exceptions import BaseHTTPError
+
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.kubernetes.pod import Pod
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
+from urllib3 import HTTPResponse
 from .kube_client import get_kube_client
+
+POD_LOGS_POLL_INTERVAL_SECONDS = 5
 
 
 class PodStatus:
@@ -165,19 +171,76 @@ class PodLauncher(LoggingMixin):
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
         wait=tenacity.wait_exponential(),
+        reraise=True,
+    )
+    def _read_pod_log_chunk(self, pod: Pod,
+                            since_time: str = None) -> HTTPResponse:
+        if not since_time:
+            since_time = '0001-01-01T00:00:00Z'
+        return self._client.read_namespaced_pod_log(
+            name=pod.name,
+            namespace=pod.namespace,
+            container='base',
+            follow=False,
+            since_time=since_time,
+            timestamps=True,
+            _preload_content=False
+        )
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod: V1Pod):
-        """Reads log from the POD"""
+    def read_pod_logs(self, pod: Pod) -> Generator[str, None, None]:
+        """
+        Reads pod logs from the Kubernetes API until the pod stops.
+
+        This explicitly does not use the `follow` parameter due to issues
+        around log rotation
+        (https://github.com/kubernetes/kubernetes/issues/28369). Once that is
+        fixed, using follow instead of polling for pod status should be fine,
+        but deduping on timestamp will still be desired in case the underlying
+        request fails
+
+        :param pod:
+        :return:
+        """
+
+        # The timestamps returned from the Kubernetes API are in nanoseconds,
+        # and appear to never duplicate across lines so we can use the
+        # timestamp to deduplicate log lines across multiple runs
+        last_chunk_timestamp = None
+        # We use a variable here instead of looping on self.pod_is_running so
+        # that we can get one more read in the loop before breaking out
+        pod_is_running = True
+
         try:
-            return self._client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container='base',
-                follow=True,
-                tail_lines=10,
-                _preload_content=False
-            )
+            while pod_is_running:
+                pod_is_running = self.pod_is_running(pod)
+
+                resp = self._read_pod_log_chunk(pod, last_chunk_timestamp)
+
+                # Just in case the assumption that never duplicating across
+                # lines is wrong, we store the previous line's timestamp and
+                # log a warning just in case
+                last_line_timestamp = None
+
+                for line in resp:
+                    timestamp, line = line.split(' ', 1)
+                    # Strip the trailing Z so we can lexicographically compare the strings
+                    if last_chunk_timestamp and timestamp[:-1] <= last_chunk_timestamp[:-1]:
+                        continue
+                    # Check if we have duplicate timestamps in a single chunk
+                    if last_line_timestamp and timestamp == last_line_timestamp:
+                        self.log.warn(
+                            "Duplicate timestamp found in pod log chunk. This could lead to log line loss")
+                    yield line
+                    last_line_timestamp = timestamp
+
+                last_chunk_timestamp = last_line_timestamp
+
+                time.sleep(POD_LOGS_POLL_INTERVAL_SECONDS)
         except BaseHTTPError as e:
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)
