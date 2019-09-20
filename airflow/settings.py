@@ -99,7 +99,7 @@ class DummyStatsLogger(object):
         pass
 
 
-Stats: Any = DummyStatsLogger
+Stats = DummyStatsLogger
 
 try:
     if conf.getboolean('scheduler', 'statsd_on'):
@@ -109,7 +109,7 @@ try:
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
-        Stats = statsd
+        Stats = statsd  # type: ignore
 except (socket.gaierror, ImportError) as e:
     log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
 
