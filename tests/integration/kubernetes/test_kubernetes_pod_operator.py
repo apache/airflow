@@ -29,6 +29,7 @@ from kubernetes.client.rest import ApiException
 
 from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.kubernetes.init_container import InitContainer
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
@@ -87,6 +88,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
+                'initContainers': [],
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
@@ -640,6 +642,58 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_init_container(self, mock_client, launcher_mock):
+        # GIVEN
+        volume_mount = VolumeMount('test-volume',
+                                   mount_path='/etc/foo',
+                                   sub_path=None,
+                                   read_only=True)
+
+        init_containers = [InitContainer(
+            name="init-container",
+            image="ubuntu:16.04",
+            init_environment={"key1": "value1", "key2": "value2"},
+            volume_mounts=[volume_mount],
+            cmds=["bash", "-cx"],
+            args=["echo 10"])]
+
+        expected_init_container = {
+            'name': 'init-container',
+            'image': 'ubuntu:16.04',
+            'command': ['bash', '-cx'],
+            'args': ['echo 10'],
+            'env': [{
+                'name': 'key1',
+                'value': 'value1'
+            }, {
+                'name': 'key2',
+                'value': 'value2'
+            }],
+            'volumeMounts': [{
+                'mountPath': '/etc/foo',
+                'name': 'test-volume',
+                'readOnly': True
+            }],
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            init_containers=init_containers,
+        )
+
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['initContainers'] = [expected_init_container]
+        self.assertEqual(self.expected_pod, actual_pod)
 
 
 # pylint: enable=unused-argument

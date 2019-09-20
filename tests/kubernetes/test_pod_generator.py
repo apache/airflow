@@ -119,6 +119,7 @@ class TestPodGenerator(unittest.TestCase):
                     {'name': 'pull_secret_a'},
                     {'name': 'pull_secret_b'}
                 ],
+                'initContainers': [],
                 'securityContext': {
                     'runAsUser': 1000,
                     'fsGroup': 2000,
@@ -246,6 +247,7 @@ class TestPodGenerator(unittest.TestCase):
                     }],
                 }],
                 'imagePullSecrets': [],
+                'initContainers': [],
                 'volumes': [{
                     'hostPath': {'path': '/tmp/'},
                     'name': 'example-kubernetes-test-volume'
@@ -319,6 +321,7 @@ class TestPodGenerator(unittest.TestCase):
                     }],
                     'hostNetwork': False,
                     'imagePullSecrets': [],
+                    'initContainers': [],
                     'restartPolicy': 'Never',
                     'volumes': [{
                         'hostPath': {'path': '/tmp/'},

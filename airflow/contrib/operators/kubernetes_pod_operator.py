@@ -128,6 +128,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
+    :param init_containers: init container for the launched Pod
+    :type init_containers: list[airflow.kubernetes.init_container.InitContainer]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
