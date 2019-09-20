@@ -750,7 +750,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._last_runtime = {}
         # Map from file path to the last finish time
         self._last_finish_time = {}
-        self._last_zombie_query_time = timezone.utcnow()
+        #self._last_zombie_query_time = timezone.utcnow()
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.utcnow()
         # Last time stats were printed
