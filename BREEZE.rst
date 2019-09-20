@@ -943,7 +943,7 @@ that might take more time (but it is highly optimised to only rebuild what's nee
 
 In most cases re-building an image requires connectivity to network (for example to download new
 dependencies). In case you work offline and do not want to rebuild the images when needed - you might set
-``ASSUME_NO_TO_ALL_QUESTIONS`` variable to ``true`` as described in the
+``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
 `Default behaviour for user interaction <#default-behaviour-for-user-interaction>`_ chapter.
 
 See `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
@@ -957,23 +957,23 @@ For automation scripts, you can export one of the three variables to control the
 
 .. code-block::
 
-  export ASSUME_YES_TO_ALL_QUESTIONS="true"
+  export FORCE_ANSWER_TO_QUESTIONS="yes"
 
-If ``ASSUME_YES_TO_ALL_QUESTIONS` is set to `true`, the images will automatically rebuild when needed.
+If ``FORCE_ANSWER_TO_QUESTIONS` is set to ``yes``, the images will automatically rebuild when needed.
 Images are deleted without asking.
 
 .. code-block::
 
-  export ASSUME_NO_TO_ALL_QUESTIONS="true"
+  export FORCE_ANSWER_TO_QUESTIONS="no"
 
-If ``ASSUME_NO_TO_ALL_QUESTIONS`` is set to ``true``, the old images are used even if re-building is needed.
+If ``FORCE_ANSWER_TO_QUESTIONS`` is set to ``no``, the old images are used even if re-building is needed.
 This is useful when you work offline. Deleting images is aborted.
 
 .. code-block::
 
-  export ASSUME_QUIT_TO_ALL_QUESTIONS="true"
+  export FORCE_ANSWER_TO_QUESTIONS="quit"
 
-If ``ASSUME_QUIT_TO_ALL_QUESTIONS`` is set to ``true``, the whole script is aborted. Deleting images is aborted.
+If ``FORCE_ANSWER_TO_QUESTIONS`` is set to ``quit``, the whole script is aborted. Deleting images is aborted.
 
 If more than one variable is set, YES takes precedence over NO which take precedence over QUIT.
 
