@@ -46,7 +46,7 @@ class GcfHook(GoogleCloudBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
@@ -91,7 +91,7 @@ class GcfHook(GoogleCloudBaseHook):
             name=name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: str = None) -> None:
+    def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -133,7 +133,7 @@ class GcfHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location: str, zip_path: str, project_id: str = None) -> str:
+    def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
         """
         Uploads zip file with sources.
 
@@ -187,7 +187,7 @@ class GcfHook(GoogleCloudBaseHook):
             function_id: str,
             input_data: Dict,
             location: str,
-            project_id: str = None
+            project_id: Optional[str] = None
     ) -> Dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing

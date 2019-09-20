@@ -16,22 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export SKIP_CLEANUP_OF_LAST_ANSWER="true"
 
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
-
-export PYTHON_VERSION=3.5
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-rebuild_ci_slim_image_if_needed
-
-script_end
+"${MY_DIR}/ci_mypy.sh" "${@}"

@@ -48,10 +48,61 @@ previously been set to `us-east-1` during installation.
 The region now needs to be set manually either in the connection screens in
 Airflow, or via the `AWS_DEFAULT_REGION` environment variable.
 
+### Normalize gcp_conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter
+which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
+``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
+
+Following components were affected by normalization:
+  * airflow.gcp.hooks.datastore.DatastoreHook
+  * airflow.gcp.hooks.bigquery.BigQueryHook
+  * airflow.gcp.hooks.gcs.GoogleCloudStorageHook
+  * airflow.gcp.operators.bigquery.BigQueryCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryValueCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryGetDataOperator
+  * airflow.gcp.operators.bigquery.BigQueryOperator
+  * airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageListOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator
+  * airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator
+  * airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+  * airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
+  * airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+  * airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator
+  * airflow.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
+
+### Changes to propagating Kubernetes worker annotations
+
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
+That is to remove restriction on the character set for k8s annotation keys.
+All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+```
+[kubernetes_annotations]
+annotation_key = annotation_value
+annotation_key2 = annotation_value2
+```
+it should be rewritten to
+```
+[kubernetes]
+worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
+```
+
 ### Changes to import paths and names of GCP operators and hooks
 
-According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 
-operators related to Google Cloud Platform has been moved from contrib to core. 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+operators related to Google Cloud Platform has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                  |
@@ -280,24 +331,24 @@ PR: [#5990](https://github.com/apache/airflow/pull/5990)
 FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
 
 ### Change dag loading duration metric name
-Change DAG file loading duration metric from 
-`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to 
+Change DAG file loading duration metric from
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
 
 ### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
 
 ImapHook:
-* The order of arguments has changed for `has_mail_attachment`, 
+* The order of arguments has changed for `has_mail_attachment`,
 `retrieve_mail_attachments` and `download_mail_attachments`.
 * A new `mail_filter` argument has been added to each of those.
 
 ImapAttachmentSensor:
 * The order of arguments has changed for `__init__`.
-* A new `mail_filter` argument has been added to `__init__`. 
+* A new `mail_filter` argument has been added to `__init__`.
 
 ImapAttachmentToS3Operator:
 * The order of arguments has changed for `__init__`.
-* A new `imap_mail_filter` argument has been added to `__init__`. 
+* A new `imap_mail_filter` argument has been added to `__init__`.
 
 ### Changes to `SubDagOperator`
 
@@ -321,15 +372,15 @@ you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
 
 ### Changes to S3Hook
 
-Note: The order of arguments has changed for `check_for_prefix`. 
+Note: The order of arguments has changed for `check_for_prefix`.
 The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
 
 ### Changes to Google Transfer Operator
-To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator` 
+To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator`
 has been renamed to `request_filter`.
 
 ### Changes in  Google Cloud Transfer Hook
- To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and 
+ To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
 ### Export MySQL timestamps as UTC
@@ -360,7 +411,7 @@ Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator
 
 ### Changes to SalesforceHook
 
-* renamed `sign_in` function to `get_conn` 
+* renamed `sign_in` function to `get_conn`
 
 ### HTTPHook verify default value changed from False to True.
 
@@ -371,8 +422,8 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 
 * The following parameters have been replaced in all the methods in GCSHook:
   * `bucket` is changed to `bucket_name`
-  * `object` is changed to `object_name` 
-  
+  * `object` is changed to `object_name`
+
 * The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Changes to CloudantHook
@@ -504,10 +555,10 @@ The `do_xcom_push` flag (a switch to push the result of an operator to xcom or n
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
 
 ### Changes to Dataproc related Operators
-The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
+The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
-and `dataproc_jars`respectively. 
-Arguments for dataproc_properties dataproc_jars 
+and `dataproc_jars`respectively.
+Arguments for dataproc_properties dataproc_jars
 
 ## Airflow 1.10.4
 
@@ -524,12 +575,12 @@ If you have a specific task that still requires Python 2 then you can use the Py
 
 ### Changes to GoogleCloudStorageHook
 
-* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054)
 * as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
 
   The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
-* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`.
 
 Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
 
@@ -794,7 +845,7 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
-      
+
 ### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
 
 GoogleCloudStorageToBigQueryOperator is now support schema auto-detection is available when you load data into BigQuery. Unfortunately, changes can be required.
@@ -806,7 +857,7 @@ define a schema_fields:
     gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
       ...
       schema_fields={...})
-      
+
 or define a schema_object:
 
     gcs_to_bq.GoogleCloudStorageToBigQueryOperator(

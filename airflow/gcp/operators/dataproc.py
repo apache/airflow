@@ -1121,8 +1121,8 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
             main: str,
             arguments: Optional[List] = None,
             archives: Optional[List] = None,
-            pyfiles: Optional[List] = None,
-            files: List = None,
+            pyfiles: Optional[Optional[Optional[List]]] = None,
+            files: Optional[List] = None,
             *args,
             **kwargs) -> None:
 

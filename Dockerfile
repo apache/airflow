@@ -25,6 +25,7 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
 ############################################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps-ci-slim
 
+
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"

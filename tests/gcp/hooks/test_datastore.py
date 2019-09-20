@@ -29,7 +29,7 @@ from tests.compat import mock
 GCP_PROJECT_ID = "test"
 
 
-def mock_init(unused_self, unused_gcp_conn_id, unused_delegate_to=None):
+def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 

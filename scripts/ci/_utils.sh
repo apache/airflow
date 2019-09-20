@@ -31,6 +31,8 @@ export AIRFLOW_SOURCES
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
 export BUILD_CACHE_DIR
 
+LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
+
 FILES_FOR_REBUILD_CHECK="\
 setup.py \
 setup.cfg \
@@ -75,13 +77,6 @@ function print_info() {
         echo "$@"
     fi
 }
-
-if [[ ${REBUILD:=false} ==  "true" ]]; then
-    print_info
-    print_info "Rebuilding is enabled. Assuming yes to all questions"
-    print_info
-    export ASSUME_YES_TO_ALL_QUESTIONS="true"
-fi
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
@@ -238,14 +233,40 @@ function update_all_md5_files() {
 # As result of this check - most of the static checks will start pretty much immediately.
 #
 function check_if_docker_build_is_needed() {
-    set +e
-    for FILE in ${FILES_FOR_REBUILD_CHECK}
-    do
-        if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+    print_info
+    print_info "Checking if docker image build is needed for ${THE_IMAGE_TYPE} image."
+    print_info
+    local IMAGE_BUILD_NEEDED="false"
+    if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
+        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        set +e
+        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        do
+            # Just store md5sum for all files in md5sum.new - do not check if it is different
+            check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
+        done
+        set -e
+        IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
+        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+    else
+        set +e
+        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        do
+            if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+                export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+                IMAGE_BUILD_NEEDED=true
+            fi
+        done
+        set -e
+        if [[ ${IMAGE_BUILD_NEEDED} == "true" ]]; then
+            IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
             export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+        else
+            print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi
-    done
-    set -e
+    fi
+    print_info
 }
 
 #
@@ -322,36 +343,85 @@ function assert_not_in_container() {
     fi
 }
 
+function cleanup_last_force_answer() {
+    # Removes the "Force answer" (yes/no/quit) given previously, unles you specifically want to use it.
+    #
+    # This is the default behaviour of all rebuild scripts to ask independently whether you want to
+    # rebuild the image or not. Sometimes however we want to reuse answer previously given. For
+    # example if you answered "no" to rebuild the image, the assumption is that you do not
+    # want to rebuild image for other rebuilds in the same pre-commit execution.
+    #
+    # All the pre-commit checks therefore have `export SKIP_CLEANUP_OF_LAST_ANSWER="true"` set
+    # So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
+    # recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
+    # "no" answer given previously. This happens until you run any of the breeze commands or run all
+    # precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
+    # be asked again.
+    if [[ ${SKIP_CLEANUP_OF_LAST_ANSWER:=""} != "true" ]]; then
+        print_info
+        print_info "Removing last answer from ${LAST_FORCE_ANSWER_FILE}"
+        print_info
+        rm -f "${LAST_FORCE_ANSWER_FILE}"
+    else
+        if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
+            print_info
+            print_info "Retaining last answer from ${LAST_FORCE_ANSWER_FILE}"
+            print_info "$(cat "${LAST_FORCE_ANSWER_FILE}")"
+            print_info
+        fi
+    fi
+}
+
+
 function confirm_image_rebuild() {
+    if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
+        # set variable from last answered response given in the same pre-commit run - so that it can be
+        # set in one pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # shellcheck disable=SC1090
+        source "${LAST_FORCE_ANSWER_FILE}"
+    fi
     set +e
-    "${AIRFLOW_SOURCES}/confirm" "${ACTION} the image ${THE_IMAGE_TYPE}."
-    RES=$?
+    if [[ ${CI:="false"} == "true" ]]; then
+        print_info
+        print_info "CI environment - forcing ${ACTION} for ${THE_IMAGE_TYPE} image."
+        print_info
+        RES="0"
+    elif [[ -c /dev/tty ]]; then
+        # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
+        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
+        RES=$?
+    elif [[ -t 0 ]]; then
+        # Check if this script is run interactively with stdin open and terminal attached
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}"
+        RES=$?
+    else
+        # No terminal, no stdin - quitting!
+        RES="2"
+    fi
     set -e
     if [[ ${RES} == "1" ]]; then
+        print_info
+        print_info "Skipping ${ACTION} for ${THE_IMAGE_TYPE}"
+        print_info
         SKIP_REBUILD="true"
-        # Assume No also to subsequent questions
-        export ASSUME_NO_TO_ALL_QUESTIONS="true"
+        # Force "no" also to subsequent questions so that if you answer it once, you are not asked
+        # For all other pre-commits and you will continue using the images you already have
+        export FORCE_ANSWER_TO_QUESTIONS="no"
+        echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' > "${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
-        echo >&2 "#############################################"
-        echo >&2 "  ERROR:  ${ACTION} the image stopped. "
-        echo >&2 "#############################################"
+        echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
+        echo >&2 "   Make sure you build the images bu running run one of:"
+        echo >&2 "         * ./scripts/ci/local_ci_build.sh"
+        echo >&2 "         * ./scripts/ci/local_ci_pull_and_build.sh"
         echo >&2
-        echo >&2 "  You should re-run your command with REBUILD=true environment variable set"
-        echo >&2
-        echo >&2 "  * 'REBUILD=true git commit'"
-        echo >&2 "  * 'REBUILD=true git push'"
-        echo >&2
-        echo >&2 "  In case you do not want to rebuild, You can always commit the code "
-        echo >&2 "  with --no-verify switch. This skips pre-commit checks. CI will run the tests anyway."
-        echo >&2
-        echo >&2 "  You can also rebuild the image:        './scripts/ci/local_ci_build.sh'"
-        echo >&2 "  Or pull&build the image from registry: './scripts/ci/local_ci_pull_and_build.sh'"
+        echo >&2 "   If you run it via pre-commit separately, run 'pre-commit run build' first."
         echo >&2
         exit 1
     else
-        # Assume Yes also to subsequent questions
-        export ASSUME_YES_TO_ALL_QUESTIONS="true"
+        # Force "yes" also to subsequent questions
+        export FORCE_ANSWER_TO_QUESTIONS="yes"
     fi
 }
 
@@ -364,48 +434,49 @@ EOF
 
     if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"} == "true" ]]; then
         print_info
-        print_info "Clean up ${THE_IMAGE_TYPE}"
+        print_info "Clean up ${THE_IMAGE_TYPE} image. Just cleanup no pull of images happen."
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
     elif [[ -f "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} built locally - skip force-pulling"
+        print_info "${THE_IMAGE_TYPE} image already built locally."
         print_info
     else
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} not built locally - force pulling"
+        print_info "${THE_IMAGE_TYPE} image not built locally: pulling and building"
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
     fi
 
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED=${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED:="false"}
+    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    IMAGES_TO_REBUILD=()
     check_if_docker_build_is_needed
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
         SKIP_REBUILD="false"
         if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES} == "true" ]]; then
-            export ACTION="Cleaning"
+            export ACTION="clean"
         else
-            export ACTION="Rebuilding"
+            export ACTION="rebuild"
         fi
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
             print_info
-            print_info "${ACTION} image: ${THE_IMAGE_TYPE}"
+            print_info "${ACTION} start: ${THE_IMAGE_TYPE} image."
             print_info
             # shellcheck source=hooks/build
             ./hooks/build | tee -a "${OUTPUT_LOG}"
             update_all_md5_files
             print_info
-            print_info "${ACTION} image completed: ${THE_IMAGE_TYPE}"
+            print_info "${ACTION} completed: ${THE_IMAGE_TYPE} image."
             print_info
         fi
     else
         print_info
-        print_info "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
+        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK}"
         print_info
     fi
 }
@@ -426,10 +497,8 @@ function rebuild_ci_slim_image_if_needed() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_SLIM_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_SLIM_CI_IMAGE") || true 2>/dev/null
-    export AIRFLOW_SLIM_CI_IMAGE
+    export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-slim"
     export PYTHON_VERSION=${OLD_PYTHON_VERSION}
-
 }
 
 #
@@ -460,8 +529,7 @@ function rebuild_ci_image_if_needed() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CI_IMAGE") || true 2>/dev/null
-    export AIRFLOW_CI_IMAGE
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
 }
 
 
@@ -491,8 +559,7 @@ function rebuild_checklicence_image_if_needed() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE") || true 2>/dev/null
-    export AIRFLOW_CHECKLICENCE_IMAGE
+    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 }
 
 #
@@ -568,6 +635,7 @@ function basic_sanity_checks() {
     go_to_airflow_sources
     check_if_coreutils_installed
     create_cache_directory
+    cleanup_last_force_answer
 }
 
 
@@ -772,4 +840,48 @@ function refresh_pylint_todo() {
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
         "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
+}
+
+function rebuild_all_images_if_needed_and_confirmed() {
+    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    IMAGES_TO_REBUILD=()
+
+    for THE_IMAGE_TYPE in "SLIM_CI" "CI" "CHECKLICENCE"
+    do
+        check_if_docker_build_is_needed
+    done
+
+    if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
+        print_info
+        print_info "Docker image build is needed for ${IMAGES_TO_REBUILD[*]}!"
+        print_info
+    else
+        print_info
+        print_info "Docker image build is not needed for any of the image types!"
+        print_info
+    fi
+
+    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+        echo
+        echo "Some of your images need to be rebuild because important files (like package list) has changed."
+        echo
+        echo "You have those options:"
+        echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
+        echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
+        echo "   * Quit and manually rebuild the images using"
+        echo "        * scripts/local_ci_build.sh or"
+        echo "        * scripts/local_ci_pull_and_build.sh or"
+        echo
+        export ACTION="rebuild"
+        export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
+
+        SKIP_REBUILD="false"
+        confirm_image_rebuild
+
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            rebuild_ci_image_if_needed
+            rebuild_ci_slim_image_if_needed
+            rebuild_checklicence_image_if_needed
+        fi
+    fi
 }

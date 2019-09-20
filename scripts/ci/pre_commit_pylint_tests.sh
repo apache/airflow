@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.functions`."""
 
-import warnings
+set -uo pipefail
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.functions import GcfHook  # noqa
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export SKIP_CLEANUP_OF_LAST_ANSWER="true"
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",
-    DeprecationWarning, stacklevel=2
-)
+"${MY_DIR}/ci_pylint_tests.sh" "${@}"

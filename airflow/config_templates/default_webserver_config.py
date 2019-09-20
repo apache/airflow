@@ -24,7 +24,7 @@ from flask_appbuilder.security.manager import AUTH_DB
 # from flask_appbuilder.security.manager import AUTH_OID
 # from flask_appbuilder.security.manager import AUTH_REMOTE_USER
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 

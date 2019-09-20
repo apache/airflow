@@ -30,5 +30,5 @@ from airflow.gcp.operators.mlengine import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.mlengine`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

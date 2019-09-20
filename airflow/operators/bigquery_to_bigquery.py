@@ -86,7 +86,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)

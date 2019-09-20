@@ -18,7 +18,7 @@
 # under the License.
 
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Optional
 
 import unicodecsv as csv
 from tempfile import NamedTemporaryFile
@@ -87,14 +87,14 @@ class MySqlToHiveTransfer(BaseOperator):
             hive_table: str,
             create: bool = True,
             recreate: bool = False,
-            partition: Dict = None,
+            partition: Optional[Dict] = None,
             delimiter: str = chr(1),
-            quoting: str = None,
+            quoting: Optional[str] = None,
             quotechar: str = '"',
-            escapechar: str = None,
+            escapechar: Optional[str] = None,
             mysql_conn_id: str = 'mysql_default',
             hive_cli_conn_id: str = 'hive_cli_default',
-            tblproperties: Dict = None,
+            tblproperties: Optional[Dict] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql

@@ -20,7 +20,7 @@
 from tempfile import NamedTemporaryFile
 import subprocess
 import sys
-from typing import Union
+from typing import Union, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
@@ -86,12 +86,12 @@ class S3FileTransformOperator(BaseOperator):
             self,
             source_s3_key: str,
             dest_s3_key: str,
-            transform_script: str = None,
+            transform_script: Optional[str] = None,
             select_expression=None,
             source_aws_conn_id: str = 'aws_default',
-            source_verify: Union[bool, str] = None,
+            source_verify: Optional[Union[bool, str]] = None,
             dest_aws_conn_id: str = 'aws_default',
-            dest_verify: Union[bool, str] = None,
+            dest_verify: Optional[Union[bool, str]] = None,
             replace: bool = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

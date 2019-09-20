@@ -62,7 +62,7 @@ class MLEngineHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._mlengine = self.get_conn()
 
@@ -73,7 +73,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Callable = None) -> Dict:
+    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Optional[Callable] = None) -> Dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 

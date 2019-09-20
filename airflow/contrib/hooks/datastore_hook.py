@@ -25,5 +25,5 @@ from airflow.gcp.hooks.datastore import DatastoreHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.datastore`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

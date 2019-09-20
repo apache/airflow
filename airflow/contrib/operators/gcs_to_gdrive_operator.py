@@ -78,10 +78,10 @@ class GcsToGDriveOperator(BaseOperator):
         self,
         source_bucket: str,
         source_object: str,
-        destination_object: str = None,
+        destination_object: Optional[str] = None,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         *args,
         **kwargs
     ):

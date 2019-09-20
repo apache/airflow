@@ -51,6 +51,39 @@ class TestOperator(BaseOperator):
 TestNamedTuple = namedtuple("TestNamedTuple", ["var1", "var2"])
 
 
+class ClassWithCustomAttributes:
+    """Class for testing purpose: allows to create objects with custom attributes in one single statement."""
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def __str__(self):
+        return "{}({})".format(ClassWithCustomAttributes.__name__, str(self.__dict__))
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+# Objects with circular references (for testing purpose)
+object1 = ClassWithCustomAttributes(
+    attr="{{ foo }}_1",
+    template_fields=["ref"]
+)
+object2 = ClassWithCustomAttributes(
+    attr="{{ foo }}_2",
+    ref=object1,
+    template_fields=["ref"]
+)
+setattr(object1, 'ref', object2)
+
+
 class TestBaseOperator(unittest.TestCase):
     @parameterized.expand(
         [
@@ -72,6 +105,47 @@ class TestBaseOperator(unittest.TestCase):
             (datetime.datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime.datetime(2018, 12, 6, 10, 55)),
             (TestNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, TestNamedTuple("bar_1", "bar_2")),
             ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
+            (None, {}, None),
+            ([], {}, []),
+            ({}, {}, {}),
+            (
+                # check nested fields can be templated
+                ClassWithCustomAttributes(att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]),
+                {"foo": "bar"},
+                ClassWithCustomAttributes(att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]),
+            ),
+            (
+                # check deep nested fields can be templated
+                ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ foo }}_1",
+                                                                            att2="{{ foo }}_2",
+                                                                            template_fields=["att1"]),
+                                          nested2=ClassWithCustomAttributes(att3="{{ foo }}_3",
+                                                                            att4="{{ foo }}_4",
+                                                                            template_fields=["att3"]),
+                                          template_fields=["nested1"]),
+                {"foo": "bar"},
+                ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="bar_1",
+                                                                            att2="{{ foo }}_2",
+                                                                            template_fields=["att1"]),
+                                          nested2=ClassWithCustomAttributes(att3="{{ foo }}_3",
+                                                                            att4="{{ foo }}_4",
+                                                                            template_fields=["att3"]),
+                                          template_fields=["nested1"]),
+            ),
+            (
+                # check null value on nested template field
+                ClassWithCustomAttributes(att1=None,
+                                          template_fields=["att1"]),
+                {},
+                ClassWithCustomAttributes(att1=None,
+                                          template_fields=["att1"]),
+            ),
+            (
+                # check there is no RecursionError on circular references
+                object1,
+                {"foo": "bar"},
+                object1,
+            ),
             # By default, Jinja2 drops one (single) trailing newline
             ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
         ]
@@ -134,6 +208,25 @@ class TestBaseOperator(unittest.TestCase):
 
         with self.assertRaises(jinja2.UndefinedError):
             task.render_template("{{ foo }}", {})
+
+    def test_nested_template_fields_declared_must_exist(self):
+        """Test render_template when a nested template field is missing."""
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id="op1")
+
+        with self.assertRaises(AttributeError) as e:
+            task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
+
+        self.assertEqual("'ClassWithCustomAttributes' object has no attribute 'missing_field'",
+                         str(e.exception))
+
+    def test_jinja_invalid_expression_is_just_propagated(self):
+        """Test render_template propagates Jinja invalid expression errors."""
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id="op1")
+
+        with self.assertRaises(jinja2.exceptions.TemplateSyntaxError):
+            task.render_template("{{ invalid expression }}", {})
 
     @mock.patch("jinja2.Environment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):

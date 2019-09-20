@@ -27,5 +27,5 @@ from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.container`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

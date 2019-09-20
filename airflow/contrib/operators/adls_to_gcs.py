@@ -25,5 +25,5 @@ from airflow.operators.adls_to_gcs import AdlsToGoogleCloudStorageOperator  # no
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.adls_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

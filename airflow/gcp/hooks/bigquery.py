@@ -25,6 +25,7 @@ implementation for BigQuery.
 import time
 from copy import deepcopy
 from typing import Any, NoReturn, Mapping, Union, Iterable, Dict, List, Optional, Tuple, Type
+import warnings
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -47,15 +48,23 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
     """
-    conn_name_attr = 'bigquery_conn_id'  # type: str
+    conn_name_attr = 'gcp_conn_id'  # type: str
 
     def __init__(self,
-                 bigquery_conn_id: str = 'google_cloud_default',
+                 gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  use_legacy_sql: bool = True,
-                 location: Optional[str] = None) -> None:
+                 location: Optional[str] = None,
+                 bigquery_conn_id: Optional[str] = None) -> None:
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+            gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
 
