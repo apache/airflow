@@ -40,7 +40,7 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### Changes to Google PubSub Operator and Hook
+### Changes to Google PubSub Operators, Hook and Sensor
 Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
 are deprecated and will be substituted by parameter `project_id`. 
 In `PubSub.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`. 
@@ -53,6 +53,7 @@ Affected components:
  * airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator
  * airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator
  * airflow.gcp.operators.pubsub.PubSubPublishOperator
+ * airflow.gcp.sensors.pubsub.PubSubPullSensor
 
 ### Changes to `aws_default` Connection's default region
 

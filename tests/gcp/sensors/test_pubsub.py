@@ -54,42 +54,55 @@ class TestPubSubPullSensor(unittest.TestCase):
 
     @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
-        operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
+        operator = PubSubPullSensor(task_id=TASK_ID, project_id=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION)
         mock_hook.return_value.pull.return_value = []
         self.assertEqual([], operator.poke(None))
 
     @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
-        operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
+        operator = PubSubPullSensor(task_id=TASK_ID, project_id=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION,
                                     ack_messages=True)
         generated_messages = self._generate_messages(5)
         mock_hook.return_value.pull.return_value = generated_messages
         self.assertEqual(generated_messages, operator.poke(None))
         mock_hook.return_value.acknowledge.assert_called_once_with(
-            TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3', '4', '5']
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            ack_ids=['1', '2', '3', '4', '5']
         )
 
     @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
-        operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
-                                    subscription=TEST_SUBSCRIPTION,
-                                    poke_interval=0)
+        operator = PubSubPullSensor(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            poke_interval=0
+        )
         generated_messages = self._generate_messages(5)
         mock_hook.return_value.pull.return_value = generated_messages
         response = operator.execute(None)
         mock_hook.return_value.pull.assert_called_once_with(
-            TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            max_messages=5,
+            return_immediately=False
+        )
         self.assertEqual(response, generated_messages)
 
     @mock.patch('airflow.gcp.sensors.pubsub.PubSubHook')
     def test_execute_timeout(self, mock_hook):
-        operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
+        operator = PubSubPullSensor(task_id=TASK_ID, project_id=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION,
                                     poke_interval=0, timeout=1)
         mock_hook.return_value.pull.return_value = []
         with self.assertRaises(AirflowSensorTimeout):
             operator.execute(None)
             mock_hook.return_value.pull.assert_called_once_with(
-                TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                max_messages=5,
+                return_immediately=False
+            )
