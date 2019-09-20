@@ -30,10 +30,7 @@ PROJECT_ID = "project_id"
 
 
 class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.sensors.bigquery_dts."
-        "BiqQueryDataTransferServiceHook.get_transfer_run"
-    )
+    @mock.patch("airflow.gcp.sensors.bigquery_dts.BiqQueryDataTransferServiceHook")
     @mock.patch(
         "airflow.gcp.sensors.bigquery_dts.MessageToDict",
         return_value={"state": "success"},
@@ -47,7 +44,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             expected_statuses={"success"},
         )
         op.poke(None)
-        mock_hook.assert_called_once_with(
+        mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
             project_id=PROJECT_ID,
