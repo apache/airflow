@@ -40,6 +40,16 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Some DAG Processing metrics have been renamed
+
+The following metrics are deprecated and won't be emitted in Airflow 2.0:
+
+- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
+- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
+- `collect_dags` -- use `dag_processing.total_parse_time` instead
+- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+
 ### The gcp_conn_id parameter in GKEPodOperator is required
 
 In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
