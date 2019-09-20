@@ -64,7 +64,7 @@ with models.DAG(
     pull_messages = PubSubPullSensor(
         task_id="pull_messages",
         ack_messages=True,
-        project=GCP_PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         subscription=subscription,
     )
 

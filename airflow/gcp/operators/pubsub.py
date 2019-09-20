@@ -278,8 +278,8 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
             self,
             topic: str,
             project_id: Optional[str] = None,
-            subscription: str = None,
-            subscription_project_id: str = None,
+            subscription: Optional[str] = None,
+            subscription_project_id: Optional[str] = None,
             ack_deadline_secs: int = 10,
             fail_if_exists: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
@@ -517,7 +517,7 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
     """
-    template_fields = ['project', 'project_id', 'subscription']
+    template_fields = ['project_id', 'subscription']
     ui_color = '#cb4335'
 
     @apply_defaults
@@ -620,7 +620,7 @@ class PubSubPublishOperator(BaseOperator):
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
     """
-    template_fields = ['project', 'project_id', 'topic', 'messages']
+    template_fields = ['project_id', 'topic', 'messages']
     ui_color = '#0273d4'
 
     @apply_defaults
