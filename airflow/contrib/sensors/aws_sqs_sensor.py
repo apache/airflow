@@ -73,7 +73,7 @@ class SQSSensor(BaseSensorOperator):
                                             MaxNumberOfMessages=self.max_messages,
                                             WaitTimeSeconds=self.wait_time_seconds)
 
-        self.log.info("reveived message %s", str(messages))
+        self.log.info("received message %s", str(messages))
 
         if 'Messages' in messages and len(messages['Messages']) > 0:
 
