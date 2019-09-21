@@ -76,9 +76,9 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom `.py` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
+#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
 #. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in `Step 2`.
+#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
 #. Customize the following portions of the template:
 
     .. code-block:: bash
@@ -190,7 +190,7 @@ To output task logs to stdout in JSON format, the following config could be used
 Writing Logs to Elasticsearch over TLS
 ----------------------------------------
 
-To add custom configurations to ElasticSearch (e.g. turning on ssl_verify, adding a custom self-signed cert, etc.) use the `elasticsearch_configs` setting in your airfow.cfg
+To add custom configurations to ElasticSearch (e.g. turning on ssl_verify, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your airfow.cfg
 
 .. code-block:: bash
 

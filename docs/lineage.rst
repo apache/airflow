@@ -66,7 +66,7 @@ works.
     run_this.set_downstream(run_this_last)
 
 
-Tasks take the parameters `inlets` and `outlets`.
+Tasks take the parameters ``inlets`` and ``outlets``.
 
 Inlets can be manually defined by the following options:
 
@@ -83,19 +83,19 @@ the context when the task is being executed.
 
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
 
-In the example DAG task `run_me_first` is a BashOperator that takes 3 inlets: `CAT1`, `CAT2`, `CAT3`, that are
-generated from a list. Note that `execution_date` is a templated field and will be rendered when the task is running.
+In the example DAG task ``run_me_first`` is a BashOperator that takes 3 inlets: ``CAT1``, ``CAT2``, ``CAT3``, that are
+generated from a list. Note that ``execution_date`` is a templated field and will be rendered when the task is running.
 
-.. note:: Behind the scenes Airflow prepares the lineage metadata as part of the `pre_execute` method of a task. When the task
-          has finished execution `post_execute` is called and lineage metadata is pushed into XCOM. Thus if you are creating
-          your own operators that override this method make sure to decorate your method with `prepare_lineage` and `apply_lineage`
+.. note:: Behind the scenes Airflow prepares the lineage metadata as part of the ``pre_execute`` method of a task. When the task
+          has finished execution ``post_execute`` is called and lineage metadata is pushed into XCOM. Thus if you are creating
+          your own operators that override this method make sure to decorate your method with ``prepare_lineage`` and ``apply_lineage``
           respectively.
 
 
 Apache Atlas
 ------------
 
-Airflow can send its lineage metadata to Apache Atlas. You need to enable the `atlas` backend and configure it
+Airflow can send its lineage metadata to Apache Atlas. You need to enable the ``atlas`` backend and configure it
 properly, e.g. in your ``airflow.cfg``:
 
 .. code:: python
@@ -110,4 +110,4 @@ properly, e.g. in your ``airflow.cfg``:
     port = 21000
 
 
-Please make sure to have the `atlasclient` package installed.
+Please make sure to have the ``atlasclient`` package installed.

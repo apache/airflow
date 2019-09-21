@@ -163,6 +163,10 @@ repos:
       - id: mixed-line-ending
       - id: check-executables-have-shebangs
       - id: check-xml
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.4.1
+    hooks:
+      - id: rst-backticks
   - repo: local
     hooks:
       - id: yamllint
