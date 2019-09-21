@@ -234,14 +234,34 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'google-cloud-python': (
-        'https://googleapis.dev/python/google-api-core/latest/', None),
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('http://docs.python-requests.org/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
     'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
+    # google-cloud-python
+    'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
+    'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
+    'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),
+    'google-cloud-bigquery-storage': ('https://googleapis.dev/python/bigquerystorage/latest', None),
+    'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
+    'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
+    'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
+    'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
+    'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
+    'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
+    'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
+    'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
+    'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
+    'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),
+    'google-cloud-speech': ('https://googleapis.dev/python/speech/latest', None),
+    'google-cloud-storage': ('https://googleapis.dev/python/storage/latest', None),
+    'google-cloud-tasks': ('https://googleapis.dev/python/cloudtasks/latest', None),
+    'google-cloud-texttospeech': ('https://googleapis.dev/python/texttospeech/latest', None),
+    'google-cloud-translate': ('https://googleapis.dev/python/translation/latest', None),
+    'google-cloud-videointelligence': ('https://googleapis.dev/python/videointelligence/latest', None),
+    'google-cloud-vision': ('https://googleapis.dev/python/vision/latest', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
