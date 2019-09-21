@@ -292,7 +292,7 @@ It is as easy as copy&pasting this line into your code:
 
 Once you hit the line you will be dropped into interactive ipdb  debugger where you have colors
 and auto-completion to guide your debugging. This works from the console where you started your program.
-Note that in case of ``nosetest`` you need to provide `--nocapture` flag to avoid nosetests
+Note that in case of ``nosetest`` you need to provide ``--nocapture`` flag to avoid nosetests
 capturing the stdout of your process.
 
 Airflow directory structure inside Docker
@@ -928,7 +928,7 @@ There are three images that we currently manage:
   the checklicence image.
 
 We also use a very small `<Dockerfile-context>`_ dockerfile in order to fix file permissions
-for an obscure permission problem with Docker caching but it is not stored in `apache/airflow` registry.
+for an obscure permission problem with Docker caching but it is not stored in ``apache/airflow`` registry.
 
 Before you run tests or enter environment or run local static checks, the necessary local images should be
 pulled and built from DockerHub. This happens automatically for the test environment but you need to
@@ -959,7 +959,7 @@ For automation scripts, you can export one of the three variables to control the
 
   export FORCE_ANSWER_TO_QUESTIONS="yes"
 
-If ``FORCE_ANSWER_TO_QUESTIONS` is set to ``yes``, the images will automatically rebuild when needed.
+If ``FORCE_ANSWER_TO_QUESTIONS`` is set to ``yes``, the images will automatically rebuild when needed.
 Images are deleted without asking.
 
 .. code-block::
