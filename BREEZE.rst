@@ -366,7 +366,7 @@ You can check if your docker is clean by running ``docker images --all`` and ``d
 should return an empty list of images and containers respectively.
 
 If you are on Mac OS and you end up with not enough disk space for Docker you should increase disk space
-available for Docker. See `Prerequsites <#prerequisites>`.
+available for Docker. See `Prerequsites <#prerequisites>`_.
 
 Troubleshooting
 ---------------
