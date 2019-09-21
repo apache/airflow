@@ -37,9 +37,9 @@ Azure Blob Storage
 ''''''''''''''''''
 
 All classes communicate via the Window Azure Storage Blob protocol. Make sure that a
-Airflow connection of type `wasb` exists. Authorization can be done by supplying a
+Airflow connection of type ``wasb`` exists. Authorization can be done by supplying a
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
-field (see connection `wasb_default` for an example).
+field (see connection ``wasb_default`` for an example).
 
 :class:`airflow.contrib.hooks.wasb_hook.WasbHook`
     Interface with Azure Blob Storage.
@@ -61,9 +61,9 @@ Azure File Share
 ''''''''''''''''
 
 Cloud variant of a SMB file share. Make sure that a Airflow connection of
-type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
+type ``wasb`` exists. Authorization can be done by supplying a login (=Storage account name)
 and password (=Storage account key), or login and SAS token in the extra field
-(see connection `wasb_default` for an example).
+(see connection ``wasb_default`` for an example).
 
 :class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook`:
     Interface with Azure File Share.
@@ -78,9 +78,9 @@ Azure CosmosDB
 ''''''''''''''
 
 AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
-Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
+Airflow connection of type ``azure_cosmos`` exists. Authorization can be done by supplying a
 login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
-default database and collection to use (see connection `azure_cosmos_default` for an example).
+default database and collection to use (see connection ``azure_cosmos_default`` for an example).
 
 :class:`airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook`
     Interface with Azure CosmosDB.
@@ -96,9 +96,9 @@ Azure Data Lake
 '''''''''''''''
 
 AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
-Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+Airflow connection of type ``azure_data_lake`` exists. Authorization can be done by supplying a
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
-(see connection `azure_data_lake_default` for an example).
+(see connection ``azure_data_lake_default`` for an example).
 
 :class:`airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook`
     Interface with Azure Data Lake.

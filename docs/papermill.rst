@@ -42,7 +42,7 @@ with input parameters in order to overwrite the values in parameters. If no cell
 tagged with parameters the injected cell will be inserted at the top of the notebook.
 
 Note that Jupyter notebook has out of the box support for tags but you need to install
-the celltags extension for Jupyter Lab: `jupyter labextension install @jupyterlab/celltags`
+the celltags extension for Jupyter Lab: ``jupyter labextension install @jupyterlab/celltags``
 
 Make sure that you save your notebook somewhere so that Airflow can access it. Papermill
 supports S3, GCS, Azure and Local. HDFS is *not* supported.
