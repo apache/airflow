@@ -130,17 +130,21 @@ export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 # Most useful is out.log file in this directory storing verbose output of the scripts.
 #
 function create_cache_directory() {
-    mkdir -p "${BUILD_CACHE_DIR}/cache/"
-
-    CACHE_TMP_FILE_DIR=$(mktemp -d "${BUILD_CACHE_DIR}/cache/XXXXXXXXXX")
+    CACHE_TMP_FILE_DIR=$(mktemp -d)
     export CACHE_TMP_FILE_DIR
 
     if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
-        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP EXIT
+        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP
     fi
 
     OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
     export OUTPUT_LOG
+}
+
+function remove_cache_directory() {
+    if [[ -z "${CACHE_TMP_FILE_DIR}" ]]; then
+        rm -rf -- "${CACHE_TMP_FILE_DIR}"
+    fi
 }
 
 #
@@ -620,6 +624,7 @@ function script_end {
     print_info "Finished the script $(basename "$0")"
     print_info "It took ${RUN_SCRIPT_TIME} seconds"
     print_info
+    remove_cache_directory
 }
 
 function go_to_airflow_sources {
