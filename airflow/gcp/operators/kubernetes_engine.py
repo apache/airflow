@@ -227,7 +227,7 @@ class GKEPodOperator(KubernetesPodOperator):
     def __init__(self,
                  location: str,
                  cluster_name: str,
-                 project_id: str = None,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args,
                  **kwargs):
