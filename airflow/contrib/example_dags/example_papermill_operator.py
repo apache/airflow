@@ -44,7 +44,6 @@ with DAG(
     # [START howto_operator_papermill]
     run_this = PapermillOperator(
         task_id="run_example_notebook",
-        dag=dag,
         input_nb="/tmp/hello_world.ipynb",
         output_nb="/tmp/out-{{ execution_date }}.ipynb",
         parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
