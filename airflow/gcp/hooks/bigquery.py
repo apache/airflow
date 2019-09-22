@@ -1798,7 +1798,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return dataset_resource
 
-    def get_datasets_list(self, project_id: Optional[str] = None) -> List:
+    @CloudBaseHook.catch_http_exception
+    def get_datasets_list(self, project_id=None, max_results=None, all_datasets=False):
         """
         Method returns full list of BigQuery datasets in the current project
 
@@ -1806,9 +1807,13 @@ class BigQueryBaseCursor(LoggingMixin):
             For more information, see:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
 
-        :param project_id: Google Cloud Project for which you
-            try to get all datasets
+        :param project_id: Project ID of the datasets to be listed
         :type project_id: str
+        :param max_results: The maximum number of results to return in a single response page.
+        :type max_results: int
+        :param all_datasets: Whether to list all datasets, including hidden ones
+        :type all_datasets: bool
+
         :return: datasets_list
 
             Example of returned datasets_list: ::
@@ -1833,16 +1838,26 @@ class BigQueryBaseCursor(LoggingMixin):
                    }
                 ]
         """
+
         dataset_project_id = project_id if project_id else self.project_id
 
-        try:
-            datasets_list = self.service.datasets().list(
-                projectId=dataset_project_id).execute(num_retries=self.num_retries)['datasets']
-            self.log.info("Datasets List: %s", datasets_list)
+        optional_params = {'all': all_datasets}
+        if max_results:
+            optional_params['maxResults'] = max_results
 
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content))
+        request = self.service.datasets().list(
+            projectId=dataset_project_id,
+            **optional_params)
+
+        datasets_list = []
+
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+            datasets_list.extend(response['datasets'])
+            request = self.service.datasets().list_next(previous_request=request,
+                                                        previous_response=response)
+
+        self.log.info("%s items found", len(datasets_list))
 
         return datasets_list
 
