@@ -51,7 +51,7 @@ with DAG(
 ) as dag:
 
     cmd = 'ls -l'
-    run_this_last = DummyOperator(task_id='run_this_last', dag=dag)
+    run_this_last = DummyOperator(task_id='run_this_last')
 
     winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')
 
