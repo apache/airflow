@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -xeuo pipefail
-
+set -euo pipefail
+#
+# Builds full CI docker image - the image that can be used for running full tests of Airflow
+#
+set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=scripts/ci/_utils.sh
@@ -27,16 +30,6 @@ basic_sanity_checks
 
 script_start
 
-build_image_on_ci
-
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-# Required for K8s v1.10.x. See
-# https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-if [[ "${KUBERNETES_VERSION}" == "" ]]; then
-    sudo mount --make-shared /
-    sudo service docker restart
-fi
-
-pip install pre-commit yamllint
+rebuild_ci_slim_image_if_needed
 
 script_end

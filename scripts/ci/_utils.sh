@@ -33,6 +33,9 @@ export BUILD_CACHE_DIR
 
 LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
+IMAGES_TO_CHECK=("SLIM_CI" "CI" "CHECKLICENCE")
+export IMAGES_TO_CHECK
+
 FILES_FOR_REBUILD_CHECK="\
 setup.py \
 setup.cfg \
@@ -846,9 +849,17 @@ function rebuild_all_images_if_needed_and_confirmed() {
     AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
     IMAGES_TO_REBUILD=()
 
-    for THE_IMAGE_TYPE in "SLIM_CI" "CI" "CHECKLICENCE"
+    for THE_IMAGE_TYPE in "${IMAGES_TO_CHECK[@]}"
     do
-        check_if_docker_build_is_needed
+        if [[ "${THE_IMAGE_TYPE}" == "SLIM_CI" ]]; then
+            # Temporary force python version 3.5 for static checks
+            export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
+            export PYTHON_VERSION=3.5
+
+            check_if_docker_build_is_needed
+
+            export PYTHON_VERSION=${OLD_PYTHON_VERSION}
+        fi
     done
 
     if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
@@ -884,4 +895,42 @@ function rebuild_all_images_if_needed_and_confirmed() {
             rebuild_checklicence_image_if_needed
         fi
     fi
+}
+
+function build_image_on_ci() {
+    if [[ "${CI:=}" != "true" ]]; then
+        print_info
+        print_info "Cleaning up docker installation!!!!!!"
+        print_info
+        "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
+    fi
+
+    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+    export FORCE_BUILD="true"
+    export VERBOSE="${VERBOSE:="false"}"
+
+    # Cleanup docker installation. It should be empty in CI but let's not risk
+    docker system prune --all --force
+    rm -rf "${BUILD_CACHE_DIR}"
+
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
+        rebuild_ci_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
+        rebuild_checklicence_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    else
+        echo
+        echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"
+        echo
+        exit 1
+    fi
+
+    # Disable force pulling forced above
+    unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
+    unset FORCE_BUILD
 }

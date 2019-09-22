@@ -33,6 +33,9 @@ script_start
 
 rebuild_ci_slim_image_if_needed
 
+IMAGES_TO_CHECK=("SLIM_CI")
+export IMAGES_TO_CHECK
+
 pre-commit run pylint --all-files --show-diff-on-failure
 
 script_end
