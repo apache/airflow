@@ -76,7 +76,7 @@ export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
 
 function print_info() {
-    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
     fi
 }
