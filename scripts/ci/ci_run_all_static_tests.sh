@@ -34,6 +34,9 @@ script_start
 rebuild_ci_slim_image_if_needed
 rebuild_checklicence_image_if_needed
 
+IMAGES_TO_CHECK=("SLIM_CI" "CHECKLICENCE")
+export IMAGES_TO_CHECK
+
 pre-commit run --all-files --show-diff-on-failure
 
 script_end
