@@ -25,6 +25,7 @@ import json
 import functools
 import os
 import tempfile
+from contextlib import contextmanager
 from typing import Any, Optional, Dict, Callable, TypeVar, Sequence
 
 import httplib2
@@ -283,32 +284,50 @@ class GoogleCloudBaseHook(BaseHook):
     @staticmethod
     def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Function decorator that provides a ``GOOGLE_APPLICATION_CREDENTIALS``
-        environment variable, pointing to file path of a JSON file of service
-        account key.
+        Function decorator that provides a GCP credentials for application supporting Application
+        Default Credentials (ADC) strategy.
+
+        It is recommended to use ``provide_gcp_credential_file_as_context`` context manager to limit the
+        scope when authorization data is available. Using context manager also
+        makes it easier to use multiple connection in one function.
         """
         @functools.wraps(func)
         def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
-            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-                keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-                current_env_state = os.environ.get(CREDENTIALS)
-                try:
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, use a JSON key file.'
-                            )
-                        os.environ[CREDENTIALS] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[CREDENTIALS] = conf_file.name
-                    return func(self, *args, **kwargs)
-                finally:
-                    if current_env_state is None:
-                        if CREDENTIALS in os.environ:
-                            del os.environ[CREDENTIALS]
-                    else:
-                        os.environ[CREDENTIALS] = current_env_state
+            with self.provide_gcp_credential_file_as_context():
+                return func(self, *args, **kwargs)
         return wrapper
+
+    @contextmanager
+    def provide_gcp_credential_file_as_context(self):
+        """
+        Context manager that provides a GCP credentials for application supporting `Application
+        Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
+
+        It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
+        file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
+        """
+        with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+            key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+            keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+            current_env_state = os.environ.get(CREDENTIALS)
+            try:
+                if key_path:
+                    if key_path.endswith('.p12'):
+                        raise AirflowException(
+                            'Legacy P12 key file are not supported, use a JSON key file.'
+                        )
+                    os.environ[CREDENTIALS] = key_path
+                elif keyfile_dict:
+                    conf_file.write(keyfile_dict)
+                    conf_file.flush()
+                    os.environ[CREDENTIALS] = conf_file.name
+                else:
+                    # We will use the default service account credentials.
+                    pass
+                yield conf_file
+            finally:
+                if current_env_state is None:
+                    if CREDENTIALS in os.environ:
+                        del os.environ[CREDENTIALS]
+                else:
+                    os.environ[CREDENTIALS] = current_env_state

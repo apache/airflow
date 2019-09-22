@@ -37,5 +37,5 @@ from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor  
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigtable`"
     " or `airflow.gcp.sensors.bigtable`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

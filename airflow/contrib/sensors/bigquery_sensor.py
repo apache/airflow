@@ -25,5 +25,5 @@ from airflow.gcp.sensors.bigquery import BigQueryTableSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

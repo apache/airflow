@@ -27,5 +27,5 @@ from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperat
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.text_to_speech`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

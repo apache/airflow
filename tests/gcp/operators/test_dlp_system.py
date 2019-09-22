@@ -25,8 +25,8 @@ example_gcp_dlp DAG
 
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.contrib.utils.gcp_authenticator import GCP_DLP_KEY
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_DLP_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DLP_KEY), SKIP_TEST_WARNING)

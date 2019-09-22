@@ -26,6 +26,7 @@ from typing import Optional, Set, Tuple, Union
 import gzip as gz
 import shutil
 from io import BytesIO
+import warnings
 
 from urllib.parse import urlparse
 from google.cloud import storage
@@ -43,11 +44,20 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     _conn = None  # type: Optional[storage.Client]
 
-    def __init__(self,
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None):
-        super().__init__(google_cloud_storage_conn_id,
-                         delegate_to)
+    def __init__(
+        self,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            google_cloud_storage_conn_id: Optional[str] = None
+    ) -> None:
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+            gcp_conn_id = google_cloud_storage_conn_id
+        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
 
     def get_conn(self):
         """

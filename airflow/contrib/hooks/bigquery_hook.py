@@ -32,5 +32,5 @@ from airflow.gcp.hooks.bigquery import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -27,5 +27,5 @@ from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.gcs_to_s3`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

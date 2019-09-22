@@ -23,7 +23,7 @@ from mock import MagicMock
 
 from airflow.gcp.hooks.dataproc import _DataProcJob
 from airflow.gcp.hooks.dataproc import DataProcHook
-from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
+from tests.gcp.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 from tests.compat import mock
 
 JOB = 'test-job'

@@ -78,7 +78,7 @@ Airflow assumes the value returned from the environment variable to be in a URI
 format (e.g. ``postgres://user:password@localhost:5432/master`` or
 ``s3://accesskey:secretkey@S3``). The underscore character is not allowed
 in the scheme part of URI, so it must be changed to a hyphen character
-(e.g. `google-compute-platform` if `conn_type` is `google_compute_platform`).
+(e.g. ``google-compute-platform`` if ``conn_type`` is ``google_compute_platform``).
 Query parameters are parsed to one-dimensional dict and then used to fill extra.
 
 

@@ -25,5 +25,5 @@ from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.bigquery_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

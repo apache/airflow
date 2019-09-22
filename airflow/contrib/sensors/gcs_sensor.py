@@ -30,5 +30,5 @@ from airflow.gcp.sensors.gcs import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

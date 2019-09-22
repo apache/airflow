@@ -25,5 +25,5 @@ from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator  #
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.translate_speech`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

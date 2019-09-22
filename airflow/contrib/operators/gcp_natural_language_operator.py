@@ -32,5 +32,5 @@ from airflow.gcp.operators.natural_language import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.natural_language`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

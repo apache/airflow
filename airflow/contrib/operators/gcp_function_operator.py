@@ -29,5 +29,5 @@ from airflow.gcp.operators.functions import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.functions`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

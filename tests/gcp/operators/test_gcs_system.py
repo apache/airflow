@@ -18,11 +18,11 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import (
+from tests.gcp.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
     TestDagGcpSystem,
 )
-from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.gcp.operators.test_gcs_system_helper import GcsSystemTestHelper
 
 
