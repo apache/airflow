@@ -391,5 +391,6 @@ class WorkerConfiguration(LoggingMixin):
         pod.spec.containers[0].env_from = pod.spec.containers[0].env_from or []
         pod.spec.containers[0].env_from.extend(self._get_env_from())
         pod.spec.security_context = self._get_security_context()
+        pod.spec.image_pull_secrets = self._get_image_pull_secrets()
 
         return append_to_pod(pod, self._get_secrets())
