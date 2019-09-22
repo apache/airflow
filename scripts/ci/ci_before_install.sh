@@ -37,6 +37,6 @@ if [[ "${KUBERNETES_VERSION}" == "" ]]; then
     sudo service docker restart
 fi
 
-pip install pre-commit yamllint
+sudo pip install pre-commit
 
 script_end
