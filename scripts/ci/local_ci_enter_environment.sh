@@ -20,7 +20,7 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export RUN_TESTS="false"
-export MOUNT_LOCAL_SOURCES="true"
+export MOUNT_HOST_VOLUMES="true"
 export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
 export VERBOSE=${VERBOSE:="false"}
 

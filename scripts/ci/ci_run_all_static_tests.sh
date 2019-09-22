@@ -22,29 +22,24 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
-export PYTHON_VERSION=3.5
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    script_end
-    exit
-fi
+initialize_environment
 
-rebuild_ci_slim_image_if_needed
+prepare_build
+
+prepare_run
+
+export FORCE_ANSWER_TO_QUESTIONS="yes"
+rebuild_ci_image_if_needed
 rebuild_checklicence_image_if_needed
 
-IMAGES_TO_CHECK=("SLIM_CI" "CHECKLICENCE")
-export IMAGES_TO_CHECK
-
-pre-commit run --all-files --show-diff-on-failure
+SKIP=build pre-commit run --all-files --show-diff-on-failure
 
 script_end

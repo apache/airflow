@@ -17,11 +17,11 @@
 # under the License.
 
 set -euo pipefail
-DIRNAME=$(cd "$(dirname "$0")" && pwd)
+MY_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # start kubernetes
 kind delete cluster || true
-kind create cluster --config "${DIRNAME}/kind-cluster-conf.yaml"
+kind create cluster --config "${MY_DIR}/kind-cluster-conf.yaml"
 mv "$(kind get kubeconfig-path)" ~/.kube/config
 kubectl config set clusters.kind.server https://docker:19090
 kubectl cluster-info
@@ -32,6 +32,6 @@ kubectl get storageclass
 echo "Showing kube-system pods"
 kubectl get -n kube-system pods
 
-"${DIRNAME}/docker/build.sh"
+"${MY_DIR}/docker/build.sh"
 
 echo "Airflow environment on kubernetes is good to go!"

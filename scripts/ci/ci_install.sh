@@ -17,19 +17,27 @@
 # under the License.
 
 set -euo pipefail
-#
-# Builds full CI docker image - the image that can be used for running full tests of Airflow
-#
-set -euo pipefail
+
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+export VERBOSE=${VERBOSE:="false"}
 
-basic_sanity_checks
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
 
-rebuild_ci_slim_image_if_needed
+initialize_environment
+
+prepare_build
+
+build_image_on_ci
+
+KUBERNETES_MODE=${KUBERNETES_MODE:=""}
+
+sudo pip install pre-commit
 
 script_end

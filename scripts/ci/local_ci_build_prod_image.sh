@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,13 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FILES_FOR_REBUILD_CHECK=(
- "setup.py"
- "setup.cfg"
- "Dockerfile"
- "Dockerfile-checklicence"
- ".dockerignore"
- "airflow/version.py"
- "airflow/www/package.json"
- "airflow/www/package-lock.json" )
-export FILES_FOR_REBUILD_CHECK
+set -euo pipefail
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
+
+script_start
+
+initialize_environment
+
+prepare_build
+
+if [[ ${BUILD_PROD_IMAGE} == "true" ]]; then
+    rebuild_prod_image_if_needed
+else
+    echo
+    echo "Production build is disabled by default"
+    echo
+    echo "You can enable it by running 'export BUILD_PROD_IMAGE=true'"
+fi
+
+script_end

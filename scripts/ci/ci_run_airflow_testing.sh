@@ -19,23 +19,23 @@
 set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
 export VERBOSE=${VERBOSE:="true"}
 
-basic_sanity_checks
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skipping running tests !!!!!"
-    echo
-    script_end
-    exit
-fi
+initialize_environment
 
+prepare_build
+
+prepare_run
+
+export FORCE_ANSWER_TO_QUESTIONS="yes"
 rebuild_ci_image_if_needed
 
 # Test environment
@@ -44,7 +44,7 @@ export ENV=${ENV:="docker"}
 export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
 
 # Whether local sources are mounted to docker
-export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
+export MOUNT_HOST_VOLUMES=${MOUNT_HOST_VOLUMES:="false"}
 
 # whethere verbose output should be produced
 export AIRFLOW_CI_VERBOSE=${VERBOSE}
@@ -52,17 +52,16 @@ export AIRFLOW_CI_VERBOSE=${VERBOSE}
 # opposite - whether diagnostict messages should be silenced
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
-if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+if [[ ${MOUNT_HOST_VOLUMES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose-local.yml")
 else
     DOCKER_COMPOSE_LOCAL=()
 fi
 
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+export AIRFLOW_CI_IMAGE=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 echo
-echo "Using docker image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE} for docker compose runs"
+echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
 
 HOST_USER_ID="$(id -ur)"
@@ -72,38 +71,11 @@ HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
 set +u
-if [[ "${ENV}" == "docker" ]]; then
-  export RUN_KUBERNETES_TESTS="false"
-  docker-compose --log-level INFO \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-        run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-elif [[ "${ENV}" == "kubernetes" ]]; then
-  echo
-  echo "Running kubernetes tests in ${KUBERNETES_MODE}"
-  echo
-  export RUN_KUBERNETES_TESTS="true"
-  docker-compose --log-level ERROR \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-  echo
-  echo "Finished Running kubernetes tests in ${KUBERNETES_MODE}"
-  echo
-elif [[ "${ENV}" == "bare" ]]; then
-  export RUN_KUBERNETES_TESTS="false"
-  docker-compose --log-level INFO \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-        run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-else
-    echo >&2
-    echo >&2 "ERROR:  The ENV variable should be one of [docker, kubernetes, bare] and is '${ENV}'"
-    echo >&2
-fi
+docker-compose --log-level INFO \
+  -f "${MY_DIR}/docker-compose.yml" \
+  -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+  "${DOCKER_COMPOSE_LOCAL[@]}" \
+     run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
 set -u
 
 script_end

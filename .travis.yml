@@ -21,9 +21,10 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
-    - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - MOUNT_HOST_VOLUMES="false"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
+    - DOCKERHUB_USER="potiuk" # Temporary to make it builds using images from test dockerhub before merging
     - CI="true"
 python: "3.6"
 stages:
@@ -32,41 +33,49 @@ stages:
 jobs:
   include:
     - name: "Static checks (no pylint, no licence check)"
+      python: "3.5"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
+      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_checklicence.sh
     - name: "Check licence compliance for Apache"
+      python: "3.5"
       stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
+      script: ./scripts/ci/ci_run_checklicence.sh
     - name: "Pylint checks"
+      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
     - name: "Build documentation"
+      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_MODE=persistent_mode RUN_KUBERNETES_TESTS=true
+      env: BACKEND=postgres KUBERNETES_MODE=persistent_mode RUN_KUBERNETES_TESTS=true
       python: "3.6"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
     - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_MODE=git_mode RUN_KUBERNETES_TESTS=true
+      env: BACKEND=postgres KUBERNETES_MODE=git_mode RUN_KUBERNETES_TESTS=true
       python: "3.6"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
+    - name: "Build PROD image"
+      python: "3.5"
+      stage: test
+      script: ./scripts/ci/local_ci_build_prod_image.sh
     - name: "Tests postgres python 3.6"
-      env: BACKEND=postgres ENV=docker
+      env: BACKEND=postgres
       python: "3.6"
       stage: test
     - name: "Tests sqlite python 3.5"
-      env: BACKEND=sqlite ENV=docker
+      env: BACKEND=sqlite
       python: "3.5"
       stage: test
     - name: "Tests mysql python 3.7"
-      env: BACKEND=mysql ENV=docker
+      env: BACKEND=mysql
       python: "3.7"
       stage: test
 services:
   - docker
-before_install:
-  - ./scripts/ci/ci_before_install.sh
+install:
+  - ./scripts/ci/ci_install.sh
 script: "./scripts/ci/ci_run_airflow_testing.sh"

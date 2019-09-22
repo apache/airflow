@@ -15,7 +15,9 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-FROM debian:stretch-slim
+# Image to check Apache licenses
+
+FROM debian:buster-slim as checklicence
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -23,18 +25,22 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/
 
-# Note missing man directories on debian-stretch
+# Note missing man directories on debian-buster-slim
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install OpenJDK
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        apt-transport-https ca-certificates wget dirmngr gnupg software-properties-common curl gnupg2 \
+    && export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 \
+    && curl -sL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+    && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
-            sudo \
-            curl \
-            openjdk-8-jdk \
+            adoptopenjdk-8-hotspot gosu \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -67,25 +73,13 @@ RUN echo "Downloading dumb-init from ${DUMB_INIT_URL} to ${DUMB_INIT_FILE}" \
     && sha256sum --check --ignore-missing "${DUMB_INIT_FILE_SHA256SUMS}" \
     && dpkg -i "${DUMB_INIT_FILE}"
 
-ARG AIRFLOW_USER=airflow
-ENV AIRFLOW_USER=${AIRFLOW_USER}
-
-ARG HOME=/home/airflow
-ENV HOME=${HOME}
-
 ARG AIRFLOW_HOME=${HOME}/airflow
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
 ARG AIRFLOW_SOURCES=/opt/airflow
 ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
 
-RUN adduser airflow \
-    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
-    && chmod 0440 /etc/sudoers.d/airflow
-
-COPY --chown=airflow:airflow scripts ${AIRFLOW_SOURCES}/scripts
-
-USER airflow
+COPY scripts/ci/in_container/ ${AIRFLOW_SOURCES}/scripts/ci/in_container/
 
 WORKDIR ${AIRFLOW_SOURCES}
 

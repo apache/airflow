@@ -30,7 +30,13 @@ in_container_script_start
 
 sudo rm -rf "$(pwd)/docs/_build/*"
 sudo rm -rf "$(pwd)/docs/_api/*"
+
+pushd "$(pwd)/airflow/www/static" || exit
+ln -sf ../../../docs/_build/html docs
+popd || exit
+
 sudo -E "$(pwd)/docs/build.sh"
+
 
 in_container_fix_ownership
 

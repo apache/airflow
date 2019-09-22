@@ -16,21 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -xeuo pipefail
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euxo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
+export AIRFLOW_SOURCES
 
-basic_sanity_checks
+nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
 
-script_start
+python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
+                "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
 
-build_image_on_ci
+echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
 
-KUBERNETES_MODE=${KUBERNETES_MODE:=""}
+chmod +x "${HOME}/run-tests-complete"
 
-sudo pip install pre-commit
+chmod +x "${HOME}/run-tests"
 
-script_end
+chown airflow.airflow "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"

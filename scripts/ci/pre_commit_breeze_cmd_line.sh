@@ -16,28 +16,32 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+TMP_FILE=$(mktemp)
+TMP_OUTPUT=$(mktemp)
 
-AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
-export AIRFLOW_SOURCES
+cd "${MY_DIR}/../../" || exit;
 
-# shellcheck source=scripts/ci/utils/_include_all.sh
-. "${MY_DIR}/utils/_include_all.sh"
+echo "
+.. code-block:: text
+" >"${TMP_FILE}"
 
-script_start
+export SEPARATOR_WIDTH=100
+./breeze --help | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
 
-initialize_environment
+BREEZE_RST_FILE="${MY_DIR}/../../BREEZE.rst"
 
-prepare_build
+LEAD='^ \.\. START BREEZE HELP MARKER$'
+TAIL='^ \.\. END BREEZE HELP MARKER$'
 
-prepare_run
+BEGIN_GEN=$(grep -n "${LEAD}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+END_GEN=$(grep -n "${TAIL}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${BEGIN_GEN}" "${BREEZE_RST_FILE}") \
+    "${TMP_FILE}" \
+    <(tail -n +"${END_GEN}" "${BREEZE_RST_FILE}") \
+    >"${TMP_OUTPUT}"
 
-rebuild_ci_image_if_needed
-
-run_flake8 "$@"
-
-script_end
+mv "${TMP_OUTPUT}" "${BREEZE_RST_FILE}"

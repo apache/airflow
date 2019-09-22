@@ -18,14 +18,15 @@
 
 IMAGE=${IMAGE:-airflow}
 TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")" && pwd)
-AIRFLOW_ROOT="${DIRNAME}/../../../.."
+MY_DIR=$(cd "$(dirname "$0")" && pwd)
+AIRFLOW_ROOT="${MY_DIR}/../../../.."
 
 set -e
 
 echo "Airflow directory ${AIRFLOW_ROOT}"
-echo "Airflow Docker directory ${DIRNAME}"
+echo "Airflow Docker directory ${MY_DIR}"
 
-cd "${DIRNAME}" && docker build --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CONTAINER_DOCKER_IMAGE}" --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
+cd "${MY_DIR}" && docker build --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}" \
+    --pull "${MY_DIR}" --tag="${IMAGE}:${TAG}"
 
 kind load docker-image "${IMAGE}:${TAG}"

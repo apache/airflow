@@ -23,16 +23,17 @@ set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-basic_sanity_checks
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
 
-export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
-export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL="false"
+export FORCE_PULL_IMAGES="true"
+export FORCE_DOCKER_BUILD="true"
+export PULL_BASE_IMAGES="true"
 
 rebuild_all_images_if_needed_and_confirmed
 

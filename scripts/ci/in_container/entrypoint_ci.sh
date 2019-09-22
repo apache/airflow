@@ -36,7 +36,6 @@ in_container_script_start
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
-ENV=${ENV:=docker}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 RUN_KUBERNETES_TESTS=${RUN_KUBERNETES_TESTS:="false"}
@@ -139,13 +138,13 @@ sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
 mkdir -p "${AIRFLOW_SOURCES}"/logs/
 mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
-if [[ "${ENV}" == "docker" ]]; then
+if [[ "${RUN_KUBERNETES_TESTS}" == "false" ]]; then
     # Start MiniCluster
     java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
-    echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa \
+    echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
         >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
@@ -155,52 +154,54 @@ if [[ "${ENV}" == "docker" ]]; then
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
 
-    # Setting up kerberos
+    if [[ ${DEPS:="true"} == "true" ]]; then
+        # Setting up kerberos
 
-    FQDN=$(hostname)
-    ADMIN="admin"
-    PASS="airflow"
-    KRB5_KTNAME=/etc/airflow.keytab
+        FQDN=$(hostname)
+        ADMIN="admin"
+        PASS="airflow"
+        KRB5_KTNAME=/etc/airflow.keytab
 
-    if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
-        echo
-        echo "Hosts:"
-        echo
-        cat /etc/hosts
-        echo
-        echo "Hostname: ${FQDN}"
-        echo
+        if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+            echo
+            echo "Hosts:"
+            echo
+            cat /etc/hosts
+            echo
+            echo "Hostname: ${FQDN}"
+            echo
+        fi
+
+        sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
+
+        set +e
+        echo -e "${PASS}\n${PASS}" | \
+            sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
+              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
+        RES_1=$?
+
+        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
+              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
+        RES_2=$?
+
+        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
+              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_3.log" >/dev/null
+        RES_3=$?
+        set -e
+
+        if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+            echo
+            echo "ERROR:  There was a problem communicating with kerberos"
+            echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
+            echo
+            echo "Action! Please restart the environment!"
+            echo "Run './scripts/ci/local_ci_stop_environment.sh' and re-enter the environment"
+            echo
+            exit 1
+        fi
+
+        sudo chmod 0644 "${KRB5_KTNAME}"
     fi
-
-    sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
-
-    set +e
-    echo -e "${PASS}\n${PASS}" | \
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-    RES_1=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-    RES_2=$?
-
-    sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-          | sudo tee "${AIRFLOW_HOME}/logs/kadmin_3.log" >/dev/null
-    RES_3=$?
-    set -e
-
-    if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-        echo
-        echo "ERROR:  There was a problem communicating with kerberos"
-        echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
-        echo
-        echo "Action! Please restart the environment!"
-        echo "Run './scripts/ci/local_ci_stop_environment.sh' and re-enter the environment"
-        echo
-        exit 1
-    fi
-
-    sudo chmod 0644 "${KRB5_KTNAME}"
 fi
 
 # Exporting XUNIT_FILE so that we can see summary of failed tests
@@ -249,10 +250,7 @@ if [[ "${RUN_KUBERNETES_TESTS}" == "false" ]]; then
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
-    echo "Set up Kubernetes cluster for tests"
-    "${MY_DIR}/../kubernetes/setup_kubernetes.sh"
-    "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
-
+    "${MY_DIR}/../kubernetes/setup_kubernetes_and_deploy_app.sh"
     echo
     echo "Running CI tests for Kubernetes with ${ARGS[*]}"
     echo

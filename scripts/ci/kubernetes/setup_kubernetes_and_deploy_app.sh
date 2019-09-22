@@ -16,34 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Fixes ownership for files created inside container (files owned by root will be owned by host user)
-#
-
 set -euo pipefail
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR=$(cd "$(dirname "$0")" && pwd)
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
-
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
-
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
-
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
-
-docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
-
-script_end
+echo "Set up Kubernetes cluster for tests"
+"${MY_DIR}/../kubernetes/setup_kubernetes.sh"
+"${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"

@@ -20,21 +20,23 @@ set -x
 
 export AIRFLOW_IMAGE=${IMAGE:-airflow}
 export AIRFLOW_TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")" || exit 1; pwd)
-export DIRNAME
-export TEMPLATE_DIRNAME="${DIRNAME}/templates"
-export BUILD_DIRNAME="${DIRNAME}/build"
-AIRFLOW_SOURCES=$(cd "${DIRNAME}/../../../../" || exit 1 ; pwd)
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
+export MY_DIR
+export TEMPLATE_DIRNAME="${MY_DIR}/templates"
+export BUILD_DIRNAME="${MY_DIR}/build"
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../../../" || exit 1 ; pwd)
 export AIRFLOW_SOURCES
 
-# shellcheck source=common/_autodetect_variables.sh
-. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=scripts/ci/utils/_autodetect_variables.sh
+. "${AIRFLOW_SOURCES}/scripts/ci/utils/_autodetect_variables.sh"
+
+autodetect_variables
 
 # Source branch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
+# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
 # or default branch for the sources
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
+BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
 
 usage() {
     cat << EOF
@@ -150,16 +152,16 @@ ${SED_COMMAND} -i "s|{{CONFIGMAP_DAGS_VOLUME_CLAIM}}|${CONFIGMAP_DAGS_VOLUME_CLA
 cat "${BUILD_DIRNAME}/airflow.yaml"
 cat "${BUILD_DIRNAME}/configmaps.yaml"
 
-kubectl delete -f "${DIRNAME}/postgres.yaml"
+kubectl delete -f "${MY_DIR}/postgres.yaml"
 kubectl delete -f "${BUILD_DIRNAME}/airflow.yaml"
-kubectl delete -f "${DIRNAME}/secrets.yaml"
+kubectl delete -f "${MY_DIR}/secrets.yaml"
 
 set -e
 
-kubectl apply -f "${DIRNAME}/secrets.yaml"
+kubectl apply -f "${MY_DIR}/secrets.yaml"
 kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml"
-kubectl apply -f "${DIRNAME}/postgres.yaml"
-kubectl apply -f "${DIRNAME}/volumes.yaml"
+kubectl apply -f "${MY_DIR}/postgres.yaml"
+kubectl apply -f "${MY_DIR}/volumes.yaml"
 kubectl apply -f "${BUILD_DIRNAME}/airflow.yaml"
 
 dump_logs() {

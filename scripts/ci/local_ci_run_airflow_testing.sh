@@ -20,7 +20,7 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export RUN_TESTS="true"
-export MOUNT_LOCAL_SOURCES="true"
+export MOUNT_HOST_VOLUMES="true"
 export VERBOSE=${VERBOSE:="false"}
 
 # shellcheck source=./ci_run_airflow_testing.sh
