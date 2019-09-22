@@ -463,8 +463,8 @@ if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == 
     if [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" ]]; then
         # Get all files in the context - by building a small alpine based image
         # then COPY all files (.) from the context and listing the files via find method
-        docker build -t airflow-context .  -f Dockerfile-context
-        ALL_FILES_TO_FIX=$(docker run airflow-context /bin/sh -c "(cd /context && find .)")
+        docker build -t airflow-context .  -f Dockerfile-context >/dev/null
+        ALL_FILES_TO_FIX=$(docker run --rm airflow-context /bin/sh -c "(cd /context && find .)")
     elif [[ "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
         ALL_FILES_TO_FIX="\
             ${AIRFLOW_SOURCES}/setup.py \
