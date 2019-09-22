@@ -167,6 +167,7 @@ repos:
     rev: v1.4.1
     hooks:
       - id: rst-backticks
+      - id: python-no-log-warn
   - repo: local
     hooks:
       - id: yamllint
