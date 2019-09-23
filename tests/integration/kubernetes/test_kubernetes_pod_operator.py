@@ -644,7 +644,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     def test_init_container(self):
         # GIVEN
-        volume_mount = VolumeMount('test-volume',
+        volume_mount = VolumeMount(name='test-volume',
                                    mount_path='/etc/foo',
                                    sub_path=None,
                                    read_only=True)
