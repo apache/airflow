@@ -136,7 +136,7 @@ class BigQueryExportQueryResultsToGCS(BaseOperator):
             cursor.run_extract(source_project_dataset_table=self.temp_table_name,
                                destination_cloud_storage_uris=self.destination_cloud_storage_uris,
                                compression=self.compression,
-                               export_format='CSV',
+                               export_format=self.export_format,
                                field_delimiter=self.field_delimiter,
                                print_header=self.print_header)
         except Exception as e:
