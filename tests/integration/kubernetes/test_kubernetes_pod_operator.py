@@ -642,7 +642,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             ))]
         )
 
-    def test_init_container(self, mock_client, launcher_mock):
+    def test_init_container(self):
         # GIVEN
         volume_mount = VolumeMount('test-volume',
                                    mount_path='/etc/foo',
