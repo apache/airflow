@@ -79,15 +79,21 @@ class TestSentryHook(unittest.TestCase):
     def setUp(self):
 
         self.sentry = ConfiguredSentry()
+
+        # Mock the Dag
         self.dag = Mock(dag_id=DAG_ID, params=[])
         self.dag.task_ids = [TASK_ID]
+
+        # Mock the task
         self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[])
         self.task.__class__.__name__ = OPERATOR
-        self.task.get_flat_relatives = MagicMock(return_value=[self.task])
 
-        self.session = Session()
         self.ti = TaskInstance(self.task, execution_date=EXECUTION_DATE)
         self.ti.operator = OPERATOR
+
+        self.dag.get_task_instances = MagicMock(return_value=[self.ti])
+
+        self.session = Session()
 
         mock_query = MockQuery(self.ti)
         mock_query.filter = MagicMock(return_value=mock_query)

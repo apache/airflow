@@ -31,7 +31,7 @@ First you must install sentry requirement:
 
 Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``[sentry]``. Its template resembles the following: ``'{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'``
 
-.. code-block:: python
+.. code-block:: ini
 
     [sentry]
     sentry_dsn = http://foo@sentry.io/123
@@ -54,11 +54,14 @@ operator                            Operator name of the task that failed
 Breadcrumbs
 ------------
 
+
+When a task fails with an error `breadcrumbs <https://docs.sentry.io/enriching-error-data/breadcrumbs/?platform=python>`__ will be added for the other tasks in the current dag run.
+
 =================================== ==============================================================
 Name                                Description
 =================================== ==============================================================
-upstream_tasks[task_id]             Task ID of task that executed before failed task
-upstream_tasks[state]               Final state of task that executed before failed task (only Success and Failed states are captured)
-upstream_tasks[operator]            Task operator of task that executed before failed task
-upstream_tasks[duration]            Duration in seconds of task that executed before failed task
+completed_tasks[task_id]             Task ID of task that executed before failed task
+completed_tasks[state]               Final state of task that executed before failed task (only Success and Failed states are captured)
+completed_tasks[operator]            Task operator of task that executed before failed task
+completed_tasks[duration]            Duration in seconds of task that executed before failed task
 =================================== ==============================================================

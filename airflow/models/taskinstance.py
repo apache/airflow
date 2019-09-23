@@ -856,7 +856,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
-    @Sentry.format_run_task
+    @Sentry.enrich_errors
     def _run_raw_task(
             self,
             mark_success=False,

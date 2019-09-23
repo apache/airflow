@@ -20,7 +20,6 @@
 """Sentry Integration"""
 
 
-from typing import Any
 from functools import wraps
 
 from airflow.configuration import conf
@@ -44,25 +43,27 @@ class DummySentry:
         """
 
     @classmethod
-    def add_breadcrumbs(cls, session=None):
+    def add_breadcrumbs(cls, task_instance, session=None):
         """
         Blank function for breadcrumbs.
         """
 
     @classmethod
-    def format_run_task(cls, run):
+    def enrich_errors(cls, run):
         """
         Blank function for formatting a TaskInstance._run_raw_task.
         """
         return run
 
 
-class ConfiguredSentry:
+class ConfiguredSentry(DummySentry):
     """
     Configure Sentry SDK.
     """
 
-    SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator"))
+    SCOPE_TAGS = frozenset(
+        ("task_id", "dag_id", "execution_date", "operator", "try_number")
+    )
     SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
     def __init__(self):
@@ -129,7 +130,7 @@ class ConfiguredSentry:
 
             add_breadcrumb(category="completed_tasks", data=data, level="info")
 
-    def format_run_task(self, func):
+    def enrich_errors(self, func):
         """
         Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs.
         """
@@ -150,7 +151,7 @@ class ConfiguredSentry:
         return wrapper
 
 
-Sentry = DummySentry  # type: Any
+Sentry = DummySentry()  # type: DummySentry
 
 try:
     from sentry_sdk.integrations.logging import ignore_logger
