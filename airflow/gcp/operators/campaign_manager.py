@@ -114,6 +114,8 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :type bucket_name: str
     :param report_name: The report name to set when uploading the local file.
     :type report_name: str
+    :param gzip: Option to compress local file or file data for upload
+    :type gzip: bool
     :param chunk_size: File will be downloaded in chunks of this many bytes.
     :type chunk_size: int
     :param api_version: The version of the api that will be requested for example 'v3'.
@@ -138,13 +140,14 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint:disable=too-many-arguments
         self,
         profile_id: str,
         report_id: str,
         file_id: str,
         bucket_name: str,
         report_name: str,
+        gzip: bool = False,
         chunk_size: int = 5 * 1024 * 1024,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
@@ -158,6 +161,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         self.file_id = file_id
         self.api_version = api_version
         self.chunk_size = chunk_size
+        self.gzip = gzip
         self.bucket_name = self._set_bucket_name(bucket_name)
         self.report_name = self._set_report_name(report_name)
         self.gcp_conn_id = gcp_conn_id
@@ -187,7 +191,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         )
 
         # Download the report
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile() as temp_file:
             downloader = http.MediaIoBaseDownload(
                 fd=temp_file, request=request, chunksize=self.chunk_size
             )
@@ -195,11 +199,12 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
             while not download_finished:
                 _, download_finished = downloader.next_chunk()
 
+            temp_file.flush()
             # Upload the local file to bucket
             gcs_hook.upload(
                 bucket_name=self.bucket_name,
                 object_name=self.report_name,
-                gzip=True,
+                gzip=self.gzip,
                 filename=temp_file.name,
                 mime_type="text/csv",
             )
@@ -338,4 +343,5 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
             report_id=self.report_id,
             synchronous=self.synchronous,
         )
+        self.log.info('Report file id: %s', response.get('id'))
         return response

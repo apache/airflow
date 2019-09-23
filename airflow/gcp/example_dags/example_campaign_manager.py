@@ -72,7 +72,7 @@ with models.DAG(
 
     # [START howto_campaign_manager_run_report_operator]
     run_report = GoogleCampaignManagerRunReportOperator(
-        profile_id=PROFILE_ID, report_id="636239375", task_id="run_report"
+        profile_id=PROFILE_ID, report_id=report_id, task_id="run_report"
     )
     file_id = "{{ task_instance.xcom_pull('run_report')['id'] }}"
     # [END howto_campaign_manager_run_report_operator]

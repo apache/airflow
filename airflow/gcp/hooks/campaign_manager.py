@@ -19,7 +19,7 @@
 """
 This module contains Google Campaign Manager hook.
 """
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from googleapiclient.discovery import build, Resource
 from googleapiclient import http
@@ -98,7 +98,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         scope: Optional[str] = None,
         sort_field: Optional[str] = None,
         sort_order: Optional[str] = None,
-    ) -> list:
+    ) -> List[Dict]:
         """
         Retrieves list of reports.
 
@@ -113,36 +113,22 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         :param sort_order: Order of sorted results.
         :type sort_order: Optional[str]
         """
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .reports()
-            .list(
-                profileId=profile_id,
-                maxResults=max_results,
-                scope=scope,
-                sortField=sort_field,
-                sortOrder=sort_order,
-            )
-            .execute(num_retries=self.num_retries)
+        reports = []  # type: List[Dict]
+        conn = self.get_conn()
+        request = conn.reports().list(  # pylint: disable=no-member
+            profileId=profile_id,
+            maxResults=max_results,
+            scope=scope,
+            sortField=sort_field,
+            sortOrder=sort_order,
         )
-        reports = [r for r in response.get('items', [])]
-        next_token = response.get('nextPageToken')
-        while next_token:
-            response = (
-                self.get_conn()  # pylint: disable=no-member
-                    .reports()
-                    .list(
-                    profileId=profile_id,
-                    maxResults=max_results,
-                    pageToken=next_token,
-                    scope=scope,
-                    sortField=sort_field,
-                    sortOrder=sort_order,
-                )
-                .execute(num_retries=self.num_retries)
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+            reports = response.get("items", [])
+            request = conn.reports().list_next(  # pylint: disable=no-member
+                previous_request=request,
+                previous_response=response,
             )
-            next_token = response.get('nextPageToken')
-            reports += [r for r in response.get('items', [])]
 
         return reports
 

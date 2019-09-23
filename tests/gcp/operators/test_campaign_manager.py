@@ -93,7 +93,7 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
             object_name=report_name,
-            gzip=True,
+            gzip=False,
             filename=temp_file_name,
             mime_type="text/csv",
         )

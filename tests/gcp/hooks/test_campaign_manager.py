@@ -133,6 +133,7 @@ class TestGoogleCampaignManagerHook(TestCase):
         get_conn_mock.return_value.reports.return_value.list.return_value.execute.return_value = (
             return_value
         )
+        get_conn_mock.return_value.reports.return_value.list_next.return_value = None
 
         result = self.hook.list_reports(
             profile_id=profile_id,
