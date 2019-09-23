@@ -19,6 +19,7 @@
 
 import unittest
 
+from base64 import b64encode as b64e
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import ParseDict, MessageToDict
 
@@ -38,7 +39,7 @@ class TestPubSubPullSensor(unittest.TestCase):
                 {
                     "ack_id": "%s" % i,
                     "message": {
-                        "data": "Message-{}".format(i).encode("utf8"),
+                        "data": b64e('Message {}'.format(i).encode('utf8')),
                         "attributes": {"type": "generated message"},
                     },
                 },
