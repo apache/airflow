@@ -21,7 +21,10 @@ This module contains a Google Cloud Storage Bucket operator.
 """
 import sys
 import warnings
-from typing import Dict, Optional, Iterable
+import subprocess
+from typing import Dict, Optional, Iterable, Union, List
+from tempfile import NamedTemporaryFile
+
 
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -526,3 +529,99 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
                                role=self.role,
                                generation=self.generation,
                                user_project=self.user_project)
+
+
+class GcsFileTransformOperator(BaseOperator):
+    """
+    Copies data from a source GCS location to a temporary location on the
+    local filesystem. Runs a transformation on this file as specified by
+    the transformation script and uploads the output to a destination bucket.
+    If the output bucket is not specified the original file will be
+    overwritten.
+
+    The locations of the source and the destination files in the local
+    filesystem is provided as an first and second arguments to the
+    transformation script. The transformation script is expected to read the
+    data from source, transform it and write the output to the local
+    destination file.
+
+    :param source_bucket: The key to be retrieved from S3. (templated)
+    :type source_bucket: str
+    :param destination_bucket: The key to be written from S3. (templated)
+    :type destination_bucket: str
+    :param transform_script: location of the executable transformation script or list of arguments
+        passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
+    :type transform_script: Union[str, List[str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = ('source_bucket', 'destination_bucket', 'transform_script')
+
+    @apply_defaults
+    def __init__(
+        self,
+        source_bucket: str,
+        source_object: str,
+        transform_script: Union[str, List[str]],
+        destination_bucket: Optional[str] = None,
+        destination_object: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.source_bucket = source_bucket
+        self.source_object = source_object
+        self.destination_bucket = destination_bucket or self.source_bucket
+        self.destination_object = destination_object or self.source_object
+
+        self.gcp_conn_id = gcp_conn_id
+        self.transform_script = transform_script
+        self.output_encoding = sys.getdefaultencoding()
+
+    def execute(self, context: Dict):
+        hook = GoogleCloudStorageHook(gcp_conn_id=self.gcp_conn_id)
+
+        with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
+            self.log.info("Downloading file from %s", self.source_bucket)
+            hook.download(
+                bucket_name=self.source_bucket,
+                object_name=self.source_object,
+                filename=source_file.name
+            )
+
+            self.log.info("Starting the transformation")
+            cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
+            cmd += [source_file.name, destination_file.name]
+            process = subprocess.Popen(
+                args=cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                close_fds=True
+            )
+            self.log.info("Process output:")
+            for line in iter(process.stdout.readline, b''):
+                self.log.info(line.decode(self.output_encoding).rstrip())
+
+            process.wait()
+            if process.returncode > 0:
+                raise AirflowException(
+                    "Transform script failed: {0}".format(process.returncode)
+                )
+
+            self.log.info(
+                "Transformation succeeded. Output temporarily located at %s",
+                destination_file.name
+            )
+
+            self.log.info(
+                "Uploading file to %s as %s",
+                self.destination_bucket,
+                self.destination_object
+            )
+            hook.upload(
+                bucket_name=self.destination_bucket,
+                object_name=self.destination_object,
+                filename=destination_file.name
+            )

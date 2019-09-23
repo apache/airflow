@@ -32,7 +32,8 @@ from airflow.gcp.operators.gcs import (
     GoogleCloudStorageListOperator,
     GoogleCloudStorageDeleteOperator,
     GoogleCloudStorageDownloadOperator,
-    GoogleCloudStorageCreateBucketOperator
+    GoogleCloudStorageCreateBucketOperator,
+    GcsFileTransformOperator
 )
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
@@ -47,6 +48,9 @@ GCS_ACL_OBJECT_ROLE = "OWNER"
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
+    'GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py'
+)
 PATH_TO_UPLOAD_FILE = os.environ.get(
     "GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt"
 )
@@ -84,6 +88,12 @@ with models.DAG(
         bucket=BUCKET_1,
     )
 
+    transform_file = GcsFileTransformOperator(
+        task_id="transform_file",
+        source_bucket=BUCKET_1,
+        source_object=BUCKET_FILE_LOCATION,
+        transform_script=["python", PATH_TO_TRANSFORM_SCRIPT]
+    )
     # [START howto_operator_gcs_bucket_create_acl_entry_task]
     gcs_bucket_create_acl_entry_task = GoogleCloudStorageBucketCreateAclEntryOperator(
         bucket=BUCKET_1,
