@@ -34,7 +34,7 @@ Prerequisite Tasks
 Creating a report
 ^^^^^^^^^^^^^^^^^
 
-To create Display&Video 360 report you can use
+To create Display&Video 360 report use
 :class:`~airflow.gcp.operators.display_video.GoogleDisplayVideo360CreateReportOperator`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_display_video.py
@@ -43,17 +43,17 @@ To create Display&Video 360 report you can use
     :start-after: [START howto_google_display_video_createquery_report_operator]
     :end-before: [END howto_google_display_video_createquery_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.operators.display_video.GoogleDisplayVideo360CreateReportOperator`
-parameters which allows you to dynamically determine values.
-The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+parameters which allow you to dynamically determine values.
+The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
 
 .. _howto/operator:GoogleDisplayVideo360DeleteReportOperator:
 
 Deleting a report
 ^^^^^^^^^^^^^^^^^
 
-To delete Display&Video 360 report you can use
+To delete Display&Video 360 report use
 :class:`~airflow.gcp.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_display_video.py
@@ -64,13 +64,13 @@ To delete Display&Video 360 report you can use
 
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`
-parameters which allows you to dynamically determine values.
+parameters which allow you to dynamically determine values.
 
 .. _howto/operator:GoogleDisplayVideo360ReportSensor:
 
 Waiting for report
 ^^^^^^^^^^^^^^^^^^
-To delete Display&Video 360 report you can use
+To delete Display&Video 360 report use
 :class:`~airflow.gcp.sensors.display_video.GoogleDisplayVideo360ReportSensor`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_display_video.py
@@ -79,16 +79,16 @@ To delete Display&Video 360 report you can use
     :start-after: [START howto_google_display_video_wait_report_operator]
     :end-before: [END howto_google_display_video_wait_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.sensors.display_video.GoogleDisplayVideo360ReportSensor`
-parameters which allows you to dynamically determine values.
+parameters which allow you to dynamically determine values.
 
 .. _howto/operator:GoogleDisplayVideo360DownloadReportOperator:
 
 Downloading a report
 ^^^^^^^^^^^^^^^^^^^^
 
-To create download a report to GCS bucket you can use
+To download a report to GCS bucket use
 :class:`~airflow.gcp.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_display_video.py
@@ -97,9 +97,9 @@ To create download a report to GCS bucket you can use
     :start-after: [START howto_google_display_video_getquery_report_operator]
     :end-before: [END howto_google_display_video_getquery_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`
-parameters which allows you to dynamically determine values.
+parameters which allow you to dynamically determine values.
 
 
 .. _howto/operator:GoogleDisplayVideo360RunReportOperator:
@@ -107,7 +107,7 @@ parameters which allows you to dynamically determine values.
 Running a report
 ^^^^^^^^^^^^^^^^
 
-To run Display&Video 360 report you can use
+To run Display&Video 360 report use
 :class:`~airflow.gcp.operators.display_video.GoogleDisplayVideo360RunReportOperator`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_display_video.py
@@ -116,6 +116,6 @@ To run Display&Video 360 report you can use
     :start-after: [START howto_google_display_video_runquery_report_operator]
     :end-before: [END howto_google_display_video_runquery_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.operators.display_video.GoogleDisplayVideo360RunReportOperator`
-parameters which allows you to dynamically determine values.
+parameters which allow you to dynamically determine values.

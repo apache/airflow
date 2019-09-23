@@ -159,6 +159,8 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
     :type report_name: str
     :param chunk_size: File will be downloaded in chunks of this many bytes.
     :type chunk_size: int
+    :param gzip: Option to compress local file or file data for upload
+    :type gzip: bool
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -168,7 +170,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
     :type delegate_to: str
     """
 
-    template_fields = ("report_id",)
+    template_fields = ("report_id", "bucket_name", "report_name")
 
     @apply_defaults
     def __init__(
@@ -176,6 +178,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         report_id: str,
         bucket_name: str,
         report_name: str,
+        gzip: bool = False,
         chunk_size: int = 5 * 1024 * 1024,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -186,6 +189,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.report_id = report_id
         self.chunk_size = chunk_size
+        self.gzip = gzip
         self.bucket_name = self._set_bucket_name(bucket_name)
         self.report_name = self._set_report_name(report_name)
         self.api_version = api_version
@@ -220,11 +224,12 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             with urllib.request.urlopen(file_url) as response:
                 shutil.copyfileobj(response, temp_file)
 
+            temp_file.flush()
             # Upload the local file to bucket
             gcs_hook.upload(
                 bucket_name=self.bucket_name,
                 object_name=self.report_name,
-                gzip=True,
+                gzip=self.gzip,
                 filename=temp_file.name,
                 mime_type="text/csv",
             )

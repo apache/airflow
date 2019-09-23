@@ -32,6 +32,18 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         ):
             self.hook = GoogleDisplayVideo360Hook(gcp_conn_id=GCP_CONN_ID)
 
+    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook._authorize")
+    @mock.patch("airflow.gcp.hooks.display_video.build")
+    def test_gen_conn(self, mock_build, mock_authorize):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'doubleclickbidmanager',
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
     @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
     def test_create_query(self, get_conn_mock):
         body = {"body": "test"}
