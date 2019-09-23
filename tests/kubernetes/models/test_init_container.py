@@ -41,26 +41,75 @@ class TestPod(unittest.TestCase):
             cmds=["bash", "-cx"],
             args=["echo 10"])
 
-        self.assertEqual(
-            init_container.to_k8s_client_obj(),
-            k8s.V1Container(
-                name='init-container',
-                image='ubuntu:16.04',
-                env=[k8s.V1EnvVar(name='key1', value='value1'),
-                     k8s.V1EnvVar(name='key2', value='value2')],
-                volume_mounts=[k8s.V1VolumeMount(
-                    name='test-volume',
-                    mount_path='/etc/foo',
-                    sub_path=None,
-                    read_only=True)],
-                command=['bash', '-cx'],
-                args=['echo 10']
-            )
+        actual_container = init_container.to_k8s_client_obj()
+        expected_container = k8s.V1Container(
+            name='init-container',
+            image='ubuntu:16.04',
+            env=[k8s.V1EnvVar(name='key2', value='value2'),
+                 k8s.V1EnvVar(name='key1', value='value1')],
+            volume_mounts=[k8s.V1VolumeMount(
+                name='test-volume',
+                mount_path='/etc/foo',
+                read_only=True)],
+            command=['bash', '-cx'],
+            args=['echo 10']
         )
+        self.assertEqual(actual_container, expected_container)
 
     @mock.patch('uuid.uuid4')
     def test_init_container_attach_to_pod(self, mock_uuid):
         mock_uuid.return_value = '0'
+        expected_pod = {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {'name': 'base-0'},
+            'spec': {
+                'containers': [{
+                    'args': [],
+                    'command': [],
+                    'env': [],
+                    'envFrom': [],
+                    'image': 'airflow-worker:latest',
+                    'imagePullPolicy': 'IfNotPresent',
+                    'name': 'base',
+                    'ports': [],
+                    'volumeMounts': [],
+                }],
+                'hostNetwork': False,
+                'imagePullSecrets': [],
+                'initContainers': [{
+                    'name': 'init-container-1',
+                    'image': 'ubuntu:16.04',
+                    'command': ['bash', '-cx'],
+                    'args': ['echo 10'],
+                    'env': [{
+                        'name': 'key2',
+                        'value': 'value2'
+                    }, {
+                        'name': 'key1',
+                        'value': 'value1'
+                    }],
+                    'volumeMounts': [{
+                        'mountPath': '/etc/foo',
+                        'name': 'test-volume',
+                        'readOnly': True
+                    }],
+                }, {
+                    'name': 'init-container-2',
+                    'image': 'ubuntu:16.04',
+                    'command': ['bash', '-cx'],
+                    'args': ['echo 35'],
+                    'volumeMounts': [],
+                    'env': [{
+                        'name': 'key3',
+                        'value': 'value3'
+                    }]
+                }],
+                'restartPolicy': 'Never',
+                'volumes': []
+            }
+        }
+
         pod = PodGenerator(image='airflow-worker:latest', name='base').gen_pod()
 
         volume_mount = VolumeMount('test-volume',
@@ -85,52 +134,4 @@ class TestPod(unittest.TestCase):
         k8s_client = ApiClient()
         result = append_to_pod(pod, init_containers)
         result = k8s_client.sanitize_for_serialization(result)
-        self.assertEqual({
-            'apiVersion': 'v1',
-            'kind': 'Pod',
-            'metadata': {'name': 'base-0'},
-            'spec': {
-                'containers': [{
-                    'args': [],
-                    'command': [],
-                    'env': [],
-                    'envFrom': [],
-                    'image': 'airflow-worker:latest',
-                    'imagePullPolicy': 'IfNotPresent',
-                    'name': 'base',
-                    'ports': [],
-                    'volumeMounts': [],
-                }],
-                'hostNetwork': False,
-                'imagePullSecrets': [],
-                'initContainers': [{
-                    'name': 'init-container-1',
-                    'image': 'ubuntu:16.04',
-                    'command': ['bash', '-cx'],
-                    'args': ['echo 10'],
-                    'env': [{
-                        'name': 'key1',
-                        'value': 'value1'
-                    }, {
-                        'name': 'key2',
-                        'value': 'value2'
-                    }],
-                    'volumeMounts': [{
-                        'mountPath': '/etc/foo',
-                        'name': 'test-volume',
-                        'readOnly': True
-                    }],
-                }, {
-                    'name': 'init-container-2',
-                    'image': 'ubuntu:16.04',
-                    'command': ['bash', '-cx'],
-                    'args': ['echo 35'],
-                    'env': [{
-                        'name': 'key3',
-                        'value': 'value3'
-                    }]
-                }],
-                'restartPolicy': 'Never',
-                'volumes': []
-            }
-        }, result)
+        self.assertEqual(expected_pod, result)

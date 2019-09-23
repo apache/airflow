@@ -642,8 +642,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
             ))]
         )
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_init_container(self, mock_client, launcher_mock):
         # GIVEN
         volume_mount = VolumeMount('test-volume',
@@ -651,13 +649,13 @@ class TestKubernetesPodOperator(unittest.TestCase):
                                    sub_path=None,
                                    read_only=True)
 
-        init_containers = [InitContainer(
+        init_container = InitContainer(
             name="init-container",
             image="ubuntu:16.04",
             init_environment={"key1": "value1", "key2": "value2"},
             volume_mounts=[volume_mount],
             cmds=["bash", "-cx"],
-            args=["echo 10"])]
+            args=["echo 10"])
 
         expected_init_container = {
             'name': 'init-container',
@@ -665,11 +663,11 @@ class TestKubernetesPodOperator(unittest.TestCase):
             'command': ['bash', '-cx'],
             'args': ['echo 10'],
             'env': [{
-                'name': 'key1',
-                'value': 'value1'
-            }, {
                 'name': 'key2',
                 'value': 'value2'
+            }, {
+                'name': 'key1',
+                'value': 'value1'
             }],
             'volumeMounts': [{
                 'mountPath': '/etc/foo',
@@ -686,7 +684,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            init_containers=init_containers,
+            init_containers=[init_container],
         )
 
         k.execute(None)
