@@ -67,7 +67,6 @@ class BigQueryExportQueryResultsToGCS(BaseOperator):
                        'field_delimiter',
                        'project_id',
                        'bigquery_conn_id',
-                       'compression',
                        'print_header',
                        'export_format')
     ui_color = '#0273d4'
