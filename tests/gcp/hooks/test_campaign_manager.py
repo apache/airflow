@@ -20,7 +20,7 @@ from unittest import TestCase, mock
 
 from airflow.gcp.hooks.campaign_manager import GoogleCampaignManagerHook
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v3.3"
 GCP_CONN_ID = "google_cloud_default"
@@ -45,7 +45,7 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_delete(self, mock_base_hook, get_conn_mock):
+    def test_delete_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
 
@@ -54,7 +54,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             return_value
         )
 
-        result = self.hook.delete(profile_id=profile_id, report_id=report_id)
+        result = self.hook.delete_report(profile_id=profile_id, report_id=report_id)
 
         get_conn_mock.return_value.reports.return_value.delete.assert_called_once_with(
             profileId=profile_id, reportId=report_id
@@ -64,7 +64,7 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_get(self, mock_base_hook, get_conn_mock):
+    def test_get_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
         file_id = "FILE_ID"
@@ -73,7 +73,7 @@ class TestGoogleCampaignManagerHook(TestCase):
         get_conn_mock.return_value.reports.return_value.files.return_value.\
             get.return_value.execute.return_value = return_value
 
-        result = self.hook.get(profile_id=profile_id, report_id=report_id, file_id=file_id)
+        result = self.hook.get_report(profile_id=profile_id, report_id=report_id, file_id=file_id)
 
         get_conn_mock.return_value.reports.return_value.files.return_value.get.assert_called_once_with(
             profileId=profile_id, reportId=report_id, fileId=file_id
@@ -102,7 +102,7 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_insert(self, mock_base_hook, get_conn_mock):
+    def test_insert_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report = {"body": "test"}
 
@@ -111,7 +111,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             return_value
         )
 
-        result = self.hook.insert(profile_id=profile_id, report=report)
+        result = self.hook.insert_report(profile_id=profile_id, report=report)
 
         get_conn_mock.return_value.reports.return_value.insert.assert_called_once_with(
             profileId=profile_id, body=report
@@ -121,7 +121,7 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_list(self, mock_base_hook, get_conn_mock):
+    def test_list_reports(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         max_results = 42
         scope = "SCOPE"
@@ -134,7 +134,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             return_value
         )
 
-        result = self.hook.list(
+        result = self.hook.list_reports(
             profile_id=profile_id,
             max_results=max_results,
             scope=scope,
@@ -154,19 +154,20 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_patch(self, mock_base_hook, get_conn_mock):
+    def test_patch_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
+        update_mask = {"test": "test"}
 
         return_value = "TEST"
         get_conn_mock.return_value.reports.return_value.patch.return_value.execute.return_value = (
             return_value
         )
 
-        result = self.hook.patch(profile_id=profile_id, report_id=report_id)
+        result = self.hook.patch_report(profile_id=profile_id, report_id=report_id, update_mask=update_mask)
 
         get_conn_mock.return_value.reports.return_value.patch.assert_called_once_with(
-            profileId=profile_id, reportId=report_id
+            profileId=profile_id, reportId=report_id, body=update_mask
         )
 
         self.assertEqual(return_value, result)
@@ -199,7 +200,7 @@ class TestGoogleCampaignManagerHook(TestCase):
 
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
     @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
-    def test_update(self, mock_base_hook, get_conn_mock):
+    def test_update_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
 
@@ -208,7 +209,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             return_value
         )
 
-        result = self.hook.update(profile_id=profile_id, report_id=report_id)
+        result = self.hook.update_report(profile_id=profile_id, report_id=report_id)
 
         get_conn_mock.return_value.reports.return_value.update.assert_called_once_with(
             profileId=profile_id, reportId=report_id

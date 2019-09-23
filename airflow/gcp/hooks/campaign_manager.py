@@ -57,7 +57,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    def delete(self, profile_id: str, report_id: str) -> Any:
+    def delete_report(self, profile_id: str, report_id: str) -> Any:
         """
         Deletes a report by its ID.
 
@@ -74,7 +74,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         )
         return response
 
-    def insert(self, profile_id: str, report: Dict[str, Any]) -> Any:
+    def insert_report(self, profile_id: str, report: Dict[str, Any]) -> Any:
         """
         Creates a report.
 
@@ -91,7 +91,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         )
         return response
 
-    def list(
+    def list_reports(
         self,
         profile_id: str,
         max_results: Optional[int] = None,
@@ -146,7 +146,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
 
         return reports
 
-    def patch(self, profile_id: str, report_id: str) -> Any:
+    def patch_report(self, profile_id: str, report_id: str, update_mask: Dict) -> Any:
         """
         Updates a report. This method supports patch semantics.
 
@@ -154,11 +154,14 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         :type profile_id: str
         :param report_id: The ID of the report.
         :type report_id: str
+        :param update_mask: The relevant portions of a report resource,
+            according to the rules of patch semantics.
+        :type update_mask: Dict
         """
         response = (
             self.get_conn()  # pylint: disable=no-member
             .reports()
-            .patch(profileId=profile_id, reportId=report_id)
+            .patch(profileId=profile_id, reportId=report_id, body=update_mask)
             .execute(num_retries=self.num_retries)
         )
         return response
@@ -184,7 +187,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         )
         return response
 
-    def update(self, profile_id: str, report_id: str) -> Any:
+    def update_report(self, profile_id: str, report_id: str) -> Any:
         """
         Updates a report.
 
@@ -201,7 +204,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         )
         return response
 
-    def get(self, file_id: str, profile_id: str, report_id: str) -> Any:
+    def get_report(self, file_id: str, profile_id: str, report_id: str) -> Any:
         """
         Retrieves a report file.
 

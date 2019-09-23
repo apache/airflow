@@ -81,7 +81,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        response = hook.get(
+        response = hook.get_report(
             profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id
         )
         if response["status"] == "REPORT_AVAILABLE":

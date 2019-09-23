@@ -88,7 +88,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
             api_version=self.api_version,
         )
         self.log.info("Deleting Campaign Manager report: %s", self.report_id)
-        hook.delete(profile_id=self.profile_id, report_id=self.report_id)
+        hook.delete_report(profile_id=self.profile_id, report_id=self.report_id)
         self.log.info("Report deleted.")
 
 
@@ -264,7 +264,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
             api_version=self.api_version,
         )
         self.log.info("Inserting Campaign Manager report.")
-        response = hook.insert(profile_id=self.profile_id, report=self.report)  # type: ignore
+        response = hook.insert_report(profile_id=self.profile_id, report=self.report)  # type: ignore
         self.log.info("Report successfully inserted. Report id: %s", response["id"])
         return response
 

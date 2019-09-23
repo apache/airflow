@@ -45,7 +45,7 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
         )
-        hook_mock.return_value.delete.assert_called_once_with(
+        hook_mock.return_value.delete_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id
         )
 
@@ -115,7 +115,7 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
         )
-        hook_mock.return_value.insert.assert_called_once_with(
+        hook_mock.return_value.insert_report.assert_called_once_with(
             profile_id=profile_id, report=report
         )
 

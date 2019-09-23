@@ -32,7 +32,7 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         report_id = "REPORT_ID"
         file_id = "FILE_ID"
 
-        hook_mock.return_value.get.return_value = {"status": "REPORT_AVAILABLE"}
+        hook_mock.return_value.get_report.return_value = {"status": "REPORT_AVAILABLE"}
 
         op = GoogleCampaignManagerReportSensor(
             profile_id=profile_id,
@@ -45,7 +45,7 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
         )
-        hook_mock.return_value.get.assert_called_once_with(
+        hook_mock.return_value.get_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, file_id=file_id
         )
         self.assertTrue(result)
