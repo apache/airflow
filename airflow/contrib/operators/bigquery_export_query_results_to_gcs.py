@@ -1,10 +1,30 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+This module contains BigQuery Export Query Results to GCS operator.
+"""
+import logging
+from uuid import uuid4
 from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
-from airflow.plugins_manager import AirflowPlugin
 from airflow.contrib.hooks.bigquery_hook import BigQueryBaseCursor, BigQueryHook
 from airflow.exceptions import AirflowException
-from uuid import uuid4
-import logging
 
 
 class BigQueryExportQueryResultsToGCS(BaseOperator):
@@ -54,23 +74,23 @@ class BigQueryExportQueryResultsToGCS(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            query,
-            destination_cloud_storage_uris,
-            project_id,
-            field_delimiter='\t',
-            bigquery_conn_id='bigquery_default',
-            compression='NONE',
-            print_header=False,
-            export_format='CSV',
-            dataset_id='BigQueryExportQueryResultsToGCS',
-            persist_temp_table=False,
-            delegate_to=None,
-            labels=None,
-            location=None,
-            default_table_expiry_in_ms='3600000',
-            *args,
-            **kwargs):
+        self,
+        query,
+        destination_cloud_storage_uris,
+        project_id,
+        field_delimiter='\t',
+        bigquery_conn_id='bigquery_default',
+        compression='NONE',
+        print_header=False,
+        export_format='CSV',
+        dataset_id='BigQueryExportQueryResultsToGCS',
+        persist_temp_table=False,
+        delegate_to=None,
+        labels=None,
+        location=None,
+        default_table_expiry_in_ms='3600000',
+        *args,
+        **kwargs):
         super(BigQueryExportQueryResultsToGCS, self).__init__(*args, **kwargs)
 
         self.query = query
@@ -104,7 +124,8 @@ class BigQueryExportQueryResultsToGCS(BaseOperator):
                                         service=service)
             cursor.create_empty_dataset(dataset_id=self.dataset_id,
                                         project_id=self.project_id,
-                                        dataset_reference={'defaultTableExpirationMs': self.default_table_expiry_in_ms})
+                                        dataset_reference=
+                                        {'defaultTableExpirationMs': self.default_table_expiry_in_ms})
             dataset_creation_success = True
             cursor.run_query(destination_dataset_table=self.temp_table_name,
                              write_disposition='WRITE_TRUNCATE',
@@ -130,9 +151,3 @@ class BigQueryExportQueryResultsToGCS(BaseOperator):
             if result_export_success is False:
                 raise AirflowException(
                     "Query export failed. Error: {}".format(err_msg))
-        return
-
-
-class BigQueryExportResultsToGCSPlugin(AirflowPlugin):
-    name = "bigquery_export_query_results_to_gcs"
-    operators = [BigQueryExportQueryResultsToGCS]
