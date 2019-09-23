@@ -2314,7 +2314,7 @@ class QueryView(wwwutils.DataProfilingMixin, AirflowViewMixin, BaseView):
         if not has_data and error:
             flash('No data', 'error')
 
-        if csv:
+        if csv and not error:
             return Response(
                 response=df.to_csv(index=False),
                 status=200,
