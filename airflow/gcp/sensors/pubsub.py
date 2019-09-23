@@ -120,7 +120,6 @@ class PubSubPullSensor(BaseSensorOperator):
         self._messages = [MessageToDict(m) for m in pulled_messages]
 
         if self._messages and self.ack_messages:
-            if self.ack_messages:
-                ack_ids = [m['ackId'] for m in self._messages if m.get('ackId')]
-                hook.acknowledge(project_id=self.project_id, subscription=self.subscription, ack_ids=ack_ids)
+            ack_ids = [m['ackId'] for m in self._messages if m.get('ackId')]
+            hook.acknowledge(project_id=self.project_id, subscription=self.subscription, ack_ids=ack_ids)
         return self._messages
