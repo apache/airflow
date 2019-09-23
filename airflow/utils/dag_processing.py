@@ -16,7 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import hashlib
+import imp
 import importlib
 import logging
 import multiprocessing
@@ -365,7 +366,18 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
     if include_examples:
         import airflow.example_dags
         example_dag_folder = airflow.example_dags.__path__[0]
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
+        example_paths = list_py_file_paths(example_dag_folder, safe_mode, False)
+        error_paths = []
+        for filepath in example_paths:
+            org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
+            mod_name = ('unusual_prefix_' +
+                        hashlib.sha1(filepath.encode('utf-8')).hexdigest() +
+                        '_' + org_mod_name)
+            try:
+                imp.load_source(mod_name, filepath)
+            except Exception:
+                error_paths.append(filepath)
+        file_paths.extend([f for f in example_paths if f not in error_paths])
     return file_paths
 
 
