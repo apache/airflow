@@ -108,7 +108,6 @@ class TestSecret(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'initContainers': [],
                 'restartPolicy': 'Never',
                 'volumes': [{
                     'name': 'secretvol0',

@@ -72,7 +72,6 @@ class TestPod(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'initContainers': [],
                 'restartPolicy': 'Never',
                 'volumes': []
             }

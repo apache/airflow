@@ -95,6 +95,6 @@ class InitContainer(K8SModel):
         """
         cp_pod = copy.deepcopy(pod)
         init_container = self.to_k8s_client_obj()
-        cp_pod.spec.init_containers[0] = pod.spec.init_containers[0] or []
-        cp_pod.spec.init_containers[0].append(init_container)
+        cp_pod.spec.init_containers = pod.spec.init_containers or []
+        cp_pod.spec.init_containers.append(init_container)
         return cp_pod
