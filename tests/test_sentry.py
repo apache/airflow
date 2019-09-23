@@ -35,6 +35,7 @@ EXECUTION_DATE = timezone.utcnow()
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 OPERATOR = "test_operator"
+TRY_NUMBER = 1
 STATE = State.SUCCESS
 DURATION = None
 TEST_SCOPE = {
@@ -42,9 +43,14 @@ TEST_SCOPE = {
     "task_id": TASK_ID,
     "execution_date": EXECUTION_DATE,
     "operator": OPERATOR,
+    "try_number": TRY_NUMBER,
 }
-TASK_DATA = TEST_SCOPE.copy()
-TASK_DATA.update({"state": STATE, "operator": OPERATOR, "duration": DURATION})
+TASK_DATA = {
+    "task_id": TASK_ID,
+    "state": STATE,
+    "operator": OPERATOR,
+    "duration": DURATION,
+}
 
 CRUMB_DATE = datetime.datetime(2019, 5, 15)
 CRUMB = {
@@ -54,25 +60,6 @@ CRUMB = {
     "data": TASK_DATA,
     "level": "info",
 }
-
-
-class MockQuery:
-    """
-    Mock Query for when session is called.
-    """
-
-    def __init__(self, task_instance):
-        task_instance.state = STATE
-        self.arr = [task_instance]
-
-    def first(self):
-        return self.arr[0]
-
-    def delete(self):
-        pass
-
-    def all(self):
-        return self.arr
 
 
 class TestSentryHook(unittest.TestCase):
@@ -90,15 +77,11 @@ class TestSentryHook(unittest.TestCase):
 
         self.ti = TaskInstance(self.task, execution_date=EXECUTION_DATE)
         self.ti.operator = OPERATOR
+        self.ti.state = STATE
 
         self.dag.get_task_instances = MagicMock(return_value=[self.ti])
 
         self.session = Session()
-
-        mock_query = MockQuery(self.ti)
-        mock_query.filter = MagicMock(return_value=mock_query)
-        mock_query.filter_by = MagicMock(return_value=mock_query)
-        self.session.query = MagicMock(return_value=mock_query)
 
     def test_add_tagging(self):
         """
