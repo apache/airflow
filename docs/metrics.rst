@@ -33,13 +33,21 @@ First you must install statsd requirement:
 
 Add the following lines to your configuration file e.g. ``airflow.cfg``
 
-.. code-block:: bash
+.. code-block:: ini
 
     [scheduler]
     statsd_on = True
     statsd_host = localhost
     statsd_port = 8125
     statsd_prefix = airflow
+
+If you want to avoid send all the available metrics to StatsD, you can configure an allow list of prefixes to send only
+the metrics that start with the elements of the list:
+
+.. code-block:: ini
+
+    [scheduler]
+    statsd_allow_list = scheduler,executor,dagrun
 
 Counters
 --------
