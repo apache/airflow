@@ -16,10 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Setup for the Airflow library."""
-
-
-from setuptools import setup, find_packages, Command
+"""Setup.py for the Airflow project."""
 
 import imp
 import io
@@ -28,6 +25,8 @@ import os
 import sys
 import subprocess
 import unittest
+
+from setuptools import setup, find_packages, Command
 
 logger = logging.getLogger(__name__)
 

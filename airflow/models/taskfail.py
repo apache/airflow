@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Taskfail tracks the failed run durations of each task instance"""
 from sqlalchemy import Column, Index, Integer, String
 
 from airflow.models.base import Base, ID_LEN

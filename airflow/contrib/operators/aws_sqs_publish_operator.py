@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-#
-# Licensed to the ApachMee Software Foundation (ASF) under one
+
+# Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Publish message to SQS queue"""
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
@@ -38,7 +39,6 @@ class SQSPublishOperator(BaseOperator):
     :param aws_conn_id: AWS connection id (default: aws_default)
     :type aws_conn_id: str
     """
-
     template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
     ui_color = '#6ad3fa'
 

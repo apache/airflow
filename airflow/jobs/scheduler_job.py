@@ -328,8 +328,9 @@ class SchedulerJob(BaseJob):
             dag_id=None,
             dag_ids=None,
             subdir=settings.DAGS_FOLDER,
-            num_runs=-1,
-            processor_poll_interval=1.0,
+            num_runs=conf.getint('scheduler', 'num_runs', fallback=-1),
+            processor_poll_interval=conf.getfloat(
+                'scheduler', 'processor_poll_interval', fallback=1),
             run_duration=None,
             do_pickle=False,
             log=None,

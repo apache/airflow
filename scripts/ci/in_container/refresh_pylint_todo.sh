@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add idx_log_dag
 
-Revision ID: dd25f486b8ea
-Revises: 9635ae0956e7
-Create Date: 2018-08-07 06:41:41.028249
+# Script to run Pylint on main code. Can be started from any working directory
+set -uo pipefail
 
-"""
-from alembic import op
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-# revision identifiers, used by Alembic.
-revision = 'dd25f486b8ea'
-down_revision = '9635ae0956e7'
-branch_labels = None
-depends_on = None
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
+in_container_basic_sanity_check
 
-def upgrade():
-    op.create_index('idx_log_dag', 'log', ['dag_id'], unique=False)
+in_container_script_start
 
+in_container_refresh_pylint_todo
 
-def downgrade():
-    op.drop_index('idx_log_dag', table_name='log')
+in_container_script_end

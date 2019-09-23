@@ -1,4 +1,21 @@
 # -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 #
 # The MIT License (MIT)
 #
@@ -21,7 +38,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
+"""Elastic mock module used for testing"""
 from functools import wraps
 from typing import Dict
 
@@ -33,7 +50,8 @@ from .fake_elasticsearch import FakeElasticsearch
 ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 
 
-def _get_elasticmock(hosts=None, *args, **kwargs):
+# noinspection PyUnusedLocal
+def _get_elasticmock(hosts=None, *args, **kwargs):  # pylint: disable=unused-argument
     host = _normalize_hosts(hosts)[0]
     elastic_key = '{0}:{1}'.format(
         host.get('host', 'localhost'), host.get('port', 9200)
@@ -47,11 +65,12 @@ def _get_elasticmock(hosts=None, *args, **kwargs):
     return connection
 
 
-def elasticmock(f):
-    @wraps(f)
+def elasticmock(function):
+    """Elasticmock decorator"""
+    @wraps(function)
     def decorated(*args, **kwargs):
         ELASTIC_INSTANCES.clear()
         with patch('elasticsearch.Elasticsearch', _get_elasticmock):
-            result = f(*args, **kwargs)
+            result = function(*args, **kwargs)
         return result
     return decorated

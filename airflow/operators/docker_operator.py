@@ -16,16 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+Implements Docker operator
+"""
 import json
+
+import ast
+from docker import APIClient, tls
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import APIClient, tls
-import ast
 
 
 class DockerOperator(BaseOperator):
@@ -252,6 +255,12 @@ class DockerOperator(BaseOperator):
                     if self.xcom_all else str(line)
 
     def get_command(self):
+        """
+        Retrieve command(s). if command string starts with [, it returns the command list)
+
+        :return: the command (or commands)
+        :rtype: str | List[str]
+        """
         if isinstance(self.command, str) and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
         else:
@@ -266,11 +275,14 @@ class DockerOperator(BaseOperator):
     def __get_tls_config(self):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
+            # it should be string
+            # noinspection PyTypeChecker
             tls_config = tls.TLSConfig(
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,
+                ssl_version=self.tls_ssl_version,  # type: ignore
                 assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')
