@@ -17,9 +17,8 @@
 
 Google Display & Video 360 Operators
 =======================================
-Display & Video 360 has the end-to-end campaign management features you need. For more
-information check `Google Display & Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
-
+`Google Display & Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__ has the end-to-end
+campaign management features you need.
 
 .. contents::
   :depth: 1
