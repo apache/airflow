@@ -21,7 +21,11 @@ omit =
     tests/*
     scripts/*
     dev/*
+    dags/*
     airflow/migrations/*
     airflow/www/node_modules/**
     airflow/www_rbac/node_modules/**
     airflow/_vendor/*
+    airflow/example_dags/*
+    airflow/gcp/example_dags/*
+    airflow/contrib/example_dags/*
