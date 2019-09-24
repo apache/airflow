@@ -33,7 +33,7 @@ from airflow.gcp.hooks import gcs
 from airflow.exceptions import AirflowException
 from airflow.version import version
 from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.gcp.hooks.gcs.{}'

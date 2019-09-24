@@ -33,6 +33,9 @@ script_start
 
 rebuild_ci_slim_image_if_needed
 
+IMAGES_TO_CHECK=("SLIM_CI")
+export IMAGES_TO_CHECK
+
 SKIP=pylint,check-apache-license pre-commit run --all-files --show-diff-on-failure
 
 script_end

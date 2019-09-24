@@ -43,7 +43,7 @@ Extra (optional)
     * **key_file** - Full Path of the private SSH Key file that will be used to connect to the remote_host.
     * **private_key** - Content of the private key used to connect to the remote_host.
     * **timeout** - An optional timeout (in seconds) for the TCP connect. Default is ``10``.
-    * **compress** - ``true`` to ask the remote client/server to compress traffic; `false` to refuse compression. Default is ``true``.
+    * **compress** - ``true`` to ask the remote client/server to compress traffic; ``false`` to refuse compression. Default is ``true``.
     * **no_host_key_check** - Set to ``false`` to restrict connecting to hosts with no entries in ``~/.ssh/known_hosts`` (Hosts file). This provides maximum protection against trojan horse attacks, but can be troublesome when the ``/etc/ssh/ssh_known_hosts`` file is poorly maintained or connections to new hosts are frequently made. This option forces the user to manually add all new hosts. Default is ``true``, ssh will automatically add new host keys to the user known hosts files.
     * **allow_host_key_change** - Set to ``true`` if you want to allow connecting to hosts that has host key changed or when you get 'REMOTE HOST IDENTIFICATION HAS CHANGED' error.  This wont protect against Man-In-The-Middle attacks. Other possible solution is to remove the host entry from ``~/.ssh/known_hosts`` file. Default is ``false``.
 

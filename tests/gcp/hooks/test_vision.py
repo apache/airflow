@@ -31,7 +31,7 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.hooks.vision import CloudVisionHook, ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests.compat import mock
 
 PROJECT_ID_TEST = 'project-id'

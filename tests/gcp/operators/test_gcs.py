@@ -26,6 +26,7 @@ from airflow.gcp.operators.gcs import (
     GoogleCloudStorageDeleteOperator,
     GoogleCloudStorageDownloadOperator,
     GoogleCloudStorageListOperator,
+    GcsFileTransformOperator
 )
 from tests.compat import mock
 
@@ -170,3 +171,64 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
             bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
+
+
+class TestGcsFileTransformOperator(unittest.TestCase):
+    @mock.patch('airflow.gcp.operators.gcs.NamedTemporaryFile')
+    @mock.patch('airflow.gcp.operators.gcs.subprocess')
+    @mock.patch('airflow.gcp.operators.gcs.GoogleCloudStorageHook')
+    def test_execute(self, mock_hook, mock_subprocess, mock_tempfile):
+        source_bucket = TEST_BUCKET
+        source_object = "test.txt"
+        destination_bucket = TEST_BUCKET + "-dest"
+        destination_object = "transformed_test.txt"
+        transform_script = "script.py"
+
+        source = "source"
+        destination = "destination"
+
+        # Mock the name attribute...
+        mock1 = mock.Mock()
+        mock2 = mock.Mock()
+        mock1.name = source
+        mock2.name = destination
+
+        mock_tempfile.return_value.__enter__.side_effect = [
+            mock1,
+            mock2
+        ]
+
+        mock_subprocess.PIPE = "pipe"
+        mock_subprocess.STDOUT = "stdout"
+        mock_subprocess.Popen.return_value.stdout.readline = lambda: b''
+        mock_subprocess.Popen.return_value.wait.return_value = None
+        mock_subprocess.Popen.return_value.returncode = 0
+
+        op = GcsFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_object=destination_object,
+            destination_bucket=destination_bucket,
+            transform_script=transform_script,
+        )
+        op.execute(None)
+
+        mock_hook.return_value.download.assert_called_once_with(
+            bucket_name=source_bucket,
+            object_name=source_object,
+            filename=source
+        )
+
+        mock_subprocess.Popen.assert_called_once_with(
+            args=[transform_script, source, destination],
+            stdout="pipe",
+            stderr="stdout",
+            close_fds=True
+        )
+
+        mock_hook.return_value.upload.assert_called_with(
+            bucket_name=destination_bucket,
+            object_name=destination_object,
+            filename=destination
+        )

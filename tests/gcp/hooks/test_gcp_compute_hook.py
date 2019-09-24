@@ -21,7 +21,7 @@
 
 import unittest
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
 from tests.compat import mock, PropertyMock
 

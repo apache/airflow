@@ -26,7 +26,7 @@ from tempfile import mkdtemp
 from airflow.utils import db as db_utils
 from airflow import models, AirflowException, LoggingMixin
 from airflow.utils.timezone import datetime
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator
+from tests.gcp.utils.gcp_authenticator import GcpAuthenticator
 from tests.contrib.utils.run_once_decorator import run_once
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(os.path.join(

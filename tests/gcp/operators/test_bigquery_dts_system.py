@@ -22,11 +22,11 @@ import unittest
 from tests.gcp.operators.test_bigquery_dts_system_helper import (
     GcpBigqueryDtsTestHelper,
 )
-from tests.contrib.utils.base_gcp_system_test_case import (
+from tests.gcp.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
     TestDagGcpSystem,
 )
-from tests.contrib.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
 from airflow.gcp.example_dags.example_bigquery_dts import (
     GCP_PROJECT_ID,

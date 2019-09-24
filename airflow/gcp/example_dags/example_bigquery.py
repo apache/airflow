@@ -36,6 +36,7 @@ from airflow.gcp.operators.bigquery import (
     BigQueryCreateExternalTableOperator,
     BigQueryGetDataOperator,
     BigQueryTableDeleteOperator,
+    BigQueryGetDatasetTablesOperator
 )
 
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
@@ -203,6 +204,16 @@ with models.DAG(
         ],
     )
 
+    get_empty_dataset_tables = BigQueryGetDatasetTablesOperator(
+        task_id="get_empty_dataset_tables",
+        dataset_id=DATASET_NAME
+    )
+
+    get_dataset_tables = BigQueryGetDatasetTablesOperator(
+        task_id="get_dataset_tables",
+        dataset_id=DATASET_NAME
+    )
+
     delete_table = BigQueryTableDeleteOperator(
         task_id="delete-table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
     )
@@ -235,7 +246,7 @@ with models.DAG(
     )
 
     create_dataset >> execute_query_save >> delete_dataset
-    create_dataset >> create_table >> delete_dataset
+    create_dataset >> get_empty_dataset_tables >> create_table >> get_dataset_tables >> delete_dataset
     create_dataset >> get_dataset >> delete_dataset
     create_dataset >> patch_dataset >> update_dataset >> delete_dataset
     execute_query_save >> get_data >> get_dataset_result

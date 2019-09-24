@@ -376,7 +376,7 @@ DAGs/tasks:
 .. image:: img/task_manual_vs_scheduled.png
 
 The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by `airflow dags trigger`.
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
 
 Workflows
 =========
@@ -792,9 +792,9 @@ detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
-SLAs can be configured for scheduled tasks by using the `sla` parameter.
-In addition to sending alerts to the addresses specified in a task's `email` parameter,
-the `sla_miss_callback` specifies an additional `Callable`
+SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
+In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
+the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
 
 Email Configuration

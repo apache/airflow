@@ -48,6 +48,28 @@ previously been set to `us-east-1` during installation.
 The region now needs to be set manually either in the connection screens in
 Airflow, or via the `AWS_DEFAULT_REGION` environment variable.
 
+### Some DAG Processing metrics have been renamed
+
+The following metrics are deprecated and won't be emitted in Airflow 2.0:
+
+- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
+- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
+- `collect_dags` -- use `dag_processing.total_parse_time` instead
+- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+
+### The gcp_conn_id parameter in GKEPodOperator is required
+
+In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
+operator, which resulted in credentials being determined according to the
+[Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
+
+Now this parameter requires a value. To restore the previous behavior, configure the connection without
+specifying the service account.
+
+Detailed information about connection management is available:
+[Google Cloud Platform Connection](https://airflow.apache.org/howto/connection/gcp.html).
+
 ### Normalize gcp_conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use 

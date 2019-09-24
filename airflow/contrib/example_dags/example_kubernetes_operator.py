@@ -30,38 +30,38 @@ try:
     # pip install 'apache-airflow[kubernetes]'
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
-    args = {
+    default_args = {
         'owner': 'Airflow',
         'start_date': days_ago(2)
     }
 
-    dag = DAG(
+    with DAG(
         dag_id='example_kubernetes_operator',
-        default_args=args,
-        schedule_interval=None)
+        default_args=default_args,
+        schedule_interval=None
+    ) as dag:
 
-    tolerations = [
-        {
-            'key': "key",
-            'operator': 'Equal',
-            'value': 'value'
-        }
-    ]
+        tolerations = [
+            {
+                'key': "key",
+                'operator': 'Equal',
+                'value': 'value'
+            }
+        ]
 
-    k = KubernetesPodOperator(
-        namespace='default',
-        image="ubuntu:16.04",
-        cmds=["bash", "-cx"],
-        arguments=["echo", "10"],
-        labels={"foo": "bar"},
-        name="airflow-test-pod",
-        in_cluster=False,
-        task_id="task",
-        get_logs=True,
-        dag=dag,
-        is_delete_operator_pod=False,
-        tolerations=tolerations
-    )
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="airflow-test-pod",
+            in_cluster=False,
+            task_id="task",
+            get_logs=True,
+            is_delete_operator_pod=False,
+            tolerations=tolerations
+        )
 
 except ImportError as e:
     log.warning("Could not import KubernetesPodOperator: " + str(e))

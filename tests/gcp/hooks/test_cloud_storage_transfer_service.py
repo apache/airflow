@@ -40,7 +40,7 @@ from airflow.gcp.hooks.cloud_storage_transfer_service import (
     TRANSFER_JOB,
     TRANSFER_JOB_FIELD_MASK,
 )
-from tests.contrib.utils.base_gcp_mock import (
+from tests.gcp.utils.base_gcp_mock import (
     mock_base_gcp_hook_no_default_project_id,
     mock_base_gcp_hook_default_project_id,
     GCP_PROJECT_ID_HOOK_UNIT_TEST)

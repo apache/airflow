@@ -88,26 +88,46 @@ def validate_stat(f):
     return wrapper
 
 
+class AllowListValidator:
+
+    def __init__(self, allow_list=None):
+        if allow_list:
+            self.allow_list = tuple([item.strip().lower() for item in allow_list.split(',')])
+        else:
+            self.allow_list = None
+
+    def test(self, stat):
+        if self.allow_list is not None:
+            return stat.strip().lower().startswith(self.allow_list)
+        else:
+            return True  # default is all metrics allowed
+
+
 class SafeStatsdLogger:
 
-    def __init__(self, statsd_client):
+    def __init__(self, statsd_client, allow_list_validator=AllowListValidator()):
         self.statsd = statsd_client
+        self.allow_list_validator = allow_list_validator
 
     @validate_stat
     def incr(self, stat, count=1, rate=1):
-        return self.statsd.incr(stat, count, rate)
+        if self.allow_list_validator.test(stat):
+            return self.statsd.incr(stat, count, rate)
 
     @validate_stat
     def decr(self, stat, count=1, rate=1):
-        return self.statsd.decr(stat, count, rate)
+        if self.allow_list_validator.test(stat):
+            return self.statsd.decr(stat, count, rate)
 
     @validate_stat
     def gauge(self, stat, value, rate=1, delta=False):
-        return self.statsd.gauge(stat, value, rate, delta)
+        if self.allow_list_validator.test(stat):
+            return self.statsd.gauge(stat, value, rate, delta)
 
     @validate_stat
     def timing(self, stat, dt):
-        return self.statsd.timing(stat, dt)
+        if self.allow_list_validator.test(stat):
+            return self.statsd.timing(stat, dt)
 
 
 Stats = DummyStatsLogger  # type: Any
@@ -120,6 +140,9 @@ try:
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
-        Stats = SafeStatsdLogger(statsd)
+
+        allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
+
+        Stats = SafeStatsdLogger(statsd, allow_list_validator)
 except (socket.gaierror, ImportError) as e:
     log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)

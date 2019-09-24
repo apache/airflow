@@ -255,7 +255,7 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
-To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+To use kerberos authentication, you must install Airflow with the ``kerberos`` extras group:
 
 .. code-block:: bash
 
@@ -288,7 +288,7 @@ to only members of those teams.
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
-To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:
 
 .. code-block:: bash
 
@@ -336,7 +336,7 @@ login, separated with a comma, to only members of those domains.
     oauth_callback_route = /oauth2callback
     domain = example1.com,example2.com
 
-To use Google authentication, you must install Airflow with the `google_auth` extras group:
+To use Google authentication, you must install Airflow with the ``google_auth`` extras group:
 
 .. code-block:: bash
 
@@ -395,10 +395,10 @@ Impersonation
 Airflow has the ability to impersonate a unix user while running task
 instances based on the task's ``run_as_user`` parameter, which takes a user's name.
 
-**NOTE:** For impersonations to work, Airflow must be run with `sudo` as subtasks are run
-with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
+**NOTE:** For impersonations to work, Airflow must be run with ``sudo`` as subtasks are run
+with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user needs to
 exist on the worker. Here is what a simple sudoers file entry could look like to achieve
-this, assuming as airflow is running as the `airflow` user. Note that this means that
+this, assuming as airflow is running as the ``airflow`` user. Note that this means that
 the airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none
@@ -411,8 +411,8 @@ log to will have permissions changed such that only the unix user can write to i
 
 Default Impersonation
 '''''''''''''''''''''
-To prevent tasks that don't use impersonation to be run with `sudo` privileges, you can set the
-``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is
+To prevent tasks that don't use impersonation to be run with ``sudo`` privileges, you can set the
+``core:default_impersonation`` config which sets a default user impersonate if ``run_as_user`` is
 not set.
 
 .. code-block:: bash

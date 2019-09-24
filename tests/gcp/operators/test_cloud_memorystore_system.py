@@ -20,8 +20,8 @@
 import unittest
 
 from tests.gcp.operators.test_cloud_memorystore_system_helper import GCPCloudMemorystoreTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.contrib.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_MEMORYSTORE), SKIP_TEST_WARNING)
