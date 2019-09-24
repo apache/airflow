@@ -50,6 +50,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCom, XCOM_RETURN_KEY
+from airflow.sentry import Sentry
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
@@ -862,6 +863,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
+    @Sentry.enrich_errors
     def _run_raw_task(
             self,
             mark_success=False,
