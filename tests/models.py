@@ -516,7 +516,6 @@ class DagRunTest(unittest.TestCase):
             self.assertEqual(context['dag_run'].dag_id,
                              'test_dagrun_failure_callback')
             failure_call = True
-            #self.assertEqual(type(context['exception']), ))
         dag = DAG(
             dag_id='test_dagrun_failure_callback',
             start_date=datetime.datetime(2017, 1, 1),
