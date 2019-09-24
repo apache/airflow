@@ -649,6 +649,14 @@ class TestKubernetesPodOperator(unittest.TestCase):
                                    sub_path=None,
                                    read_only=True)
 
+        volume_config = {
+            'persistentVolumeClaim':
+            {
+                'claimName': 'test-volume'
+            }
+        }
+        volume = Volume(name='test-volume', configs=volume_config)
+
         init_container = InitContainer(
             name="init-container",
             image="ubuntu:16.04",
@@ -684,12 +692,19 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            volumes=[volume],
             init_containers=[init_container],
         )
 
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod['spec']['initContainers'] = [expected_init_container]
+        self.expected_pod['spec']['volumes'] = [{
+            'name': 'test-volume',
+            'persistentVolumeClaim': {
+                'claimName': 'test-volume'
+            }
+        }]
         self.assertEqual(self.expected_pod, actual_pod)
 
 
