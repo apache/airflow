@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains integration with Azure CosmosDB.
+
+AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
+Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
+login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify
+the default database and collection to use (see connection `azure_cosmos_default` for an example).
+"""
 import azure.cosmos.cosmos_client as cosmos_client
 from azure.cosmos.errors import HTTPFailure
 import uuid

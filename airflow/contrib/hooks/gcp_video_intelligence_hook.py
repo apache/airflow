@@ -27,5 +27,5 @@ from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook  # n
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.video_intelligence`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

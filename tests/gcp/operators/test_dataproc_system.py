@@ -19,11 +19,11 @@
 import os
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import (
+from tests.gcp.utils.base_gcp_system_test_case import (
     SKIP_TEST_WARNING,
     TestDagGcpSystem,
 )
-from tests.contrib.utils.gcp_authenticator import GCP_DATAPROC_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
 from tests.contrib.operators.test_dataproc_operator_system_helper import (
     DataprocTestHelper,
 )

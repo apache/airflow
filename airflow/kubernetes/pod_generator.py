@@ -22,9 +22,10 @@ is supported and no serialization need be written.
 """
 
 import copy
+import uuid
+
 import kubernetes.client.models as k8s
 from airflow.executors import Executors
-import uuid
 
 
 class PodDefaults:
@@ -33,13 +34,7 @@ class PodDefaults:
     """
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = """import time
-while True:
-    try:
-        time.sleep(3600)
-    except KeyboardInterrupt:
-        exit(0)
-    """
+    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
     VOLUME_MOUNT = k8s.V1VolumeMount(
         name='xcom',
         mount_path=XCOM_MOUNT_PATH
@@ -50,9 +45,14 @@ while True:
     )
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['python', '-c', XCOM_CMD],
-        image='python:3.5-alpine',
-        volume_mounts=[VOLUME_MOUNT]
+        command=['sh', '-c', XCOM_CMD],
+        image='alpine',
+        volume_mounts=[VOLUME_MOUNT],
+        resources=k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+            }
+        ),
     )
 
 
@@ -92,8 +92,7 @@ class PodGenerator:
     :param pod: The fully specified pod.
     :type pod: kubernetes.client.models.V1Pod
     """
-
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
         image,
         name=None,
@@ -190,6 +189,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
+        """Generates pod"""
         result = self.ud_pod
 
         if result is None:
@@ -205,6 +205,7 @@ class PodGenerator:
 
     @staticmethod
     def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
+        """Adds sidecar"""
         pod_cp = copy.deepcopy(pod)
 
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -215,6 +216,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> k8s.V1Pod:
+        """Converts to pod from obj"""
         if obj is None:
             return k8s.V1Pod()
 

@@ -14,14 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import unittest
+import mock
 
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
 from airflow.kubernetes.pod_launcher import PodLauncher
-
-import unittest
-import mock
 
 
 class TestPodLauncher(unittest.TestCase):

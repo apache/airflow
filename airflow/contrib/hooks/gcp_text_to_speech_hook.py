@@ -27,5 +27,5 @@ from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.text_to_speech`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

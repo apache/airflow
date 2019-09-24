@@ -19,9 +19,9 @@
 import unittest
 
 from tests.gcp.operators.test_cloud_storage_transfer_service_system_helper import GCPTransferTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 
-from tests.contrib.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_TRANSFER_KEY), SKIP_TEST_WARNING)

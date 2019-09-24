@@ -21,7 +21,7 @@
 
 import unittest
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
 from tests.compat import mock, PropertyMock
 
@@ -41,6 +41,15 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.gce_hook_no_project_id = GceHook(gcp_conn_id='test')
+
+    @mock.patch("airflow.gcp.hooks.compute.GceHook._authorize")
+    @mock.patch("airflow.gcp.hooks.compute.build")
+    def test_gce_client_creation(self, mock_build, mock_authorize):
+        result = self.gce_hook_no_project_id.get_conn()
+        mock_build.assert_called_once_with(
+            'compute', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
 
     @mock.patch('airflow.gcp.hooks.compute.GceHook.get_conn')
     @mock.patch('airflow.gcp.hooks.compute.GceHook._wait_for_operation_to_complete')

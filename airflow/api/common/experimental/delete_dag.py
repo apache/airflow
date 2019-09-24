@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Delete DAGs APIs."""
-import os
 
 from sqlalchemy import or_
 
 from airflow import models
 from airflow.models import TaskFail, DagModel
 from airflow.utils.db import provide_session
-from airflow.exceptions import DagFileExists, DagNotFound
+from airflow.exceptions import DagNotFound
 
 
 @provide_session
@@ -40,10 +39,6 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
-
-    if dag.fileloc and os.path.exists(dag.fileloc):
-        raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
 
     count = 0
 

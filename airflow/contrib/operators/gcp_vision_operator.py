@@ -44,5 +44,5 @@ from airflow.gcp.operators.vision import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.vision`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

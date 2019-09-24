@@ -17,7 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains integration with Azure Data Lake.
 
+AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
+Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
+(see connection `azure_data_lake_default` for an example).
+"""
 from airflow.hooks.base_hook import BaseHook
 from azure.datalake.store import core, lib, multithread
 

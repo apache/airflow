@@ -34,6 +34,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
+from tests.test_utils.config import conf_vars
 import airflow.example_dags
 
 
@@ -88,8 +89,10 @@ class TestDagBag(unittest.TestCase):
             fp.write(b"# airflow")
             fp.write(b"# DAG")
             fp.flush()
-            dagbag = models.DagBag(
-                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True)
+
             self.assertEqual(len(dagbag.dagbag_stats), 1)
             self.assertEqual(
                 dagbag.dagbag_stats[0].file,
@@ -100,16 +103,16 @@ class TestDagBag(unittest.TestCase):
         should not be discovered.
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
-            dagbag = models.DagBag(
-                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True)
             self.assertEqual(len(dagbag.dagbag_stats), 0)
 
     def test_safe_mode_disabled(self):
         """With safe mode disabled, an empty python file should be discovered.
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
-            dagbag = models.DagBag(
-                dag_folder=self.empty_dir, include_examples=False, safe_mode=False)
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=False)
             self.assertEqual(len(dagbag.dagbag_stats), 1)
             self.assertEqual(
                 dagbag.dagbag_stats[0].file,

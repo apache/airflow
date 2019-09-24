@@ -19,8 +19,8 @@
 import warnings
 from tempfile import NamedTemporaryFile
 
-from airflow.contrib.hooks.gcs_hook import (GoogleCloudStorageHook,
-                                            _parse_gcs_url)
+from airflow.gcp.hooks.gcs import (GoogleCloudStorageHook,
+                                   _parse_gcs_url)
 from airflow.contrib.operators.s3_list_operator import S3ListOperator
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
@@ -214,7 +214,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         return files
 
     # Following functionality may be better suited in
-    # airflow/contrib/hooks/gcs_hook.py
+    # airflow/contrib/hooks/gcs.py
     @staticmethod
     def _gcs_object_is_directory(object):
         _, blob = _parse_gcs_url(object)

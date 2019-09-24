@@ -39,5 +39,5 @@ from airflow.gcp.operators.dataproc import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.dataproc`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

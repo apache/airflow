@@ -64,6 +64,7 @@ class Secret(K8SModel):
         self.key = key
 
     def to_env_secret(self) -> k8s.V1EnvVar:
+        """Stores es environment secret"""
         return k8s.V1EnvVar(
             name=self.deploy_target,
             value_from=k8s.V1EnvVarSource(
@@ -75,11 +76,13 @@ class Secret(K8SModel):
         )
 
     def to_env_from_secret(self) -> k8s.V1EnvFromSource:
+        """Reads from environment to secret"""
         return k8s.V1EnvFromSource(
             secret_ref=k8s.V1SecretEnvSource(name=self.secret)
         )
 
     def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
+        """Converts to volume secret"""
         vol_id = 'secretvol{}'.format(uuid.uuid4())
         return (
             k8s.V1Volume(
@@ -96,6 +99,7 @@ class Secret(K8SModel):
         )
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
+        """Attaches to pod"""
         cp_pod = copy.deepcopy(pod)
         if self.deploy_type == 'volume':
             volume, volume_mount = self.to_volume_secret()

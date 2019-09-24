@@ -21,7 +21,7 @@ import unittest
 
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import CloudSpannerHook
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id
 from tests.compat import mock, PropertyMock
 
@@ -36,6 +36,19 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.spanner_hook_default_project_id = CloudSpannerHook(gcp_conn_id='test')
+
+    @mock.patch("airflow.gcp.hooks.spanner.CloudSpannerHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.spanner.CloudSpannerHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.spanner.Client")
+    def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.spanner_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        mock_client.assert_called_once_with(
+            project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.spanner_hook_default_project_id._client, result)
 
     @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
     def test_get_existing_instance(self, get_client):
@@ -392,6 +405,25 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.spanner_hook_no_default_project_id = CloudSpannerHook(gcp_conn_id='test')
+
+    @mock.patch(
+        "airflow.gcp.hooks.spanner.CloudSpannerHook.client_info",
+        new_callable=mock.PropertyMock
+    )
+    @mock.patch(
+        "airflow.gcp.hooks.spanner.CloudSpannerHook._get_credentials",
+        return_value="CREDENTIALS"
+    )
+    @mock.patch("airflow.gcp.hooks.spanner.Client")
+    def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.spanner_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        mock_client.assert_called_once_with(
+            project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.spanner_hook_no_default_project_id._client, result)
 
     @mock.patch(
         'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',

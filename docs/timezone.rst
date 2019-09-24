@@ -37,7 +37,7 @@ for a simple DAG, but it’s a problem if you are in, for example, financial ser
 deadlines to meet.
 
 The time zone is set in ``airflow.cfg``. By default it is set to utc, but you change it to use the system’s settings or
-an arbitrary IANA time zone, e.g. `Europe/Amsterdam`. It is dependent on `pendulum`, which is more accurate than `pytz`.
+an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
 Please note that the Web UI currently only runs in UTC.
@@ -66,12 +66,12 @@ Because Airflow uses time-zone-aware datetime objects. If your code creates date
 Interpretation of naive datetime objects
 ''''''''''''''''''''''''''''''''''''''''
 
-Although Airflow operates fully time zone aware, it still accepts naive date time objects for `start_dates`
-and `end_dates` in your DAG definitions. This is mostly in order to preserve backwards compatibility. In
-case a naive `start_date` or `end_date` is encountered the default time zone is applied. It is applied
+Although Airflow operates fully time zone aware, it still accepts naive date time objects for ``start_dates``
+and ``end_dates`` in your DAG definitions. This is mostly in order to preserve backwards compatibility. In
+case a naive ``start_date`` or ``end_date`` is encountered the default time zone is applied. It is applied
 in such a way that it is assumed that the naive date time is already in the default time zone. In other
-words if you have a default time zone setting of `Europe/Amsterdam` and create a naive datetime `start_date` of
-`datetime(2017,1,1)` it is assumed to be a `start_date` of Jan 1, 2017 Amsterdam time.
+words if you have a default time zone setting of ``Europe/Amsterdam`` and create a naive datetime ``start_date`` of
+``datetime(2017,1,1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
 
 .. code:: python
 
@@ -96,9 +96,9 @@ created in application code is the current time, and timezone.utcnow() automatic
 Default time zone
 '''''''''''''''''
 
-The default time zone is the time zone defined by the `default_timezone` setting under `[core]`. If
-you just installed Airflow it will be set to `utc`, which is recommended. You can also set it to
-`system` or an IANA time zone (e.g.`Europe/Amsterdam`). DAGs are also evaluated on Airflow workers,
+The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
+you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
+`system` or an IANA time zone (e.g.``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 
@@ -111,8 +111,8 @@ it is therefore important to make sure this setting is equal on all Airflow node
 Time zone aware DAGs
 --------------------
 
-Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware `start_date`
-using `pendulum`.
+Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
+using ``pendulum``.
 
 .. code:: python
 
@@ -129,7 +129,7 @@ using `pendulum`.
     op = DummyOperator(task_id='dummy', dag=dag)
     print(dag.timezone) # <Timezone [Europe/Amsterdam]>
 
-Please note that while it is possible to set a `start_date` and `end_date` for Tasks always the DAG timezone
+Please note that while it is possible to set a ``start_date`` and ``end_date`` for Tasks always the DAG timezone
 or global timezone (in that order) will be used to calculate the next execution date. Upon first encounter
 the start date or end date will be converted to UTC using the timezone associated with start_date or end_date,
 then for calculations this timezone information will be disregarded.

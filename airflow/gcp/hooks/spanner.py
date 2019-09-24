@@ -40,7 +40,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None
 
@@ -65,7 +65,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
     def get_instance(
         self,
         instance_id: str,
-        project_id: str = None
+        project_id: Optional[str] = None
     ) -> Instance:
         """
         Gets information about a particular instance.
@@ -133,7 +133,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         configuration_name: str,
         node_count: int,
         display_name: str,
-        project_id: str = None
+        project_id: Optional[str] = None
     ) -> None:
         """
         Creates a new Cloud Spanner instance.
@@ -167,7 +167,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         configuration_name: str,
         node_count: int,
         display_name: str,
-        project_id: str = None
+        project_id: Optional[str] = None
     ) -> None:
         """
         Updates an existing Cloud Spanner instance.
@@ -195,7 +195,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
                                 node_count, display_name, lambda x: x.update())
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def delete_instance(self, instance_id: str, project_id: str = None) -> None:
+    def delete_instance(self, instance_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes an existing Cloud Spanner instance.
 
@@ -220,7 +220,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         self,
         instance_id: str,
         database_id: str,
-        project_id: str = None
+        project_id: Optional[str] = None
     ) -> Optional[Database]:
         """
         Retrieves a database in Cloud Spanner. If the database does not exist
@@ -255,7 +255,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         instance_id: str,
         database_id: str,
         ddl_statements: List[str],
-        project_id: str = None
+        project_id: Optional[str] = None
     ) -> None:
         """
         Creates a new database in Cloud Spanner.
@@ -296,8 +296,8 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         instance_id: str,
         database_id: str,
         ddl_statements: List[str],
-        project_id: str = None,
-        operation_id: str = None
+        project_id: Optional[str] = None,
+        operation_id: Optional[str] = None
     ) -> None:
         """
         Updates DDL of a database in Cloud Spanner.
@@ -341,7 +341,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
             raise e
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def delete_database(self, instance_id: str, database_id, project_id: str = None) -> bool:
+    def delete_database(self, instance_id: str, database_id, project_id: Optional[str] = None) -> bool:
         """
         Drops a database in Cloud Spanner.
 
@@ -383,7 +383,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         instance_id: str,
         database_id: str,
         queries: List[str],
-        project_id: str = None,
+        project_id: Optional[str] = None,
     ) -> None:
         """
         Executes an arbitrary DML query (INSERT, UPDATE, DELETE).

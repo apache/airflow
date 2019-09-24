@@ -249,7 +249,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
+        self.handler.stream.write(self.end_of_log_mark)
 
         if self.write_stdout:
             self.handler.close()

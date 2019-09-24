@@ -31,5 +31,5 @@ from airflow.gcp.operators.kubernetes_engine import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.container`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

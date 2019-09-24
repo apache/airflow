@@ -24,7 +24,7 @@ operators to manage a cluster and submit jobs.
 import os
 import airflow
 from airflow import models
-from airflow.contrib.operators.dataproc_operator import (
+from airflow.gcp.operators.dataproc import (
     DataprocClusterCreateOperator,
     DataprocClusterDeleteOperator,
     DataprocClusterScaleOperator,

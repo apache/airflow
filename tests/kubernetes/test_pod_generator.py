@@ -178,14 +178,15 @@ class TestPodGenerator(unittest.TestCase):
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         container_two = {
             'name': 'airflow-xcom-sidecar',
-            'image': 'python:3.5-alpine',
-            'command': ['python', '-c', PodDefaults.XCOM_CMD],
+            'image': "alpine",
+            'command': ['sh', '-c', PodDefaults.XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',
                     'mountPath': '/airflow/xcom'
                 }
-            ]
+            ],
+            'resources': {'requests': {'cpu': '1m'}},
         }
         self.expected['spec']['containers'].append(container_two)
         self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {

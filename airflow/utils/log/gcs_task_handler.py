@@ -46,7 +46,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+            from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )

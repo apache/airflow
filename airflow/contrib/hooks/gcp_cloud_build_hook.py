@@ -25,5 +25,5 @@ from airflow.gcp.hooks.cloud_build import CloudBuildHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.cloud_build`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

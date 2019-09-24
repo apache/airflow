@@ -791,7 +791,17 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
         if state:
-            tis = tis.filter(TaskInstance.state == state)
+            if isinstance(state, str):
+                tis = tis.filter(TaskInstance.state == state)
+            else:
+                # this is required to deal with NULL values
+                if None in state:
+                    tis = tis.filter(
+                        or_(TaskInstance.state.in_(state),
+                            TaskInstance.state.is_(None))
+                    )
+                else:
+                    tis = tis.filter(TaskInstance.state.in_(state))
         tis = tis.order_by(TaskInstance.execution_date).all()
         return tis
 

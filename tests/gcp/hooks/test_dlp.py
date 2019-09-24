@@ -30,7 +30,7 @@ from google.cloud.dlp_v2.types import DlpJob
 from airflow import AirflowException
 from airflow.gcp.hooks.dlp import CloudDLPHook
 from tests.compat import mock, PropertyMock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 ORGANIZATION_ID = "test-org"
@@ -70,6 +70,18 @@ class TestCloudDLPHook(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudDLPHook(gcp_conn_id="test")
+
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.dlp.DlpServiceClient")
+    def test_dlp_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.hook._client, result)
 
     @mock.patch(  # type: ignore
         "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"

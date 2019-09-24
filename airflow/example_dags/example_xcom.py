@@ -26,7 +26,6 @@ from airflow.operators.python_operator import PythonOperator
 args = {
     'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
-    'provide_context': True,
 }
 
 dag = DAG('example_xcom', schedule_interval="@once", default_args=args)
