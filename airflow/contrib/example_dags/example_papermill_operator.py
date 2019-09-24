@@ -17,40 +17,35 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example dag for using the AzureContainerInstancesOperator.
+This DAG will use Papermill to run the notebook "hello_world", based on the execution date
+it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
+templated.
 """
-from datetime import datetime, timedelta
 
-from airflow import DAG
-from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from datetime import timedelta
+
+import airflow
+
+from airflow.models import DAG
+from airflow.operators.papermill_operator import PapermillOperator
+
 
 default_args = {
     'owner': 'Airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2018, 11, 1),
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'start_date': airflow.utils.dates.days_ago(2)
 }
 
 with DAG(
-    dag_id='aci_example',
+    dag_id='example_papermill_operator',
     default_args=default_args,
-    schedule_interval=timedelta(1)
+    schedule_interval='0 0 * * *',
+    dagrun_timeout=timedelta(minutes=60)
 ) as dag:
-
-    t1 = AzureContainerInstancesOperator(
-        ci_conn_id='azure_container_instances_default',
-        registry_conn_id=None,
-        resource_group='resource-group',
-        name='aci-test-{{ ds }}',
-        image='hello-world',
-        region='WestUS2',
-        environment_variables={},
-        volumes=[],
-        memory_in_gb=4.0,
-        cpu=1.0,
-        task_id='start_container'
+    # [START howto_operator_papermill]
+    run_this = PapermillOperator(
+        task_id="run_example_notebook",
+        input_nb="/tmp/hello_world.ipynb",
+        output_nb="/tmp/out-{{ execution_date }}.ipynb",
+        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
     )
+    # [END howto_operator_papermill]
