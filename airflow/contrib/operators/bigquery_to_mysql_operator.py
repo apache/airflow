@@ -25,5 +25,5 @@ from airflow.operators.bigquery_to_mysql import BigQueryToMySqlOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.bigquery_to_mysql`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

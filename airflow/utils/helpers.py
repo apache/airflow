@@ -32,6 +32,7 @@ except ImportError:
 import os
 import re
 import signal
+import subprocess
 
 from jinja2 import Template
 
@@ -305,6 +306,10 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
+        # If operation not permitted error is thrown due to run_as_user,
+        # use sudo -n(--non-interactive) to kill the process
+        if err.errno == errno.EPERM:
+            subprocess.check_call(["sudo", "-n", "-" + str(sig), str(os.getpgid(pid))])
         raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)

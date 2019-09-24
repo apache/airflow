@@ -135,7 +135,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         'ProductSet', 'productset_id', ProductSearchClient.product_set_path
     )
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None
 
@@ -174,11 +174,11 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product_set: Union[dict, ProductSet],
-        project_id: str = None,
-        product_set_id: str = None,
+        project_id: Optional[str] = None,
+        product_set_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
         """
         For the documentation see:
@@ -212,9 +212,9 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None, metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None, metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -234,13 +234,13 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def update_product_set(
         self,
         product_set: Union[dict, ProductSet],
-        location: str = None,
-        product_set_id: str = None,
+        location: Optional[str] = None,
+        product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dict:
         """
         For the documentation see:
@@ -265,10 +265,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
         """
         For the documentation see:
@@ -287,11 +287,11 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product: Union[dict, Product],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         product_id=None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
         """
         For the documentation see:
@@ -325,10 +325,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
         """
         For the documentation see:
@@ -348,13 +348,13 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def update_product(
         self,
         product: Union[dict, Product],
-        location: str = None,
-        product_id: str = None,
-        update_mask: Dict[str, FieldMask] = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        product_id: Optional[str] = None,
+        update_mask: Optional[Dict[str, FieldMask]] = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         For the documentation see:
@@ -377,10 +377,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
         """
         For the documentation see:
@@ -400,11 +400,11 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_id: str,
         reference_image: Union[Dict, ReferenceImage],
-        reference_image_id: str = None,
-        project_id: str = None,
+        reference_image_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
         """
         For the documentation see:
@@ -443,10 +443,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_id: str,
         reference_image_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dict:
         """
         For the documentation see:
@@ -472,11 +472,11 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         product_set_id: str,
         product_id: str,
-        location: str = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         For the documentation see:
@@ -502,11 +502,11 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         product_set_id: str,
         product_id: str,
-        location: str = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         For the documentation see:
@@ -531,7 +531,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         request: Union[dict, AnnotateImageRequest],
         retry: Retry = None,
-        timeout: float = None
+        timeout: Optional[float] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -553,7 +553,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
         retry: Retry = None,
-        timeout: float = None
+        timeout: Optional[float] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -575,10 +575,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def text_detection(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
+        max_results: Optional[int] = None,
         retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -605,10 +605,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def document_text_detection(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
+        max_results: Optional[int] = None,
         retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -635,10 +635,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def label_detection(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
+        max_results: Optional[int] = None,
         retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None
     ) -> Dict:
         """
         For the documentation see:
@@ -665,10 +665,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def safe_search_detection(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
+        max_results: Optional[int] = None,
         retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None
     ):
         """
         For the documentation see:

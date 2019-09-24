@@ -20,7 +20,7 @@
 Implements Docker operator
 """
 import json
-from typing import Union, List, Dict, Iterable
+from typing import Union, List, Dict, Iterable, Optional
 
 import ast
 from docker import APIClient, tls
@@ -128,31 +128,31 @@ class DockerOperator(BaseOperator):
     def __init__(
             self,
             image: str,
-            api_version: str = None,
-            command: Union[str, List[str]] = None,
-            container_name: str = None,
+            api_version: Optional[str] = None,
+            command: Optional[Union[str, List[str]]] = None,
+            container_name: Optional[str] = None,
             cpus: float = 1.0,
             docker_url: str = 'unix://var/run/docker.sock',
-            environment: Dict = None,
+            environment: Optional[Dict] = None,
             force_pull: bool = False,
-            mem_limit: Union[float, str] = None,
-            host_tmp_dir: str = None,
-            network_mode: str = None,
-            tls_ca_cert: str = None,
-            tls_client_cert: str = None,
-            tls_client_key: str = None,
-            tls_hostname: Union[str, bool] = None,
-            tls_ssl_version: str = None,
+            mem_limit: Optional[Union[float, str]] = None,
+            host_tmp_dir: Optional[str] = None,
+            network_mode: Optional[str] = None,
+            tls_ca_cert: Optional[str] = None,
+            tls_client_cert: Optional[str] = None,
+            tls_client_key: Optional[str] = None,
+            tls_hostname: Optional[Union[str, bool]] = None,
+            tls_ssl_version: Optional[str] = None,
             tmp_dir: str = '/tmp/airflow',
-            user: Union[str, int] = None,
-            volumes: Iterable[str] = None,
-            working_dir: str = None,
+            user: Optional[Union[str, int]] = None,
+            volumes: Optional[Iterable[str]] = None,
+            working_dir: Optional[str] = None,
             xcom_all: bool = False,
-            docker_conn_id: str = None,
-            dns: List[str] = None,
-            dns_search: List[str] = None,
+            docker_conn_id: Optional[str] = None,
+            dns: Optional[List[str]] = None,
+            dns_search: Optional[List[str]] = None,
             auto_remove: bool = False,
-            shm_size: int = None,
+            shm_size: Optional[int] = None,
             *args,
             **kwargs) -> None:
 

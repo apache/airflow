@@ -24,7 +24,7 @@ import argparse
 import os
 from urllib.parse import urlparse
 
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_GCS_TRANSFER_KEY  # TODO: Update it
+from tests.gcp.utils.gcp_authenticator import GcpAuthenticator, GCP_GCS_TRANSFER_KEY  # TODO: Update it
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

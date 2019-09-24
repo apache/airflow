@@ -40,6 +40,79 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Some DAG Processing metrics have been renamed
+
+The following metrics are deprecated and won't be emitted in Airflow 2.0:
+
+- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
+- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
+- `collect_dags` -- use `dag_processing.total_parse_time` instead
+- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+
+### The gcp_conn_id parameter in GKEPodOperator is required
+
+In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
+operator, which resulted in credentials being determined according to the
+[Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
+
+Now this parameter requires a value. To restore the previous behavior, configure the connection without
+specifying the service account.
+
+Detailed information about connection management is available:
+[Google Cloud Platform Connection](https://airflow.apache.org/howto/connection/gcp.html).
+
+### Normalize gcp_conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use 
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter 
+which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
+``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
+
+Following components were affected by normalization:
+  * airflow.gcp.hooks.datastore.DatastoreHook
+  * airflow.gcp.hooks.bigquery.BigQueryHook
+  * airflow.gcp.hooks.gcs.GoogleCloudStorageHook
+  * airflow.gcp.operators.bigquery.BigQueryCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryValueCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator
+  * airflow.gcp.operators.bigquery.BigQueryGetDataOperator
+  * airflow.gcp.operators.bigquery.BigQueryOperator
+  * airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator
+  * airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageListOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator
+  * airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator
+  * airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator
+  * airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+  * airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
+  * airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+  * airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator
+  * airflow.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
+  * airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
+
+### Changes to propagating Kubernetes worker annotations
+
+`kubernetes_annotations` configuration section has been removed. 
+A new key `worker_annotations` has been added to existing `kubernetes` section instead. 
+That is to remove restriction on the character set for k8s annotation keys.
+All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+```
+[kubernetes_annotations]
+annotation_key = annotation_value
+annotation_key2 = annotation_value2
+```
+it should be rewritten to
+```
+[kubernetes]
+worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
+```
+
 ### Changes to import paths and names of GCP operators and hooks
 
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 

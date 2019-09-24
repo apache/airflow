@@ -18,11 +18,13 @@
 # under the License.
 
 import unittest
-
+import json
+from io import StringIO
+import paramiko
 from airflow.models import Connection
 from airflow.utils import db
 from airflow.contrib.hooks.ssh_hook import SSHHook
-
+from airflow.utils.db import create_session
 from tests.compat import mock
 
 HELLO_SERVER_CMD = """
@@ -38,7 +40,30 @@ conn.sendall(b'hello')
 """
 
 
+def generate_key_string(pkey: paramiko.PKey):
+    key_fh = StringIO()
+    pkey.write_private_key(key_fh)
+    key_fh.seek(0)
+    key_str = key_fh.read()
+    return key_str
+
+
+TEST_PKEY = paramiko.RSAKey.generate(4096)
+TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
+
+
 class TestSSHHook(unittest.TestCase):
+    CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
+
+    def tearDown(self) -> None:
+        with create_session() as session:
+            conns_to_reset = [
+                self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
+            ]
+            connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
+            connections.delete(synchronize_session=False)
+            session.commit()
+
     @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
@@ -163,6 +188,57 @@ class TestSSHHook(unittest.TestCase):
             socket.close()
             server_handle.communicate()
             self.assertEqual(server_handle.returncode, 0)
+
+    @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
+    def test_ssh_connection_with_private_key(self, ssh_mock):
+        hook = SSHHook(remote_host='remote_host',
+                       port='port',
+                       username='username',
+                       timeout=10,
+                       private_key=TEST_PRIVATE_KEY)
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                pkey=TEST_PKEY,
+                timeout=10,
+                compress=True,
+                port='port',
+                sock=None
+            )
+
+    @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
+    def test_ssh_connection_with_private_key_extra(self, ssh_mock):
+        db.merge_conn(
+            Connection(
+                conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({
+                    "private_key": TEST_PRIVATE_KEY,
+                })
+            )
+        )
+
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                pkey=TEST_PKEY,
+                timeout=10,
+                compress=True,
+                port='port',
+                sock=None
+            )
 
 
 if __name__ == '__main__':

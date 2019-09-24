@@ -29,5 +29,5 @@ from airflow.gcp.operators.bigquery import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

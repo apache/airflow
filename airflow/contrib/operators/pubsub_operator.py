@@ -31,5 +31,5 @@ from airflow.gcp.operators.pubsub import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.pubsub`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

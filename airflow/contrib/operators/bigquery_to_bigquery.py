@@ -25,5 +25,5 @@ from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator  #
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.bigquery_to_bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

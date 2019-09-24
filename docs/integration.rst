@@ -579,6 +579,10 @@ Please note that this library is in maintenance mode hence it won't fully suppor
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
 
+.. note::
+    You can learn how to use GCP integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
+
 .. _other:
 
 Other integrations

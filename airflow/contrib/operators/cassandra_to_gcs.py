@@ -27,5 +27,5 @@ from airflow.operators.cassandra_to_gcs import CassandraToGoogleCloudStorageOper
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.cassandra_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

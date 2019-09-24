@@ -69,7 +69,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
 
     original_account = None  # type: Optional[str]
 
-    def __init__(self, gcp_key: str, project_extra: str = None):
+    def __init__(self, gcp_key: str, project_extra: Optional[str] = None):
         super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra

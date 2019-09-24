@@ -54,7 +54,8 @@ else
     print_in_container_info
     print_in_container_info "Running Pylint with parameters: $*"
     print_in_container_info
-    pylint --output-format=colorized "$@"
+    echo "PATH=${PATH}"
+    /usr/local/bin/pylint --output-format=colorized "$@"
     RES=$?
 fi
 

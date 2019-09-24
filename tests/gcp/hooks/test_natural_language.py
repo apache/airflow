@@ -24,7 +24,7 @@ from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 
 API_RESPONSE = {}  # type: Dict[Any, Any]

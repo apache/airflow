@@ -25,7 +25,7 @@ from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlHook, CloudSqlDatabaseHook
-from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
+from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook

@@ -24,7 +24,7 @@ from google.cloud.exceptions import NotFound
 from google.cloud.redis_v1.types import Instance
 
 from tests.compat import PropertyMock
-from tests.contrib.utils.base_gcp_mock import (
+from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,

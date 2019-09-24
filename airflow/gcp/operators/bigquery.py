@@ -89,7 +89,7 @@ class BigQueryCheckOperator(CheckOperator):
                  use_legacy_sql: bool = True,
                  *args, **kwargs) -> None:
         super().__init__(sql=sql, *args, **kwargs)
-        if not bigquery_conn_id:
+        if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
@@ -272,7 +272,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -705,7 +705,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -864,7 +864,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  src_fmt_configs: Optional[dict] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -1272,7 +1272,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
                  ignore_if_missing: bool = False,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)

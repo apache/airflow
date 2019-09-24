@@ -52,9 +52,9 @@ class CloudTranslateHook(GoogleCloudBaseHook):
         self,
         values: Union[str, List[str]],
         target_language: str,
-        format_: str = None,
-        source_language: str = None,
-        model: Union[str, List[str]] = None
+        format_: Optional[str] = None,
+        source_language: Optional[str] = None,
+        model: Optional[Union[str, List[str]]] = None
     ) -> Dict:
         """Translate a string or list of strings.
 

@@ -19,7 +19,7 @@
 """
 This module contains Google BigQuery Data Transfer Service operators.
 """
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Optional
 from google.protobuf.json_format import MessageToDict
 from google.api_core.retry import Retry
 
@@ -71,11 +71,11 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     def __init__(
         self,
         transfer_config: dict,
-        project_id: str = None,
-        authorization_code: str = None,
+        project_id: Optional[str] = None,
+        authorization_code: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         *args,
         **kwargs
@@ -138,10 +138,10 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     def __init__(
         self,
         transfer_config_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         *args,
         **kwargs
@@ -215,12 +215,12 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     def __init__(
         self,
         transfer_config_id: str,
-        project_id: str = None,
-        requested_time_range: dict = None,
-        requested_run_time: dict = None,
+        project_id: Optional[str] = None,
+        requested_time_range: Optional[dict] = None,
+        requested_run_time: Optional[dict] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         *args,
         **kwargs

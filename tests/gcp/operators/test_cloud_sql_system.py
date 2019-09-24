@@ -20,10 +20,10 @@ import os
 import unittest
 
 from airflow import AirflowException
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.operators.test_cloud_sql_system_helper import \
     CloudSqlQueryTestHelper
-from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 

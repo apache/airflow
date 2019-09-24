@@ -18,14 +18,23 @@
 # under the License.
 
 import contextlib
+import os
 
 from airflow.configuration import conf
+from airflow import settings
 
 
 @contextlib.contextmanager
 def conf_vars(overrides):
     original = {}
+    original_env_vars = {}
+    reconfigure_vars = False
     for (section, key), value in overrides.items():
+
+        env = conf._env_var_name(section, key)
+        if env in os.environ:
+            original_env_vars[env] = os.environ.pop(env)
+
         if conf.has_option(section, key):
             original[(section, key)] = conf.get(section, key)
         else:
@@ -34,9 +43,18 @@ def conf_vars(overrides):
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
+
+        if section == 'core' and key.lower().endswith('_folder'):
+            reconfigure_vars = True
+    if reconfigure_vars:
+        settings.configure_vars()
     yield
     for (section, key), value in original.items():
         if value is not None:
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
+    for env, value in original_env_vars.items():
+        os.environ[env] = value
+    if reconfigure_vars:
+        settings.configure_vars()

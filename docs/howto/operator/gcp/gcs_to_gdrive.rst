@@ -72,7 +72,7 @@ The following Operator would copy all the multiples files (i.e. using wildcard).
 Move files
 ----------
 
-Using the `move_object` parameter allows you to move the files. After copying the file to Google Drive,
+Using the ``move_object`` parameter allows you to move the files. After copying the file to Google Drive,
 the original file from the bucket is deleted.
 
 .. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_gdrive.py

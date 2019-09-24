@@ -229,7 +229,7 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @provide_session
-    def get_previous_dagrun(self, state: str = None, session: Session = None) -> Optional['DagRun']:
+    def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
 
         session = cast(Session, session)  # mypy

@@ -20,6 +20,7 @@
 import os
 import shutil
 import unittest
+import logging
 
 import elasticsearch
 from unittest import mock
@@ -260,12 +261,19 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
 
     def test_close(self):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
+
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(os.path.join(self.local_log_location,
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
+            # end_of_log_mark may contain characters like '\n' which is needed to
+            # have the log uploaded but will not be stored in elasticsearch.
+            # so apply the strip() to log_file.read()
+            log_line = log_file.read().strip()
+            self.assertEqual(self.end_of_log_mark.strip(), log_line)
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_no_mark_end(self):
