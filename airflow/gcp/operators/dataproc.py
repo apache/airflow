@@ -485,7 +485,20 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
             if existing_status == 'RUNNING':
                 self.log.info('Cluster exists and is already running. Using it.')
-                return True
+                return existing_cluster
+
+            elif existing_status == 'CREATING':
+                while existing_status not in ('RUNNING', 'ERROR'):
+                    existing_status = self.hook.get_final_cluster_state(
+                        self.project_id,
+                        self.region,
+                        self.cluster_name,
+                        self.log
+                    )
+                    time.sleep(15)
+                if existing_status == 'ERROR':
+                    raise AirflowException('Creating cluster failed.')
+                return DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
 
             elif existing_status == 'DELETING':
                 while DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name) \
@@ -504,10 +517,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
 
         return False
 
-    def start(self):
-        """
-        Create a new cluster on Google Cloud Dataproc.
-        """
+    def execute(self, context):
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataProcHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -515,18 +525,19 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         )
         service = hook.get_conn()
 
-        if self._usable_existing_cluster_present(service):
-            return True
+        existing_cluster = self._usable_existing_cluster_present(service)
+        if existing_cluster:
+            return existing_cluster
 
         cluster_data = self._build_cluster_data()
 
-        return (
-            self.hook.get_conn().projects().regions().clusters().create(  # pylint: disable=no-member
-                projectId=self.project_id,
-                region=self.region,
-                body=cluster_data,
-                requestId=str(uuid.uuid4()),
-            ).execute())
+        self.hook.get_conn().projects().regions().clusters().create(  # pylint: disable=no-member
+            projectId=self.project_id,
+            region=self.region,
+            body=cluster_data,
+            requestId=str(uuid.uuid4()),
+        ).execute()
+        return self._usable_existing_cluster_present(service)
 
 
 class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
