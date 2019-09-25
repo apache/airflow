@@ -119,6 +119,6 @@ class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
             return value.total_seconds()
         if isinstance(value, Decimal):
             return float(value)
-        if schema_type == "BYTES":
+        if isinstance(value, bytes) or schema_type == "BYTES":
             return base64.standard_b64encode(value).decode('ascii')
         return value
