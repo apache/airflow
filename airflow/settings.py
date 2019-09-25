@@ -28,7 +28,6 @@ import time
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker, Query
 from sqlalchemy.pool import NullPool
-from typing import Any
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.kubernetes.pod import Pod
@@ -71,7 +70,8 @@ class RetryingQuery(Query):
                 return super().__iter__()
 
             except Exception as ex:
-                log.warning('Try {}/{} failed to perform db action.'.format(try_number, self.max_tries), exc_info=ex)
+                log.warning('Try {}/{} failed to perform db action.'.format(try_number, self.max_tries),
+                            exc_info=ex)
                 last_exc = ex
                 time.sleep(min(float(self.max_retry_time_seconds), 0.1 * (1 << try_number)))
 
