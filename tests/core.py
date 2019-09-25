@@ -452,6 +452,26 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_on_failure_callback(self):
+        # Annoying workaround for nonlocal not existing in python 2
+        data = {'called': False}
+
+        def check_failure(context, test_case=self):
+            data['called'] = True
+            error = context.get('exception')
+            test_case.assertIsInstance(error, AirflowException)
+
+        t = BashOperator(
+            task_id='check_on_failure_callback',
+            bash_command="exit 1",
+            dag=self.dag,
+            on_failure_callback=check_failure)
+        self.assertRaises(
+            exceptions.AirflowException,
+            t.run,
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        self.assertTrue(data['called'])
+
     def test_dryrun(self):
         t = BashOperator(
             task_id='time_sensor_check',

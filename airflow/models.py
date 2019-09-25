@@ -2777,6 +2777,12 @@ class DAG(BaseDag, LoggingMixin):
     :type orientation: string
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     "type catchup: bool"
+    :param on_failure_callback: A function to be called when a DagRun of this dag fails.
+        A context dictionary is passed as a single parameter to this function.
+    :type on_failure_callback: callable
+    :param on_success_callback: Much like the ``on_failure_callback`` except
+        that it is executed when the dag succeeds.
+    :type on_success_callback: callable
     """
 
     def __init__(
@@ -2796,6 +2802,9 @@ class DAG(BaseDag, LoggingMixin):
             sla_miss_callback=None,
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
+            on_success_callback=None,  # type: Optional[Callable]
+            on_failure_callback=None,  # type: Optional[Callable]
+            doc_md=None,  # type: Optional[str]
             params=None,
             access_control=None):
 
@@ -2844,6 +2853,9 @@ class DAG(BaseDag, LoggingMixin):
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
+        self.on_success_callback = on_success_callback
+        self.on_failure_callback = on_failure_callback
+        self.doc_md = doc_md
 
         self._comps = {
             'dag_id',
