@@ -16,6 +16,7 @@
 # under the License.
 """Launches PODs"""
 import json
+import math
 import time
 import tenacity
 
@@ -173,16 +174,14 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True,
     )
-    def _read_pod_log_chunk(self, pod: Pod,
-                            since_time: str = None) -> HTTPResponse:
-        if not since_time:
-            since_time = '0001-01-01T00:00:00Z'
+
+    def _read_pod_log_chunk(self, pod: Pod, since_seconds: int) -> HTTPResponse:
         return self._client.read_namespaced_pod_log(
             name=pod.name,
             namespace=pod.namespace,
             container='base',
             follow=False,
-            since_time=since_time,
+            since_seconds=since_seconds,
             timestamps=True,
             _preload_content=False
         )
@@ -219,7 +218,16 @@ class PodLauncher(LoggingMixin):
             while pod_is_running:
                 pod_is_running = self.pod_is_running(pod)
 
-                resp = self._read_pod_log_chunk(pod, last_chunk_timestamp)
+                # The CoreV1Api doesn't support since_time even though the API does, so we must use
+                # since_seconds. Add 15 seconds of buffer just in case of NTP woes
+                if last_chunk_timestamp:
+                    # Strip fractional part because strptime doesn't support nanosecond parsing
+                    last_chunk_dt = dt.strptime(last_chunk_timestamp.split(b".", 1)[0].decode("utf-8"),
+                                                "%Y-%m-%dT%H:%M:%S")
+                    since_seconds = math.ceil((dt.utcnow() - last_chunk_dt).total_seconds() + 15)
+                else:
+                    since_seconds = math.ceil(dt.utcnow().timestamp())
+                resp = self._read_pod_log_chunk(pod, since_seconds)
 
                 # Just in case the assumption that never duplicating across
                 # lines is wrong, we store the previous line's timestamp and
@@ -227,14 +235,16 @@ class PodLauncher(LoggingMixin):
                 last_line_timestamp = None
 
                 for line in resp:
-                    timestamp, line = line.split(' ', 1)
+                    timestamp, line = line.split(b" ", 1)
                     # Strip the trailing Z so we can lexicographically compare the strings
                     if last_chunk_timestamp and timestamp[:-1] <= last_chunk_timestamp[:-1]:
                         continue
                     # Check if we have duplicate timestamps in a single chunk
                     if last_line_timestamp and timestamp == last_line_timestamp:
                         self.log.warn(
-                            "Duplicate timestamp found in pod log chunk. This could lead to log line loss")
+                            "Duplicate timestamp {} found in pod log chunk. "
+                            "This could lead to log line loss".format(timestamp)
+                        )
                     yield line
                     last_line_timestamp = timestamp
 
