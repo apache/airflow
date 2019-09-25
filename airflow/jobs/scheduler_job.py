@@ -57,7 +57,6 @@ from airflow.utils.state import State
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
-
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
 
@@ -322,15 +321,15 @@ class SchedulerJob(BaseJob):
     heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
     def __init__(
-        self,
-        dag_id=None,
-        dag_ids=None,
-        subdir=settings.DAGS_FOLDER,
-        num_runs=conf.getint('scheduler', 'num_runs'),
-        processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
-        do_pickle=False,
-        log=None,
-        *args, **kwargs):
+            self,
+            dag_id=None,
+            dag_ids=None,
+            subdir=settings.DAGS_FOLDER,
+            num_runs=conf.getint('scheduler', 'num_runs'),
+            processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
+            do_pickle=False,
+            log=None,
+            *args, **kwargs):
         # for BaseJob compatibility
         self.dag_id = dag_id
         self.dag_ids = [dag_id] if dag_id else []
@@ -406,16 +405,16 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
         sq = (
             session
-                .query(
+            .query(
                 TI.task_id,
                 func.max(TI.execution_date).label('max_ti'))
-                .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
-                .filter(TI.dag_id == dag.dag_id)
-                .filter(or_(
+            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
+            .filter(TI.dag_id == dag.dag_id)
+            .filter(or_(
                 TI.state == State.SUCCESS,
                 TI.state == State.SKIPPED))
-                .filter(TI.task_id.in_(dag.task_ids))
-                .group_by(TI.task_id).subquery('sq')
+            .filter(TI.task_id.in_(dag.task_ids))
+            .group_by(TI.task_id).subquery('sq')
         )
 
         max_tis = session.query(TI).filter(
@@ -443,18 +442,17 @@ class SchedulerJob(BaseJob):
 
         slas = (
             session
-                .query(SlaMiss)
-                .filter(SlaMiss.notification_sent == False,
-                        SlaMiss.dag_id == dag.dag_id)  # noqa pylint: disable=singleton-comparison
-                .all()
+            .query(SlaMiss)
+            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa pylint: disable=singleton-comparison
+            .all()
         )
 
         if slas:
             sla_dates = [sla.execution_date for sla in slas]
             qry = (
                 session
-                    .query(TI)
-                    .filter(
+                .query(TI)
+                .filter(
                     TI.state != State.SUCCESS,
                     TI.execution_date.in_(sla_dates),
                     TI.dag_id == dag.dag_id
@@ -570,8 +568,8 @@ class SchedulerJob(BaseJob):
             timedout_runs = 0
             for dr in active_runs:
                 if (
-                    dr.start_date and dag.dagrun_timeout and
-                    dr.start_date < timezone.utcnow() - dag.dagrun_timeout):
+                        dr.start_date and dag.dagrun_timeout and
+                        dr.start_date < timezone.utcnow() - dag.dagrun_timeout):
                     dr.state = State.FAILED
                     dr.end_date = timezone.utcnow()
                     dag.handle_callback(dr, success=False, reason='dagrun_timeout',
@@ -584,8 +582,8 @@ class SchedulerJob(BaseJob):
             # this query should be replaced by find dagrun
             qry = (
                 session.query(func.max(DagRun.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .filter(or_(
+                .filter_by(dag_id=dag.dag_id)
+                .filter(or_(
                     DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
                     # add % as a wildcard for the like query
                     DagRun.run_id.like(DagRun.ID_PREFIX + '%')
@@ -733,8 +731,8 @@ class SchedulerJob(BaseJob):
                 ti.task = task
 
                 if ti.are_dependencies_met(
-                    dep_context=DepContext(flag_upstream_failed=True),
-                    session=session):
+                        dep_context=DepContext(flag_upstream_failed=True),
+                        session=session):
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
@@ -763,13 +761,13 @@ class SchedulerJob(BaseJob):
         query = session \
             .query(models.TaskInstance) \
             .outerjoin(models.DagRun, and_(
-            models.TaskInstance.dag_id == models.DagRun.dag_id,
-            models.TaskInstance.execution_date == models.DagRun.execution_date)) \
+                models.TaskInstance.dag_id == models.DagRun.dag_id,
+                models.TaskInstance.execution_date == models.DagRun.execution_date)) \
             .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
-            models.DagRun.state != State.RUNNING,
-            models.DagRun.state.is_(None)))
+                models.DagRun.state != State.RUNNING,
+                models.DagRun.state.is_(None)))
         if self.using_sqlite:
             tis_to_change = query \
                 .with_for_update() \
@@ -782,10 +780,10 @@ class SchedulerJob(BaseJob):
             tis_changed = session \
                 .query(models.TaskInstance) \
                 .filter(and_(
-                models.TaskInstance.dag_id == subq.c.dag_id,
-                models.TaskInstance.task_id == subq.c.task_id,
-                models.TaskInstance.execution_date ==
-                subq.c.execution_date)) \
+                    models.TaskInstance.dag_id == subq.c.dag_id,
+                    models.TaskInstance.task_id == subq.c.task_id,
+                    models.TaskInstance.execution_date ==
+                    subq.c.execution_date)) \
                 .update({models.TaskInstance.state: new_state},
                         synchronize_session=False)
             session.commit()
@@ -812,9 +810,9 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
         ti_concurrency_query = (
             session
-                .query(TI.task_id, TI.dag_id, func.count('*'))
-                .filter(TI.state.in_(states))
-                .group_by(TI.task_id, TI.dag_id)
+            .query(TI.task_id, TI.dag_id, func.count('*'))
+            .filter(TI.state.in_(states))
+            .group_by(TI.task_id, TI.dag_id)
         ).all()
         dag_map = defaultdict(int)
         task_map = defaultdict(int)
@@ -850,17 +848,17 @@ class SchedulerJob(BaseJob):
         DM = models.DagModel
         ti_query = (
             session
-                .query(TI)
-                .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
-                .outerjoin(
+            .query(TI)
+            .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
+            .outerjoin(
                 DR,
                 and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
             )
-                .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                            not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-                .outerjoin(DM, DM.dag_id == TI.dag_id)
-                .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                            not_(DM.is_paused)))
+            .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DM.is_paused)))
         )
 
         # Additional filters on task instance state
@@ -1029,8 +1027,8 @@ class SchedulerJob(BaseJob):
                 for ti in task_instances])
         ti_query = (
             session
-                .query(TI)
-                .filter(or_(*filter_for_ti_state_change)))
+            .query(TI)
+            .filter(or_(*filter_for_ti_state_change)))
 
         if None in acceptable_states:
             ti_query = ti_query.filter(
@@ -1041,8 +1039,8 @@ class SchedulerJob(BaseJob):
 
         tis_to_set_to_queued = (
             ti_query
-                .with_for_update()
-                .all())
+            .with_for_update()
+            .all())
 
         if len(tis_to_set_to_queued) == 0:
             self.log.info("No tasks were able to have their state changed to queued.")
@@ -1288,7 +1286,7 @@ class SchedulerJob(BaseJob):
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
         if self.do_pickle and self.executor.__class__ not in \
-            (executors.LocalExecutor, executors.SequentialExecutor):
+                (executors.LocalExecutor, executors.SequentialExecutor):
             pickle_dags = True
 
         self.log.info("Processing each file at most %s times", self.num_runs)
@@ -1440,7 +1438,7 @@ class SchedulerJob(BaseJob):
                 sleep_length = 1 - loop_duration
                 self.log.debug(
                     "Sleeping for {0:.2f} seconds to prevent excessive logging"
-                        .format(sleep_length))
+                    .format(sleep_length))
                 sleep(sleep_length)
 
         # Stop any processors
@@ -1561,9 +1559,9 @@ class SchedulerJob(BaseJob):
             # a task that recently got its state changed to RUNNING from somewhere
             # other than the scheduler from getting its state overwritten.
             if ti.are_dependencies_met(
-                dep_context=dep_context,
-                session=session,
-                verbose=True):
+                    dep_context=dep_context,
+                    session=session,
+                    verbose=True):
                 # Task starts out in the scheduled state. All tasks in the
                 # scheduled state will be sent to the executor
                 ti.state = State.SCHEDULED
