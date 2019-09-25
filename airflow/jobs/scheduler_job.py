@@ -57,6 +57,7 @@ from airflow.utils.state import State
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
+
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
 
