@@ -510,6 +510,38 @@ class DagRunTest(unittest.TestCase):
         state = dr.update_state()
         self.assertEqual(State.FAILED, state)
 
+    def test_dagrun_failure_callback(self):
+        failure_call = False
+        def on_failure_callable(context):
+            self.assertEqual(context['dag_run'].dag_id,
+                             'test_dagrun_failure_callback')
+            failure_call = True
+        dag = DAG(
+            dag_id='test_dagrun_failure_callback',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback = on_failure_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag
+        )
+        dag_task2 = DummyOperator(
+            task_id='test_state_failed2',
+            dag=dag
+        )
+
+        initial_task_states = {
+            'task_state_succeeded1':State.SUCCESS,
+            'test_state_failed2':State.FAILED,
+        }
+        dag_task1.set_downstream(dag_task2)
+        dag_run = self.create_dag_run(dag=dag,
+                                      state=State.RUNNING,
+                                      task_states=initial_task_states)
+        update_dag_state = dag_run.update_state()
+        self.assertEqual(State.FAILED, update_dag_state)
+        self.assertTrue(failure_call)
+
     def test_get_task_instance_on_empty_dagrun(self):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
