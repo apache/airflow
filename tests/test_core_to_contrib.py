@@ -653,10 +653,6 @@ OPERATOR = [
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocOperationBaseOperator",
-        "airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator",
-    ),
-    (
         "airflow.gcp.operators.dataproc.DataProcPigOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),

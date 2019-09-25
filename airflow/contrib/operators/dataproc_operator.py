@@ -23,8 +23,8 @@ import warnings
 # pylint: disable=unused-import
 from airflow.gcp.operators.dataproc import (  # noqa
     DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
-    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataprocOperationBaseOperator,
-    DataProcPigOperator, DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator,
+    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataProcPigOperator,
+    DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator,
     DataprocWorkflowTemplateInstantiateInlineOperator, DataprocWorkflowTemplateInstantiateOperator,
 )
 

@@ -26,9 +26,8 @@ import os
 import airflow
 from airflow import models
 from airflow.gcp.operators.dataproc import (
-    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
-    DataProcHadoopOperator, DataProcHiveOperator, DataProcPigOperator, DataProcPySparkOperator,
-    DataProcSparkOperator, DataProcSparkSqlOperator,
+    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocSubmitJobOperator,
+    DataprocUpdateClusterOperator,
 )
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
@@ -41,69 +40,130 @@ OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
+
+# Cluster definition
+CLUSTER = {
+    "project_id": PROJECT_ID,
+    "cluster_name": CLUSTER_NAME,
+    "config": {
+        "master_config": {
+            "num_instances": 1,
+            "machine_type_uri": "n1-standard-4",
+            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        },
+        "worker_config": {
+            "num_instances": 2,
+            "machine_type_uri": "n1-standard-4",
+            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        },
+    },
+}
+
+
+# Update options
+CLUSTER_UPDATE = {
+    "config": {
+        "worker_config": {"num_instances": 3},
+        "secondary_worker_config": {"num_instances": 3},
+    }
+}
+UPDATE_MASK = {
+    "paths": [
+        "config.worker_config.num_instances",
+        "config.secondary_worker_config.num_instances",
+    ]
+}
+
+TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
+
+
+# Jobs definitions
+PIG_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "pig_job": {"query_list": {"queries": ["define sin HiveUDF('sin');"]}},
+}
+
+SPARK_SQL_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "spark_sql_job": {"query_list": {"queries": ["SHOW DATABASES;"]}},
+}
+
+SPARK_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "spark_job": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+}
+
+PYSPARK_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "pyspark_job": {"main_python_file_uri": PYSPARK_URI},
+}
+
+HIVE_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "hive_job": {"query_list": {"queries": ["SHOW DATABASES;"]}},
+}
+
+HADOOP_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "hadoop_job": {
+        "main_jar_file_uri": "file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar",
+        "args": ["wordcount", "gs://pub/shakespeare/rose.txt", OUTPUT_PATH],
+    },
+}
+
 with models.DAG(
     "example_gcp_dataproc",
     default_args={"start_date": airflow.utils.dates.days_ago(1)},
     schedule_interval=None,
 ) as dag:
     create_cluster = DataprocClusterCreateOperator(
-        task_id="create_cluster",
-        cluster_name=CLUSTER_NAME,
-        project_id=PROJECT_ID,
-        num_workers=2,
-        region=REGION,
+        task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
     )
 
-    scale_cluster = DataprocClusterScaleOperator(
+    scale_cluster = DataprocUpdateClusterOperator(
         task_id="scale_cluster",
-        num_workers=3,
         cluster_name=CLUSTER_NAME,
+        cluster=CLUSTER_UPDATE,
+        update_mask=UPDATE_MASK,
+        graceful_decommission_timeout=TIMEOUT,
         project_id=PROJECT_ID,
-        region=REGION,
+        location=REGION,
     )
 
-    pig_task = DataProcPigOperator(
-        task_id="pig_task",
-        query="define sin HiveUDF('sin');",
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+    pig_task = DataprocSubmitJobOperator(
+        task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    spark_sql_task = DataProcSparkSqlOperator(
+    spark_sql_task = DataprocSubmitJobOperator(
         task_id="spark_sql_task",
-        query="SHOW DATABASES;",
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+        job=SPARK_SQL_JOB,
+        location=REGION,
+        project_id=PROJECT_ID,
     )
 
-    spark_task = DataProcSparkOperator(
-        task_id="spark_task",
-        main_class="org.apache.spark.examples.SparkPi",
-        dataproc_jars="file:///usr/lib/spark/examples/jars/spark-examples.jar",
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+    spark_task = DataprocSubmitJobOperator(
+        task_id="spark_task", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    pyspark_task = DataProcPySparkOperator(
-        task_id="pyspark_task",
-        main=PYSPARK_URI,
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+    pyspark_task = DataprocSubmitJobOperator(
+        task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    hive_task = DataProcHiveOperator(
-        task_id="hive_task",
-        query="SHOW DATABASES;",
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+    hive_task = DataprocSubmitJobOperator(
+        task_id="hive_task", job=HIVE_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    hadoop_task = DataProcHadoopOperator(
-        task_id="hadoop_task",
-        main_jar="file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar",
-        arguments=["wordcount", "gs://pub/shakespeare/rose.txt", OUTPUT_PATH],
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
+    hadoop_task = DataprocSubmitJobOperator(
+        task_id="hadoop_task", job=HADOOP_JOB, location=REGION, project_id=PROJECT_ID
     )
 
     delete_cluster = DataprocClusterDeleteOperator(

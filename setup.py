@@ -197,6 +197,7 @@ gcp = [
     'google-cloud-bigtable==1.0.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
+    'google-cloud-dataproc==0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
