@@ -45,8 +45,8 @@ class TestPod(unittest.TestCase):
         expected_container = k8s.V1Container(
             name='init-container',
             image='ubuntu:16.04',
-            env=[k8s.V1EnvVar(name='key2', value='value2'),
-                 k8s.V1EnvVar(name='key1', value='value1')],
+            env=[k8s.V1EnvVar(name='key1', value='value1'),
+                 k8s.V1EnvVar(name='key2', value='value2')],
             volume_mounts=[k8s.V1VolumeMount(
                 name='test-volume',
                 mount_path='/etc/foo',
@@ -83,11 +83,11 @@ class TestPod(unittest.TestCase):
                     'command': ['bash', '-cx'],
                     'args': ['echo 10'],
                     'env': [{
-                        'name': 'key2',
-                        'value': 'value2'
-                    }, {
                         'name': 'key1',
                         'value': 'value1'
+                    }, {
+                        'name': 'key2',
+                        'value': 'value2'
                     }],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
