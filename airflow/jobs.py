@@ -751,8 +751,6 @@ class SchedulerJob(BaseJob):
                         dr.start_date < datetime.now() - dag.dagrun_timeout):
                     dr.state = State.FAILED
                     dr.end_date = datetime.now()
-                    dag.handle_callback(dr, success=False, reason='dagrun_timeout',
-                                        session=session)
                     timedout_runs += 1
             session.commit()
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
