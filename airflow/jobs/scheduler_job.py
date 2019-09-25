@@ -25,6 +25,7 @@ import signal
 import sys
 import threading
 import time
+import re
 from collections import defaultdict
 from datetime import timedelta
 from time import sleep
@@ -54,6 +55,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
+DAGS_FOLDER = settings.DAGS_FOLDER
 
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
@@ -1077,7 +1079,12 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: Should contains all of the task_instances' dags
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
+
         TI = models.TaskInstance
+
+        def change_file_path(full_filepath):
+            return re.sub(DAGS_FOLDER, 'DAGS_FOLDER', full_filepath)
+
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
             simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
@@ -1092,7 +1099,7 @@ class SchedulerJob(BaseJob):
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=simple_task_instance.pool,
-                file_path=simple_dag.full_filepath,
+                file_path=change_file_path(simple_dag.full_filepath),
                 pickle_id=simple_dag.pickle_id)
 
             priority = simple_task_instance.priority_weight
