@@ -671,11 +671,11 @@ class TestKubernetesPodOperator(unittest.TestCase):
             'command': ['bash', '-cx'],
             'args': ['echo 10'],
             'env': [{
-                'name': 'key2',
-                'value': 'value2'
-            }, {
                 'name': 'key1',
                 'value': 'value1'
+            }, {
+                'name': 'key2',
+                'value': 'value2'
             }],
             'volumeMounts': [{
                 'mountPath': '/etc/foo',
