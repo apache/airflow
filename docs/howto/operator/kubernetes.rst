@@ -51,6 +51,13 @@ Pods on Kubernetes. It works with any type of executor.
           }
         }
     volume = Volume(name='test-volume', configs=volume_config)
+    init_container = InitContainer(
+            name="init-container",
+            image="ubuntu:16.04",
+            init_environment={"key1": "value1", "key2": "value2"},
+            volume_mounts=[volume_mount],
+            cmds=["bash", "-cx"],
+            args=["echo 10"])
 
     affinity = {
         'nodeAffinity': {
@@ -124,5 +131,6 @@ Pods on Kubernetes. It works with any type of executor.
                               is_delete_operator_pod=True,
                               hostnetwork=False,
                               tolerations=tolerations,
-                              configmaps=configmaps
+                              configmaps=configmaps,
+                              init_containers=[init_container],
                               )
