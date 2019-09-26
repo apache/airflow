@@ -315,7 +315,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
      - :mod:`airflow.gcp.hooks.automl`
-     -
+     - :mod:`airflow.gcp.operators.automl`
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
@@ -348,6 +348,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.operators.compute`
      -
 
+   * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
+     -
+     - :mod:`airflow.gcp.hooks.dlp`
+     - :mod:`airflow.gcp.operators.dlp`
+     -
+
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
      - :mod:`airflow.gcp.hooks.dataflow`
@@ -366,23 +372,11 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.operators.datastore`
      -
 
-   * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
-     -
-     - :mod:`airflow.gcp.hooks.dlp`
-     - :mod:`airflow.gcp.operators.dlp`
-     -
-
    * - `Cloud Functions <https://cloud.google.com/functions/>`__
      - :doc:`How to use <howto/operator/gcp/functions>`
      - :mod:`airflow.gcp.hooks.functions`
      - :mod:`airflow.gcp.operators.functions`
      -
-
-   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/gcp/gcs>`
-     - :mod:`airflow.gcp.hooks.gcs`
-     - :mod:`airflow.gcp.operators.gcs`
-     - :mod:`airflow.gcp.sensors.gcs`
 
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
      -
@@ -396,16 +390,16 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.operators.kubernetes_engine`
      -
 
-   * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
-     - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
-     - :mod:`airflow.gcp.hooks.cloud_memorystore`
-     - :mod:`airflow.gcp.operators.cloud_memorystore`
-     -
-
    * - `Machine Learning Engine <https://cloud.google.com/ml-engine/>`__
      -
      - :mod:`airflow.gcp.hooks.mlengine`
      - :mod:`airflow.gcp.operators.mlengine`
+     -
+
+   * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
+     - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
+     - :mod:`airflow.gcp.hooks.cloud_memorystore`
+     - :mod:`airflow.gcp.operators.cloud_memorystore`
      -
 
    * - `Natural Language <https://cloud.google.com/natural-language/>`__
@@ -437,6 +431,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.hooks.cloud_sql`
      - :mod:`airflow.gcp.operators.cloud_sql`
      -
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/gcs>`
+     - :mod:`airflow.gcp.hooks.gcs`
+     - :mod:`airflow.gcp.operators.gcs`
+     - :mod:`airflow.gcp.sensors.gcs`
 
    * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
@@ -582,6 +582,24 @@ Cloud Platform.
 .. note::
     You can learn how to use GCP integrations by analyzing the
     `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
+
+Other operators and hooks
+"""""""""""""""""""""""""
+
+.. list-table::
+   :header-rows: 1
+
+   * - Guide
+     - Operators
+     - Hooks
+
+   * - :doc:`How to use <howto/operator/gcp/translate-speech>`
+     - :mod:`airflow.gcp.operators.translate_speech`
+     -
+
+   * -
+     -
+     - :mod:`airflow.gcp.hooks.discovery_api`
 
 .. _other:
 
