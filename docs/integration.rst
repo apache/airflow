@@ -1065,7 +1065,7 @@ communication protocols or interface.
      - :mod:`airflow.operators.jdbc_operator`
      -
 
-   * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal?redirectedfrom=MSDN>`__
+   * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
      -
      - :mod:`airflow.contrib.hooks.winrm_hook`
      - :mod:`airflow.contrib.operators.winrm_operator`
