@@ -738,10 +738,10 @@ Other operators and hooks
      -
      - :mod:`airflow.gcp.hooks.discovery_api`
 
-.. _other:
+.. _service:
 
-Other integrations
-------------------
+Service integrations
+--------------------
 
 Operators and Hooks
 '''''''''''''''''''
@@ -779,7 +779,7 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.contrib.sensors.datadog_sensor`
 
 
-   * - `Digiding <https://oapi.dingtalk.com>`__
+   * - `Dingding <https://oapi.dingtalk.com>`__
      - :doc:`How to use <howto/operator/dingding>`
      - :mod:`airflow.contrib.hooks.dingding_hook`
      - :mod:`airflow.contrib.operators.dingding_operator`
