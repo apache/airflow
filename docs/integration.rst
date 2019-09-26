@@ -22,6 +22,143 @@ Integration
   :local:
   :depth: 1
 
+.. _Apache:
+
+ASF: Apache Software Foundation
+-------------------------------
+
+Airflow supports various software created by `Apache Software Foundation <https://www.apache.org/foundation/>`__.
+
+Operators and Hooks
+'''''''''''''''''''
+
+Software operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to perform various operations within software developed by Apache Software
+Foundation.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guides
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Apache Cassandra <http://cassandra.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.hooks.cassandra_hook`
+     -
+     - :mod:`airflow.contrib.sensors.cassandra_record_sensor`,
+       :mod:`airflow.contrib.sensors.cassandra_table_sensor`
+
+   * - `Apache Druid <https://druid.apache.org/>`__
+     -
+     - :mod:`airflow.hooks.druid_hook`
+     - :mod:`airflow.contrib.operators.druid_operator`,
+       :mod:`airflow.operators.druid_check_operator`
+     -
+   * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
+     -
+     - :mod:`airflow.hooks.hdfs_hook`
+     -
+     - :mod:`airflow.sensors.hdfs_sensor`,
+       :mod:`airflow.contrib.sensors.hdfs_sensor`
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.hooks.hive_hooks`
+     - :mod:`airflow.operators.hive_operator`,
+       :mod:`airflow.operators.hive_stats_operator`
+     - :mod:`airflow.sensors.named_hive_partition_sensor`,
+       :mod:`airflow.sensors.hive_partition_sensor`,
+       :mod:`airflow.sensors.metastore_partition_sensor`
+
+   * - `Apache Pig <https://pig.apache.org/>`__
+     -
+     - :mod:`airflow.hooks.pig_hook`
+     - :mod:`airflow.operators.pig_operator`
+     -
+
+   * - `Apache Pinot <https://pinot.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.hooks.pinot_hook`
+     -
+     -
+
+   * - `Apache Spark <https://spark.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.hooks.spark_jdbc_hook`,
+       :mod:`airflow.contrib.hooks.spark_jdbc_script`,
+       :mod:`airflow.contrib.hooks.spark_sql_hook`,
+       :mod:`airflow.contrib.hooks.spark_submit_hook`
+     - :mod:`airflow.contrib.operators.spark_jdbc_operator`,
+       :mod:`airflow.contrib.operators.spark_sql_operator`,
+       :mod:`airflow.contrib.operators.spark_submit_operator`
+     -
+
+   * - `Apache Sqoop <https://sqoop.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.hooks.sqoop_hook`
+     - :mod:`airflow.contrib.operators.sqoop_operator`
+     -
+
+   * - `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__
+     -
+     - :mod:`airflow.hooks.webhdfs_hook`
+     -
+     - :mod:`airflow.sensors.web_hdfs_sensor`
+
+
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to copy data from/to software developed by Apache Software
+Foundation.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     -
+     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - Destination
+     -
+     - :mod:`airflow.operators.hive_to_druid`
+
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.operators.hive_to_mysql`
+
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - Destination
+     -
+     - :mod:`airflow.operators.hive_to_samba_operator`
+
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.mssql_to_hive`
+
+
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.mysql_to_hive`
+
 .. _Azure:
 
 Azure: Microsoft Azure
