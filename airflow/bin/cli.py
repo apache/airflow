@@ -199,7 +199,7 @@ def backfill(args, dag=None):
                 [dag],
                 start_date=args.start_date,
                 end_date=args.end_date,
-                confirm_prompt=True,
+                confirm_prompt=not args.yes,
                 include_subdags=False,
             )
 
@@ -2001,7 +2001,7 @@ class CLIFactory(object):
                     " within the backfill date range.",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
-                'mark_success', 'local', 'donot_pickle',
+                'mark_success', 'local', 'donot_pickle', 'yes',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
                 'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
