@@ -1038,7 +1038,7 @@ communication protocols or interface.
    * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
      -
      - :mod:`airflow.contrib.hooks.ftp_hook`
-     - Operators
+     -
      - :mod:`airflow.contrib.sensors.ftp_sensor`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
