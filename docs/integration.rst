@@ -987,3 +987,85 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.hooks.sqlite_hook`
      - :mod:`airflow.operators.sqlite_operator`
      -
+
+.. _protocol:
+
+Protocol integrations
+---------------------
+
+Operators and Hooks
+'''''''''''''''''''
+
+Protocol operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to perform various operations within various services using standardized
+communication protocols or interface.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
+     -
+     - :mod:`airflow.contrib.hooks.imap_hook`
+     -
+     - :mod:`airflow.contrib.sensors.imap_attachment_sensor`
+
+   * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
+     -
+     - :mod:`airflow.contrib.hooks.ssh_hook`
+     - :mod:`airflow.contrib.operators.ssh_operator`
+     -
+
+   * - Filesystem
+     -
+     - :mod:`airflow.contrib.hooks.fs_hook`
+     -
+     - :mod:`airflow.contrib.sensors.file_sensor`
+
+   * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     -
+     - :mod:`airflow.contrib.hooks.sftp_hook`
+     - :mod:`airflow.contrib.operators.sftp_operator`
+     - :mod:`airflow.contrib.sensors.sftp_sensor`
+
+   * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
+     -
+     - :mod:`airflow.contrib.hooks.ftp_hook`
+     - Operators
+     - :mod:`airflow.contrib.sensors.ftp_sensor`
+
+   * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
+     -
+     - :mod:`airflow.hooks.http_hook`
+     - :mod:`airflow.operators.http_operator`
+     - :mod:`airflow.sensors.http_sensor`
+
+   * - `gRPC <https://grpc.io/>`__
+     -
+     - :mod:`airflow.contrib.hooks.grpc_hook`
+     - :mod:`airflow.contrib.operators.grpc_operator`
+     -
+
+   * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
+     -
+     -
+     - :mod:`airflow.operators.email_operator`
+     -
+
+   * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
+     -
+     - :mod:`airflow.hooks.jdbc_hook`
+     - :mod:`airflow.operators.jdbc_operator`
+     -
+
+   * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal?redirectedfrom=MSDN>`__
+     -
+     - :mod:`airflow.contrib.hooks.winrm_hook`
+     - :mod:`airflow.contrib.operators.winrm_operator`
