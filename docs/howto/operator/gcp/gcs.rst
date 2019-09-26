@@ -24,21 +24,24 @@ Google Cloud Storage Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GoogleCloudStorageToBigQueryOperator:
 
 GoogleCloudStorageToBigQueryOperator
 ------------------------------------
 
 Use the
-:class:`~airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
+:class:`~airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
 to execute a BigQuery load job.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_bq_operator.py
+.. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_bq.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
-
 
 .. _howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator:
 
@@ -55,7 +58,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -63,7 +66,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -72,7 +75,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcs_acl_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_bucket_create_acl_template_fields]
@@ -99,7 +102,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -107,7 +110,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_acl.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -116,7 +119,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcs_acl_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_object_create_acl_template_fields]
@@ -127,3 +130,11 @@ More information
 
 See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
+* `Product Documentation <https://cloud.google.com/storage/docs/>`__

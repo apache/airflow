@@ -60,7 +60,7 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id: str,
-            python_callable: Callable[[Dict, DagRunOrder], DagRunOrder] = None,
+            python_callable: Optional[Callable[[Dict, DagRunOrder], DagRunOrder]] = None,
             execution_date: Optional[Union[str, datetime.datetime]] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

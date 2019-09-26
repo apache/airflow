@@ -70,7 +70,7 @@ services:
       - HADOOP_HOME=/tmp/hadoop-cdh
       - HADOOP_OPTS=-D/tmp/krb5.conf
       - HIVE_HOME=/tmp/hive
-      - MINICLUSTER_HOME=/tmp/minicluster-1.1-SNAPSHOT
+      - MINICLUSTER_HOME=/tmp/minicluster
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0

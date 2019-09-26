@@ -60,7 +60,7 @@ with DAG("example_gcp_dlp", default_args=default_args, schedule_interval=None) a
         inspect_template=INSPECT_TEMPLATE,
         template_id=TEMPLATE_ID,
         task_id="create_template",
-        xcom_push=True,
+        do_xcom_push=True,
         dag=dag,
     )
 

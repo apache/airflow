@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#
 # flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
@@ -20,6 +19,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
+"""Nice formatted include for examples"""
 from os import path
 
 from docutils import nodes
@@ -36,8 +37,10 @@ from sphinx.util.nodes import set_source_info
 logger = logging.getLogger(__name__)
 
 
-class example_header(nodes.reference, nodes.FixedTextElement):
-    pass
+class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable=too-many-ancestors
+    """
+    Header for examples.
+    """
 
 
 class ExampleInclude(SphinxDirective):
@@ -79,10 +82,10 @@ class ExampleInclude(SphinxDirective):
         document = self.state.document
         if not document.settings.file_insertion_enabled:
             return [document.reporter.warning("File insertion disabled", line=self.lineno)]
-        # convert options['diff'] to absolute path
+        # convert options['diff'] to absolute a_path
         if "diff" in self.options:
-            _, path = self.env.relfn2path(self.options["diff"])
-            self.options["diff"] = path
+            _, a_path = self.env.relfn2path(self.options["diff"])
+            self.options["diff"] = a_path
 
         try:
             location = self.state_machine.get_source_and_line(self.lineno)
@@ -113,27 +116,39 @@ class ExampleInclude(SphinxDirective):
             extra_args["linenostart"] = reader.lineno_start
 
             container_node = nodes.container("", literal_block=True, classes=["example-block-wrapper"])
-            container_node += example_header(filename=filename)
+            container_node += ExampleHeader(filename=filename)
             container_node += retnode
             retnode = container_node
 
             return [retnode]
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             return [document.reporter.warning(str(exc), line=self.lineno)]
 
 
+# pylint: disable=protected-access
+# noinspection PyProtectedMember
 def register_source(app, env, modname):
+    """
+    Registers source code.
+
+    :param app: application
+    :param env: environment of the plugin
+    :param modname: name of the module to load
+    :return: True if the code is registered successfully, False otherwise
+    """
     entry = env._viewcode_modules.get(modname, None)  # type: ignore
     if entry is False:
         print("[%s] Entry is false for " % modname)
-        return
+        return False
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
     if code_tags is None:
+        # noinspection PyBroadException
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
-        except Exception as ex:
-            logger.info("Module \"%s\" could not be loaded. Full source will not be available.", modname)
+        except Exception as ex:  # pylint: disable=broad-except
+            logger.info("Module \"%s\" could not be loaded. Full source will not be available. \"%s\"",
+                        modname, ex)
             env._viewcode_modules[modname] = False  # type: ignore
             return False
 
@@ -149,15 +164,22 @@ def register_source(app, env, modname):
         code, tags = code_tags
 
     if entry is None or entry[0] != code:
-        # print("Registeted", entry)
-
         entry = code, tags, {}, ""
         env._viewcode_modules[modname] = entry  # type: ignore
 
     return True
+# pylint: enable=protected-access
 
 
-def create_node(app, env, relative_path, show_button):
+def create_node(env, relative_path, show_button):
+    """
+    Creates documentation node for example include.
+
+    :param env: environment of the documentation
+    :param relative_path: path of the code
+    :param show_button: whether to show "view code" button
+    :return paragraph with the node
+    """
     pagename = "_modules/" + relative_path[:-3]
 
     header_classes = ["example-header"]
@@ -182,7 +204,18 @@ def create_node(app, env, relative_path, show_button):
     return paragraph
 
 
+# noinspection PyProtectedMember
+# pylint: disable=protected-access
 def doctree_read(app, doctree):
+    """
+    Reads documentation tree for the application and register sources in the generated documentation.
+
+    :param app: application
+    :param doctree: documentation tree
+
+    :return None
+
+    """
     env = app.builder.env
     if not hasattr(env, "_viewcode_modules"):
         env._viewcode_modules = {}  # type: ignore
@@ -190,19 +223,26 @@ def doctree_read(app, doctree):
     if app.builder.name == "singlehtml":
         return
 
-    for objnode in doctree.traverse(example_header):
+    for objnode in doctree.traverse(ExampleHeader):
         filepath = objnode.get("filename")
         relative_path = path.relpath(
             filepath, path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
         )
         modname = relative_path.replace("/", ".")[:-3]
         show_button = register_source(app, env, modname)
-        onlynode = create_node(app, env, relative_path, show_button)
+        onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
+# pylint: enable=protected-access
 
 
 def setup(app):
+    """
+    Sets the plugin up and returns configuration of the plugin.
+
+    :param app: application.
+    :return json description of the configuration that is needed by the plugin.
+    """
     directives.register_directive("exampleinclude", ExampleInclude)
     app.connect("doctree-read", doctree_read)
     app.add_config_value("exampleinclude_sourceroot", None, "env")

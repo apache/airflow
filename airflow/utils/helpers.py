@@ -32,15 +32,16 @@ except ImportError:
 import os
 import re
 import signal
+import subprocess
 
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
@@ -305,6 +306,10 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
+        # If operation not permitted error is thrown due to run_as_user,
+        # use sudo -n(--non-interactive) to kill the process
+        if err.errno == errno.EPERM:
+            subprocess.check_call(["sudo", "-n", "kill", "-" + str(sig), str(os.getpgid(pid))])
         raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)

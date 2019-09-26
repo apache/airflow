@@ -25,5 +25,5 @@ from airflow.gcp.hooks.pubsub import PubSubHook, PubSubException  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.pubsub`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

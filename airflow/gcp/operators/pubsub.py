@@ -19,6 +19,8 @@
 """
 This module contains Google PubSub operators.
 """
+from typing import List, Optional
+
 from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -75,13 +77,13 @@ class PubSubTopicCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
-            fail_if_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            project: str,
+            topic: str,
+            fail_if_exists: bool = False,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -144,6 +146,30 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 
     ``topic_project``, ``topic``, ``subscription``, and
     ``subscription`` are templated so you can use variables in them.
+
+    :param topic_project: the GCP project ID where the topic exists
+    :type topic_project: str
+    :param topic: the topic to create. Do not include the
+        full topic path. In other words, instead of
+        ``projects/{project}/topics/{topic}``, provide only
+        ``{topic}``. (templated)
+    :type topic: str
+    :param subscription: the Pub/Sub subscription name. If empty, a random
+        name will be generated using the uuid module
+    :type subscription: str
+    :param subscription_project: the GCP project ID where the subscription
+        will be created. If empty, ``topic_project`` will be used.
+    :type subscription_project: str
+    :param ack_deadline_secs: Number of seconds that a subscriber has to
+        acknowledge each message pulled from the subscription
+    :type ack_deadline_secs: int
+    :param gcp_conn_id: The connection ID to use connecting to
+        Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request
+        must have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ['topic_project', 'topic', 'subscription',
                        'subscription_project']
@@ -153,42 +179,16 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
     def __init__(
             self,
             topic_project,
-            topic,
+            topic: str,
             subscription=None,
             subscription_project=None,
-            ack_deadline_secs=10,
-            fail_if_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            ack_deadline_secs: int = 10,
+            fail_if_exists: bool = False,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
-        """
-        :param topic_project: the GCP project ID where the topic exists
-        :type topic_project: str
-        :param topic: the topic to create. Do not include the
-            full topic path. In other words, instead of
-            ``projects/{project}/topics/{topic}``, provide only
-            ``{topic}``. (templated)
-        :type topic: str
-        :param subscription: the Pub/Sub subscription name. If empty, a random
-            name will be generated using the uuid module
-        :type subscription: str
-        :param subscription_project: the GCP project ID where the subscription
-            will be created. If empty, ``topic_project`` will be used.
-        :type subscription_project: str
-        :param ack_deadline_secs: Number of seconds that a subscriber has to
-            acknowledge each message pulled from the subscription
-        :type ack_deadline_secs: int
-        :param gcp_conn_id: The connection ID to use connecting to
-            Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request
-            must have domain-wide delegation enabled.
-        :type delegate_to: str
-        """
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
         self.topic_project = topic_project
         self.topic = topic
         self.subscription = subscription
@@ -233,6 +233,24 @@ class PubSubTopicDeleteOperator(BaseOperator):
 
     Both ``project`` and ``topic`` are templated so you can use
     variables in them.
+
+    :param project: the GCP project ID in which to work (templated)
+    :type project: str
+    :param topic: the topic to delete. Do not include the
+        full topic path. In other words, instead of
+        ``projects/{project}/topics/{topic}``, provide only
+        ``{topic}``. (templated)
+    :type topic: str
+    :param fail_if_not_exists: If True and the topic does not exist, fail
+        the task
+    :type fail_if_not_exists: bool
+    :param gcp_conn_id: The connection ID to use connecting to
+        Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request
+        must have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ['project', 'topic']
     ui_color = '#cb4335'
@@ -240,32 +258,13 @@ class PubSubTopicDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
+            project: str,
+            topic: str,
             fail_if_not_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
-        """
-        :param project: the GCP project ID in which to work (templated)
-        :type project: str
-        :param topic: the topic to delete. Do not include the
-            full topic path. In other words, instead of
-            ``projects/{project}/topics/{topic}``, provide only
-            ``{topic}``. (templated)
-        :type topic: str
-        :param fail_if_not_exists: If True and the topic does not exist, fail
-            the task
-        :type fail_if_not_exists: bool
-        :param gcp_conn_id: The connection ID to use connecting to
-            Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request
-            must have domain-wide delegation enabled.
-        :type delegate_to: str
-        """
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -309,6 +308,24 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
 
     ``project``, and ``subscription`` are templated so you can use
     variables in them.
+
+    :param project: the GCP project ID in which to work (templated)
+    :type project: str
+    :param subscription: the subscription to delete. Do not include the
+        full subscription path. In other words, instead of
+        ``projects/{project}/subscription/{subscription}``, provide only
+        ``{subscription}``. (templated)
+    :type subscription: str
+    :param fail_if_not_exists: If True and the subscription does not exist,
+        fail the task
+    :type fail_if_not_exists: bool
+    :param gcp_conn_id: The connection ID to use connecting to
+        Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request
+        must have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ['project', 'subscription']
     ui_color = '#cb4335'
@@ -316,32 +333,13 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            subscription,
+            project: str,
+            subscription: str,
             fail_if_not_exists=False,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
-        """
-        :param project: the GCP project ID in which to work (templated)
-        :type project: str
-        :param subscription: the subscription to delete. Do not include the
-            full subscription path. In other words, instead of
-            ``projects/{project}/subscription/{subscription}``, provide only
-            ``{subscription}``. (templated)
-        :type subscription: str
-        :param fail_if_not_exists: If True and the subscription does not exist,
-            fail the task
-        :type fail_if_not_exists: bool
-        :param gcp_conn_id: The connection ID to use connecting to
-            Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request
-            must have domain-wide delegation enabled.
-        :type delegate_to: str
-        """
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.project = project
@@ -381,6 +379,30 @@ class PubSubPublishOperator(BaseOperator):
 
     ``project`` , ``topic``, and ``messages`` are templated so you can use
     variables in them.
+
+    :param project: the GCP project ID in which to work (templated)
+    :type project: str
+    :param topic: the topic to which to publish. Do not include the
+        full topic path. In other words, instead of
+        ``projects/{project}/topics/{topic}``, provide only
+        ``{topic}``. (templated)
+    :type topic: str
+    :param messages: a list of messages to be published to the
+        topic. Each message is a dict with one or more of the
+        following keys-value mappings:
+        * 'data': a base64-encoded string
+        * 'attributes': {'key1': 'value1', ...}
+        Each message must contain at least a non-empty 'data' value
+        or an attribute dict with at least one key (templated). See
+        https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
+    :type messages: list
+    :param gcp_conn_id: The connection ID to use connecting to
+        Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request
+        must have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ['project', 'topic', 'messages']
     ui_color = '#0273d4'
@@ -388,38 +410,13 @@ class PubSubPublishOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            project,
-            topic,
-            messages,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
+            project: str,
+            topic: str,
+            messages: List,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
             *args,
-            **kwargs):
-        """
-        :param project: the GCP project ID in which to work (templated)
-        :type project: str
-        :param topic: the topic to which to publish. Do not include the
-            full topic path. In other words, instead of
-            ``projects/{project}/topics/{topic}``, provide only
-            ``{topic}``. (templated)
-        :type topic: str
-        :param messages: a list of messages to be published to the
-            topic. Each message is a dict with one or more of the
-            following keys-value mappings:
-            * 'data': a base64-encoded string
-            * 'attributes': {'key1': 'value1', ...}
-            Each message must contain at least a non-empty 'data' value
-            or an attribute dict with at least one key (templated). See
-            https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-        :type messages: list
-        :param gcp_conn_id: The connection ID to use connecting to
-            Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request
-            must have domain-wide delegation enabled.
-        :type delegate_to: str
-        """
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.gcp_conn_id = gcp_conn_id

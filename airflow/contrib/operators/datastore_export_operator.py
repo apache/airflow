@@ -25,5 +25,5 @@ from airflow.gcp.operators.datastore import DatastoreExportOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.datastore`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

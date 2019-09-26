@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.exceptions import AirflowException
 
-_TASK_RUNNER = configuration.conf.get('core', 'TASK_RUNNER')
+_TASK_RUNNER = conf.get('core', 'TASK_RUNNER')
 
 
 def get_task_runner(local_task_job):

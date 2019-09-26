@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow import models
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
@@ -69,7 +69,6 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
@@ -88,7 +87,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def test_s3_to_sftp_operation(self):
         # Setting
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
+        conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"

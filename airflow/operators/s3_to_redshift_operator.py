@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, List
+from typing import Union, List, Optional
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.hooks.S3_hook import S3Hook
@@ -68,8 +68,8 @@ class S3ToRedshiftTransfer(BaseOperator):
             s3_key: str,
             redshift_conn_id: str = 'redshift_default',
             aws_conn_id: str = 'aws_default',
-            verify: Union[bool, str] = None,
-            copy_options: List = None,
+            verify: Optional[Union[bool, str]] = None,
+            copy_options: Optional[List] = None,
             autocommit: bool = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

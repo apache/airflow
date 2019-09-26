@@ -25,6 +25,7 @@ import json
 import functools
 import os
 import tempfile
+from contextlib import contextmanager
 from typing import Any, Optional, Dict, Callable, TypeVar, Sequence
 
 import httplib2
@@ -81,22 +82,21 @@ class GoogleCloudBaseHook(BaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
 
-    def _get_credentials(self) -> google.auth.credentials.Credentials:
+    def _get_credentials_and_project_id(self) -> google.auth.credentials.Credentials:
         """
-        Returns the Credentials object for Google API
+        Returns the Credentials object for Google API and the associated project_id
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
-            credentials, _ = google.auth.default(scopes=self.scopes)
+            credentials, project_id = google.auth.default(scopes=self.scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
@@ -105,6 +105,7 @@ class GoogleCloudBaseHook(BaseHook):
                     google.oauth2.service_account.Credentials.from_service_account_file(
                         key_path, scopes=self.scopes)
                 )
+                project_id = credentials.project_id
             elif key_path.endswith('.p12'):
                 raise AirflowException('Legacy P12 key file are not supported, '
                                        'use a JSON key file.')
@@ -125,11 +126,25 @@ class GoogleCloudBaseHook(BaseHook):
                     google.oauth2.service_account.Credentials.from_service_account_info(
                         keyfile_dict_json, scopes=self.scopes)
                 )
+                project_id = credentials.project_id
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
 
-        return credentials.with_subject(self.delegate_to) \
-            if self.delegate_to else credentials
+        if self.delegate_to:
+            credentials = credentials.with_subject(self.delegate_to)
+
+        overridden_project_id = self._get_field('project')
+        if overridden_project_id:
+            project_id = overridden_project_id
+
+        return credentials, project_id
+
+    def _get_credentials(self) -> google.auth.credentials.Credentials:
+        """
+        Returns the Credentials object for Google API
+        """
+        credentials, _ = self._get_credentials_and_project_id()
+        return credentials
 
     def _get_access_token(self) -> str:
         """
@@ -169,7 +184,18 @@ class GoogleCloudBaseHook(BaseHook):
         :return: id of the project
         :rtype: str
         """
-        return self._get_field('project')
+        _, project_id = self._get_credentials_and_project_id()
+        return project_id
+
+    @property
+    def num_retries(self) -> int:
+        """
+        Returns num_retries from Connection.
+
+        :return: the number of times each API request should be retried
+        :rtype: int
+        """
+        return self._get_field('num_retries') or 5
 
     @property
     def client_info(self) -> ClientInfo:
@@ -258,32 +284,50 @@ class GoogleCloudBaseHook(BaseHook):
     @staticmethod
     def provide_gcp_credential_file(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Function decorator that provides a ``GOOGLE_APPLICATION_CREDENTIALS``
-        environment variable, pointing to file path of a JSON file of service
-        account key.
+        Function decorator that provides a GCP credentials for application supporting Application
+        Default Credentials (ADC) strategy.
+
+        It is recommended to use ``provide_gcp_credential_file_as_context`` context manager to limit the
+        scope when authorization data is available. Using context manager also
+        makes it easier to use multiple connection in one function.
         """
         @functools.wraps(func)
         def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
-            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-                keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-                current_env_state = os.environ.get(CREDENTIALS)
-                try:
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, use a JSON key file.'
-                            )
-                        os.environ[CREDENTIALS] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[CREDENTIALS] = conf_file.name
-                    return func(self, *args, **kwargs)
-                finally:
-                    if current_env_state is None:
-                        if CREDENTIALS in os.environ:
-                            del os.environ[CREDENTIALS]
-                    else:
-                        os.environ[CREDENTIALS] = current_env_state
+            with self.provide_gcp_credential_file_as_context():
+                return func(self, *args, **kwargs)
         return wrapper
+
+    @contextmanager
+    def provide_gcp_credential_file_as_context(self):
+        """
+        Context manager that provides a GCP credentials for application supporting `Application
+        Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
+
+        It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
+        file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
+        """
+        with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+            key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+            keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+            current_env_state = os.environ.get(CREDENTIALS)
+            try:
+                if key_path:
+                    if key_path.endswith('.p12'):
+                        raise AirflowException(
+                            'Legacy P12 key file are not supported, use a JSON key file.'
+                        )
+                    os.environ[CREDENTIALS] = key_path
+                elif keyfile_dict:
+                    conf_file.write(keyfile_dict)
+                    conf_file.flush()
+                    os.environ[CREDENTIALS] = conf_file.name
+                else:
+                    # We will use the default service account credentials.
+                    pass
+                yield conf_file
+            finally:
+                if current_env_state is None:
+                    if CREDENTIALS in os.environ:
+                        del os.environ[CREDENTIALS]
+                else:
+                    os.environ[CREDENTIALS] = current_env_state

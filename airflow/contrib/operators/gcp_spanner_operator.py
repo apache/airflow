@@ -32,5 +32,5 @@ from airflow.gcp.operators.spanner import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.spanner`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

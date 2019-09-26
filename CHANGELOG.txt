@@ -1,5 +1,96 @@
-Airflow 1.10.4, - 2019-08-06
-----------------------------
+Airflow 1.10.5, 2019-09-04
+--------------------------
+
+New Features
+""""""""""""
+- [AIRFLOW-1498] Add feature for users to add Google Analytics to Airflow UI (#5850)
+- [AIRFLOW-4074] Add option to add labels to Dataproc jobs (#5606)
+- [AIRFLOW-4846] Allow specification of an existing secret containing git credentials for init containers (#5475)
+
+Improvements
+""""""""""""
+- [AIRFLOW-5335] Update GCSHook methods so they need min IAM perms (#5939)
+- [AIRFLOW-2692] Allow AWS Batch Operator to use templates in job_name parameter (#3557)
+- [AIRFLOW-4768] Add Timeout parameter in example_gcp_video_intelligence (#5862)
+- [AIRFLOW-5165] Make Dataproc highly available (#5781)
+- [AIRFLOW-5139] Allow custom ES configs (#5760)
+- [AIRFLOW-5340] Fix GCP DLP example (#594)
+- [AIRFLOW-5211] Add pass_value to template_fields BigQueryValueCheckOperator (#5816)
+- [AIRFLOW-5113] Support icon url in slack web hook (#5724)
+- [AIRFLOW-4230] bigquery schema update options should be a list (#5766)
+- [AIRFLOW-1523] Clicking on Graph View should display related DAG run (#5866)
+- [AIRFLOW-5027] Generalized CloudWatch log grabbing for ECS and SageMaker operators (#5645)
+- [AIRFLOW-5244] Add all possible themes to default_webserver_config.py (#5849)
+- [AIRFLOW-5245] Add more metrics around the scheduler (#5853)
+- [AIRFLOW-5048] Improve display of Kubernetes resources (#5665)
+- [AIRFLOW-5284] Replace deprecated log.warn by log.warning (#5881)
+- [AIRFLOW-5276] Remove unused helpers from airflow.utils.helpers (#5878)
+- [AIRFLOW-4316] Support setting kubernetes_environment_variables config section from env var (#5668)
+
+Bug fixes
+"""""""""
+- [AIRFLOW-5168] Fix Dataproc operators that failed in 1.10.4 (#5928)
+- [AIRFLOW-5136] Fix Bug with Incorrect template_fields in DataProc{*} Operators (#5751)
+- [AIRFLOW-5169] Pass GCP Project ID explicitly to StorageClient in GCSHook (#5783)
+- [AIRFLOW-5302] Fix bug in none_skipped Trigger Rule (#5902)
+- [AIRFLOW-5350] Fix bug in the num_retires field in BigQueryHook (#5955)
+- [AIRFLOW-5145] Fix rbac ui presents false choice to encrypt or not encrypt variable values (#5761)
+- [AIRFLOW-5104] Set default schedule for GCP Transfer operators (#5726)
+- [AIRFLOW-4462] Use datetime2 column types when using MSSQL backend (#5707)
+- [AIRFLOW-5282] Add default timeout on kubeclient & catch HTTPError (#5880)
+- [AIRFLOW-5315] TaskInstance not updating from DB when user changes executor_config (#5926)
+- [AIRFLOW-4013] Mark success/failed is picking all execution date (#5616)
+- [AIRFLOW-5152] Fix autodetect default value in GoogleCloudStorageToBigQueryOperator(#5771)
+- [AIRFLOW-5100] Airflow scheduler does not respect safe mode setting (#5757)
+- [AIRFLOW-4763] Allow list in DockerOperator.command (#5408)
+- [AIRFLOW-5260] Allow empty uri arguments in connection strings (#5855)
+- [AIRFLOW-5257] Fix ElasticSearch log handler errors when attemping to close logs (#5863)
+- [AIRFLOW-1772] Google Updated Sensor doesnt work with CRON expressions (#5730)
+- [AIRFLOW-5085] When you run kubernetes git-sync test from TAG, it fails (#5699)
+- [AIRFLOW-5258] ElasticSearch log handler, has 2 times of hours (%H and %I) in _clean_execution_dat (#5864)
+- [AIRFLOW-5348] Escape Label in deprecated chart view when set via JS (#5952)
+- [AIRFLOW-5357] Fix Content-Type for exported variables.json file (#5963)
+- [AIRFLOW-5109] Fix process races when killing processes (#5721)
+- [AIRFLOW-5240] Latest version of Kombu is breaking airflow for py2
+
+Misc/Internal
+"""""""""""""
+- [AIRFLOW-5111] Remove apt-get upgrade from the Dockerfile (#5722)
+- [AIRFLOW-5209] Fix Documentation build (#5814)
+- [AIRFLOW-5083] Check licence image building can be faster and moved to before-install (#5695)
+- [AIRFLOW-5119] Cron job should always rebuild everything from scratch (#5733)
+- [AIRFLOW-5108] In the CI local environment long-running kerberos might fail sometimes (#5719)
+- [AIRFLOW-5092] Latest python image should be pulled locally in force_pull_and_build (#5705)
+- [AIRFLOW-5225] Consistent licences can be added automatically for all JS files (#5827)
+- [AIRFLOW-5229] Add licence to all other file types (#5831)
+- [AIRFLOW-5227] Consistent licences for all .sql files (#5829)
+- [AIRFLOW-5161] Add pre-commit hooks to run static checks for only changed files (#5777)
+- [AIRFLOW-5159] Optimise checklicence image build (do not build if not needed) (#5774)
+- [AIRFLOW-5263] Show diff on failure of pre-commit checks (#5869)
+- [AIRFLOW-5204] Shell files should be checked with shellcheck and have identical licence (#5807)
+- [AIRFLOW-5233] Check for consistency in whitespace (tabs/eols) and common problems (#5835)
+- [AIRFLOW-5247] Getting all dependencies from NPM can be moved up in Dockerfile (#5870)
+- [AIRFLOW-5143] Corrupted rat.jar became part of the Docker image (#5759)
+- [AIRFLOW-5226] Consistent licences for all html JINJA templates (#5828)
+- [AIRFLOW-5051] Coverage is not properly reported in the new CI system (#5732)
+- [AIRFLOW-5239] Small typo and incorrect tests in CONTRIBUTING.md (#5844)
+- [AIRFLOW-5287] Checklicence base image is not pulled (#5886)
+- [AIRFLOW-5301] Some not-yet-available files from breeze are committed to master (#5901)
+- [AIRFLOW-5285] Pre-commit pylint runs over todo files (#5884)
+- [AIRFLOW-5288] Temporary container for static checks should be auto-removed (#5887)
+- [AIRFLOW-5326] Fix teething proglems for Airflow breeze (#5933)
+- [AIRFLOW-5206] All .md files should have all common licence, TOC (where applicable) (#5809)
+- [AIRFLOW-5329] Easy way to add local files to docker (#5933)
+- [AIRFLOW-4027] Make experimental api tests more stateless (#4854)
+
+Doc-only changes
+""""""""""""""""
+- [AIRFLOW-XXX] Fixed Azkaban link (#5865)
+- [AIRFLOW-XXX] Remove duplicate lines from CONTRIBUTING.md (#5830)
+- [AIRFLOW-XXX] Fix incorrect docstring parameter in SchedulerJob (#5729)
+
+Airflow 1.10.4, 2019-08-06
+--------------------------
 
 New Features
 """"""""""""

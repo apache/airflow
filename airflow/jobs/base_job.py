@@ -26,7 +26,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from typing import Optional
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import executors, models
 from airflow.exceptions import (
     AirflowException,
@@ -77,11 +77,11 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(
             self,
-            executor=executors.get_default_executor(),
+            executor=None,
             heartrate=None,
             *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor
+        self.executor = executor or executors.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
