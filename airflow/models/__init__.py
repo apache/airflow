@@ -5035,6 +5035,29 @@ class DagRun(Base, LoggingMixin):
         )
         return dagruns
 
+    @classmethod
+    @provide_session
+    def get_latest_scheduled_runs(cls, session):
+        """Returns the latest DagRun for each DAG. """
+        subquery = (
+            session
+                .query(
+                cls.dag_id,
+                func.max(cls.execution_date).label('execution_date'))
+                .filter(cls.run_id.contains("scheduled"))
+                .group_by(cls.dag_id)
+                .subquery()
+        )
+        dagruns = (
+            session
+                .query(cls)
+                .join(subquery,
+                      and_(cls.dag_id == subquery.c.dag_id,
+                           cls.execution_date == subquery.c.execution_date))
+                .all()
+        )
+        return dagruns
+
 
 class Pool(Base):
     __tablename__ = "slot_pool"

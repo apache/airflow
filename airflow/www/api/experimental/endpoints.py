@@ -35,13 +35,18 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
+from sqlalchemy import (
+    Boolean, Column, DateTime, Float, ForeignKey, Index,
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_,
+    func, or_
+)
+
 
 _log = LoggingMixin().log
 
 requires_authentication = airflow.api.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
-
 
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
@@ -151,6 +156,26 @@ def get_dag_code(dag_id):
         response.status_code = err.status_code
         return response
 
+@api_experimental.route('/dags/<string:dag_id>/latest_tasks', methods=['GET'])
+@requires_authentication
+def lastest_tasks(dag_id):
+    """Returns a JSON with the latest task instances for a dag. """
+
+    TI = models.TaskInstance
+    payload = []
+    with create_session() as session:
+        tis = session.query(TI, func.max(TI.execution_date).label('execution_date')).filter(TI.dag_id == dag_id)
+
+        for ti in tis:
+            ti = ti[0]
+            payload.append({
+                "task_id": ti.task_id,
+                "execution_date": ti.execution_date,
+                "start_date": ((ti.start_date or '') and
+                               ti.start_date.isoformat())
+            })
+
+        return jsonify(items=payload)
 
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
 @requires_authentication
@@ -287,6 +312,27 @@ def latest_dag_runs():
                                dagrun.start_date.isoformat()),
                 'dag_run_url': url_for('airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
+            })
+    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
+
+@api_experimental.route('/latest_scheduled_runs', methods=['GET'])
+@requires_authentication
+def latest_scheduled_runs():
+    """Returns the latest scheduled DagRun for each DAG formatted for the UI. """
+    from airflow.models import DagRun
+    dagruns = DagRun.get_latest_scheduled_runs()
+    payload = []
+    for dagrun in dagruns:
+        if dagrun.execution_date:
+            payload.append({
+                'dag_id': dagrun.dag_id,
+                'execution_date': dagrun.execution_date.isoformat(),
+                'start_date': ((dagrun.start_date or '') and
+                               dagrun.start_date.isoformat()),
+                'dag_run_url': url_for('airflow.graph', dag_id=dagrun.dag_id,
+                                       execution_date=dagrun.execution_date),
+                'run_id': dagrun.run_id,
+                'schedule_interval': dagrun.schedule_interval
             })
     return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
 
