@@ -18,10 +18,11 @@
 # under the License.
 
 """Operator serialization with JSON."""
+from inspect import signature
 
-from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.dag.serialization.serialization import Serialization
 from airflow.models import BaseOperator
+
+from .serialization import Serialization  # pylint: disable=cyclic-import
 
 
 class SerializedBaseOperator(BaseOperator, Serialization):
@@ -30,9 +31,13 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
     """
-    _included_fields = list(vars(BaseOperator(task_id='test')).keys() - {
-        'inlets', 'outlets'
-    }) + ['_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields']
+
+    _decorated_fields = {'executor_config', }
+
+    _CONSTRUCTOR_PARAMS = {
+        k: v for k, v in signature(BaseOperator).parameters.items()
+        if v.default is not v.empty and v.default is not None
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,21 +66,56 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     def serialize_operator(cls, op: BaseOperator) -> dict:
         """Serializes operator into a JSON object.
         """
-        serialize_op = cls._serialize_object(op)
+        serialize_op = {}
+
+        # pylint: disable=protected-access
+        for k in op._serialized_fields:
+            # None is ignored in serialized form and is added back in deserialization.
+            v = getattr(op, k, None)
+            if cls._is_excluded(v, k, op):
+                continue
+
+            if k in cls._decorated_fields:
+                serialize_op[k] = cls._serialize(v)
+            else:
+                v = cls._serialize(v)
+                if isinstance(v, dict) and "__type" in v:
+                    v = v["__var"]
+                serialize_op[k] = v
+
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
 
-        if isinstance(op.template_fields, tuple):
-            # Don't store the template_fields as a tuple -- a list is simpler and does what we need
-            serialize_op['template_fields'] = serialize_op['template_fields'][Encoding.VAR]
-        return cls._encode(serialize_op, type_=DAT.OP)
+        return serialize_op
 
     @classmethod
     def deserialize_operator(cls, encoded_op: dict) -> BaseOperator:
         """Deserializes an operator from a JSON object.
         """
+        from . import SerializedDAG
+
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
-        cls._deserialize_object(encoded_op, op)
+
+        for k, v in encoded_op.items():
+
+            if k == "_downstream_task_ids":
+                v = set(v)
+            elif k == "subdag":
+                v = SerializedDAG.deserialize_dag(v)
+            elif k in {"retry_delay", "execution_timeout"}:
+                v = cls._deserialize_timedelta(v)
+            elif k.endswith("_date"):
+                v = cls._deserialize_datetime(v)
+            elif k in cls._decorated_fields or k not in op._serialized_fields:  # noqa: E501; # pylint: disable=protected-access
+                v = cls._deserialize(v)
+            # else use v as it is
+
+            setattr(op, k, v)
+
+        # pylint: disable=protected-access
+        for k in op._serialized_fields - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
+            setattr(op, k, None)
+
         return op
 
     @classmethod
@@ -86,4 +126,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
             dag_date = getattr(op.dag, attrname, None)
             if var is dag_date or var == dag_date:
                 return True
+        if attrname in {"executor_config", "params"} and not var:
+            # Don't store empty executor config or params dicts.
+            return True
         return super()._is_excluded(var, attrname, op)

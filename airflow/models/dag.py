@@ -27,7 +27,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
@@ -197,6 +197,8 @@ class DAG(BaseDag, LoggingMixin):
         'template_searchpath',
         'last_loaded',
     }
+
+    _serialized_fields = frozenset()  # type: FrozenSet[str]
 
     def __init__(
         self,
@@ -1660,3 +1662,14 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
+
+# Stringified DAGs and operators contain exactly these fields.
+
+# pylint: disable=protected-access
+DAG._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+    'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+    '_full_filepath', 'user_defined_filters', 'user_defined_macros',
+    '_schedule_interval', 'partial', '_old_context_manager_dags',
+    '_pickle_id', '_log', 'is_subdag', 'task_dict'
+}
