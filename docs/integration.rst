@@ -898,7 +898,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Docker <https://docs.docker.com/install/>`__
      -
      - :mod:`airflow.hooks.docker_hook`
-     - :mod:`airflow.operators.docker_operator`
+     - :mod:`airflow.operators.docker_operator`,
        :mod:`airflow.contrib.operators.docker_swarm_operator`
      -
 
@@ -920,7 +920,7 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.operators.mssql_operator`
      -
 
-   * - `MondoDB <https://www.mongodb.com/what-is-mongodb>`__
+   * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      -
      - :mod:`airflow.contrib.hooks.mongo_hook`
      -
@@ -973,8 +973,8 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.contrib.hooks.redis_hook`
      - :mod:`airflow.contrib.operators.redis_publish_operator`
-     - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`
-       :mod:`airflow.contrib.sensors.redis_key_sensor`
+     - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`,
+       :mod:`airflow.contrib.sensors.redis_key_sensor`.
 
    * - `Samba <https://www.samba.org/>`__
      -
