@@ -869,8 +869,8 @@ These integrations allow you to perform various operations within various servic
 
 .. _software:
 
-Service integrations
---------------------
+Software integrations
+---------------------
 
 Operators and Hooks
 '''''''''''''''''''
