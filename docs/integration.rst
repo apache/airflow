@@ -746,6 +746,120 @@ Service integrations
 Operators and Hooks
 '''''''''''''''''''
 
+Software operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to perform various operations using various software.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Celery <http://www.celeryproject.org/>`__
+     -
+     -
+     -
+     - :mod:`airflow.contrib.sensors.celery_queue_sensor`
+
+   * - `Docker <https://docs.docker.com/install/>`__
+     -
+     - :mod:`airflow.hooks.docker_hook`
+     - :mod:`airflow.operators.docker_operator`
+       :mod:`airflow.contrib.operators.docker_swarm_operator`
+     -
+
+   * - `GNU Bash <https://www.gnu.org/software/bash/>`__
+     - :doc:`How to use <howto/operator/bash>`
+     -
+     - :mod:`airflow.operators.bash_operator`
+     - :mod:`airflow.contrib.sensors.bash_sensor`
+
+   * - `Kubernetes <https://kubernetes.io/>`__
+     - :doc:`How to use <howto/operator/kubernetes>`
+     -
+     - :mod:`airflow.contrib.operators.kubernetes_pod_operator`
+     -
+
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     -
+     - :mod:`airflow.hooks.mssql_hook`
+     - :mod:`airflow.operators.mssql_operator`
+     -
+
+   * - `MondoDB <https://www.mongodb.com/what-is-mongodb>`__
+     -
+     - :mod:`airflow.contrib.hooks.mongo_hook`
+     -
+     - :mod:`airflow.contrib.sensors.mongo_sensor`
+
+
+   * - `MySQL <https://www.mysql.com/products/>`__
+     -
+     - :mod:`airflow.hooks.mysql_hook`
+     - :mod:`airflow.operators.mysql_operator`
+     -
+
+   * - `OpenFaaS <https://www.openfaas.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.openfaas_hook`
+     -
+     -
+
+   * - `Oracle <https://www.oracle.com/pl/database/>`__
+     -
+     - :mod:`airflow.hooks.oracle_hook`
+     - :mod:`airflow.operators.oracle_operator`
+     -
+
+   * - `Papermill <https://github.com/nteract/papermill>`__
+     - :doc:`How to use <howto/operator/papermill>`
+     -
+     - :mod:`airflow.operators.papermill_operator`
+     -
+
+   * - `PostgresSQL <https://www.postgresql.org/>`__
+     -
+     - :mod:`airflow.hooks.postgres_hook`
+     - :mod:`airflow.operators.postgres_operator`
+     -
+
+   * - `Presto <http://prestodb.github.io/>`__
+     -
+     - :mod:`airflow.hooks.presto_hook`
+     - :mod:`airflow.operators.presto_check_operator`
+     -
+
+   * - `Python <https://www.python.org>`__
+     -
+     -
+     - :mod:`airflow.operators.python_operator`
+     - :mod:`airflow.contrib.sensors.python_sensor`
+
+   * - `Redis <https://redis.io/>`__
+     -
+     - :mod:`airflow.contrib.hooks.redis_hook`
+     - :mod:`airflow.contrib.operators.redis_publish_operator`
+     - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`
+       :mod:`airflow.contrib.sensors.redis_key_sensor`
+
+   * - `Samba <https://www.samba.org/>`__
+     -
+     - :mod:`airflow.hooks.samba_hook`
+     -
+     -
+
+   * - `SQLite <https://www.sqlite.org/index.html>`__
+     -
+     - :mod:`airflow.hooks.sqlite_hook`
+     - :mod:`airflow.operators.sqlite_operator`
+     -
+
+
 Service operators and hooks
 """""""""""""""""""""""""""
 
