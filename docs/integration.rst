@@ -760,15 +760,109 @@ These integrations allow you to perform various operations within various servic
      - Operators
      - Sensors
 
-   * - `Qubole <https://www.qubole.com/>`__
+   * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
-     - :mod:`airflow.contrib.hooks.qubole_hook`
-     - :mod:`airflow.contrib.operators.qubole_operator`,
-       :mod:`airflow.contrib.operators.qubole_check_operator`
-     - :mod:`airflow.contrib.sensors.qubole_sensor`
+     - :mod:`airflow.contrib.hooks.jira_hook`
+     - :mod:`airflow.contrib.operators.jira_operator`
+     - :mod:`airflow.contrib.sensors.jira_sensor`
 
    * - `Databricks <https://databricks.com/>`__
      -
      - :mod:`airflow.contrib.hooks.databricks_hook`
      - :mod:`airflow.contrib.operators.databricks_operator`
+     -
+
+   * - `Datadog <https://www.datadoghq.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.datadog_hook`
+     -
+     - :mod:`airflow.contrib.sensors.datadog_sensor`
+
+
+   * - `Digiding <https://oapi.dingtalk.com>`__
+     - :doc:`How to use <howto/operator/dingding>`
+     - :mod:`airflow.contrib.hooks.dingding_hook`
+     - :mod:`airflow.contrib.operators.dingding_operator`
+     -
+
+   * - `Discord <https://discordapp.com>`__
+     -
+     - :mod:`airflow.contrib.hooks.discord_webhook_hook`
+     - :mod:`airflow.contrib.operators.discord_webhook_operator`
+     -
+
+   * - `Google Drive <https://www.google.com/drive/>`__
+     -
+     - :mod:`airflow.contrib.hooks.gdrive_hook`
+     -
+     -
+
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     -
+     - :mod:`airflow.gcp.hooks.gsheets`
+     -
+     -
+
+   * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
+     -
+     - :mod:`airflow.contrib.hooks.cloudant_hook`
+     -
+     -
+
+   * - `Jenkins <https://jenkins.io/>`__
+     -
+     - :mod:`airflow.contrib.hooks.jenkins_hook`
+     - :mod:`airflow.contrib.operators.jenkins_job_trigger_operator`
+     -
+
+   * - `Opsgenie <https://www.opsgenie.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.opsgenie_alert_hook`
+     - :mod:`airflow.contrib.operators.opsgenie_alert_operator`
+     -
+
+   * - `Qubole <https://www.qubole.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.qubole_hook`
+       :mod:`airflow.contrib.hooks.qubole_check_hook`
+     - :mod:`airflow.contrib.operators.qubole_operator`,
+       :mod:`airflow.contrib.operators.qubole_check_operator`
+     - :mod:`airflow.contrib.sensors.qubole_sensor`
+
+   * - `Salesforce <https://www.salesforce.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.salesforce_hook`
+     -
+     -
+
+   * - `Segment <https://oapi.dingtalk.com>`__
+     -
+     - :mod:`airflow.contrib.hooks.segment_hook`
+     - :mod:`airflow.contrib.operators.segment_track_event_operator`
+     -
+
+   * - `Slack <https://slack.com/>`__
+     -
+     - :mod:`airflow.hooks.slack_hook`
+       :mod:`airflow.contrib.hooks.slack_webhook_hook`
+     - :mod:`airflow.operators.slack_operator`
+       :mod:`airflow.contrib.operators.slack_webhook_operator`
+     -
+
+   * - `Snowflake <https://www.snowflake.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.snowflake_hook`
+     - :mod:`airflow.contrib.operators.snowflake_operator`
+     -
+
+   * - `Vertica <https://www.vertica.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.vertica_hook`
+     - :mod:`airflow.contrib.operators.vertica_operator`
+     -
+
+   * - `Zendesk <https://www.zendesk.com/>`__
+     -
+     - :mod:`airflow.hooks.zendesk_hook`
+     -
      -
