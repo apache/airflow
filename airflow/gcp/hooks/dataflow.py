@@ -30,7 +30,7 @@ from typing import Dict, List, Callable, Any, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location

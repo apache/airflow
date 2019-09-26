@@ -259,7 +259,7 @@ mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
-statsd = ['statsd>=3.0.1, <4.0']
+statsd = ['statsd>=3.3.0, <4.0']
 vertica = ['vertica-python>=0.5.1']
 virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']

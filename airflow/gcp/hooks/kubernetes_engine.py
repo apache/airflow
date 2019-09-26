@@ -35,7 +35,7 @@ from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 

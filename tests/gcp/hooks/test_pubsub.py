@@ -25,7 +25,7 @@ from googleapiclient.errors import HttpError
 from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook
 from tests.compat import mock
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 PUBSUB_STRING = 'airflow.gcp.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''

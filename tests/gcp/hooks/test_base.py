@@ -32,7 +32,7 @@ from google.cloud.exceptions import MovedPermanently
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException, LoggingMixin
-from airflow.contrib.hooks import gcp_api_base_hook as hook
+from airflow.gcp.hooks import base as hook
 from airflow.hooks.base_hook import BaseHook
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -44,7 +44,7 @@ try:
 except GoogleAuthError:
     default_creds_available = False
 
-MODULE_NAME = "airflow.contrib.hooks.gcp_api_base_hook"
+MODULE_NAME = "airflow.gcp.hooks.base"
 
 
 class TestCatchHttpException(unittest.TestCase):
@@ -484,7 +484,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         self.assertEqual(self.instance.scopes, ('https://www.googleapis.com/auth/cloud-platform',))
 
-    @mock.patch("airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.get_connection")
+    @mock.patch("airflow.gcp.hooks.base.GoogleCloudBaseHook.get_connection")
     def test_num_retries_is_not_none_by_default(self, get_con_mock):
         """
         Verify that if 'num_retires' in extras is not set, the default value

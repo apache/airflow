@@ -22,7 +22,7 @@ This module contains a Google Cloud Translate Hook.
 from typing import Union, List, Dict, Optional
 
 from google.cloud.translate_v2 import Client
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudTranslateHook(GoogleCloudBaseHook):

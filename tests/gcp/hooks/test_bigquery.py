@@ -64,7 +64,7 @@ class TestBigQueryHookConnection(unittest.TestCase):
 
 class TestPandasGbqCredentials(unittest.TestCase):
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook._get_credentials_and_project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch('airflow.gcp.hooks.bigquery.read_gbq')
@@ -83,7 +83,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.instance = hook.BigQueryHook()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -94,7 +94,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -105,7 +105,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertIn('Reason: ', str(context.exception), "")
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -115,7 +115,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -126,7 +126,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )

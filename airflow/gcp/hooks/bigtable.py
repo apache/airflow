@@ -27,7 +27,7 @@ from google.cloud.bigtable.column_family import GarbageCollectionRule, ColumnFam
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import Table, ClusterState
 from google.cloud.bigtable_admin_v2 import enums
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class BigtableHook(GoogleCloudBaseHook):

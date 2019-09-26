@@ -73,7 +73,7 @@ RUNTIME_ENV = {
         'count': '3'
     }
 }
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 DATAFLOW_STRING = 'airflow.gcp.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'

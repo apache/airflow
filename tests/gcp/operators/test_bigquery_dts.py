@@ -46,10 +46,7 @@ NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
 
 
 class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.bigquery_dts."
-        "BiqQueryDataTransferServiceHook.create_transfer_config"
-    )
+    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     @mock.patch("airflow.gcp.operators.bigquery_dts.get_object_id")
     def test_execute(self, mock_name, mock_hook):
         mock_name.return_value = TRANSFER_CONFIG_ID
@@ -59,7 +56,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
         )
         op.xcom_push = mock_xcom
         op.execute(None)
-        mock_hook.assert_called_once_with(
+        mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
             metadata=None,
             transfer_config=TRANSFER_CONFIG,
@@ -70,16 +67,13 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.bigquery_dts."
-        "BiqQueryDataTransferServiceHook.delete_transfer_config"
-    )
+    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDeleteDataTransferConfigOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
         op.execute(None)
-        mock_hook.assert_called_once_with(
+        mock_hook.return_value.delete_transfer_config.assert_called_once_with(
             metadata=None,
             transfer_config_id=TRANSFER_CONFIG_ID,
             project_id=PROJECT_ID,
@@ -89,16 +83,13 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.bigquery_dts."
-        "BiqQueryDataTransferServiceHook.start_manual_transfer_runs"
-    )
+    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
         op.execute(None)
-        mock_hook.assert_called_once_with(
+        mock_hook.return_value.start_manual_transfer_runs.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             project_id=PROJECT_ID,
             requested_time_range=None,

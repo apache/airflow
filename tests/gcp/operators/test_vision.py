@@ -78,11 +78,9 @@ class TestCloudVisionProductSetCreate(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook.get_conn')
-    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook.create_product_set')
-    def test_already_exists(self, create_product_set_mock, get_conn):
-        get_conn.return_value = {}
-        create_product_set_mock.side_effect = AlreadyExists(message='')
+    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
+    def test_already_exists(self, mock_hook):
+        mock_hook.return_value.create_product_set.side_effect = AlreadyExists(message='')
         # Exception AlreadyExists not raised, caught in the operator's execute() - idempotence
         op = CloudVisionProductSetCreateOperator(
             location=LOCATION_TEST,
@@ -171,11 +169,9 @@ class TestCloudVisionProductCreate(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook.get_conn')
-    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook.create_product')
-    def test_already_exists(self, create_product_mock, get_conn):
-        get_conn.return_value = {}
-        create_product_mock.side_effect = AlreadyExists(message='')
+    @mock.patch('airflow.gcp.operators.vision.CloudVisionHook')
+    def test_already_exists(self, mock_hook):
+        mock_hook.return_value.create_product.side_effect = AlreadyExists(message='')
         # Exception AlreadyExists not raised, caught in the operator's execute() - idempotence
         op = CloudVisionProductCreateOperator(
             location=LOCATION_TEST,

@@ -27,7 +27,7 @@ import warnings
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class DatastoreHook(GoogleCloudBaseHook):

@@ -48,6 +48,13 @@ previously been set to `us-east-1` during installation.
 The region now needs to be set manually either in the connection screens in
 Airflow, or via the `AWS_DEFAULT_REGION` environment variable.
 
+### Removed Hipchat integration
+
+Hipchat has reached end of life and is no longer available.
+
+For more information please see
+https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
+
 ### Some DAG Processing metrics have been renamed
 
 The following metrics are deprecated and won't be emitted in Airflow 2.0:

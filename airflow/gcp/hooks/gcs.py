@@ -31,7 +31,7 @@ import warnings
 from urllib.parse import urlparse
 from google.cloud import storage
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
 from airflow.version import version
 
