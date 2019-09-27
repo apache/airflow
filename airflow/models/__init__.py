@@ -5048,14 +5048,23 @@ class DagRun(Base, LoggingMixin):
                 .group_by(cls.dag_id)
                 .subquery()
         )
+
+        dag_subquery = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused != True)
+            .subquery()
+        )
+
         dagruns = (
             session
                 .query(cls)
+                .join(dag_subquery, cls.dag_id == dag_subquery.c.dag_id)
                 .join(subquery,
                       and_(cls.dag_id == subquery.c.dag_id,
                            cls.execution_date == subquery.c.execution_date))
-                .all()
+            .all()
         )
+
         return dagruns
 
 

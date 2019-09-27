@@ -164,7 +164,23 @@ def lastest_tasks(dag_id):
     TI = models.TaskInstance
     payload = []
     with create_session() as session:
-        tis = session.query(TI.dag_id, TI.task_id, func.max(TI.execution_date).label('start_date'), func.max(TI.execution_date).label('execution_date')).filter(TI.dag_id == dag_id).group_by(TI.dag_id, TI.task_id)
+        subquery = (
+            session
+                .query(
+                TI.dag_id,
+                func.max(TI.execution_date).label('execution_date'))
+                .filter(TI.dag_id == dag_id)
+                .group_by(TI.dag_id)
+                .subquery()
+        )
+
+        tis = (session
+            .query(TI.dag_id, TI.task_id, TI.execution_date, TI.start_date)
+            .join(subquery,
+                  and_(TI.dag_id == subquery.c.dag_id,
+                    TI.execution_date == subquery.c.execution_date))
+               .all()
+            )
 
         for ti in tis:
             payload.append({
