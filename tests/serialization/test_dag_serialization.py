@@ -25,7 +25,6 @@ from tests.compat import mock
 from datetime import datetime, timedelta
 
 from parameterized import parameterized
-from dateutil.relativedelta import relativedelta, FR
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
@@ -39,18 +38,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 serialized_simple_dag_ground_truth = {
     "__version": 1,
     "dag": {
-        "default_args": {
-            "__type": "dict",
-            "__var": {
-                "depends_on_past": False,
-                "retries": 1,
-                "retry_delay": {
-                    "__type": "timedelta",
-                    "__var": 300.0
-                }
-            }
-        },
-        "start_date": 1564617600.0,
+        "default_args": {},
         "params": {},
         "_dag_id": "simple_dag",
         "fileloc": None,
@@ -58,8 +46,8 @@ serialized_simple_dag_ground_truth = {
             {
                 "task_id": "simple_task",
                 "owner": "airflow",
-                "retries": 1,
-                "retry_delay": 300.0,
+                "start_date": 1564617600.0,
+                "retries": 0,
                 "_downstream_task_ids": [],
                 "_inlets": {
                     "auto": False, "task_ids": [], "datasets": []
@@ -84,17 +72,9 @@ def make_example_dags(module):
 
 def make_simple_dag():
     """Make very simple DAG to verify serialization result."""
-    dag = DAG(
-        dag_id='simple_dag',
-        default_args={
-            "retries": 1,
-            "retry_delay": timedelta(minutes=5),
-            "depends_on_past": False,
-        },
-        start_date=datetime(2019, 8, 1),
-    )
-    BaseOperator(task_id='simple_task', dag=dag,
-                 owner="airflow")
+    dag = DAG(dag_id='simple_dag')
+    _ = BaseOperator(task_id='simple_task', dag=dag,
+                     start_date=datetime(2019, 8, 1), owner="airflow")
     return {'simple_dag': dag}
 
 
@@ -163,7 +143,6 @@ class TestStringifiedDAGs(unittest.TestCase):
                        '"use_proxy": "False", '
                        '"use_ssl": "False"'
                        '}')))
-        self.maxDiff = None  # pylint: disable=invalid-name
 
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -264,7 +243,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         serialized = {
             "__version": 1,
             "dag": {
-                "default_args": {"__type": "dict", "__var": {}},
+                "default_args": {},
                 "params": {},
                 "_dag_id": "simple_dag",
                 "fileloc": __file__,
@@ -279,21 +258,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized)
 
         self.assertEqual(dag.schedule_interval, expected)
-
-    @parameterized.expand([
-        (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
-        (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
-        # Every friday
-        (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
-        # Every second friday
-        (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}})
-    ])
-    def test_roundtrip_relativedelta(self, val, expected):
-        serialized = SerializedDAG._serialize(val)
-        self.assertDictEqual(serialized, expected)
-
-        round_tripped = SerializedDAG._deserialize(serialized)
-        self.assertEqual(val, round_tripped)
 
 
 if __name__ == '__main__':

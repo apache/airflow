@@ -27,7 +27,7 @@ import warnings
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type
 
 
 from cached_property import cached_property
@@ -1083,7 +1083,7 @@ class BaseOperator(LoggingMixin):
 
 # pylint: disable=protected-access
 BaseOperator._serialized_fields = frozenset(
-    vars(BaseOperator(task_id='test')).keys() - {
+    set(vars(BaseOperator(task_id='test')).keys()) - {
         'inlets', 'outlets', '_upstream_task_ids', 'default_args'
     } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
 )

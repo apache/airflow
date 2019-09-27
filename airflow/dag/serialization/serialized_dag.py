@@ -136,16 +136,6 @@ class SerializedDAG(DAG, Serialization):
         return dag
 
     @classmethod
-    def to_json(cls, var):
-        """Stringifies DAGs and operators contained by var and returns a JSON string of var.
-        """
-        json_str = json.dumps(cls._serialize(var), ensure_ascii=True)
-
-        # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
-        cls.validate_schema(json_str)
-        return json_str
-
-    @classmethod
     def to_dict(cls, var):
         # type: (...) -> dict
         """Stringifies DAGs and operators contained by var and returns a dict of var.

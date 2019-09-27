@@ -22,7 +22,7 @@
 try:
     from inspect import signature
 except ImportError:
-    from funcsigs import signature
+    from funcsigs import signature  # type: ignore
 
 from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 from airflow.models import BaseOperator
