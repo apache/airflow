@@ -196,7 +196,7 @@ def backfill(args, dag=None):
                 [dag],
                 start_date=args.start_date,
                 end_date=args.end_date,
-                confirm_prompt=True,
+                confirm_prompt=not args.yes,
                 include_subdags=True,
             )
 
@@ -781,7 +781,7 @@ def clear(args):
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.no_confirm,
+        confirm_prompt=not args.yes,
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
     )
@@ -1804,9 +1804,6 @@ class CLIFactory:
             ("-r", "--only_running"), "Only running jobs", "store_true"),
         'downstream': Arg(
             ("-d", "--downstream"), "Include downstream tasks", "store_true"),
-        'no_confirm': Arg(
-            ("-c", "--no_confirm"),
-            "Do not request confirmation", "store_true"),
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
@@ -2249,7 +2246,7 @@ class CLIFactory:
                             " within the backfill date range.",
                     'args': (
                         'dag_id', 'task_regex', 'start_date', 'end_date',
-                        'mark_success', 'local', 'donot_pickle',
+                        'mark_success', 'local', 'donot_pickle', 'yes',
                         'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                         'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
                         'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
@@ -2272,7 +2269,7 @@ class CLIFactory:
                     'help': "Clear a set of task instance, as if they never ran",
                     'args': (
                         'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                        'upstream', 'downstream', 'no_confirm', 'only_failed',
+                        'upstream', 'downstream', 'yes', 'only_failed',
                         'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
                 },
                 {

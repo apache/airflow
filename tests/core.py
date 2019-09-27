@@ -1635,31 +1635,31 @@ class TestCli(unittest.TestCase):
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--no_confirm'])
+            'tasks', 'clear', 'example_subdag_operator', '--yes'])
         cli.clear(args)
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
+            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
         cli.clear(args)
 
     def test_parentdag_downstream_clear(self):
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--no_confirm'])
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
         cli.clear(args)
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--no_confirm',
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
             '--exclude_parentdag'])
         cli.clear(args)
 
     def test_get_dags(self):
         dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator',
-                                                    '-c']))
+                                                    '--yes']))
         self.assertEqual(len(dags), 1)
 
-        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '-c']))
+        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
         self.assertGreater(len(dags), 1)
 
         with self.assertRaises(AirflowException):
-            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '-c']))
+            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
 
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
