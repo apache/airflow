@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from parameterized import parameterized
+from dateutil.relativedelta import relativedelta, FR
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
@@ -260,6 +261,21 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized)
 
         self.assertEqual(dag.schedule_interval, expected)
+
+    @parameterized.expand([
+        (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
+        (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
+        # Every friday
+        (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
+        # Every second friday
+        (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}})
+    ])
+    def test_roundtrip_relativedelta(self, val, expected):
+        serialized = SerializedDAG._serialize(val)
+        self.assertDictEqual(serialized, expected)
+
+        round_tripped = SerializedDAG._deserialize(serialized)
+        self.assertEqual(val, round_tripped)
 
 
 if __name__ == '__main__':
