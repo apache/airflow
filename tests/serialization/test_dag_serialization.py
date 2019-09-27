@@ -21,8 +21,10 @@
 
 import multiprocessing
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
+
+from parameterized import parameterized
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
@@ -31,6 +33,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, BaseOperator, Connection, DagBag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
+
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -232,6 +235,31 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(task.subdag, DAG))
         else:
             self.assertIsNone(task.subdag)
+
+    @parameterized.expand([
+        (None, None),
+        ("@weekly", "@weekly"),
+        ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1)),
+    ])
+    def test_deserialization_schedule_interval(self, serialized_schedule_interval, expected):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {},
+                "params": {},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "task_dict": {},
+                "timezone": "UTC",
+                "schedule_interval": serialized_schedule_interval,
+            },
+        }
+
+        SerializedDAG.validate_schema(serialized)
+
+        dag = SerializedDAG.from_dict(serialized)
+
+        self.assertEqual(dag.schedule_interval, expected)
 
 
 if __name__ == '__main__':
