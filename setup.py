@@ -202,7 +202,7 @@ gcp = [
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.9.2',
+    'httplib2~=0.9',
     'pandas-gbq',
     'PyOpenSSL',
 ]
