@@ -36,7 +36,7 @@ class TestPod(unittest.TestCase):
         init_container = InitContainer(
             name="init-container",
             image="ubuntu:16.04",
-            init_environment={"key1": "value1", "key2": "value2"},
+            init_environment={"key1": "value1"},
             volume_mounts=[volume_mount],
             cmds=["bash", "-cx"],
             args=["echo 10"])
@@ -45,8 +45,7 @@ class TestPod(unittest.TestCase):
         expected_container = k8s.V1Container(
             name='init-container',
             image='ubuntu:16.04',
-            env=[k8s.V1EnvVar(name='key1', value='value1'),
-                 k8s.V1EnvVar(name='key2', value='value2')],
+            env=[k8s.V1EnvVar(name='key1', value='value1')],
             volume_mounts=[k8s.V1VolumeMount(
                 name='test-volume',
                 mount_path='/etc/foo',
@@ -134,4 +133,9 @@ class TestPod(unittest.TestCase):
         k8s_client = ApiClient()
         result = append_to_pod(pod, init_containers)
         result = k8s_client.sanitize_for_serialization(result)
+
+        # Sort the env values in the result before asserting
+        env_list = result['spec']['initContainers'][0]['env']
+        result['spec']['initContainers'][0]['env'] = sorted(env_list, key=lambda k: k['name'])
+
         self.assertEqual(expected_pod, result)
