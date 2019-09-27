@@ -39,6 +39,7 @@ class DagAttributeTypes(str, Enum):
     DATETIME = 'datetime'
     TIMEDELTA = 'timedelta'
     TIMEZONE = 'timezone'
+    RELATIVEDELTA = 'relativedelta'
     DICT = 'dict'
     SET = 'set'
     TUPLE = 'tuple'

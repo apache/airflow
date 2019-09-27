@@ -26,6 +26,7 @@ import six
 from typing import Optional, TYPE_CHECKING, Union, Dict
 
 import pendulum
+from dateutil import relativedelta
 
 import airflow
 from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -157,6 +158,14 @@ class Serialization:
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
             elif isinstance(var, (pendulum.tz.Timezone, pendulum.tz.timezone_info.TimezoneInfo)):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
+            elif isinstance(var, relativedelta.relativedelta):
+                encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
+                if var.weekday and var.weekday.n:
+                    # Every n'th Friday for example
+                    encoded['weekday'] = [var.weekday.weekday, var.weekday.n]
+                elif var.weekday:
+                    encoded['weekday'] = [var.weekday.weekday]
+                return cls._encode(encoded, type_=DAT.RELATIVEDELTA)
             elif callable(var):
                 return str(get_python_source(var, return_none_if_x_none=True))
             elif isinstance(var, set):
@@ -199,6 +208,10 @@ class Serialization:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
             return pendulum.timezone(var)
+        elif type_ == DAT.RELATIVEDELTA:
+            if 'weekday' in var:
+                var['weekday'] = relativedelta.weekday(*var['weekday'])
+            return relativedelta.relativedelta(**var)
         elif type_ == DAT.SET:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:

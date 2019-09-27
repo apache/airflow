@@ -40,6 +40,28 @@
       ],
       "additionalProperties": false
     },
+    "typed_relativedelta": {
+      "type": "object",
+      "description": "A dateutil.relativedelta.relativedelta object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "relativedelta"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "weekday": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "minItems": 1,
+              "maxItems": 2
+            }
+          },
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
     "timezone": {
       "type": "string"
     },
@@ -80,7 +102,8 @@
           "anyOf": [
             { "type": "null" },
             { "type": "string" },
-            { "$ref": "#/definitions/typed_timedelta" }
+            { "$ref": "#/definitions/typed_timedelta" },
+            { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
         "catchup": { "type": "boolean" },
