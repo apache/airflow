@@ -567,8 +567,12 @@ if conf.has_option('core', 'AIRFLOW_HOME'):
         AIRFLOW_HOME = conf.get('core', 'airflow_home')
         warnings.warn(msg, category=DeprecationWarning)
 
-
-WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
+if 'WEBSERVER_CONFIG' in os.environ:
+    WEBSERVER_CONFIG = os.environ['WEBSERVER_CONFIG']
+elif conf.get('webserver', 'webserver_config'):
+    WEBSERVER_CONFIG = conf.get('webserver', 'webserver_config')
+else:
+    WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
