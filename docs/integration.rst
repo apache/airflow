@@ -974,7 +974,7 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.contrib.hooks.redis_hook`
      - :mod:`airflow.contrib.operators.redis_publish_operator`
      - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`,
-       :mod:`airflow.contrib.sensors.redis_key_sensor`.
+       :mod:`airflow.contrib.sensors.redis_key_sensor`
 
    * - `Samba <https://www.samba.org/>`__
      -
