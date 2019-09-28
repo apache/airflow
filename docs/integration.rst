@@ -379,12 +379,15 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - Guide
      - Operators
 
-   * - `Apache Hive <https://hive.apache.org/>`__
-     - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
-     -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+   * -
+       .. _integration:AWS-Discovery-ref:
 
-   * - `MongoDB <https://www.mongodb.com/>`__
+       All GCP services :ref:`[1] <integration:GCP-Discovery>`
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.operators.google_api_to_s3_transfer`
+
+   * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
      - :mod:`airflow.contrib.operators.hive_to_dynamodb`
@@ -409,6 +412,38 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      -
      - :mod:`airflow.operators.s3_to_redshift_operator`
+
+   * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.contrib.operators.dynamodb_to_s3`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     -
+     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+
+   * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.operators.gcs_to_s3`
+
+   * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+
+:ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
+:class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
+Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
+Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
+Cloud Platform.
 
 .. _GCP:
 
