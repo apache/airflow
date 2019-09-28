@@ -1070,3 +1070,41 @@ communication protocols or interface.
      - :mod:`airflow.contrib.hooks.winrm_hook`
      - :mod:`airflow.contrib.operators.winrm_operator`
      -
+
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to copy data.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - Filesystem
+     - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
+     -
+     - :mod:`airflow.contrib.operators.file_to_wasb`
+
+   * - Filesystem
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.local_to_gcs`
+
+   * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     -
+     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+
+   * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
