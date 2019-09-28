@@ -307,10 +307,10 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.contrib.hooks.emr_hook`
      - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
        :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
-       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`.
+       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
      - :mod:`airflow.contrib.sensors.emr_base_sensor`,
        :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
-       :mod:`airflow.contrib.sensors.emr_step_sensor`.
+       :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
      - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
@@ -334,27 +334,27 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :mod:`airflow.hooks.S3_hook`
-     - :mod:`airflow.operators.s3_file_transform_operator`
+     - :mod:`airflow.operators.s3_file_transform_operator`,
        :mod:`airflow.contrib.operators.s3_copy_object_operator`,
        :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
-       :mod:`airflow.contrib.operators.s3_list_operator`.
+       :mod:`airflow.contrib.operators.s3_list_operator`
      - :mod:`airflow.sensors.s3_key_sensor`,
-       :mod:`airflow.sensors.s3_prefix_sensor`,
+       :mod:`airflow.sensors.s3_prefix_sensor`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
-     - :mod:`airflow.contrib.hooks.sagemaker_hook`,
+     - :mod:`airflow.contrib.hooks.sagemaker_hook`
      - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
        :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
        :mod:`airflow.contrib.operators.sagemaker_endpoint_operator`,
        :mod:`airflow.contrib.operators.sagemaker_model_operator`,
        :mod:`airflow.contrib.operators.sagemaker_training_operator`,
        :mod:`airflow.contrib.operators.sagemaker_transform_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`.
+       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`
      - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
        :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
        :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,
        :mod:`airflow.contrib.sensors.sagemaker_transform_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`.
+       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      - :mod:`airflow.contrib.hooks.aws_sns_hook`
@@ -392,7 +392,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`
+     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
@@ -641,7 +641,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.operators.s3_to_gcs`
+     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
@@ -673,7 +673,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
        :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.operators.gcs_to_gcs`
+     - :mod:`airflow.operators.gcs_to_gcs`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -823,7 +823,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Qubole <https://www.qubole.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.qubole_hook`
+     - :mod:`airflow.contrib.hooks.qubole_hook`,
        :mod:`airflow.contrib.hooks.qubole_check_hook`
      - :mod:`airflow.contrib.operators.qubole_operator`,
        :mod:`airflow.contrib.operators.qubole_check_operator`
@@ -843,9 +843,9 @@ These integrations allow you to perform various operations within various servic
 
    * - `Slack <https://slack.com/>`__
      -
-     - :mod:`airflow.hooks.slack_hook`
+     - :mod:`airflow.hooks.slack_hook`,
        :mod:`airflow.contrib.hooks.slack_webhook_hook`
-     - :mod:`airflow.operators.slack_operator`
+     - :mod:`airflow.operators.slack_operator`,
        :mod:`airflow.contrib.operators.slack_webhook_operator`
      -
 
