@@ -706,6 +706,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.operators.sql_to_gcs`
 
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Drive <https://www.google.com/drive/>`__
+     -
+     - :mod:`airflow.contrib.operators.gcs_to_gdrive_operator`
+
 
 .. _integration:GCP-Discovery:
 
