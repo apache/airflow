@@ -1069,3 +1069,4 @@ communication protocols or interface.
      -
      - :mod:`airflow.contrib.hooks.winrm_hook`
      - :mod:`airflow.contrib.operators.winrm_operator`
+     -
