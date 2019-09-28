@@ -988,6 +988,86 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.operators.sqlite_operator`
      -
 
+
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to copy data.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - `Oracle <https://www.oracle.com/pl/database/>`__
+     - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
+     -
+     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
+
+   * - `Oracle <https://www.oracle.com/pl/database/>`__
+     - `Oracle <https://www.oracle.com/pl/database/>`__
+     -
+     - :mod:`airflow.contrib.operators.oracle_to_oracle_transfer`
+
+   * - `BigQuery <https://cloud.google.com/bigquery/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.operators.bigquery_to_mysql`
+
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.mssql_to_gcs`
+
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.mssql_to_hive`
+
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.mysql_to_hive`
+
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.mysql_to_gcs`
+
+   * - `PostgresSQL <https://www.postgresql.org/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.postgres_to_gcs`
+
+   * - SQL
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.sql_to_gcs`
+
+   * - `Vertica <https://www.vertica.com/>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.operators.vertica_to_hive`
+
+   * - `Vertica <https://www.vertica.com/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+
+   * - `Presto <http://prestodb.github.io/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.operators.presto_to_mysql`
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - `Samba <https://www.samba.org/>`__
+     -
+     - :mod:`airflow.operators.hive_to_samba_operator`
+
+
 .. _protocol:
 
 Protocol integrations
