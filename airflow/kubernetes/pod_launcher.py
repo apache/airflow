@@ -122,14 +122,14 @@ class PodLauncher(LoggingMixin):
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:
-                self.log.info(line)
+                self.log.info("Log: %s", line.decode().rstrip())
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
                 self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
                 time.sleep(2)
             result = self._extract_xcom(pod)
-            self.log.info(result)
+            self.log.info("XCOM Result: %s", result.rstrip())
             result = json.loads(result)
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
@@ -216,14 +216,16 @@ class PodLauncher(LoggingMixin):
 
     def _exec_pod_command(self, resp, command):
         if resp.is_open():
-            self.log.info('Running command... %s\n', command)
+            self.log.info('Running command... %s', command)
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)
                 if resp.peek_stdout():
-                    return resp.read_stdout()
+                    stdout = resp.read_stdout()
+                    self.log.info("Stdout: %s", stdout.rstrip())
+                    return stdout
                 if resp.peek_stderr():
-                    self.log.info(resp.read_stderr())
+                    self.log.info("Stderr: %s", resp.read_stderr().rstrip())
                     break
         return None
 
