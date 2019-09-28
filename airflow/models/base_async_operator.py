@@ -20,16 +20,17 @@
 Base Asynchronous Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
-
+from functools import wraps
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.exceptions import AirflowException
+from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 
 class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
     AsyncOperators are derived from this class and inherit these attributes.
 
-    AsyncOperators must define a `pre_execute` to fire a request for a
-    long running operation with a method and then executes a `poll` method
+    AsyncOperators must define a `submit_request` to fire a request for a
+    long running operation with a method and then executes a `poke` method
     executing at a time interval and succeed when a criteria is met and fail
     if and when they time out. They are effctively an opinionated way use
     combine an Operator and a Sensor in order to kick off a long running
@@ -54,11 +55,42 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
                  **kwargs) -> None:
         super().__init__(mode='reschedule', *args, **kwargs)
 
-    def pre_execute(self, context) -> None:
+    def submit_request(self, context) -> string:
         """
         This method should kick off a long running operation.
+        This method should return the ID for the long running operation used
+        for polling
+        Context is the same dictionary used as when rendering jinja templates.
+
+        Refer to get_template_context for more context.
+
+        :returns: a resource_id for the long running operation.
+        :rtype: str
+        """
+        raise AirflowException('Async Operators must define a `submit_request` method.')
+
+    def process_result(self, context):
+        """
+        This method can optionally be overriden to process the result of a long running operation.
         Context is the same dictionary used as when rendering jinja templates.
 
         Refer to get_template_context for more context.
         """
-        raise AirflowException('Async Operators must define a `pre_execute` method.')
+        self.log.info('Got result of {}. Done.'.format(
+                      self.get_external_resource_id(context))
+
+    def pre_execute(self, context) -> None:
+        """
+        Check if we have the XCOM_EXTERNAL_RESOURCE_ID_KEY
+        for this task and call submit_request if it is missing.
+        """
+        if not self.get_external_resource_id(context):
+            resource_id = submit_request(self, context)
+            context['task_instance'].xcom_push(key=XCOM_EXTERNAL_RESOURCE_ID_KEY,
+                                               value=resource_id)
+
+    @staticmethod
+    def get_external_resource_id(context):
+        return context['ti'].xcom_pull(task_ids=context['task'].task_id,
+                                       key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
+

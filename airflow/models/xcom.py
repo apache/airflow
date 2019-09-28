@@ -36,6 +36,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
+XCOM_EXTERNAL_RESOURCE_ID_KEY = 'external_resource_id'
 
 
 class XCom(Base, LoggingMixin):

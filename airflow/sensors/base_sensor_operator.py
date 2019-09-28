@@ -24,7 +24,8 @@ from typing import Dict, Iterable
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
-from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.models import BaseOperator, SkipMixin, TaskReschedule, \
+    BaseAsyncOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -121,7 +122,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 sleep(self.poke_interval)
-        self.log.info("Success criteria met. Exiting.")
+
+        if isinstance(self, BaseAsyncOperator):
+            self.log.info(
+                "Success criteria met. Calling process_request for {}".format(
+                self.get_external_resource_id)
+            )
+            self.process_request(context)
+        else:
+            self.log.info("Success criteria met. Exiting.")
+
+
 
     def _do_skip_downstream_tasks(self, context: Dict) -> None:
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
