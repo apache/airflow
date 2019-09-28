@@ -453,7 +453,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_perm_view(self):
         """
-        Admin should have all the permission-views, except the dag views.
+        Admin should has all the permission-views, except the dag views.
         because Admin have already have all_dags permission.
         Add the missing ones to the table for admin.
 
