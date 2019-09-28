@@ -153,11 +153,30 @@ Foundation.
      -
      - :mod:`airflow.operators.mssql_to_hive`
 
-
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
      - :mod:`airflow.operators.mysql_to_hive`
+
+   * - `Vertica <https://www.vertica.com/>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.operators.vertica_to_hive`
+
+   * - `Apache Cassandra <http://cassandra.apache.org/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.operators.cassandra_to_gcs`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.operators.s3_to_hive_operator`
+
+   * - `Apache Hive <https://hive.apache.org/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.operators.hive_to_mysql`
 
 .. _Azure:
 
