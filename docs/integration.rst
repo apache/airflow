@@ -867,6 +867,34 @@ These integrations allow you to perform various operations within various servic
      -
      -
 
+Transfer operators and hooks
+""""""""""""""""""""""""""""
+
+These integrations allow you to perform various operations within various services.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+
+   * - `Vertica <https://www.vertica.com/>`__
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+
+   * - `Vertica <https://www.vertica.com/>`__
+     - `Apache Hive <https://hive.apache.org/>`__
+     -
+     - :mod:`airflow.contrib.operators.vertica_to_hive`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Drive <https://www.google.com/drive/>`__
+     -
+     - :mod:`airflow.contrib.operators.gcs_to_gdrive_operator`
+
 .. _software:
 
 Software integrations
