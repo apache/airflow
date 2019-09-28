@@ -234,7 +234,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.contrib.operators.adls_to_gcs`
+     - :mod:`airflow.operators.adls_to_gcs`
 
    * - Local
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
