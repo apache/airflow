@@ -132,19 +132,17 @@ Foundation.
      - :mod:`airflow.contrib.operators.hive_to_dynamodb`
 
    * - `Apache Hive <https://hive.apache.org/>`__
-     - Destination
+     - `Apache Druid <https://druid.apache.org/>`__
      -
      - :mod:`airflow.operators.hive_to_druid`
-
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
      - :mod:`airflow.operators.hive_to_mysql`
 
-
    * - `Apache Hive <https://hive.apache.org/>`__
-     - Destination
+     - `Samba <https://www.samba.org/>`__
      -
      - :mod:`airflow.operators.hive_to_samba_operator`
 
