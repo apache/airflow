@@ -101,6 +101,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Operators and hooks <operators-and-hooks-ref>
     CLI <cli-ref>
     Macros <macros-ref>
     Python API <_api/index>
