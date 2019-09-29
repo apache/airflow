@@ -123,14 +123,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             else:
                 sleep(self.poke_interval)
 
-        if isinstance(self, BaseAsyncOperator):
-            self.log.info(
-                "Success criteria met. Calling process_request for {}".format(
-                self.get_external_resource_id)
-            )
-            self.process_request(context)
-        else:
-            self.log.info("Success criteria met. Exiting.")
+        self.log.info("Success criteria met. Exiting.")
 
 
 

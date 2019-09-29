@@ -20,10 +20,15 @@
 Base Asynchronous Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
+from abc import abstractmethod
 from functools import wraps
+from typing import Dict, List, Union, Optional
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowRescheduleException
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
+from airflow.models import TaskReschedule
+
+PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'
 
 class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
@@ -44,7 +49,6 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     :type poke_interval: int
     :param timeout: Time, in seconds before the task times out and fails.
     :type timeout: int
-    :type mode: str
     """
     ui_color = '#9933ff'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
@@ -55,11 +59,12 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
                  **kwargs) -> None:
         super().__init__(mode='reschedule', *args, **kwargs)
 
-    def submit_request(self, context) -> string:
+    @abstractmethod
+    def submit_request(self, context) -> Optional[Union[String, List, Dict]]:
         """
         This method should kick off a long running operation.
-        This method should return the ID for the long running operation used
-        for polling
+        This method should return the ID for the long running operation if
+        applicable.
         Context is the same dictionary used as when rendering jinja templates.
 
         Refer to get_template_context for more context.
@@ -67,7 +72,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         :returns: a resource_id for the long running operation.
         :rtype: str
         """
-        raise AirflowException('Async Operators must define a `submit_request` method.')
+        raise AirflowException('Async Operators must override the `submit_request` method.')
 
     def process_result(self, context):
         """
@@ -76,21 +81,39 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
         Refer to get_template_context for more context.
         """
-        self.log.info('Got result of {}. Done.'.format(
+        self.log.info('Using default process_result. Got result of %s. Done.',
                       self.get_external_resource_id(context))
 
-    def pre_execute(self, context) -> None:
-        """
-        Check if we have the XCOM_EXTERNAL_RESOURCE_ID_KEY
-        for this task and call submit_request if it is missing.
-        """
-        if not self.get_external_resource_id(context):
-            resource_id = submit_request(self, context)
-            context['task_instance'].xcom_push(key=XCOM_EXTERNAL_RESOURCE_ID_KEY,
-                                               value=resource_id)
+    def execute(self, context):
+        # On the first execute call submit_request and set the
+        # external resource id.
+        task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
+        if not task_reschedules:
+            resource_id = self.submit_request(self, context)
+            if not resource_id:
+                resource_id = PLACEHOLDER_RESOURCE_ID
+            self.set_external_resource_id(context, resource_id)
 
+        super().execute(self, context)
+
+        # The above will raise AirflowRescheduleException if we are
+        # rescheduling a poke, and thus never reach this code below.
+        try:
+            resource_id = self.get_external_resource_id(context)
+            if resource_id == PLACEHOLDER_RESOURCE_ID:
+                self.log.info("Calling process_request for %s.", resource_id)
+            else:
+                self.log.info("Calling process_request.")
+            self.process_request(context)
+        finally:
+            # Clear the resource id for this task..
+            self.set_external_resource_id(context, None)
+
+    @staticmethod
+    def set_external_resource_id(context, value):
+        return context['ti'].xcom_push(key=XCOM_EXTERNAL_RESOURCE_ID_KEY,
+                                       value=value)
     @staticmethod
     def get_external_resource_id(context):
         return context['ti'].xcom_pull(task_ids=context['task'].task_id,
                                        key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
-
