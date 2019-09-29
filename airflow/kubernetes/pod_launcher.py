@@ -28,6 +28,7 @@ from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from kubernetes.client.models.v1_pod import V1Pod
+from urllib3.exceptions import ProtocolError
 
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -123,8 +124,13 @@ class PodLauncher(LoggingMixin):
     def _monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
         if get_logs:
             logs = self.read_pod_logs(pod)
-            for line in logs:
-                self.log.info(line)
+            # Catch exception as for loop on HttpResponse may corrupt.
+            try:
+                for line in logs:
+                    self.log.info(line)
+            except ProtocolError as e:
+                self.log.exception(str(e))
+                self.log.exception('Logging error happened, Stop reading log from pod.')
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
