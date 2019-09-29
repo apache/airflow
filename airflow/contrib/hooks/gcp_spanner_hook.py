@@ -25,5 +25,5 @@ from airflow.gcp.hooks.spanner import CloudSpannerHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.spanner`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

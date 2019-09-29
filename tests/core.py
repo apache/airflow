@@ -568,7 +568,6 @@ class TestCore(unittest.TestCase):
 
         t = PythonOperator(
             task_id='test_py_op',
-            provide_context=True,
             python_callable=test_py_op,
             templates_dict={'ds': "{{ ds }}"},
             dag=self.dag)
@@ -1696,6 +1695,19 @@ class TestCli(unittest.TestCase):
                 '--yes'])
         )
 
+    def test_delete_dag_existing_file(self):
+        # Test to check that the DAG should be deleted even if
+        # the file containing it is not deleted
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        with tempfile.NamedTemporaryFile() as f:
+            session.add(DM(dag_id=key, fileloc=f.name))
+            session.commit()
+            cli.delete_dag(self.parser.parse_args([
+                'dags', 'delete', key, '--yes']))
+            self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+
     def test_pool_create(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
         self.assertEqual(self.session.query(Pool).count(), 1)
@@ -2178,6 +2190,7 @@ class TestWebHDFSHook(unittest.TestCase):
 
 HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
 snakebite = None  # type: None
+
 
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")

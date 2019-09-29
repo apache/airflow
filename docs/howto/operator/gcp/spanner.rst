@@ -24,6 +24,11 @@ Google Cloud Spanner Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:CloudSpannerInstanceDatabaseDeleteOperator:
 
 CloudSpannerInstanceDatabaseDeleteOperator
@@ -133,7 +138,7 @@ existing database.
 You can optionally specify an operation_id parameter which simplifies determining whether
 the statements were executed in case the update_database call is replayed
 (idempotency check). The operation_id should be unique within the database, and must be
-a valid identifier: `[a-z][a-z0-9_]*`. More information can be found in
+a valid identifier: ``[a-z][a-z0-9_]*``. More information can be found in
 `the documentation of updateDdl API <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_
 
 For parameter definition take a look at
@@ -276,3 +281,11 @@ More information
 
 See Google Cloud Spanner API documentation to `delete an instance
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/spanner/index.html>`__
+* `Product Documentation <https://cloud.google.com/spanner/docs/>`__

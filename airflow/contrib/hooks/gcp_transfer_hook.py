@@ -31,5 +31,5 @@ from airflow.gcp.hooks.cloud_storage_transfer_service import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.cloud_storage_transfer_service`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

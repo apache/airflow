@@ -27,18 +27,7 @@ basic_sanity_checks
 
 script_start
 
-export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-
-# Cleanup docker installation. It should be empty in CI but let's not risk
-docker system prune --all --force
-
-if [[ ${TRAVIS_JOB_NAME} == "Tests"* ]]; then
-    rebuild_ci_image_if_needed
-elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
-    rebuild_checklicence_image_if_needed
-else
-    rebuild_ci_slim_image_if_needed
-fi
+build_image_on_ci
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 # Required for K8s v1.10.x. See
@@ -48,6 +37,6 @@ if [[ "${KUBERNETES_VERSION}" == "" ]]; then
     sudo service docker restart
 fi
 
-pip install pre-commit yamllint
+sudo pip install pre-commit
 
 script_end

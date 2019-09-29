@@ -62,44 +62,38 @@ JOB_FLOW_OVERRIDES = {
     'Name': 'PiCalc'
 }
 
-dag = DAG(
-    'emr_job_flow_manual_steps_dag',
+with DAG(
+    dag_id='emr_job_flow_manual_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
     schedule_interval='0 3 * * *'
-)
+) as dag:
 
-cluster_creator = EmrCreateJobFlowOperator(
-    task_id='create_job_flow',
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id='aws_default',
-    emr_conn_id='emr_default',
-    dag=dag
-)
+    cluster_creator = EmrCreateJobFlowOperator(
+        task_id='create_job_flow',
+        job_flow_overrides=JOB_FLOW_OVERRIDES,
+        aws_conn_id='aws_default',
+        emr_conn_id='emr_default'
+    )
 
-step_adder = EmrAddStepsOperator(
-    task_id='add_steps',
-    job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
-    aws_conn_id='aws_default',
-    steps=SPARK_TEST_STEPS,
-    dag=dag
-)
+    step_adder = EmrAddStepsOperator(
+        task_id='add_steps',
+        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        aws_conn_id='aws_default',
+        steps=SPARK_TEST_STEPS
+    )
 
-step_checker = EmrStepSensor(
-    task_id='watch_step',
-    job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
-    step_id="{{ task_instance.xcom_pull('add_steps', key='return_value')[0] }}",
-    aws_conn_id='aws_default',
-    dag=dag
-)
+    step_checker = EmrStepSensor(
+        task_id='watch_step',
+        job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
+        step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
+        aws_conn_id='aws_default'
+    )
 
-cluster_remover = EmrTerminateJobFlowOperator(
-    task_id='remove_cluster',
-    job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
-    aws_conn_id='aws_default',
-    dag=dag
-)
+    cluster_remover = EmrTerminateJobFlowOperator(
+        task_id='remove_cluster',
+        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        aws_conn_id='aws_default'
+    )
 
-cluster_creator.set_downstream(step_adder)
-step_adder.set_downstream(step_checker)
-step_checker.set_downstream(cluster_remover)
+    cluster_creator >> step_adder >> step_checker >> cluster_remover

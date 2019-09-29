@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -69,7 +70,6 @@ TODO: Review the workflow, change it accordingly to
 #
 # t_is_data_available = ShortCircuitOperator(
 #         task_id='check_if_data_available',
-#         provide_context=True,
 #         python_callable=is_data_available,
 #         dag=dag)
 #

@@ -17,7 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains integration with Azure File Share.
 
+Cloud variant of a SMB file share. Make sure that a Airflow connection of
+type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
+and password (=Storage account key), or login and SAS token in the extra field
+(see connection `wasb_default` for an example).
+"""
 
 import json
 import unittest

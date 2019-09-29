@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
 from airflow.models.base import Base, ID_LEN

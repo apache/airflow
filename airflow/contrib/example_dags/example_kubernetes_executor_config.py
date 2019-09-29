@@ -26,70 +26,72 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 
-args = {
+
+default_args = {
     'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
-dag = DAG(
-    dag_id='example_kubernetes_executor_config', default_args=args,
+with DAG(
+    dag_id='example_kubernetes_executor_config',
+    default_args=default_args,
     schedule_interval=None
-)
+) as dag:
 
+    def test_volume_mount():
+        """
+        Tests whether the volume has been mounted.
+        """
+        with open('/foo/volume_mount_test.txt', 'w') as foo:
+            foo.write('Hello')
 
-def test_volume_mount():
-    """
-    Tests whether the volume has been mounted.
-    """
-    with open('/foo/volume_mount_test.txt', 'w') as foo:
-        foo.write('Hello')
+        return_code = os.system("cat /foo/volume_mount_test.txt")
+        assert return_code == 0
 
-    return_code = os.system("cat /foo/volume_mount_test.txt")
-    assert return_code == 0
-
-
-# You can use annotations on your kubernetes pods!
-start_task = PythonOperator(
-    task_id="start_task", python_callable=print_stuff, dag=dag,
-    executor_config={
-        "KubernetesExecutor": {
-            "annotations": {"test": "annotation"}
-        }
-    }
-)
-
-# You can mount volume or secret to the worker pod
-second_task = PythonOperator(
-    task_id="four_task", python_callable=test_volume_mount, dag=dag,
-    executor_config={
-        "KubernetesExecutor": {
-            "volumes": [
-                {
-                    "name": "example-kubernetes-test-volume",
-                    "hostPath": {"path": "/tmp/"},
-                },
-            ],
-            "volume_mounts": [
-                {
-                    "mountPath": "/foo/",
-                    "name": "example-kubernetes-test-volume",
-                },
-            ]
-        }
-    }
-)
-
-# Test that we can run tasks as a normal user
-third_task = PythonOperator(
-    task_id="non_root_task", python_callable=print_stuff, dag=dag,
-    executor_config={
-        "KubernetesExecutor": {
-            "securityContext": {
-                "runAsUser": 1000
+    # You can use annotations on your kubernetes pods!
+    start_task = PythonOperator(
+        task_id="start_task",
+        python_callable=print_stuff,
+        executor_config={
+            "KubernetesExecutor": {
+                "annotations": {"test": "annotation"}
             }
         }
-    }
-)
+    )
 
-start_task.set_downstream(second_task)
-second_task.set_downstream(third_task)
+    # You can mount volume or secret to the worker pod
+    second_task = PythonOperator(
+        task_id="four_task",
+        python_callable=test_volume_mount,
+        executor_config={
+            "KubernetesExecutor": {
+                "volumes": [
+                    {
+                        "name": "example-kubernetes-test-volume",
+                        "hostPath": {"path": "/tmp/"},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/foo/",
+                        "name": "example-kubernetes-test-volume",
+                    },
+                ]
+            }
+        }
+    )
+
+    # Test that we can run tasks as a normal user
+    third_task = PythonOperator(
+        task_id="non_root_task",
+        python_callable=print_stuff,
+        executor_config={
+            "KubernetesExecutor": {
+                "securityContext": {
+                    "runAsUser": 1000
+                }
+            }
+        }
+    )
+
+    start_task >> second_task >> third_task

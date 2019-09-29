@@ -19,6 +19,7 @@
 """
 This module contains a Google Cloud Transfer sensor.
 """
+from typing import Set, Union, Optional
 
 from airflow.gcp.hooks.cloud_storage_transfer_service import GCPTransferServiceHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -52,13 +53,13 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(
         self,
-        job_name,
-        expected_statuses,
-        project_id=None,
-        gcp_conn_id='google_cloud_default',
+        job_name: str,
+        expected_statuses: Union[Set[str], str],
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.expected_statuses = (

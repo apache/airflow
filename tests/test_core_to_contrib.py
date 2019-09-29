@@ -102,6 +102,10 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook",
             ),
             (
+                "airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook",
+                "airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook",
+            ),
+            (
                 "airflow.gcp.hooks.tasks.CloudTasksHook",
                 "airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook",
             ),
@@ -124,6 +128,22 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.hooks.vision.CloudVisionHook",
                 "airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook",
+            ),
+            (
+                "airflow.gcp.hooks.dataproc.DataProcHook",
+                "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
+            ),
+            (
+                "airflow.gcp.hooks.bigquery.BigQueryHook",
+                "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
+            ),
+            (
+                "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
+                "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
+            ),
+            (
+                "airflow.gcp.hooks.base.GoogleCloudBaseHook",
+                "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
             ),
         ]
     )
@@ -605,6 +625,136 @@ class TestMovingCoreToContrib(TestCase):
                 "airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
                 "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
             ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterCreateOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocClusterScaleOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcHadoopOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcHiveOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcJobBaseOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocOperationBaseOperator",
+                "airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcPigOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcPySparkOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcSparkOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataProcSparkSqlOperator",
+                "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+                "airflow.contrib.operators.dataproc_operator."
+                "DataprocWorkflowTemplateInstantiateInlineOperator",
+            ),
+            (
+                "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+                "airflow.contrib.operators.dataproc_operator."
+                "DataprocWorkflowTemplateInstantiateOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryCheckOperator",
+                "airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator",
+                "airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryValueCheckOperator",
+                "airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryGetDataOperator",
+                "airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator",
+                "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator",
+                "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator",
+                "airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator",
+                "airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryOperator",
+                "airflow.contrib.operators.bigquery_operator.BigQueryOperator",
+            ),
+            (
+                "airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator",
+                "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
+            ),
+            (
+                "airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
+                "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
+            ),
+            (
+                "airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
+                "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
+            ),
+            (
+                "airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator",
+                "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator",
+                "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator",
+                "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator",
+                "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator",
+                "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageListOperator",
+                "airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator",
+            ),
+            (
+                "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
+                "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
+            ),
         ]
     )
     def test_operators_paths(self, new_path: str, old_path: str):
@@ -626,6 +776,26 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.sensors.pubsub.PubSubPullSensor",
                 "airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor",
+            ),
+            (
+                "airflow.gcp.sensors.bigquery.BigQueryTableSensor",
+                "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
+            ),
+            (
+                "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
+                "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
             ),
         ]
     )

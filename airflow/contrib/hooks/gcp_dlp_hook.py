@@ -25,5 +25,5 @@ from airflow.gcp.hooks.dlp import DlpJob, CloudDLPHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dlp`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -48,6 +48,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
         'principal': 'user/spark@airflow.org',
+        'proxy_user': 'sample_user',
         'name': 'spark-job',
         'num_executors': 10,
         'verbose': True,
@@ -154,6 +155,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--driver-memory', '3g',
             '--keytab', 'privileged_user.keytab',
             '--principal', 'user/spark@airflow.org',
+            '--proxy-user', 'sample_user',
             '--name', 'spark-job',
             '--class', 'com.foo.bar.AppMain',
             '--verbose',
@@ -242,7 +244,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(dict_cmd["--master"], "yarn")
 
@@ -261,7 +263,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": "root.default",
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(dict_cmd["--master"], "yarn")
         self.assertEqual(dict_cmd["--queue"], "root.default")
@@ -281,7 +283,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(dict_cmd["--master"], "mesos://host:5050")
 
@@ -300,7 +302,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": "cluster",
                                      "queue": "root.etl",
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(dict_cmd["--master"], "yarn://yarn-master")
         self.assertEqual(dict_cmd["--queue"], "root.etl")
@@ -340,7 +342,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": "/opt/myspark",
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/opt/myspark/bin/spark-submit')
 
@@ -358,7 +360,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], 'spark-submit')
 
@@ -376,7 +378,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], 'custom-spark-submit')
 
@@ -395,7 +397,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], 'another-custom-spark-submit')
 
@@ -413,7 +415,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": 'root.default',
                                      "spark_home": None,
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], 'spark-submit')
 
@@ -431,7 +433,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": None,
                                      "queue": None,
                                      "spark_home": "/path/to/spark_home",
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/path/to/spark_home/bin/custom-spark-submit')
 
@@ -449,7 +451,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "deploy_mode": "cluster",
                                      "queue": None,
                                      "spark_home": "/path/to/spark_home",
-                                     "namespace": 'default'}
+                                     "namespace": None}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/path/to/spark_home/bin/spark-submit')
 

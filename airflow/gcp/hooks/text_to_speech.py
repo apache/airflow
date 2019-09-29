@@ -26,7 +26,7 @@ from google.cloud.texttospeech_v1 import TextToSpeechClient
 from google.cloud.texttospeech_v1.types import (
     AudioConfig, SynthesisInput, VoiceSelectionParams, SynthesizeSpeechResponse
 )
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class GCPTextToSpeechHook(GoogleCloudBaseHook):
@@ -44,7 +44,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None  # type: Optional[TextToSpeechClient]
 
@@ -69,7 +69,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
         retry: Retry = None,
-        timeout: float = None
+        timeout: Optional[float] = None
     ) -> SynthesizeSpeechResponse:
         """
         Synthesizes text input

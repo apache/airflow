@@ -20,8 +20,8 @@ import unittest
 
 from tests.gcp.operators.test_bigtable_system_helper import \
     GCPBigtableTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.contrib.utils.gcp_authenticator import GCP_BIGTABLE_KEY
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_BIGTABLE_KEY), SKIP_TEST_WARNING)

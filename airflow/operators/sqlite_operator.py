@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, Mapping, Iterable
+from typing import Union, Mapping, Iterable, Optional
 
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import BaseOperator
@@ -45,7 +45,7 @@ class SqliteOperator(BaseOperator):
             self,
             sql: str,
             sqlite_conn_id: str = 'sqlite_default',
-            parameters: Union[Mapping, Iterable] = None,
+            parameters: Optional[Union[Mapping, Iterable]] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sqlite_conn_id = sqlite_conn_id

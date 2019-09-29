@@ -20,8 +20,8 @@ import unittest
 
 from tests.gcp.operators.test_spanner_system_helper import \
     GCPSpannerTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.contrib.utils.gcp_authenticator import GCP_SPANNER_KEY
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_SPANNER_KEY), SKIP_TEST_WARNING)

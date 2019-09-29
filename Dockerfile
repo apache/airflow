@@ -25,6 +25,7 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
 ############################################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps-ci-slim
 
+
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
@@ -37,7 +38,7 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Make sure noninteractie debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 

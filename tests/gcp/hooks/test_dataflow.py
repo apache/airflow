@@ -21,8 +21,14 @@
 import copy
 import unittest
 
-from airflow.gcp.hooks.dataflow import (DataFlowHook, _Dataflow,
-                                        _DataflowJob)
+from parameterized import parameterized
+
+from airflow.gcp.hooks.dataflow import (
+    DataFlowHook,
+    _Dataflow,
+    _DataflowJob,
+    DataflowJobStatus
+)
 from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
@@ -67,13 +73,14 @@ RUNTIME_ENV = {
         'count': '3'
     }
 }
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 DATAFLOW_STRING = 'airflow.gcp.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
+DEFAULT_PY_INTERPRETER = 'python2'
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
@@ -87,12 +94,28 @@ class TestDataFlowHook(unittest.TestCase):
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.dataflow.DataFlowHook._authorize")
+    @mock.patch("airflow.gcp.hooks.dataflow.build")
+    def test_dataflow_client_creation(self, mock_build, mock_authorize):
+        result = self.dataflow_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'dataflow', 'v1b3', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
+
+    @parameterized.expand([
+        ('default_to_python2', "python2"),
+        ('major_version_2', 'python2'),
+        ('major_version_3', 'python3'),
+        ('minor_version', 'python3.6')
+    ])
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_python_dataflow(self, mock_conn,
+    def test_start_python_dataflow(self, name, py, mock_conn,
                                    mock_dataflow, mock_dataflowjob, mock_uuid):
+        del name  # unused variable
         mock_uuid.return_value = MOCK_UUID
         mock_conn.return_value = None
         dataflow_instance = mock_dataflow.return_value
@@ -101,8 +124,10 @@ class TestDataFlowHook(unittest.TestCase):
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
-            dataflow=PY_FILE, py_options=PY_OPTIONS)
-        expected_cmd = ['python2', '-m', PY_FILE,
+            dataflow=PY_FILE, py_options=PY_OPTIONS,
+            py_interpreter=py)
+        expected_interpreter = py if py else DEFAULT_PY_INTERPRETER
+        expected_cmd = [expected_interpreter, '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
@@ -323,14 +348,70 @@ class TestDataFlowJob(unittest.TestCase):
         mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
                                                location=TEST_LOCATION)
 
+    def test_dataflow_job_wait_for_multiple_jobs(self):
+        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.return_value.execute.return_value = {
+                "jobs": [job, job]
+            }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=TEST_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        dataflow_job.wait_for_done()
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.assert_called_once_with(location=TEST_LOCATION, projectId=TEST_PROJECT)
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.list.return_value.execute.assert_called_once_with(num_retries=20)
+
+        self.assertEqual(dataflow_job.get(), [job, job])
+
+    def test_dataflow_job_wait_for_single_jobs(self):
+        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.return_value.execute.return_value = job
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=TEST_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=10,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False
+        )
+        dataflow_job.wait_for_done()
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.assert_called_once_with(
+                jobId=TEST_JOB_ID,
+                location=TEST_LOCATION,
+                projectId=TEST_PROJECT
+            )
+
+        self.mock_dataflow.projects.return_value.locations.return_value. \
+            jobs.return_value.get.return_value.execute.assert_called_once_with(num_retries=20)
+
+        self.assertEqual(dataflow_job.get(), [job])
+
 
 class TestDataflow(unittest.TestCase):
 
     def test_data_flow_valid_job_id(self):
         cmd = ['echo', 'additional unit test lines.\n' +
-               'INFO: the Dataflow monitoring console, please navigate to' +
-               'https://console.cloud.google.com/dataflow/jobsDetail/locations/' +
-               '{}/jobs/{}?project={}'.format(TEST_LOCATION, TEST_JOB_ID, TEST_PROJECT)]
+               'Submitted job: {}'.format(TEST_JOB_ID)]
         self.assertEqual(_Dataflow(cmd).wait_for_done(), TEST_JOB_ID)
 
     def test_data_flow_missing_job_id(self):

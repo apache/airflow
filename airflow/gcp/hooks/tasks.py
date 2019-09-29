@@ -27,7 +27,7 @@ from google.cloud.tasks_v2 import CloudTasksClient
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudTasksHook(GoogleCloudBaseHook):
@@ -466,7 +466,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type task_name: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -528,7 +528,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -577,7 +577,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
         :type page_size: int
@@ -674,7 +674,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry

@@ -19,9 +19,10 @@
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euxo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
 
-export AIRFLOW_SOURCES="${MY_DIR}/../../.."
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
+export AIRFLOW_SOURCES
 
 gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
 

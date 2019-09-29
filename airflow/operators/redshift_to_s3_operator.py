@@ -19,7 +19,7 @@
 """
 Transfers data from AWS Redshift into a S3 Bucket.
 """
-from typing import Union, List
+from typing import Union, List, Optional
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.hooks.S3_hook import S3Hook
@@ -76,8 +76,8 @@ class RedshiftToS3Transfer(BaseOperator):
             s3_key: str,
             redshift_conn_id: str = 'redshift_default',
             aws_conn_id: str = 'aws_default',
-            verify: Union[bool, str] = None,
-            unload_options: List = None,
+            verify: Optional[Union[bool, str]] = None,
+            unload_options: Optional[List] = None,
             autocommit: bool = False,
             include_header: bool = False,
             *args, **kwargs) -> None:

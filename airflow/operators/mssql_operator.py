@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, Mapping, Iterable
+from typing import Union, Mapping, Iterable, Optional
 
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
@@ -50,9 +50,9 @@ class MsSqlOperator(BaseOperator):
             self,
             sql: str,
             mssql_conn_id: str = 'mssql_default',
-            parameters: Union[Mapping, Iterable] = None,
+            parameters: Optional[Union[Mapping, Iterable]] = None,
             autocommit: bool = False,
-            database: str = None,
+            database: Optional[str] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.mssql_conn_id = mssql_conn_id

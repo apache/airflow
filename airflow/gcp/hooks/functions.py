@@ -26,7 +26,7 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -46,7 +46,7 @@ class GcfHook(GoogleCloudBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
@@ -91,7 +91,7 @@ class GcfHook(GoogleCloudBaseHook):
             name=name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: str = None) -> None:
+    def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -133,7 +133,7 @@ class GcfHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location: str, zip_path: str, project_id: str = None) -> str:
+    def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
         """
         Uploads zip file with sources.
 
@@ -180,6 +180,42 @@ class GcfHook(GoogleCloudBaseHook):
             name=name).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
+
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def call_function(
+            self,
+            function_id: str,
+            input_data: Dict,
+            location: str,
+            project_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Synchronously invokes a deployed Cloud Function. To be used for testing
+        purposes as very limited traffic is allowed.
+
+        :param function_id: ID of the function to be called
+        :type function_id: str
+        :param input_data: Input to be passed to the function
+        :type input_data: Dict
+        :param location: The location where the function is located.
+        :type location: str
+        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
+        """
+        name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
+            project_id=project_id,
+            location=location,
+            function_id=function_id
+        )
+        response = self.get_conn().projects().locations().functions().call(  # pylint:disable=no-member
+            name=name,
+            body=input_data
+        ).execute(num_retries=self.num_retries)
+        if 'error' in response:
+            raise AirflowException(response['error'])
+        return response
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> Dict:
         """

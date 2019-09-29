@@ -25,7 +25,7 @@ from googleapiclient.errors import HttpError
 from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook
 from tests.compat import mock
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 PUBSUB_STRING = 'airflow.gcp.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
@@ -55,6 +55,15 @@ class TestPubSubHook(unittest.TestCase):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
+
+    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook._authorize")
+    @mock.patch("airflow.gcp.hooks.pubsub.build")
+    def test_pubsub_client_creation(self, mock_build, mock_authorize):
+        result = self.pubsub_hook.get_conn()
+        mock_build.assert_called_once_with(
+            'pubsub', 'v1', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_nonexistent_topic(self, mock_service):

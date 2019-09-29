@@ -266,7 +266,7 @@ in templates, make sure to read through the :doc:`macros-ref`
 
 Setting up Dependencies
 -----------------------
-We have tasks `t1`, `t2` and `t3` that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python

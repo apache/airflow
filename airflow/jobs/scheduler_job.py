@@ -544,8 +544,6 @@ class SchedulerJob(BaseJob):
                 stacktrace=stacktrace))
         session.commit()
 
-        Stats.gauge('scheduler.dagbag.errors', len(dagbag.import_errors))
-
     @provide_session
     def create_dag_run(self, dag, session=None):
         """
@@ -1298,7 +1296,7 @@ class SchedulerJob(BaseJob):
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
 
-        processor_timeout_seconds = conf.getint('core', 'dagbag_import_timeout')
+        processor_timeout_seconds = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
@@ -1503,14 +1501,14 @@ class SchedulerJob(BaseJob):
         except Exception:
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
-            return []
+            return [], []
 
         if len(dagbag.dags) > 0:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             self.update_import_errors(session, dagbag)
-            return []
+            return [], len(dagbag.import_errors)
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         for dag in dagbag.dags.values():
@@ -1575,7 +1573,7 @@ class SchedulerJob(BaseJob):
         except Exception:
             self.log.exception("Error killing zombies!")
 
-        return simple_dags
+        return simple_dags, len(dagbag.import_errors)
 
     @provide_session
     def heartbeat_callback(self, session=None):

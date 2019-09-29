@@ -27,5 +27,5 @@ from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.natural_language`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

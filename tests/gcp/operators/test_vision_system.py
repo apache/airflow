@@ -19,9 +19,9 @@
 
 import unittest
 
-from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
 from tests.gcp.operators.test_vision_system_helper import GCPVisionTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 
 VISION_HELPER = GCPVisionTestHelper()
 

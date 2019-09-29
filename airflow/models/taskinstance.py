@@ -48,6 +48,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
@@ -525,7 +526,11 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
-    def _get_previous_ti(self, state: str = None, session: Session = None) -> Optional['TaskInstance']:
+    def _get_previous_ti(
+        self,
+        state: Optional[str] = None,
+        session: Session = None
+    ) -> Optional['TaskInstance']:
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -851,6 +856,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
+    @Sentry.enrich_errors
     def _run_raw_task(
             self,
             mark_success=False,

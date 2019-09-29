@@ -20,8 +20,9 @@
 
 import unittest
 
-import pandas as pd
 from unittest.mock import patch, Mock
+
+import pandas as pd
 from simple_salesforce import Salesforce
 
 from airflow.contrib.hooks.salesforce_hook import SalesforceHook

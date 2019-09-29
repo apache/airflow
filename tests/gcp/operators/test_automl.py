@@ -63,15 +63,10 @@ MASK = {"field": "mask"}
 
 
 class TestAutoMLTrainModelOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.automl.AutoMLTrainModelOperator.xcom_push"
-    )
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.create_model")
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.extract_object_id",
-        return_value=MODEL_ID,
-    )
-    def test_execute(self, mock_extract_object_id, mock_create_model, mock_xcom):
+    @mock.patch("airflow.gcp.operators.automl.AutoMLTrainModelOperator.xcom_push")
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook, mock_xcom):
+        mock_hook.return_value.extract_object_id.return_value = MODEL_ID
         op = AutoMLTrainModelOperator(
             model=MODEL,
             location=GCP_LOCATION,
@@ -79,7 +74,7 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_create_model.assert_called_once_with(
+        mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -91,10 +86,8 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
 
 
 class TestAutoMLBatchPredictOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.batch_predict"
-    )
-    def test_execute(self, mock_batch_predict):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLBatchPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -104,7 +97,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_batch_predict.assert_called_once_with(
+        mock_hook.return_value.batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
             metadata=None,
@@ -118,8 +111,8 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
 
 
 class TestAutoMLPredictOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.predict")
-    def test_execute(self, mock_predict):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -128,7 +121,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_predict.assert_called_once_with(
+        mock_hook.return_value.predict.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -141,17 +134,10 @@ class TestAutoMLPredictOperator(unittest.TestCase):
 
 
 class TestAutoMLCreateImportOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.automl.AutoMLCreateDatasetOperator.xcom_push"
-    )
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.create_dataset"
-    )
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.extract_object_id",
-        return_value=DATASET_ID,
-    )
-    def test_execute(self, mock_extract_object_id, mock_create_dataset, mock_xcom):
+    @mock.patch("airflow.gcp.operators.automl.AutoMLCreateDatasetOperator.xcom_push")
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook, mock_xcom):
+        mock_hook.return_value.extract_object_id.return_value = DATASET_ID
         op = AutoMLCreateDatasetOperator(
             dataset=DATASET,
             location=GCP_LOCATION,
@@ -159,7 +145,7 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_create_dataset.assert_called_once_with(
+        mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
             location=GCP_LOCATION,
             metadata=None,
@@ -171,10 +157,8 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
 
 
 class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.list_column_specs"
-    )
-    def test_execute(self, mock_list_column_specs):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         table_spec = "table_spec_id"
         filter_ = "filter"
         page_size = 42
@@ -190,7 +174,7 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_list_column_specs.assert_called_once_with(
+        mock_hook.return_value.list_column_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             field_mask=MASK,
             filter_=filter_,
@@ -205,10 +189,8 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
 
 
 class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.update_dataset"
-    )
-    def test_execute(self, mock_update_dataset):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         dataset = copy.deepcopy(DATASET)
         dataset["name"] = DATASET_ID
 
@@ -220,7 +202,7 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_update_dataset.assert_called_once_with(
+        mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset=dataset,
             metadata=None,
             project_id=GCP_PROJECT_ID,
@@ -231,8 +213,8 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
 
 
 class TestAutoMLGetModelOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.get_model")
-    def test_execute(self, mock_get_model):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLGetModelOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -240,7 +222,7 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_get_model.assert_called_once_with(
+        mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -251,8 +233,8 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
 
 
 class TestAutoMLDeleteModelOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.delete_model")
-    def test_execute(self, mock_delete_model):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLDeleteModelOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -260,7 +242,7 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_delete_model.assert_called_once_with(
+        mock_hook.return_value.delete_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
@@ -271,8 +253,8 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
 
 
 class TestAutoMLDeployModelOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.deploy_model")
-    def test_execute(self, mock_deploy_model):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         image_detection_metadata = {}
         op = AutoMLDeployModelOperator(
             model_id=MODEL_ID,
@@ -282,7 +264,7 @@ class TestAutoMLDeployModelOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_deploy_model.assert_called_once_with(
+        mock_hook.return_value.deploy_model.assert_called_once_with(
             image_detection_metadata={},
             location=GCP_LOCATION,
             metadata=None,
@@ -294,8 +276,8 @@ class TestAutoMLDeployModelOperator(unittest.TestCase):
 
 
 class TestAutoMLDatasetImportOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.hooks.automl.CloudAutoMLHook.import_data")
-    def test_execute(self, mock_import_data):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLImportDataOperator(
             dataset_id=DATASET_ID,
             location=GCP_LOCATION,
@@ -304,7 +286,7 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_import_data.assert_called_once_with(
+        mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
             metadata=None,
@@ -316,10 +298,8 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
 
 
 class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.list_table_specs"
-    )
-    def test_execute(self, mock_list_table_specs):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         filter_ = "filter"
         page_size = 42
 
@@ -332,7 +312,7 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_list_table_specs.assert_called_once_with(
+        mock_hook.return_value.list_table_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             filter_=filter_,
             location=GCP_LOCATION,
@@ -345,21 +325,14 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
 
 
 class TestAutoMLDatasetListOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.operators.automl.AutoMLListDatasetOperator.xcom_push"
-    )
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.list_datasets"
-    )
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.extract_object_id"
-    )
-    def test_execute(self, mock_extract_object_id, mock_list_databases, mock_xcom):
+    @mock.patch("airflow.gcp.operators.automl.AutoMLListDatasetOperator.xcom_push")
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook, mock_xcom):
         op = AutoMLListDatasetOperator(
             location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
         )
         op.execute(context=None)
-        mock_list_databases.assert_called_once_with(
+        mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=None,
             project_id=GCP_PROJECT_ID,
@@ -370,10 +343,8 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
 
 
 class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
-    @mock.patch(
-        "airflow.gcp.hooks.automl.CloudAutoMLHook.delete_dataset"
-    )
-    def test_execute(self, mock_delete_dataset):
+    @mock.patch("airflow.gcp.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
         op = AutoMLDeleteDatasetOperator(
             dataset_id=DATASET_ID,
             location=GCP_LOCATION,
@@ -381,7 +352,7 @@ class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         op.execute(context=None)
-        mock_delete_dataset.assert_called_once_with(
+        mock_hook.return_value.delete_dataset.assert_called_once_with(
             location=GCP_LOCATION,
             dataset_id=DATASET_ID,
             metadata=None,
