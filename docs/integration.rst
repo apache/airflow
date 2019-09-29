@@ -1057,7 +1057,7 @@ These integrations allow you to copy data.
      -
      - :mod:`airflow.contrib.operators.vertica_to_mysql`
 
-   * - `Presto <http://prestodb.github.io/>`__
+   * - `Presto <https://prestodb.github.io/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
      - :mod:`airflow.operators.presto_to_mysql`
