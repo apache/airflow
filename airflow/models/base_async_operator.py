@@ -23,6 +23,7 @@ operations and polling for completion with reschedule mode.
 from abc import abstractmethod
 from functools import wraps
 from typing import Dict, List, Union, Optional
+
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.exceptions import AirflowException, AirflowRescheduleException
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
@@ -51,7 +52,6 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     :type timeout: int
     """
     ui_color = '#9933ff'  # type: str
-    valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
@@ -96,7 +96,8 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
         super().execute(self, context)
 
-        # The above will raise AirflowRescheduleException if we are
+        #TODO(jaketf) validate comment below w/ tests.
+        # The above should raise AirflowRescheduleException if we are
         # rescheduling a poke, and thus never reach this code below.
         try:
             resource_id = self.get_external_resource_id(context)
@@ -113,6 +114,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     def set_external_resource_id(context, value):
         return context['ti'].xcom_push(key=XCOM_EXTERNAL_RESOURCE_ID_KEY,
                                        value=value)
+
     @staticmethod
     def get_external_resource_id(context):
         return context['ti'].xcom_pull(task_ids=context['task'].task_id,
