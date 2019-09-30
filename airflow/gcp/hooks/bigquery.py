@@ -1488,10 +1488,10 @@ class BigQueryBaseCursor(LoggingMixin):
 
     def get_tabledata(self, dataset_id: str, table_id: str,
                       max_results: Optional[int] = None, selected_fields: Optional[str] = None,
-                      page_token: Optional[str] = None, start_index: Optional[int] = None) -> Dict:
+                      page_token: Optional[str] = None, start_index: Optional[str] = None) -> Dict:
         """
         Get the data of a given dataset.table and optionally with selected columns.
-        see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
+        .. seealso:: https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
         :param table_id: the table ID of the requested table.
@@ -1501,7 +1501,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param page_token: page token, returned from a previous call,
             identifying the result set.
         :param start_index: zero based index of the starting row to read.
-        :return: map containing the requested rows.
+        :return: map containing the requested rows + metadata.
         """
         optional_params = {}  # type: Dict[str, Any]
         if self.location:

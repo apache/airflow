@@ -524,7 +524,7 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
 
-        max_results = '100'
+        max_results = 100
         selected_fields = 'DATE'
         operator = BigQueryGetDataOperator(task_id=TASK_ID,
                                            dataset_id=TEST_DATASET,
@@ -540,7 +540,9 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 table_id=TEST_TABLE_ID,
+                start_index=None,
                 max_results=max_results,
+                page_token=None,
                 selected_fields=selected_fields,
             )
 

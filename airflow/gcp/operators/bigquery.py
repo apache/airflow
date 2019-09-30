@@ -217,7 +217,17 @@ class BigQueryGetDataOperator(BaseOperator):
     be equal to the number of rows fetched. Each element in the list will again be a list
     where element would represent the columns values for that row.
 
-    **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
+    .. seealso:: https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
+
+    **Example Result**: ::
+
+        .. code-block:: json
+
+            {
+                'totalRows': 20,
+                'pageToken': 'BHSHJT3DRAFSSIAICAFCACSB77777777757SUAA=',
+                'rows': [['Tony', '10'], ['Mike', '20'], ['Steve', '15']]
+            }
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -233,7 +243,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
-            max_results='100',
+            max_results=100,
             selected_fields='DATE',
             gcp_conn_id='airflow-conn-id'
         )
@@ -242,9 +252,14 @@ class BigQueryGetDataOperator(BaseOperator):
     :type dataset_id: str
     :param table_id: The table ID of the requested table. (templated)
     :type table_id: str
+    :param start_index: (Optional) Start row index of the table.
+    :type start_index: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
-    :type max_results: str
+    :type max_results: int
+    :param page_token: (Optional) Page token, returned from a previous call,
+        identifying the result set.
+    :type page_token: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -257,8 +272,6 @@ class BigQueryGetDataOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-    :param location: The location used for the operation.
-    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'
@@ -267,12 +280,13 @@ class BigQueryGetDataOperator(BaseOperator):
     def __init__(self,
                  dataset_id: str,
                  table_id: str,
-                 max_results: str = '100',
+                 start_index: Optional[str] = None,
+                 max_results: Optional[int] = 100,
+                 page_token: Optional[str] = None,
                  selected_fields: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -285,11 +299,12 @@ class BigQueryGetDataOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.table_id = table_id
+        self.start_index = start_index
         self.max_results = max_results
+        self.page_token = page_token
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.location = location
 
     def execute(self, context):
         self.log.info('Fetching Data from:')
@@ -297,25 +312,27 @@ class BigQueryGetDataOperator(BaseOperator):
                       self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location)
+                            delegate_to=self.delegate_to)
 
         conn = hook.get_conn()
         cursor = conn.cursor()
         response = cursor.get_tabledata(dataset_id=self.dataset_id,
                                         table_id=self.table_id,
+                                        start_index=self.start_index,
                                         max_results=self.max_results,
+                                        page_token=self.page_token,
                                         selected_fields=self.selected_fields)
 
         self.log.info('Total Extracted rows: %s', response['totalRows'])
         rows = response['rows']
 
-        table_data = []
-        for dict_row in rows:
-            single_row = []
-            for fields in dict_row['f']:
-                single_row.append(fields['v'])
-            table_data.append(single_row)
+        table_rows = [[fields['v'] for fields in dict_row['f']] for dict_row in rows]
+
+        table_data = {
+            'total_rows': response['totalRows'],
+            'page_token': response.get('pageToken'),
+            'rows': table_rows
+        }
 
         return table_data
 

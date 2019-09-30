@@ -408,10 +408,41 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
 
 class TestTableDataOperations(unittest.TestCase):
+    mock_service = mock.Mock()  # type: mock.Mock
+    project_id = 'bq-project'
+
+    def setUp(self):
+        self.expected_result = {
+            "kind": "bigquery#tableDataList",
+            "etag": "QB24gaarZFqaiu5jRyPiA==",
+            "totalRows": "30",
+            "pageToken": "BHSHJT3DRAFSSIAICAFCACSB77777777757SUAA=",
+            "rows": [
+                {
+                    "f": [
+                        {
+                            "v": "219067803"
+                        },
+                        {
+                            "v": "10000"
+                        },
+                        {
+                            "v": "2019-01-09"
+                        },
+                        {
+                            "v": "2019-01-11"
+                        },
+                        {
+                            "v": "1565783983.395962"
+                        }
+                    ]
+                }
+            ]
+        }
+        self.dataset_id = 'bq_dataset'
+        self.table_id = 'bq_table'
+
     def test_insert_all_succeed(self):
-        project_id = 'bq-project'
-        dataset_id = 'bq_dataset'
-        table_id = 'bq_table'
         rows = [
             {"json": {"a_key": "a_value_0"}}
         ]
@@ -428,18 +459,15 @@ class TestTableDataOperations(unittest.TestCase):
             "kind": "bigquery#tableDataInsertAllResponse"
         }
         cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
-        cursor.insert_all(project_id, dataset_id, table_id, rows)
+        cursor.insert_all(self.project_id, self.dataset_id, self.table_id, rows)
         method.assert_called_once_with(
-            projectId=project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
+            projectId=self.project_id,
+            datasetId=self.dataset_id,
+            tableId=self.table_id,
             body=body
         )
 
     def test_insert_all_fail(self):
-        project_id = 'bq-project'
-        dataset_id = 'bq_dataset'
-        table_id = 'bq_table'
         rows = [
             {"json": {"a_key": "a_value_0"}}
         ]
@@ -455,10 +483,27 @@ class TestTableDataOperations(unittest.TestCase):
                 }
             ]
         }
-        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        cursor = hook.BigQueryBaseCursor(mock_service, self.project_id)
         with self.assertRaises(Exception):
-            cursor.insert_all(project_id, dataset_id, table_id,
+            cursor.insert_all(self.project_id, self.dataset_id, self.table_id,
                               rows, fail_on_error=True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor(mock_service, project_id).service, 'tabledata')
+    def test_get_data(self, mock_service):
+        tested_function = mock_service.return_value.list
+        tested_function.return_value.execute.return_value = self.expected_result
+
+        result = hook.BigQueryBaseCursor(
+            self.mock_service, self.project_id).get_tabledata(
+            dataset_id=self.dataset_id, table_id=self.table_id)
+
+        tested_function.assert_called_once_with(
+            projectId=self.project_id,
+            datasetId=self.dataset_id,
+            tableId=self.table_id
+        )
+
+        self.assertEqual(result, self.expected_result)
 
 
 class TestTableOperations(unittest.TestCase):

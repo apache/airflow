@@ -40,6 +40,29 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to BigQueryGetDataOperator
+`max_results` parameter type changed from `str` to `int` to reflect the correct data type 
+and `location` parameter removed as it is redundant.
+
+Data structure pushed to XCOM by the operator changed from a `list` to a `dict`.
+
+Old format:
+```json
+[["Tony", "10"], ["Mike", "20"], ["Steve", "15"]]
+```
+
+New format:
+```json
+{
+    "totalRows": 20,
+    "pageToken": "BHSHJT3DRAFSSIAICAFCACSB77777777757SUAA=",
+    "rows": [["Tony", "10"], ["Mike", "20"], ["Steve", "15"]]
+}
+```
+
+For more information please check the 
+[BigQuery tabledata documentation](https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list).
+
 ### Changes to `aws_default` Connection's default region
 
 The region of Airflow's default connection to AWS (`aws_default`) was previously
