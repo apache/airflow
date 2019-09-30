@@ -35,13 +35,18 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
     AsyncOperators are derived from this class and inherit these attributes.
 
-    AsyncOperators must define a `submit_request` to fire a request for a
-    long running operation with a method and then executes a `poke` method
-    executing at a time interval and succeed when a criteria is met and fail
-    if and when they time out. They are effctively an opinionated way use
-    combine an Operator and a Sensor in order to kick off a long running
-    process without blocking a worker slot while waiting for the long running
-    process to complete by leveraging reschedule mode.
+    AsyncOperators must override the following methods:
+        :meth:`submit_request`: fire a request for a long running operation
+        :meth:`poke`: a method to check if the long running operation is
+            complete it should return True when a success criteria is met.
+    Optionally, AsyncOperators can override:
+        :meth: `process_result` to perform any operations after the success
+            criteria is met in :meth: `poke`
+    :meth: `poke` is executed at a time interval and succeed when a
+    criteria is met and fail if and when they time out. They are effctively
+    an opinionated way use combine an Operator and a Sensor in order to kick
+    off a long running process and poll for completion without tying up a
+    worker slot while waiting between pokes leveraging reschedule mode.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :type soft_fail: bool
@@ -70,7 +75,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         Refer to get_template_context for more context.
 
         :returns: a resource_id for the long running operation.
-        :rtype: str
+        :rtype: Optional[Union[String, List, Dict]]
         """
         raise AirflowException('Async Operators must override the `submit_request` method.')
 
@@ -96,18 +101,18 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
         super().execute(self, context)
 
-        #TODO(jaketf) validate comment below w/ tests.
         # The above should raise AirflowRescheduleException if we are
         # rescheduling a poke, and thus never reach this code below.
         try:
             resource_id = self.get_external_resource_id(context)
             if resource_id == PLACEHOLDER_RESOURCE_ID:
-                self.log.info("Calling process_request for %s.", resource_id)
+                self.log.info("Calling process_result for %s.", resource_id)
             else:
-                self.log.info("Calling process_request.")
-            self.process_request(context)
+                self.log.info("Calling process_result.")
+            self.process_result(context)
         finally:
-            # Clear the resource id for this task..
+            #TODO(mik-laj) is there a way to clear this key?
+            # Clear the resource id for this task.
             self.set_external_resource_id(context, None)
 
     @staticmethod
