@@ -42,11 +42,12 @@ assists users migrating to a new version.
 
 ### Changes to `aws_default` Connection's default region
 
-The region of Airflow's default connection to AWS (`aws_default`) has
-previously been set to `us-east-1` during installation.
+The region of Airflow's default connection to AWS (`aws_default`) was previously
+set to `us-east-1` during installation.
 
-The region now needs to be set manually either in the connection screens in
-Airflow, or via the `AWS_DEFAULT_REGION` environment variable.
+The region now needs to be set manually, either in the connection screens in
+Airflow, via the `~/.aws` config files, or via the `AWS_DEFAULT_REGION` environment
+variable.
 
 ### Removed Hipchat integration
 
