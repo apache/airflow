@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from alembic import context
 from logging.config import fileConfig
+
+from alembic import context
 
 from airflow import settings
 from airflow import models
