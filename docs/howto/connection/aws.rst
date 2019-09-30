@@ -35,6 +35,8 @@ Default Connection IDs
 
 The default connection ID is ``aws_default``.
 
+.. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}`` on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region. This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow, or via the ``AWS_DEFAULT_REGION`` environment variable.
+
 Configuring the Connection
 --------------------------
 
