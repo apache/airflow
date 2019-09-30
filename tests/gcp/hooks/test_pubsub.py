@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode as b64e
 import unittest
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -39,10 +38,10 @@ TEST_SUBSCRIPTION = 'test-subscription'
 TEST_UUID = 'abc123-xzy789'
 TEST_MESSAGES = [
     {
-        'data': b64e(b'Hello, World!'),
+        'data': b'Hello, World!',
         'attributes': {'type': 'greeting'}
     },
-    {'data': b64e(b'Knock, knock')},
+    {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}}]
 
 EXPANDED_TOPIC = 'projects/{}/topics/{}'.format(TEST_PROJECT, TEST_TOPIC)
@@ -428,3 +427,34 @@ class TestPubSubHook(unittest.TestCase):
                 timeout=None,
                 metadata=None
             )
+
+    @parameterized.expand([
+        (messages, ) for messages in [
+            [{"data": b'test'}],
+            [{"data": b''}],
+            [{"data": b'test', "attributes": {"weight": "100kg"}}],
+            [{"data": b'', "attributes": {"weight": "100kg"}}],
+            [{"attributes": {"weight": "100kg"}}],
+        ]
+    ])
+    def test_messages_validation_positive(self, messages):
+        PubSubHook._validate_messages(messages)
+
+    @parameterized.expand([
+        ([("wrong type", )], "Wrong message type. Must be a dictionary."),
+        ([{"wrong_key": b'test'}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),
+        ([{"data": 'wrong string'}], "Wrong message. 'data' must be send as a bytestring"),
+        ([{"data": None}], "Wrong message. 'data' must be send as a bytestring"),
+        (
+            [{"attributes": None}],
+            "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+        ),
+        (
+            [{"attributes": "wrong string"}],
+            "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+        )
+    ])
+    def test_messages_validation_negative(self, messages, error_message):
+        with self.assertRaises(PubSubException) as e:
+            PubSubHook._validate_messages(messages)
+        self.assertEqual(str(e.exception), error_message)

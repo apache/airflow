@@ -19,6 +19,8 @@
 """
 This module contains a Google Pub/Sub Hook.
 """
+import warnings
+from base64 import b64decode
 from typing import List, Dict, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
@@ -94,7 +96,7 @@ class PubSubHook(GoogleCloudBaseHook):
             include the ``projects/{project}/topics/`` prefix.
         :type topic: str
         :param messages: messages to publish; if the data field in a
-            message is set, it should already be base64 encoded.
+            message is set, it should be a bytestring (utf-8 encoded)
         :type messages: list of PubSub messages; see
             http://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
         :param project_id: Optional, the GCP project ID in which to publish.
@@ -102,10 +104,11 @@ class PubSubHook(GoogleCloudBaseHook):
         :type project_id: str
         """
         assert project_id is not None
+        self._validate_messages(messages)
+
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
-        # TODO validation of messages
         self.log.info("Publish %d messages to topic (path) %s", len(messages), topic_path)
         try:
             for message in messages:
@@ -118,6 +121,32 @@ class PubSubHook(GoogleCloudBaseHook):
             raise PubSubException('Error publishing to topic {}'.format(topic_path), e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
+
+    @staticmethod
+    def _validate_messages(messages) -> None:
+        for message in messages:
+            # To warn about broken backward compatibility
+            # TODO: remove one day
+            if "data" in message and isinstance(message["data"], str):
+                try:
+                    b64decode(message["data"])
+                    warnings.warn(
+                        "The base 64 encoded string as 'data' field has been deprecated. "
+                        "You should pass bytestring (utf-8 encoded).", DeprecationWarning, stacklevel=4
+                    )
+                except ValueError:
+                    pass
+
+            if not isinstance(message, dict):
+                raise PubSubException("Wrong message type. Must be a dictionary.")
+            if "data" not in message and "attributes" not in message:
+                raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
+            if "data" in message and not isinstance(message["data"], bytes):
+                raise PubSubException("Wrong message. 'data' must be send as a bytestring")
+            if ("data" not in message and "attributes" in message and not message["attributes"]) \
+                    or ("attributes" in message and not isinstance(message["attributes"], dict)):
+                raise PubSubException(
+                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
 
     # pylint: disable=too-many-arguments
     @GoogleCloudBaseHook.fallback_to_default_project_id
