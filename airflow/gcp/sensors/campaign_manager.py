@@ -55,26 +55,6 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
 
     template_fields = ("profile_id", "report_id", "file_id")
 
-    @apply_defaults
-    def __init__(
-        self,
-        profile_id: str,
-        report_id: str,
-        file_id: str,
-        api_version: str = "v3.3",
-        gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        *args,
-        **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.profile_id = profile_id
-        self.report_id = report_id
-        self.file_id = file_id
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-
     def poke(self, context: Dict) -> bool:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -84,8 +64,29 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         response = hook.get_report(
             profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id
         )
-        if response["status"] == "REPORT_AVAILABLE":
-            self.log.info("File report %s is ready", self.file_id)
-            return True
         self.log.info("Report status: %s", response["status"])
-        return False
+        return response["status"] != "PROCESSING"
+
+    @apply_defaults
+    def __init__(
+        self,
+        profile_id: str,
+        report_id: str,
+        file_id: str,
+        api_version: str = "v3.3",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        mode: str = "reschedule",
+        poke_interval: int = 60 * 5,
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+        self.poke_interval = poke_interval
+        self.profile_id = profile_id
+        self.report_id = report_id
+        self.file_id = file_id
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to

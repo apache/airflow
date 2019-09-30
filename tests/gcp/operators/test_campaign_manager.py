@@ -56,8 +56,17 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
     @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
     @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCloudStorageHook")
     @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
+    @mock.patch(
+        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
+    )
     def test_execute(
-        self, mock_base_op, gcs_hook_mock, hook_mock, tempfile_mock, http_mock
+        self,
+        xcom_mock,
+        mock_base_op,
+        gcs_hook_mock,
+        hook_mock,
+        tempfile_mock,
+        http_mock,
     ):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -70,7 +79,9 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
             None,
             True,
         )
-        tempfile_mock.NamedTemporaryFile.return_value.__enter__.return_value.name = temp_file_name
+        tempfile_mock.NamedTemporaryFile.return_value.__enter__.return_value.name = (
+            temp_file_name
+        )
         op = GoogleCampaignManagerDownloadReportOperator(
             profile_id=profile_id,
             report_id=report_id,
@@ -93,18 +104,26 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
             object_name=report_name,
-            gzip=False,
+            gzip=True,
             filename=temp_file_name,
             mime_type="text/csv",
         )
+        xcom_mock.assert_called_once_with(None, key="report_name", value=report_name)
 
 
 class TestGoogleCampaignManagerInsertReportOperator(TestCase):
     @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
     @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
-    def test_execute(self, mock_base_op, hook_mock):
+    @mock.patch(
+        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator.xcom_push"
+    )
+    def test_execute(self, xcom_mock, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         report = {"report": "test"}
+        report_id = "test"
+
+        hook_mock.return_value.insert_report.return_value = {"id": report_id}
+
         op = GoogleCampaignManagerInsertReportOperator(
             profile_id=profile_id,
             report=report,
@@ -118,15 +137,23 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
         hook_mock.return_value.insert_report.assert_called_once_with(
             profile_id=profile_id, report=report
         )
+        xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
 
 
 class TestGoogleCampaignManagerRunReportOperator(TestCase):
     @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
     @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
-    def test_execute(self, mock_base_op, hook_mock):
+    @mock.patch(
+        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerRunReportOperator.xcom_push"
+    )
+    def test_execute(self, xcom_mock, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
+        file_id = "FILE_ID"
         synchronous = True
+
+        hook_mock.return_value.run_report.return_value = {"id": file_id}
+
         op = GoogleCampaignManagerRunReportOperator(
             profile_id=profile_id,
             report_id=report_id,
@@ -141,3 +168,4 @@ class TestGoogleCampaignManagerRunReportOperator(TestCase):
         hook_mock.return_value.run_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, synchronous=synchronous
         )
+        xcom_mock.assert_called_once_with(None, key="file_id", value=file_id)

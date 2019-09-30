@@ -32,9 +32,10 @@ from airflow.utils import dates
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
 BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
+REPORT_NAME = "test-report"
 REPORT = {
     "type": "STANDARD",
-    "name": "test-report",
+    "name": REPORT_NAME,
     "criteria": {
         "dateRange": {
             "kind": "dfareporting#dateRange",
@@ -61,14 +62,6 @@ with models.DAG(
     )
     report_id = "{{ task_instance.xcom_pull('create_report')['id'] }}"
     # [END howto_campaign_manager_insert_report_operator]
-
-    # [START howto_campaign_manager_insert_report_operator_json]
-    create_report_json = GoogleCampaignManagerInsertReportOperator(
-        profile_id=PROFILE_ID,
-        report="campaign_manager_report.json",
-        task_id="create_report_json",
-    )
-    # [END howto_campaign_manager_insert_report_operator_json]
 
     # [START howto_campaign_manager_run_report_operator]
     run_report = GoogleCampaignManagerRunReportOperator(
@@ -99,14 +92,8 @@ with models.DAG(
 
     # [START howto_campaign_manager_delete_report_operator]
     delete_report = GoogleCampaignManagerDeleteReportOperator(
-        profile_id=PROFILE_ID, report_id=report_id, task_id="delete_report"
+        profile_id=PROFILE_ID, report_name=REPORT_NAME, task_id="delete_report"
     )
     # [END howto_campaign_manager_delete_report_operator]
 
-    delete_report_json = GoogleCampaignManagerDeleteReportOperator(
-        profile_id=PROFILE_ID,
-        report_id="{{ task_instance.xcom_pull('create_report_json')['id'] }}",
-        task_id="delete_report_json",
-    )
     create_report >> run_report >> wait_for_report >> get_report >> delete_report
-    create_report_json >> delete_report_json

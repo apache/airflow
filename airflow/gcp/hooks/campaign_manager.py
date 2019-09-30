@@ -24,7 +24,7 @@ from typing import Any, Dict, Optional, List
 from googleapiclient.discovery import build, Resource
 from googleapiclient import http
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class GoogleCampaignManagerHook(GoogleCloudBaseHook):
@@ -36,7 +36,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
 
     def __init__(
         self,
-        api_version: str = "v3.2",
+        api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
     ) -> None:
@@ -126,8 +126,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
             response = request.execute(num_retries=self.num_retries)
             reports = response.get("items", [])
             request = conn.reports().list_next(  # pylint: disable=no-member
-                previous_request=request,
-                previous_response=response,
+                previous_request=request, previous_response=response
             )
 
         return reports
@@ -224,10 +223,10 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         :type file_id: str
         :return: googleapiclient.http.HttpRequest
         """
-        response = (
+        request = (
             self.get_conn()  # pylint: disable=no-member
             .reports()
             .files()
             .get_media(fileId=file_id, profileId=profile_id, reportId=report_id)
         )
-        return response
+        return request
