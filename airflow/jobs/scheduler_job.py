@@ -25,7 +25,6 @@ import signal
 import sys
 import threading
 import time
-import re
 from collections import defaultdict
 from datetime import timedelta
 from time import sleep
@@ -1084,7 +1083,7 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
 
         def change_file_path(full_filepath):
-            return re.sub(DAGS_FOLDER, 'DAGS_FOLDER', full_filepath)
+            return full_filepath.replace(DAGS_FOLDER, 'DAGS_FOLDER', 1)
 
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
