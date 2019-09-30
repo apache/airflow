@@ -37,7 +37,7 @@ from airflow.operators.bash_operator import BashOperator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 TOPIC = "PubSubTestTopic"
-MESSAGE = {"attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
+MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 

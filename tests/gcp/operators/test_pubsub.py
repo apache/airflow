@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode as b64e
 import unittest
 
 from airflow.gcp.operators.pubsub import (
@@ -32,10 +31,10 @@ TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
 TEST_MESSAGES = [
     {
-        'data': b64e(b'Hello, World!'),
+        'data': b'Hello, World!',
         'attributes': {'type': 'greeting'}
     },
-    {'data': b64e(b'Knock, knock')},
+    {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}}]
 TEST_POKE_INTERVAl = 0
 

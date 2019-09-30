@@ -576,12 +576,10 @@ class PubSubPublishOperator(BaseOperator):
     in a single GCP project. If the topic does not exist, this
     task will fail. ::
 
-        from base64 import b64encode as b64e
-
-        m1 = {'data': b64e('Hello, World!'),
+        m1 = {'data': b'Hello, World!',
               'attributes': {'type': 'greeting'}
              }
-        m2 = {'data': b64e('Knock, knock')}
+        m2 = {'data': b'Knock, knock'}
         m3 = {'attributes': {'foo': ''}}
 
         t1 = PubSubPublishOperator(
@@ -604,7 +602,7 @@ class PubSubPublishOperator(BaseOperator):
     :param messages: a list of messages to be published to the
         topic. Each message is a dict with one or more of the
         following keys-value mappings:
-        * 'data': a base64-encoded string
+        * 'data': a bytestring (utf-8 encoded)
         * 'attributes': {'key1': 'value1', ...}
         Each message must contain at least a non-empty 'data' value
         or an attribute dict with at least one key (templated). See
