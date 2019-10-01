@@ -105,6 +105,16 @@ span.skipped{
     text-align:left !important;
     font-size: 12px;
 }
+
+.d3-tip {
+  background: black;
+  color: white;
+  border: solid;
+  border-width: 1px;
+  border-radius: 5px;
+  padding: 10px;
+}
+
 input#execution_date {
     margin-bottom: 0px;
 }
