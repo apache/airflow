@@ -274,6 +274,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
 ############################################################################################################
 devel = [
+    'astroid~=2.2.5',  # to be removed after pylint solves this: https://github.com/PyCQA/pylint/issues/3123
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
@@ -292,7 +293,8 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',
+    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
+                      # We should also disable checking docstring at the module level
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
