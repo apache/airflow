@@ -213,7 +213,8 @@ class PodLauncher(LoggingMixin):
         """
 
         # The timestamps returned from the Kubernetes API are in nanoseconds, and appear to never duplicate
-        # across lines so we can use the timestamp plus the line content to deduplicate log lines across multiple runs
+        # across lines so we can use the timestamp plus the line content to deduplicate log lines across
+        # multiple runs
         last_line = ""
         # We use a variable here instead of looping on self.pod_is_running so that we can get one more read
         # in the loop before breaking out
