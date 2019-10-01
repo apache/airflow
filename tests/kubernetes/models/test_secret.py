@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 import unittest.mock as mock
+import uuid
 
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
@@ -26,6 +27,9 @@ from airflow.kubernetes.secret import Secret
 
 
 class TestSecret(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
 
     def test_to_env_secret(self):
         secret = Secret('env', 'name', 'secret', 'key')
@@ -47,25 +51,25 @@ class TestSecret(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_to_volume_secret(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        mock_uuid.return_value = self.static_uuid
         secret = Secret('volume', '/etc/foo', 'secret_b')
         self.assertEqual(secret.to_volume_secret(), (
             k8s.V1Volume(
-                name='secretvol0',
+                name='secretvol' + self.static_uuid.hex,
                 secret=k8s.V1SecretVolumeSource(
                     secret_name='secret_b'
                 )
             ),
             k8s.V1VolumeMount(
                 mount_path='/etc/foo',
-                name='secretvol0',
+                name='secretvol' + self.static_uuid.hex,
                 read_only=True
             )
         ))
 
     @mock.patch('uuid.uuid4')
     def test_attach_to_pod(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        mock_uuid.return_value = self.static_uuid
         pod = PodGenerator(image='airflow-worker:latest',
                            name='base').gen_pod()
         secrets = [
@@ -82,7 +86,7 @@ class TestSecret(unittest.TestCase):
         self.assertEqual(result, {
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'base-0'},
+            'metadata': {'name': 'base-' + self.static_uuid.hex},
             'spec': {
                 'containers': [{
                     'args': [],
@@ -103,14 +107,14 @@ class TestSecret(unittest.TestCase):
                     'ports': [],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
-                        'name': 'secretvol0',
+                        'name': 'secretvol' + self.static_uuid.hex,
                         'readOnly': True}]
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'restartPolicy': 'Never',
                 'volumes': [{
-                    'name': 'secretvol0',
+                    'name': 'secretvol' + self.static_uuid.hex,
                     'secret': {'secretName': 'secret_b'}
                 }]
             }

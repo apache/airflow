@@ -16,11 +16,10 @@
 # under the License.
 #
 
+import os
 import unittest
-import uuid
-from datetime import datetime
 
-from tests.compat import mock
+from tests.compat import ANY, mock
 from tests.test_utils.config import conf_vars
 
 try:
@@ -93,6 +92,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
         self.kube_config.kube_labels = {'dag_id': 'original_dag_id', 'my_label': 'label_id'}
+        self.kube_config.pod_template_file = ''
         self.api_client = ApiClient()
 
     def test_worker_configuration_no_subpaths(self):
@@ -345,8 +345,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_subpath = 'path'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.make_pod()
 
         self.assertEqual(0, pod.spec.security_context.run_as_user)
 
@@ -382,8 +381,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.make_pod()
 
         init_containers = worker_config._get_init_containers()
         git_ssh_key_file = next((x.value for x in init_containers[0].env
@@ -412,8 +410,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.make_pod()
 
         username_env = k8s.V1EnvVar(
             name='GIT_SYNC_USERNAME',
@@ -470,8 +467,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.make_pod()
 
         self.assertTrue(pod.spec.affinity['podAntiAffinity'] is not None)
         self.assertEqual('app',
@@ -495,8 +491,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             tolerations=self.tolerations_config,
         ).gen_pod()
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.make_pod()
 
         result = PodGenerator.reconcile_pods(pod, config_pod)
 
@@ -650,6 +645,16 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_a')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_b'))
         ], configmaps)
+
+    def test_pod_template_file(self):
+        fixture = os.path.dirname(os.path.realpath(__file__)) + '/dep.yaml'
+        self.kube_config.pod_template_file = fixture
+        self.kube_config.dags_folder = 'dags'
+        worker_config = WorkerConfiguration(self.kube_config)
+        result = worker_config.make_pod()
+        expected = PodGenerator.deserialize_model_file(self.api_client, fixture)
+        expected.metadata.name = ANY
+        self.assertEqual(expected, result)
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)

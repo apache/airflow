@@ -87,7 +87,7 @@ class Secret(K8SModel):
 
     def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Converts to volume secret"""
-        vol_id = 'secretvol{}'.format(uuid.uuid4())
+        vol_id = 'secretvol{}'.format(uuid.uuid4().hex)
         return (
             k8s.V1Volume(
                 name=vol_id,

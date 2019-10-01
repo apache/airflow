@@ -29,7 +29,11 @@ from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
-    """Contains Kubernetes Airflow Worker configuration logic"""
+    """
+    Contains Kubernetes Airflow Worker configuration logic
+    :param kube_config: the kubernetes configuration from airflow.cfg
+    :type kube_config: airflow.executors.kubernetes_executor.KubeConfig
+    """
 
     dags_volume_name = 'airflow-dags'
     logs_volume_name = 'airflow-logs'
@@ -362,24 +366,15 @@ class WorkerConfiguration(LoggingMixin):
 
         return self.kube_config.git_dags_folder_mount_point
 
-    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command) -> k8s.V1Pod:
-        """Creates POD."""
-        pod_generator = PodGenerator(
-            namespace=namespace,
-            name=pod_id,
+    def make_pod(self) -> k8s.V1Pod:
+        """
+        :return: kubernetes.client.models.V1Pod
+
+        Parses the airflow.cfg and returns the Pod configuration generated from it.
+        """
+        static_pod = PodGenerator(
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy,
-            labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': execution_date,
-                'try_number': str(try_number),
-                'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_executor': 'True',
-            },
-            cmds=airflow_command,
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
@@ -389,11 +384,14 @@ class WorkerConfiguration(LoggingMixin):
             envs=self._get_environment(),
             node_selectors=self.kube_config.kube_node_selectors,
             service_account_name=self.kube_config.worker_service_account_name,
-        )
+            pod_template_file_or_string=self.kube_config.pod_template_file
+        ).gen_pod()
 
-        pod = pod_generator.gen_pod()
-        pod.spec.containers[0].env_from = pod.spec.containers[0].env_from or []
-        pod.spec.containers[0].env_from.extend(self._get_env_from())
-        pod.spec.security_context = self._get_security_context()
+        if self.kube_config.pod_template_file:
+            return static_pod
+        else:
+            static_pod.spec.containers[0].env_from = static_pod.spec.containers[0].env_from or []
+            static_pod.spec.containers[0].env_from.extend(self._get_env_from())
+            static_pod.spec.security_context = self._get_security_context()
 
-        return append_to_pod(pod, self._get_secrets())
+            return append_to_pod(static_pod, self._get_secrets())
