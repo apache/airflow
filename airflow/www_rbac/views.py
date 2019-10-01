@@ -230,6 +230,7 @@ class Airflow(AirflowBaseView):
         else:
             hide_paused = hide_paused_dags_by_default
 
+        current_user = appbuilder.sm.get_user()
         roles = {role.name for role in current_user.roles}
         # read orm_dags from the db filter by owner, if the user is not admin
         if ({'Admin'} & roles):
