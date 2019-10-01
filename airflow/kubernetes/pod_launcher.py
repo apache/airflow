@@ -174,9 +174,19 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True,
     )
-
-    def _read_pod_log_chunk(self, pod: Pod, since_seconds: int) -> HTTPResponse:
-        return self._client.read_namespaced_pod_log(
+    def _read_pod_log_chunk(self, pod: Pod, last_line: bytes) -> HTTPResponse:
+        # The CoreV1Api doesn't support since_time even though the API does, so we must use
+        # since_seconds. Add 15 seconds of buffer just in case of NTP woes
+        if last_line:
+            # Strip fractional part because strptime doesn't support nanosecond parsing
+            timestamp = last_line.split(b" ", 1)[0]
+            last_chunk_dt = dt.strptime(timestamp.split(b".", 1)[0].decode("utf-8"),
+                                        "%Y-%m-%dT%H:%M:%S")
+            since_time = last_chunk_dt
+        else:
+            since_time = dt.utcfromtimestamp(0)
+        since_seconds = math.ceil((dt.utcnow() - since_time).total_seconds() + 15)
+        resp = self._client.read_namespaced_pod_log(
             name=pod.name,
             namespace=pod.namespace,
             container='base',
@@ -185,6 +195,30 @@ class PodLauncher(LoggingMixin):
             timestamps=True,
             _preload_content=False
         )
+
+        # If we've already read a chunk, skip until we find a matching line
+        # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
+        buffered_lines = []
+        skipping_lines = True
+        for line in resp:
+            if skipping_lines:
+                if line == last_line:
+                    self.log.debug("Found duplicate line. Stopping log skipping")
+                    buffered_lines = []
+                    skipping_lines = False
+                    for buffered_line in buffered_lines:
+                        yield buffered_line
+                else:
+                    buffered_lines.append(line)
+            else:
+                yield line
+
+        if buffered_lines:
+            self.log.warn(
+                "End of previous log chunk not found in next chunk. May indicated log line loss"
+            )
+            for buffered_line in buffered_lines:
+                yield buffered_line
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -206,10 +240,10 @@ class PodLauncher(LoggingMixin):
         :return:
         """
 
-        # The timestamps returned from the Kubernetes API are in nanoseconds,
-        # and appear to never duplicate across lines so we can use the
-        # timestamp to deduplicate log lines across multiple runs
-        last_chunk_timestamp = None
+        # The timestamps returned from the Kubernetes API are in nanoseconds, and appear
+        # to never duplicate across lines so we can use the timestamp plus the line
+        # content to deduplicate log lines across multiple runs
+        last_line = ""
         # We use a variable here instead of looping on self.pod_is_running so
         # that we can get one more read in the loop before breaking out
         pod_is_running = True
@@ -217,38 +251,13 @@ class PodLauncher(LoggingMixin):
         try:
             while pod_is_running:
                 pod_is_running = self.pod_is_running(pod)
+                if not pod_is_running:
+                    self.log.info("pod stopped, pulling logs one more time")
 
-                # The CoreV1Api doesn't support since_time even though the API does, so we must use
-                # since_seconds. Add 15 seconds of buffer just in case of NTP woes
-                if last_chunk_timestamp:
-                    # Strip fractional part because strptime doesn't support nanosecond parsing
-                    last_chunk_dt = dt.strptime(last_chunk_timestamp.split(b".", 1)[0].decode("utf-8"),
-                                                "%Y-%m-%dT%H:%M:%S")
-                    since_seconds = math.ceil((dt.utcnow() - last_chunk_dt).total_seconds() + 15)
-                else:
-                    since_seconds = math.ceil(dt.utcnow().timestamp())
-                resp = self._read_pod_log_chunk(pod, since_seconds)
-
-                # Just in case the assumption that never duplicating across
-                # lines is wrong, we store the previous line's timestamp and
-                # log a warning just in case
-                last_line_timestamp = None
-
-                for line in resp:
-                    timestamp, line = line.split(b" ", 1)
-                    # Strip the trailing Z so we can lexicographically compare the strings
-                    if last_chunk_timestamp and timestamp[:-1] <= last_chunk_timestamp[:-1]:
-                        continue
-                    # Check if we have duplicate timestamps in a single chunk
-                    if last_line_timestamp and timestamp == last_line_timestamp:
-                        self.log.warn(
-                            "Duplicate timestamp {} found in pod log chunk. "
-                            "This could lead to log line loss".format(timestamp)
-                        )
-                    yield line
-                    last_line_timestamp = timestamp
-
-                last_chunk_timestamp = last_line_timestamp
+                for line in self._read_pod_log_chunk(pod, last_line):
+                    timestamp, log_line = line.split(b" ", 1)
+                    yield log_line
+                    last_line = line
 
                 time.sleep(POD_LOGS_POLL_INTERVAL_SECONDS)
         except BaseHTTPError as e:
