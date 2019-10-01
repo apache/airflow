@@ -23,8 +23,8 @@ from typing import cast
 
 from airflow.models import DAG
 
-from .json_schema import load_dag_schema
-from .serialization import Serialization  # pylint: disable=cyclic-import
+from airflow.dag.serialization.json_schema import load_dag_schema
+from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 
 
 class SerializedDAG(DAG, Serialization):
@@ -88,7 +88,7 @@ class SerializedDAG(DAG, Serialization):
     def deserialize_dag(cls, encoded_dag: dict) -> "SerializedDAG":
         """Deserializes a DAG from a JSON object.
         """
-        from . import SerializedBaseOperator
+        from airflow.dag.serialization import SerializedBaseOperator
 
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
 

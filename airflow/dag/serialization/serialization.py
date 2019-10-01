@@ -28,14 +28,13 @@ import pendulum
 from dateutil import relativedelta
 
 import airflow
+from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
-
-from .enums import DagAttributeTypes as DAT, Encoding
 
 
 LOG = LoggingMixin().log
@@ -239,7 +238,7 @@ class Serialization:
 
 
 if TYPE_CHECKING:
+    from airflow.dag.serialization.json_schema import Validator
     from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
     from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
-    from .json_schema import Validator
     from inspect import Parameter

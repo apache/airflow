@@ -21,7 +21,7 @@
 
 import hashlib
 from datetime import timedelta
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 # from sqlalchemy import Column, Index, Integer, String, Text, JSON, and_, exc
 from sqlalchemy import Column, Index, Integer, String, JSON, and_
@@ -133,7 +133,10 @@ class SerializedDagModel(Base):
         dags = {}
         for dag_id, data in serialized_dags:
             log.debug("Deserializing DAG: %s", dag_id)
-            dag = SerializedDAG.deserialize_dag(data)
+            if isinstance(data, dict):
+                dag = SerializedDAG.from_dict(data)  # type: Any
+            else:
+                dag = SerializedDAG.from_json(data)
 
             # Sanity check.
             if dag.dag_id == dag_id:

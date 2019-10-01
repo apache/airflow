@@ -21,8 +21,7 @@
 from inspect import signature
 
 from airflow.models import BaseOperator
-
-from .serialization import Serialization  # pylint: disable=cyclic-import
+from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 
 
 class SerializedBaseOperator(BaseOperator, Serialization):
@@ -92,7 +91,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     def deserialize_operator(cls, encoded_op: dict) -> BaseOperator:
         """Deserializes an operator from a JSON object.
         """
-        from . import SerializedDAG
+        from airflow.dag.serialization import SerializedDAG
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
