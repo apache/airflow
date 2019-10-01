@@ -636,6 +636,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def terminate(self):
         self.watcher_queue.join()
+        self.kube_watcher.join()
         self._manager.shutdown()
 
 
