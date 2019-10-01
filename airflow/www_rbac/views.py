@@ -229,18 +229,17 @@ class Airflow(AirflowBaseView):
             hide_paused = False
         else:
             hide_paused = hide_paused_dags_by_default
-
         current_user = appbuilder.sm.get_user()
         roles = {role.name for role in current_user.roles}
         # read orm_dags from the db filter by owner, if the user is not admin
         if ({'Admin'} & roles):
             query = session.query(DM).filter(
-               ~DM.is_subdag, DM.is_active
+                ~DM.is_subdag, DM.is_active
             )
         else:
             query = session.query(DM).filter(
-               ~DM.is_subdag, DM.is_active, DM.owners == current_user.username
-           )
+                ~DM.is_subdag, DM.is_active, DM.owners == current_user.username
+            )
 
         # optionally filter out "paused" dags
         if hide_paused:
