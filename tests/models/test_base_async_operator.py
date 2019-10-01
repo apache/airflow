@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock
+from unittest.mock import call, Mock
 import uuid
 import random
 
@@ -34,9 +34,11 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+
 from datetime import timedelta
 from time import sleep
 from freezegun import freeze_time
+from parameterized import parameterized
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -46,27 +48,26 @@ ASYNC_OP = 'async_op'
 def _rand_job_id():
     yield 'job_id-{}'.format(uuid.uuid4())
 
-STR_ID = _job_id()
 ALL_ID_TYPES = [
     _job_id(),
     random.randint(),
     [_job_id(), _job_id()],
-    {'job1:' _job_id()}
+    {'job1:' _job_id()},
+    None
 ]
 
 
 class DummyAsyncOperator(BaseAsyncOperator):
-    def __init__(self, return_value=False, resource_id=None, submit_fail=False,
+    def __init__(self, return_value=False, submit_fail=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.return_value = return_value
-        self.resource_id = resource_id
 
     def poke(self, context):
         return self.return_value
 
     def submit_request(self, context):
-        return STR_ID
+        return _job_id()
 
     def process_result(self, context):
         return self.get_external_resource_id()
@@ -122,7 +123,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_ok(self):
-        async_op = self._make_async_op(True, STR_ID)
+        async_op = self._make_async_op(True)
         dr = self._make_dag_run()
 
         self._run(async_op)
@@ -135,7 +136,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
 
     def test_fail(self):
-        async_op = self._make_async_op(False, STR_ID)
+        async_op = self._make_async_op(False)
         dr = self._make_dag_run()
 
         with self.assertRaises(AirflowSensorTimeout):
@@ -148,9 +149,24 @@ class TestBaseAsyncOperator(unittest.TestCase):
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
-    #TODO(jaketf) parameterized test w/ each ID type, XCom is set as expected.
-    def test_id_types(self):
-        pass
+    @parameterized.expand(ALL_ID_TYPES):
+    def test_set_get_external_resource_id(self, resource_id):
+        async_op = self._make_async_op(
+            return_value=None,
+            poke_interval=10,
+            timeout=25,
+            mode='reschedule')
+
+        dr = self._make_dag_run()
+
+        self._run(async_op)
+        tis = dr.get_task_instances()
+        self.assertEqual(len(tis), 2)
+        for ti in tis:
+            if ti.task_id == ASYNC_OP:
+                context = ti.get_template_context()
+                async_op.set_external_resource_id(context, resource_id)
+                self.assertEqual(resource_id, async_op.get_external_resource_id())
 
     def test_xcom_stores_resource_id(self):
         async_op = self._make_async_op(
@@ -168,9 +184,8 @@ class TestBaseAsyncOperator(unittest.TestCase):
             self._run(async_op)
         tis = dr.get_task_instances()
 
-        #TODO(jaketf) figure out assert called with context
-        async_op.set_external_resource_id.assert_has_calls([]) #should be called with STR_ID and then None
-        async_op.get_external_resource_id.assert_called_once_with()
+        self.assertEqual(async_op.set_external_resource_id.call_count, 2)
+        async_op.get_external_resource_id.assert_called_once()
 
         #Check that XCom was set to None.
         for ti in tis:
@@ -216,11 +231,9 @@ class TestBaseAsyncOperator(unittest.TestCase):
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
-        #TODO(jaketf) how to assert called w/ context
-        async_op.submit_request.assert_called_once_with()
-        async_op.process_result.assert_called_once_with()
-        #TODO(jaketf) This should check poke was called 3x.
-        async_op.poke.assert_has_calls()
+        async_op.submit_request.assert_called_once()
+        async_op.process_result.assert_called_once()
+        self.assertEqual(async_op.poke.call_count, 3)
 
     def test_ok_with_reschedule_and_retry(self):
         async_op = self._make_async_op(
@@ -231,6 +244,8 @@ class TestBaseAsyncOperator(unittest.TestCase):
             retry_delay=timedelta(seconds=10),
             mode='reschedule')
         async_op.poke = Mock(side_effect=[False, False, False, True])
+        async_op.submit_request = Mock(side_effect=[_job_id(), _job_id()])
+        async_op.process_result = Mock()
         dr = self._make_dag_run()
 
         # first poke returns False and task is re-scheduled
@@ -246,18 +261,21 @@ class TestBaseAsyncOperator(unittest.TestCase):
             with self.assertRaises(AirflowSensorTimeout):
                 self._run(async_op)
 
-        #TODO(jaketf) assert that process_result has NOT been called.
-        #TODO(jaketf) validate XComm is set to None before retrying.
+        # process_result should not be called on retry.
+        self.assertEqual(async_op.process_result.call_count, 0)
 
         # third poke returns False and task is rescheduled again
         date3 = date2 + timedelta(seconds=async_op.poke_interval) + sensor.retry_delay
         with freeze_time(date3):
             self._run(async_op)
-        #TODO(jaketf) assert that submit_request has been called again (twice).
+
+        # submit request should be retried.
+        self.assertEqual(async_op.submit_request.call_count, 2)
 
         # fourth poke return True and task succeeds
         date4 = date3 + timedelta(seconds=async_op.poke_interval)
         with freeze_time(date4):
             self._run(async_op)
-        #TODO(jaketf) assert that process_results has been called once
-        #TODO(jaketf) assert that process_results logs the expected message, indicating that it read the XCom.
+
+        # process_results has been called once, only after the successful poke.
+        self.assertEqual(async_op.process_result.call_count, 1)
