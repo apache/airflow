@@ -103,7 +103,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     "myprivateregistry.azurecr.io/my_container:latest",
                     "westeurope",
                     {"MODEL_PATH":  "my_value",
-                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}"
+                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
                     ['POSTGRES_PASSWORD'],
