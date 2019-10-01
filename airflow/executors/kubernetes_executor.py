@@ -23,7 +23,6 @@ import multiprocessing
 import re
 from queue import Empty, Queue  # pylint: disable=unused-import
 from typing import Any, Dict, Optional, Tuple, Union
-from uuid import uuid4
 
 import kubernetes
 from dateutil import parser
@@ -36,7 +35,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
@@ -45,7 +44,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
-MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
 
 # TaskInstance key, command, configuration
@@ -86,6 +84,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
+        self.pod_template_file = conf.get(self.kubernetes_section, 'pod_template_file',
+                                          fallback=None)
 
         kube_worker_annotations = conf.get(self.kubernetes_section, 'worker_annotations')
         if kube_worker_annotations:
@@ -232,6 +232,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             return int(val)
 
     def _validate(self):
+        if self.pod_template_file:
+            return
         # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
         # pylint: disable=too-many-boolean-expressions
         if not self.dags_volume_claim \
@@ -536,10 +538,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             dag_id)
         safe_task_id = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
             task_id)
-        safe_uuid = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
-            uuid4().hex)
-        return AirflowKubernetesScheduler._make_safe_pod_id(safe_dag_id, safe_task_id,
-                                                            safe_uuid)
+        return safe_dag_id + safe_task_id
 
     @staticmethod
     def _label_safe_datestring_to_datetime(string: str) -> datetime.datetime:

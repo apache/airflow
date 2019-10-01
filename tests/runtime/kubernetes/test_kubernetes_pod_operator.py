@@ -730,7 +730,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
             in_cluster=False,
             do_xcom_push=False,
         )
-
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod['spec']['initContainers'] = [expected_init_container]
@@ -741,6 +740,52 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
         }]
         self.assertEqual(self.expected_pod, actual_pod)
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_pod_template_file(self, mock_client, launcher_mock):
+        from airflow.utils.state import State
+        k = KubernetesPodOperator(
+            task_id='task',
+            pod_template_file='tests/kubernetes/pod.yaml',
+            do_xcom_push=True
+        )
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.assertEqual({
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {'name': ANY, 'namespace': 'mem-example'},
+            'spec': {
+                'volumes': [{'name': 'xcom', 'emptyDir': {}}],
+                'containers': [{
+                    'args': ['--vm', '1', '--vm-bytes', '150M', '--vm-hang', '1'],
+                    'command': ['stress'],
+                    'image': 'polinux/stress',
+                    'name': 'memory-demo-ctr',
+                    'resources': {
+                        'limits': {'memory': '200Mi'},
+                        'requests': {'memory': '100Mi'}
+                    },
+                    'volumeMounts': [{
+                        'name': 'xcom',
+                        'mountPath': '/airflow/xcom'
+                    }]
+                }, {
+                    'name': 'airflow-xcom-sidecar',
+                    'image': "alpine",
+                    'command': ['sh', '-c', PodDefaults.XCOM_CMD],
+                    'volumeMounts': [
+                        {
+                            'name': 'xcom',
+                            'mountPath': '/airflow/xcom'
+                        }
+                    ],
+                    'resources': {'requests': {'cpu': '1m'}},
+                }],
+            }
+        }, actual_pod)
 
 
 # pylint: enable=unused-argument

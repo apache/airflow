@@ -1626,6 +1626,13 @@
       type: string
       example: ~
       default: ""
+    - name: pod_template_file
+      description: |
+        Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: worker_container_tag
       description: |
         The tag of the Kubernetes Image for the Worker to Run

@@ -81,14 +81,14 @@ with DAG(
         }
     )
 
-    # Test that we can run tasks as a normal user
+    # Test that we can add labels to pods
     third_task = PythonOperator(
         task_id="non_root_task",
         python_callable=print_stuff,
         executor_config={
             "KubernetesExecutor": {
-                "securityContext": {
-                    "runAsUser": 1000
+                "labels": {
+                    "release": "stable"
                 }
             }
         }
