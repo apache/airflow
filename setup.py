@@ -182,6 +182,11 @@ doc = [
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
 docker = ['docker~=3.0']
+drill = [
+    'pydrill>=0.3.4',
+    'sqlalchemy-drill@'
+    'git+https://github.com/aksakalli/sqlalchemy-drill.git@master#egg=sqlalchemy-drill==2.22.0'
+]
 druid = ['pydruid>=0.4.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
@@ -258,7 +263,8 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
+all_dbs = (postgres + mysql + hive + mssql + hdfs + vertica + cloudant + drill + druid +
+           pinot + cassandra + mongo)
 
 devel = [
     'beautifulsoup4~=4.7.1',
@@ -384,6 +390,7 @@ def do_setup():
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
+            'drill': drill,
             'druid': druid,
             'elasticsearch': elasticsearch,
             'gcp': gcp,
