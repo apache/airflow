@@ -61,6 +61,9 @@ AUTH_TYPE = AUTH_DB
 # The default user self registration role
 # AUTH_USER_REGISTRATION_ROLE = "Public"
 
+# Set your custom IndexView class here to override the default
+# INDEX_VIEW_CLASS =
+
 # When using OAuth Auth, uncomment to setup provider(s) info
 # Google OAuth example:
 # OAUTH_PROVIDERS = [{

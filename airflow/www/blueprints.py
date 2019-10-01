@@ -18,10 +18,19 @@
 # under the License.
 #
 from flask import Blueprint, redirect, url_for
+from flask_appbuilder import IndexView, expose
 
 routes = Blueprint('routes', __name__)
 
+# Place any Flask Blueprint routes (non Flask-Appbuilder ones) here
 
-@routes.route('/')
-def index():
-    return redirect(url_for('Airflow.index'))
+# We can't put this into airflow.www.views because then we would have to import the views module
+# inside airflow.www.app prior to the appbuilder object being set up.
+# This would break other code in views not using the cached_appbuilder() function.
+
+
+class AirflowIndexView(IndexView):
+    """Redirection to /home using IndexView from Flask-Appbuilder."""
+    @expose('/')
+    def index(self):
+        return redirect(url_for('Airflow.index'))

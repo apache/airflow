@@ -99,10 +99,19 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
                  not FAB's security manager.""")
 
+        from airflow.www.blueprints import AirflowIndexView
+        from flask_appbuilder import IndexView
+        index_view_class = app.config.get('INDEX_VIEW_CLASS') or \
+            AirflowIndexView
+
+        if not issubclass(index_view_class, IndexView):
+            raise Exception("Your INDEX_VIEW_CLASS must extend flask_appbuilder.IndexView")
+
         appbuilder = AppBuilder(
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
+            indexview=index_view_class,
             base_template='appbuilder/baselayout.html')
 
         def init_views(appbuilder):
