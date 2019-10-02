@@ -21,7 +21,7 @@ import time
 import tenacity
 
 from datetime import datetime as dt
-from typing import Optional, Tuple, Generator
+from typing import Tuple, Optional, Generator, List
 from requests.exceptions import BaseHTTPError
 
 from kubernetes import client, watch
@@ -198,7 +198,7 @@ class PodLauncher(LoggingMixin):
 
         # If we've already read a chunk, skip until we find a matching line
         # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
-        buffered_lines = []
+        buffered_lines: List[bytes] = []
         skipping_lines = True
         for line in resp:
             if skipping_lines:
