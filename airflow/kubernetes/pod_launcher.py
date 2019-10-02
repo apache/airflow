@@ -206,8 +206,6 @@ class PodLauncher(LoggingMixin):
                     self.log.debug("Found duplicate line. Stopping log skipping")
                     buffered_lines = []
                     skipping_lines = False
-                    for buffered_line in buffered_lines:
-                        yield buffered_line
                 else:
                     buffered_lines.append(line)
             else:
