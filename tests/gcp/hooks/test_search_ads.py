@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from unittest import TestCase, mock
+
 from airflow.gcp.hooks.search_ads import GoogleSearchAdsHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 

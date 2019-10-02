@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from unittest import TestCase, mock
+
 from airflow.gcp.sensors.search_ads import GoogleSearchAdsReportSensor
 
 API_VERSION = "api_version"

@@ -21,13 +21,12 @@ Example Airflow DAG that shows how to use SearchAds.
 """
 import os
 
-from airflow.utils import dates
 from airflow import models
 from airflow.gcp.operators.search_ads import (
-    GoogleSearchAdsInsertReportOperator,
-    GoogleSearchAdsDownloadReportOperator,
+    GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
 )
 from airflow.gcp.sensors.search_ads import GoogleSearchAdsReportSensor
+from airflow.utils import dates
 
 # [START howto_search_ads_env_variables]
 AGENCY_ID = os.environ.get("GMP_AGENCY_ID")
@@ -56,8 +55,11 @@ with models.DAG(
     generate_report = GoogleSearchAdsInsertReportOperator(
         report=REPORT, task_id="generate_report"
     )
-    report_id = "{{ task_instance.xcom_pull('generate_report', key='report_id') }}"
     # [END howto_search_ads_generate_report_operator]
+
+    # [START howto_search_ads_get_report_id]
+    report_id = "{{ task_instance.xcom_pull('generate_report', key='report_id') }}"
+    # [END howto_search_ads_get_report_id]
 
     # [START howto_search_ads_get_report_operator]
     wait_for_report = GoogleSearchAdsReportSensor(

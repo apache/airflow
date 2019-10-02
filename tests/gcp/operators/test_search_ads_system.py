@@ -18,9 +18,9 @@
 # under the License.
 import unittest
 
+from tests.gcp.operators.test_search_ads_system_helper import GoogleSearchAdsSystemTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_SEARCHADS_KEY
-from tests.gcp.operators.test_search_ads_system_helper import GoogleSearchAdsSystemTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_SEARCHADS_KEY), SKIP_TEST_WARNING)

@@ -21,9 +21,9 @@ This module contains Google Search Ads sensor.
 """
 from typing import Dict, Optional
 
-from airflow.utils.decorators import apply_defaults
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.gcp.hooks.search_ads import GoogleSearchAdsHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSearchAdsReportSensor(BaseSensorOperator):

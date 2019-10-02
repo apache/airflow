@@ -18,6 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 GCS_BUCKET = os.environ.get("GMP_GCS_BUCKET", "test-cm-bucket")

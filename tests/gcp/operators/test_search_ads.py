@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from unittest import TestCase, mock
+
 from airflow.gcp.operators.search_ads import (
-    GoogleSearchAdsInsertReportOperator,
-    GoogleSearchAdsDownloadReportOperator,
+    GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
 )
 
 API_VERSION = "api_version"

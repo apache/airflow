@@ -47,7 +47,13 @@ To insert a Search Ads report use the
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.gcp.operators.search_ads.GoogleSearchAdsInsertReportOperator`
 parameters which allows you to dynamically determine values.
-The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators:
+
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_search_ads.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_search_ads_get_report_id]
+    :end-before: [END howto_search_ads_get_report_id]
 
 .. _howto/operator:GoogleSearchAdsReportSensor:
 

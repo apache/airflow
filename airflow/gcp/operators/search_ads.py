@@ -19,14 +19,13 @@
 """
 This module contains Google Search Ads operators.
 """
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
-from tempfile import NamedTemporaryFile
-
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.utils.decorators import apply_defaults
-from airflow.models.baseoperator import BaseOperator
 from airflow.gcp.hooks.search_ads import GoogleSearchAdsHook
+from airflow.models.baseoperator import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSearchAdsInsertReportOperator(BaseOperator):
@@ -174,11 +173,11 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
         # Resolve report fragments
         response = hook.get(report_id=self.report_id)
-        fragments = range(len(response["files"]))
+        fragments_count = len(response["files"])
 
         # Download chunks of report's data
         with NamedTemporaryFile() as temp_file:
-            for i in fragments:
+            for i in range(fragments_count):
                 byte_content = hook.get_file(
                     report_fragment=i, report_id=self.report_id
                 )
