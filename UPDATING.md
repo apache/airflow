@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.5](#airflow-1105)
 - [Airflow 1.10.4](#airflow-1104)
 - [Airflow 1.10.3](#airflow-1103)
 - [Airflow 1.10.2](#airflow-1102)
@@ -271,6 +272,10 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
 and `dataproc_jars`respectively.
 Arguments for dataproc_properties dataproc_jars
+
+## Airflow 1.10.5
+
+No breaking changes.
 
 ## Airflow 1.10.4
 
