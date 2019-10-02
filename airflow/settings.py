@@ -25,6 +25,8 @@ import sys
 import socket
 import time
 
+from typing import Any
+
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker, Query
 from sqlalchemy.pool import NullPool
@@ -99,7 +101,7 @@ class DummyStatsLogger(object):
         pass
 
 
-Stats = DummyStatsLogger
+Stats = DummyStatsLogger  # type: Any
 
 try:
     if conf.getboolean('scheduler', 'statsd_on'):
@@ -109,7 +111,7 @@ try:
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
-        Stats = statsd  # type: ignore
+        Stats = statsd
 except (socket.gaierror, ImportError) as e:
     log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
 

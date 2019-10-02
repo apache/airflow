@@ -171,7 +171,7 @@ class PodLauncher(LoggingMixin):
 
         # If we've already read a chunk, skip until we find a matching line
         # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
-        buffered_lines: List[bytes] = []
+        buffered_lines = []  # type: List[bytes]
         skipping_lines = True
         for line in resp:
             if skipping_lines:
