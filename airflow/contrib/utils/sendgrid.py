@@ -36,17 +36,23 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 def send_email(to, subject, html_content, files=None, cc=None,
                bcc=None, sandbox_mode=False, **kwargs):
     """
-    Send an email with html content using sendgrid.
+    Send an email with html content using `Sendgrid <https://sendgrid.com/>`__.
 
     To use this plugin:
-    0. include sendgrid subpackage as part of your Airflow installation, e.g.,
-    pip install 'apache-airflow[sendgrid]'
-    1. update [email] backend in airflow.cfg, i.e.,
-    [email]
-    email_backend = airflow.contrib.utils.sendgrid.send_email
-    2. configure Sendgrid specific environment variables at all Airflow instances:
-    SENDGRID_MAIL_FROM={your-mail-from}
-    SENDGRID_API_KEY={your-sendgrid-api-key}.
+
+    0. Include ``sendgrid`` subpackage as part of your Airflow installation, e.g.,::
+
+       pip install 'apache-airflow[sendgrid]'
+
+    1. Update ``email_backend`` property in `[email]`` section in ``airflow.cfg``, i.e.,::
+
+      [email]
+      email_backend = airflow.contrib.utils.sendgrid.send_email
+
+    2. Configure Sendgrid specific environment variables at all Airflow instances:::
+
+      SENDGRID_MAIL_FROM={your-mail-from}
+      SENDGRID_API_KEY={your-sendgrid-api-key}.
     """
     if files is None:
         files = []
