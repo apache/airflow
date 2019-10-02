@@ -21,13 +21,13 @@ Base Asynchronous Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
 from abc import abstractmethod
-from functools import wraps
 from typing import Dict, List, Union, Optional
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.exceptions import AirflowException, AirflowRescheduleException
+from airflow.exceptions import AirflowException
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
-from airflow.models import TaskReschedule
+from airflow.models import SkipMixin, TaskReschedule
+from airflow.utils.decorators import apply_defaults
 
 PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'
 
@@ -65,7 +65,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         super().__init__(mode='reschedule', *args, **kwargs)
 
     @abstractmethod
-    def submit_request(self, context) -> Optional[Union[String, List, Dict]]:
+    def submit_request(self, context) -> Optional[Union[str, List, Dict]]:
         """
         This method should kick off a long running operation.
         This method should return the ID for the long running operation if
@@ -94,7 +94,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         # external resource id.
         task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
         if not task_reschedules:
-            resource_id = self.submit_request(self, context)
+            resource_id = self.submit_request(context)
             if not resource_id:
                 resource_id = PLACEHOLDER_RESOURCE_ID
             self.set_external_resource_id(context, resource_id)
@@ -117,10 +117,22 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
     @staticmethod
     def set_external_resource_id(context, value):
+        """
+        Utility for setting the XCom for the external resource id.
+        :param context: Template rendering context
+        :type context: dict
+        :param value: the resource id to store in XCom.
+        :type value: Union[str, Dict, List]
+        """
         return context['ti'].xcom_push(key=XCOM_EXTERNAL_RESOURCE_ID_KEY,
                                        value=value)
 
     @staticmethod
     def get_external_resource_id(context):
+        """
+        Utility for getting the XCom for the external resource id.
+        :param context: Template rendering context
+        :type context: dict
+        """
         return context['ti'].xcom_pull(task_ids=context['task'].task_id,
                                        key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
