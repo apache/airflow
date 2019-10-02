@@ -187,7 +187,7 @@ How can my airflow dag run faster?
 
 There are a few variables we could control to improve airflow dag performance:
 
-- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the ``parallelism`` variable in the ``airflow.cfg``.
 - ``concurrency``: The Airflow scheduler will run no more than ``concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
 - ``task_concurrency``: This variable controls the number of concurrent running task instances across ``dag_runs`` per task.
 - ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
@@ -204,7 +204,7 @@ How to fix Exception: Global variable explicit_defaults_for_timestamp needs to b
 
 This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server and you need to enable it by:
 
-#. Set ``explicit_defaults_for_timestamp = 1`` under the mysqld section in your my.cnf file.
+#. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
 
 

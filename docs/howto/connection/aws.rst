@@ -51,12 +51,12 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. The following parameters are supported:
 
-    * **aws_account_id**: AWS account ID for the connection
-    * **aws_iam_role**: AWS IAM role for the connection
-    * **external_id**: AWS external ID for the connection
-    * **host**: Endpoint URL for the connection
-    * **region_name**: AWS region for the connection
-    * **role_arn**: AWS role ARN for the connection
+    * ``aws_account_id``: AWS account ID for the connection
+    * ``aws_iam_role``: AWS IAM role for the connection
+    * ``external_id``: AWS external ID for the connection
+    * ``host``: Endpoint URL for the connection
+    * ``region_name``: AWS region for the connection
+    * ``role_arn``: AWS role ARN for the connection
 
     Example "extras" field:
 

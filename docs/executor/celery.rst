@@ -39,7 +39,7 @@ Here are a few imperative requirements for your workers:
   the ``PYTHONPATH`` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
   synchronize the filesystems by your own means. A common setup would be to
-  store your DAGS_FOLDER in a Git repository and sync it across machines using
+  store your ``DAGS_FOLDER`` in a Git repository and sync it across machines using
   Chef, Puppet, Ansible, or whatever you use to configure machines in your
   environment. If all your boxes have a common mount point, having your
   pipelines files shared there should work as well
@@ -69,6 +69,6 @@ Please note that you must have the ``flower`` python library already installed o
 Some caveats:
 
 - Make sure to use a database backed result backend
-- Make sure to set a visibility timeout in [celery_broker_transport_options] that exceeds the ETA of your longest running task
+- Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions

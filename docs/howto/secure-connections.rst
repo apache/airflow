@@ -38,7 +38,7 @@ You can still enable encryption for passwords within connections by following be
       fernet_key= Fernet.generate_key()
       print(fernet_key.decode()) # your fernet_key, keep it in secured place!
 
-#. Replace ``airflow.cfg`` fernet_key value with the one from ``Step 2``. *Alternatively,* you can store your fernet_key in OS environment variable - You do not need to change ``airflow.cfg`` in this case as Airflow will use environment variable over the value in ``airflow.cfg``:
+#. Replace ``airflow.cfg`` fernet_key value with the one from ``Step 2``. *Alternatively,* you can store your ``fernet_key`` in OS environment variable - You do not need to change ``airflow.cfg`` in this case as Airflow will use environment variable over the value in ``airflow.cfg``:
 
     .. code-block:: bash
 

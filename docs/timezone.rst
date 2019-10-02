@@ -51,7 +51,7 @@ Python’s datetime.datetime objects have a tzinfo attribute that can be used to
 represented as an instance of a subclass of datetime.tzinfo. When this attribute is set and describes an offset,
 a datetime object is aware. Otherwise, it’s naive.
 
-You can use timezone.is_localized() and timezone.is_naive() to determine whether datetimes are aware or naive.
+You can use ``timezone.is_localized()`` and ``timezone.is_naive()`` to determine whether datetimes are aware or naive.
 
 Because Airflow uses time-zone-aware datetime objects. If your code creates datetime objects they need to be aware too.
 
@@ -90,7 +90,7 @@ datetime objects when time zone support is enabled.
 
 In practice, this is rarely an issue. Airflow gives you aware datetime objects in the models and DAGs, and most often,
 new datetime objects are created from existing ones through timedelta arithmetic. The only datetime that’s often
-created in application code is the current time, and timezone.utcnow() automatically does the right thing.
+created in application code is the current time, and ``timezone.utcnow()`` automatically does the right thing.
 
 
 Default time zone
@@ -98,7 +98,7 @@ Default time zone
 
 The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
 you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
-`system` or an IANA time zone (e.g.``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
+``system`` or an IANA time zone (e.g.``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 
@@ -160,5 +160,5 @@ regardless if day light savings time is in place.
 Time deltas
 '''''''''''
 For schedules with time deltas Airflow assumes you always will want to run with the specified interval. So if you
-specify a timedelta(hours=2) you will always want to run two hours later. In this case day light savings time will
+specify a ``timedelta(hours=2)`` you will always want to run two hours later. In this case day light savings time will
 be taken into account.
