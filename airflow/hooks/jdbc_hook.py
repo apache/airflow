@@ -57,3 +57,16 @@ class JdbcHook(DbApiHook):
         :return:
         """
         conn.jconn.setAutoCommit(autocommit)
+
+    def get_autocommit(self, conn):
+        """
+        Get autocommit setting for the provided connection.
+        Return True if conn.autocommit is set to True.
+        Return False if conn.autocommit is not set or set to False
+
+        :param conn: The connection
+        :return: connection autocommit setting.
+        :rtype: bool
+        """
+
+        return conn.jconn.getAutoCommit()
