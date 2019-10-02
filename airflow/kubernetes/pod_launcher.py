@@ -19,7 +19,7 @@ import json
 import math
 import time
 import tenacity
-from typing import Tuple, Optional, Generator
+from typing import Tuple, Optional, Generator, List
 
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -171,7 +171,7 @@ class PodLauncher(LoggingMixin):
 
         # If we've already read a chunk, skip until we find a matching line
         # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
-        buffered_lines = []
+        buffered_lines: List[bytes] = []
         skipping_lines = True
         for line in resp:
             if skipping_lines:
