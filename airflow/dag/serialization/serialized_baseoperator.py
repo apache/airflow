@@ -20,8 +20,8 @@
 """Operator serialization with JSON."""
 from inspect import signature
 
-from airflow.models import BaseOperator
 from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
+from airflow.models import BaseOperator
 
 
 class SerializedBaseOperator(BaseOperator, Serialization):

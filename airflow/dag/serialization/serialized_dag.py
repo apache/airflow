@@ -21,10 +21,9 @@
 from inspect import signature
 from typing import cast
 
-from airflow.models import DAG
-
 from airflow.dag.serialization.json_schema import load_dag_schema
 from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
+from airflow.models import DAG
 
 
 class SerializedDAG(DAG, Serialization):

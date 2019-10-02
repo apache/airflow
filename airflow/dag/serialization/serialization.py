@@ -36,7 +36,6 @@ from airflow.models.dag import DAG
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
 
-
 LOG = LoggingMixin().log
 
 # Serialization failure returns 'failed'.

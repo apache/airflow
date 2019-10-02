@@ -20,7 +20,7 @@ import logging
 import re
 import sys
 from contextlib import contextmanager
-from logging import Handler, StreamHandler, Logger
+from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
