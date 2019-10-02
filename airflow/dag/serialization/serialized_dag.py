@@ -18,9 +18,12 @@
 # under the License.
 
 """DAG serialization with JSON."""
-import json
+try:
+    from inspect import signature
+except ImportError:
+    from funcsigs import signature  # type: ignore
+from typing import cast
 
-from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.dag.serialization.json_schema import load_dag_schema
 from airflow.dag.serialization.serialization import Serialization
 from airflow.models import DAG
@@ -37,13 +40,24 @@ class SerializedDAG(DAG, Serialization):
     Compared with DagPickle: DagPickle contains all information for worker, but some DAGs are
     not pickable. SerializedDAG works for all DAGs.
     """
-    # Stringified DAGs and operators contain exactly these fields.
-    # FIXME: to customize included fields and keep only necessary fields.
-    _included_fields = set(vars(DAG(dag_id='test')).keys()) - {
-        'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
-        '_full_filepath', 'user_defined_filters', 'user_defined_macros',
-        '_schedule_interval', 'partial'
-    }
+
+    _decorated_fields = {'schedule_interval'}
+
+    @staticmethod
+    def __get_constructor_defaults():  # pylint: disable=no-method-argument
+        param_to_attr = {
+            'concurrency': '_concurrency',
+            'description': '_description',
+            'default_view': '_default_view',
+            'access_control': '_access_control',
+        }
+        return {
+            param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
+            if v.default is not v.empty and v.default is not None
+        }
+
+    _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
+    del __get_constructor_defaults
 
     _json_schema = load_dag_schema()
 
@@ -52,21 +66,73 @@ class SerializedDAG(DAG, Serialization):
         # type: (DAG) -> dict
         """Serializes a DAG into a JSON object.
         """
-        new_dag = {Encoding.TYPE: DAT.DAG, Encoding.VAR: cls._serialize_object(dag)}
-        return new_dag
+        serialize_dag = {}
+
+        # pylint: disable=protected-access
+        for k in dag._serialized_fields:
+            # None is ignored in serialized form and is added back in deserialization.
+            v = getattr(dag, k, None)
+            if cls._is_excluded(v, k, dag):
+                continue
+
+            if k in cls._decorated_fields:
+                serialize_dag[k] = cls._serialize(v)
+            else:
+                v = cls._serialize(v)
+                # TODO: Why?
+                if isinstance(v, dict) and "__type" in v:
+                    v = v["__var"]
+                serialize_dag[k] = v
+
+        serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+        return serialize_dag
 
     @classmethod
     def deserialize_dag(cls, encoded_dag):
-        # type: (dict) -> DAG
+        # type: (dict) -> 'SerializedDAG'
         """Deserializes a DAG from a JSON object.
         """
+        from airflow.dag.serialization import SerializedBaseOperator
+
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
-        cls._deserialize_object(encoded_dag, dag)
+
+        for k, v in encoded_dag.items():
+            if k == "_downstream_task_ids":
+                v = set(v)
+            elif k == "tasks":
+                v = {
+                    task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v
+                }
+                k = "task_dict"
+            elif k == "timezone":
+                v = cls._deserialize_timezone(v)
+            elif k in {"retry_delay", "execution_timeout"}:
+                v = cls._deserialize_timedelta(v)
+            elif k.endswith("_date"):
+                v = cls._deserialize_datetime(v)
+            elif k in cls._decorated_fields:
+                v = cls._deserialize(v)
+            # else use v as it is
+
+            setattr(dag, k, v)
+
+        # pylint: disable=protected-access
+        keys_to_set_none = dag._serialized_fields - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
+        for k in keys_to_set_none:
+            setattr(dag, k, None)
+
         setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
-            if task.subdag is not None:  # type: ignore # Property of SubDagOperator
-                setattr(task.subdag, 'parent_dag', dag)  # type: ignore
+            task = cast(SerializedBaseOperator, task)
+            if task.subdag is not None:
+                setattr(task.subdag, 'parent_dag', dag)
+                task.subdag.is_subdag = True
+
+            for task_id in task.downstream_task_ids:
+                # Bypass set_upstream etc here - it does more than we want
+                dag.task_dict[task_id]._upstream_task_ids.add(task_id)  # pylint: disable=protected-access
+
         return dag
 
     @classmethod
@@ -84,6 +150,20 @@ class SerializedDAG(DAG, Serialization):
         # type: (...) -> dict
         """Stringifies DAGs and operators contained by var and returns a dict of var.
         """
-        json_dict = cls._serialize(var)
+        json_dict = {
+            "__version": cls.SERIALIZER_VERSION,
+            "dag": cls.serialize_dag(var)
+        }
+
+        # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
         cls.validate_schema(json_dict)
         return json_dict
+
+    @classmethod
+    def from_dict(cls, serialized_obj):
+        # type: (dict) -> 'SerializedDAG'
+        """Deserializes a python dict in to the DAG and operators it contains."""
+        ver = serialized_obj.get('__version', '<not present>')
+        if ver != cls.SERIALIZER_VERSION:
+            raise ValueError("Unsure how to deserialize version {!r}".format(ver))
+        return cls.deserialize_dag(serialized_obj['dag'])

@@ -18,7 +18,9 @@
 # under the License.
 
 """DAG serialization."""
+# pylint: disable=cyclic-import
+from airflow.dag.serialization.serialized_dag import SerializedDAG
+# pylint: disable=cyclic-import
+from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator
 
-from airflow.dag.serialization.serialization import Serialization  # noqa: F401
-from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401
-from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401
+__ALL__ = [SerializedDAG, SerializedBaseOperator]

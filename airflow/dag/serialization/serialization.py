@@ -23,23 +23,20 @@ import datetime
 import json
 import logging
 import six
-from typing import Iterable, Optional, TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union, Dict
 
 import pendulum
 
 import airflow
 from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, DAG
+from airflow.models.dag import DAG
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
 from airflow.dag.serialization.json_schema import Validator
 
-
-if TYPE_CHECKING:
-    from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
-    from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
 
 LOG = LoggingMixin().log
 
@@ -56,39 +53,43 @@ class Serialization:
     # Time types.
     _datetime_types = (datetime.datetime, datetime.date, datetime.time)
 
-    # Exactly these fields will be contained in the serialized Json
-    _included_fields = []  # type: Iterable[str]
-
     # Object types that are always excluded in serialization.
     # FIXME: not needed if _included_fields of DAG and operator are customized.
     _excluded_types = (logging.Logger, Connection, type)
 
     _json_schema = None     # type: Optional[Validator]
 
+    _CONSTRUCTOR_PARAMS = {}  # type: Dict[str, Parameter]
+
+    SERIALIZER_VERSION = 1
+
     @classmethod
     def to_json(cls, var):
         # type: (Union[DAG, BaseOperator, dict, list, set, tuple]) -> str
         """Stringifies DAGs and operators contained by var and returns a JSON string of var.
         """
-        return json.dumps(cls._serialize(var), ensure_ascii=True)
+        return json.dumps(cls.to_dict(var), ensure_ascii=True)
 
     @classmethod
     def to_dict(cls, var):
         # type: (Union[DAG, BaseOperator, dict, list, set, tuple]) -> dict
         """Stringifies DAGs and operators contained by var and returns a dict of var.
         """
-        return cls._serialize(var)
+        # Don't call on this class directly - only SerializedDAG or
+        # SerializedBaseOperator should be used as the "entrypoint"
+        raise NotImplementedError()
 
     @classmethod
     def from_json(cls, serialized_obj):
         # type: (str) -> Union['SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]
         """Deserializes json_str and reconstructs all DAGs and operators it contains."""
-        return cls._deserialize(json.loads(serialized_obj))
+        return cls.from_dict(json.loads(serialized_obj))
 
     @classmethod
     def from_dict(cls, serialized_obj):
         # type: (dict) -> Union['SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]
-        """Deserializes json_str and reconstructs all DAGs and operators it contains."""
+        """Deserializes a python dict stored with type decorators and
+        reconstructs all DAGs and operators it contains."""
         return cls._deserialize(serialized_obj)
 
     @classmethod
@@ -109,26 +110,6 @@ class Serialization:
         return {Encoding.VAR: x, Encoding.TYPE: type_}
 
     @classmethod
-    def _serialize_object(cls, var):
-        """Helper function to serialize an object as a JSON dict."""
-        new_var = {}
-        for k in cls._included_fields:
-            # None is ignored in serialized form and is added back in deserialization.
-            v = getattr(var, k, None)
-            if not cls._is_excluded(v, k, var):
-                new_var[k] = cls._serialize(v)
-        return new_var
-
-    @classmethod
-    def _deserialize_object(cls, var, new_var):
-        """Deserialize and copy the attributes of dict var to a new object new_var."""
-        for k in cls._included_fields:
-            if k in var:
-                setattr(new_var, k, cls._deserialize(var[k]))
-            else:
-                setattr(new_var, k, None)
-
-    @classmethod
     def _is_primitive(cls, var):
         """Primitive types."""
         return var is None or isinstance(var, cls._primitive_types)
@@ -136,7 +117,11 @@ class Serialization:
     @classmethod
     def _is_excluded(cls, var, attrname, instance):
         """Types excluded from serialization."""
-        return var is None or isinstance(var, cls._excluded_types)
+        return (
+            var is None or
+            isinstance(var, cls._excluded_types) or
+            cls._value_is_hardcoded_default(attrname, var)
+        )
 
     @classmethod
     def _serialize(cls, var):  # pylint: disable=too-many-return-statements
@@ -193,36 +178,62 @@ class Serialization:
     @classmethod
     def _deserialize(cls, encoded_var):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
-        try:
-            # JSON primitives (except for dict) are not encoded.
-            if cls._is_primitive(encoded_var):
-                return encoded_var
-            elif isinstance(encoded_var, list):
-                return [cls._deserialize(v) for v in encoded_var]
+        # JSON primitives (except for dict) are not encoded.
+        if cls._is_primitive(encoded_var):
+            return encoded_var
+        elif isinstance(encoded_var, list):
+            return [cls._deserialize(v) for v in encoded_var]
 
-            assert isinstance(encoded_var, dict)
-            var = encoded_var[Encoding.VAR]
-            type_ = encoded_var[Encoding.TYPE]
+        assert isinstance(encoded_var, dict)
+        var = encoded_var[Encoding.VAR]
+        type_ = encoded_var[Encoding.TYPE]
 
-            if type_ == DAT.DICT:
-                return {k: cls._deserialize(v) for k, v in var.items()}
-            elif type_ == DAT.DAG:
-                return airflow.dag.serialization.SerializedDAG.deserialize_dag(var)
-            elif type_ == DAT.OP:
-                return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
-            elif type_ == DAT.DATETIME:
-                return pendulum.from_timestamp(var)
-            elif type_ == DAT.TIMEDELTA:
-                return datetime.timedelta(seconds=var)
-            elif type_ == DAT.TIMEZONE:
-                return pendulum.timezone(var)
-            elif type_ == DAT.SET:
-                return {cls._deserialize(v) for v in var}
-            elif type_ == DAT.TUPLE:
-                return tuple([cls._deserialize(v) for v in var])
-            else:
-                LOG.warning('Invalid type %s in deserialization.', type_)
-                return None
-        except Exception:  # pylint: disable=broad-except
-            LOG.warning('Failed to deserialize %s.', encoded_var, exc_info=True)
-            return None
+        if type_ == DAT.DICT:
+            return {k: cls._deserialize(v) for k, v in var.items()}
+        elif type_ == DAT.DAG:
+            return airflow.dag.serialization.SerializedDAG.deserialize_dag(var)
+        elif type_ == DAT.OP:
+            return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
+        elif type_ == DAT.DATETIME:
+            return pendulum.from_timestamp(var)
+        elif type_ == DAT.TIMEDELTA:
+            return datetime.timedelta(seconds=var)
+        elif type_ == DAT.TIMEZONE:
+            return pendulum.timezone(var)
+        elif type_ == DAT.SET:
+            return {cls._deserialize(v) for v in var}
+        elif type_ == DAT.TUPLE:
+            return tuple([cls._deserialize(v) for v in var])
+        else:
+            raise TypeError('Invalid type {!s} in deserialization.'.format(type_))
+
+    _deserialize_datetime = pendulum.from_timestamp
+    _deserialize_timezone = pendulum.timezone
+
+    @classmethod
+    def _deserialize_timedelta(cls, seconds):
+        return datetime.timedelta(seconds=seconds)
+
+    @classmethod
+    def _value_is_hardcoded_default(cls, attrname, value):
+        """
+        Return true if ``value`` is the hard-coded default for the given attribute.
+        This takes in to account cases where the ``concurrency`` parameter is
+        stored in the ``_concurrency`` attribute.
+        And by using `is` here only and not `==` this copes with the case a
+        user explicitly specifies an attribute with the same "value" as the
+        default. (This is because ``"default" is "default"`` will be False as
+        they are different strings with the same characters.)
+        """
+        if attrname in cls._CONSTRUCTOR_PARAMS and cls._CONSTRUCTOR_PARAMS[attrname].default is value:
+            return True
+        return False
+
+
+if TYPE_CHECKING:
+    from airflow.dag.serialization.serialized_baseoperator import \
+        SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
+    from airflow.dag.serialization.serialized_dag import \
+        SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
+    from airflow.dag.serialization.json_schema import Validator
+    from inspect import Parameter
