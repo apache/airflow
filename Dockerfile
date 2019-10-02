@@ -86,6 +86,14 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install graphviz - needed to build docs with diagrams
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           graphviz \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install MySQL client from Oracle repositories (Debian installs mariadb)
 RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
     && GNUPGHOME="$(mktemp -d)" \

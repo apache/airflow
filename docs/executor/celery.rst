@@ -72,3 +72,74 @@ Some caveats:
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
+
+Architecture
+------------
+
+.. graphviz::
+
+    digraph A{
+        rankdir="TB"
+        node[shape="rectangle", style="rounded"]
+
+
+        subgraph cluster {
+            label="Cluster";
+            {rank = same; dag; database}
+            {rank = same; workers; scheduler; web}
+
+            workers[label="Workers"]
+            scheduler[label="Scheduler"]
+            web[label="Web server"]
+            database[label="Database"]
+            dag[label="DAG files"]
+
+            subgraph cluster_queue {
+                label="Queue";
+                {rank = same; queue_broker; queue_result_backend}
+                queue_broker[label="Queue broker"]
+                queue_result_backend[label="Result backend"]
+            }
+
+            scheduler->workers[label="1"]
+            web->database[label="2"]
+            web->dag[label="3"]
+
+            workers->database[label="4"]
+            workers->dag[label="5"]
+            workers->queue_result_backend[label="6"]
+            workers->queue_broker[label="7"]
+
+            scheduler->database[label="8"]
+            scheduler->dag[label="9"]
+            scheduler->queue_result_backend[label="10"]
+            scheduler->queue_broker[label="11"]
+        }
+    }
+
+Airflow consist of several components:
+
+* **Workers** - Execute the assigned tasks
+* **Scheduler** - Responsible for adding the necessary tasks to the queue
+* **Web server** - Server HTTP provides access to DAG/task status information
+* **Database** - Contains information about the status of tasks, DAGs, Variables, connections, etc.
+* **Queue** - Queue mechanism provided by Celery
+
+Please note that the queue at Celery consists of two components:
+
+* **Broker** - Stores commands for execution
+* **Result backend** - Stores status of completed command
+
+The components communicate with each other in many places
+
+* [1] **Scheduler** --> **Workers** - Fetchs task execution logs
+* [2] **Web server** --> **Database** - Fetch the status of the tasks
+* [3] **Web server** --> **DAG files** - Reveal the DAG structure
+* [4] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
+* [5] **Workers** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [6] **Workers** --> **Queue's result backend** - Saves the status of tasks
+* [7] **Workers** --> **Queue's broker** - Stores commands for execution
+* [8] **Scheduler** --> **Database** - Store a DAG run and related tasks
+* [9] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [10] **Scheduler** --> **Queue's result backend** - Gets information about the status of completed tasks
+* [11] **Scheduler** --> **Queue's broker** - Put the commands to be executed
