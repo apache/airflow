@@ -1377,7 +1377,8 @@ def users_create(args):
     appbuilder = cached_appbuilder()
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        raise SystemExit('{} is not a valid role.'.format(args.role))
+        valid_roles = appbuilder.sm.get_all_roles()
+        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
 
     if args.use_random_password:
         password = ''.join(random.choice(string.printable) for _ in range(16))
@@ -1434,7 +1435,8 @@ def users_manage_role(args, remove=False):
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        raise SystemExit('"{}" is not a valid role.'.format(args.role))
+        valid_roles = appbuilder.sm.get_all_roles()
+        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
 
     if remove:
         if role in user.roles:
@@ -1517,7 +1519,8 @@ def _import_users(users_list):
         for rolename in user['roles']:
             role = appbuilder.sm.find_role(rolename)
             if not role:
-                print("Error: '{}' is not a valid role".format(rolename))
+                valid_roles = appbuilder.sm.get_all_roles()
+                print("Error: '{}' is not a valid role. Valid roles are: {}".format(rolename, valid_roles))
                 exit(1)
             else:
                 roles.append(role)
