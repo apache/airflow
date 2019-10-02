@@ -103,12 +103,12 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         )
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
-            object_name=report_name,
+            object_name=report_name + ".gz",
             gzip=True,
             filename=temp_file_name,
             mime_type="text/csv",
         )
-        xcom_mock.assert_called_once_with(None, key="report_name", value=report_name)
+        xcom_mock.assert_called_once_with(None, key="report_name", value=report_name + ".gz")
 
 
 class TestGoogleCampaignManagerInsertReportOperator(TestCase):

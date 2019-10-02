@@ -46,6 +46,8 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
 
     :param profile_id: The DFA user profile ID.
     :type profile_id: str
+    :param report_name: The name of the report to delete.
+    :type report_name: str
     :param report_id: The ID of the report.
     :type report_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
@@ -60,6 +62,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     template_fields = (
         "profile_id",
         "report_id",
+        "report_name",
         "api_version",
         "gcp_conn_id",
         "delegate_to",
@@ -187,9 +190,14 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
-    @staticmethod
-    def _set_report_name(name: str) -> str:
-        return name if name.endswith(".csv") else name + ".csv"
+    def _resolve_file_name(self, name: str) -> str:
+        csv = ".csv"
+        gzip = ".gz"
+        if not name.endswith(csv):
+            name += csv
+        if self.gzip:
+            name += gzip
+        return name
 
     @staticmethod
     def _set_bucket_name(name: str) -> str:
@@ -212,7 +220,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         report_name = self.report_name or report.get(
             "fileName", str(uuid.uuid4())
         )
-        report_name = self._set_report_name(report_name)
+        report_name = self._resolve_file_name(report_name)
 
         # Download the report
         self.log.info("Starting downloading report %s", self.report_id)
@@ -272,6 +280,8 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         "gcp_conn_id",
         "delegate_to",
     )
+
+    template_ext = (".json",)
 
     @apply_defaults
     def __init__(
