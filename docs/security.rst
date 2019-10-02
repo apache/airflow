@@ -324,7 +324,7 @@ The Google authentication backend can be used to authenticate users
 against Google using OAuth2. You must specify the email domains to restrict
 login, separated with a comma, to only members of those domains.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -362,7 +362,7 @@ SSL
 SSL can be enabled by providing a certificate and key. Once enabled, be sure to use
 "https://" in your browser.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     web_server_ssl_cert = <path to cert>
@@ -372,7 +372,7 @@ Enabling SSL will not automatically change the web server port. If you want to u
 standard port 443, you'll need to configure that too. Be aware that super user privileges
 (or cap_net_bind_service on Linux) are required to listen on port 443.
 
-.. code-block:: bash
+.. code-block:: ini
 
     # Optionally, set the server to listen on the standard SSL port.
     web_server_port = 443
@@ -381,7 +381,7 @@ standard port 443, you'll need to configure that too. Be aware that super user p
 Enable CeleryExecutor with SSL. Ensure you properly generate client and server
 certs and keys.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     ssl_active = True
@@ -415,7 +415,7 @@ To prevent tasks that don't use impersonation to be run with ``sudo`` privileges
 ``core:default_impersonation`` config which sets a default user impersonate if ``run_as_user`` is
 not set.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     default_impersonation = airflow
@@ -434,7 +434,7 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     airflow flower --basic_auth=user1:password1,user2:password2
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2

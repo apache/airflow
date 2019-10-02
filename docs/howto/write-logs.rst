@@ -53,7 +53,7 @@ Enabling remote logging
 
 To enable this feature, ``airflow.cfg`` must be configured as follows:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
@@ -81,7 +81,7 @@ Follow the steps below to enable Azure Blob Storage logging:
 #. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
 #. Customize the following portions of the template:
 
-    .. code-block:: bash
+    .. code-block:: ini
 
         # wasb buckets should start with "wasb" just to help Airflow select correct handler
         REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
@@ -113,7 +113,7 @@ Follow the steps below to enable Google Cloud Storage logging.
 To enable this feature, ``airflow.cfg`` must be configured as in this
 example:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -130,7 +130,7 @@ example:
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 #. Verify that the Google Cloud Storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
 
-.. code-block:: bash
+.. code-block:: none
 
   *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
   [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
@@ -152,7 +152,7 @@ You can also choose to have the logs output in a JSON format, using the ``json_f
 
 First, to use the handler, airflow.cfg must be configured as follows:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -169,7 +169,7 @@ First, to use the handler, airflow.cfg must be configured as follows:
 
 To output task logs to stdout in JSON format, the following config could be used:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -192,7 +192,7 @@ Writing Logs to Elasticsearch over TLS
 
 To add custom configurations to ElasticSearch (e.g. turning on ssl_verify, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your airfow.cfg
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
