@@ -36,21 +36,14 @@ LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 IMAGES_TO_CHECK=("SLIM_CI" "CI" "CHECKLICENCE")
 export IMAGES_TO_CHECK
 
-FILES_FOR_REBUILD_CHECK="\
-setup.py \
-setup.cfg \
-Dockerfile \
-Dockerfile-checklicence \
-.dockerignore \
-airflow/version.py
-"
-
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
 mkdir -p "${AIRFLOW_SOURCES}/logs"
 mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
 # shellcheck source=common/_autodetect_variables.sh
 . "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=common/_files_for_rebuild_check.sh
+. "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
 # Default branch name for triggered builds is the one configured in default branch
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
@@ -205,7 +198,7 @@ function update_all_md5_files() {
     print_info
     print_info "Updating md5sum files"
     print_info
-    for FILE in ${FILES_FOR_REBUILD_CHECK}
+    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
@@ -247,7 +240,7 @@ function check_if_docker_build_is_needed() {
     if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
         print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         set +e
-        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             # Just store md5sum for all files in md5sum.new - do not check if it is different
             check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
@@ -257,7 +250,7 @@ function check_if_docker_build_is_needed() {
         export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
     else
         set +e
-        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
                 export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
@@ -483,7 +476,7 @@ EOF
         fi
     else
         print_info
-        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK}"
+        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
         print_info
     fi
 }

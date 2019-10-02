@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# We use this small Dockerfile to find out the list of files that are part of the Docker context
-# i.e. ignored by .dockerignore
-# We need it to fix permissions of files checked out by git to help with cache invalidation on different
-# system that have different UMASK. See hooks/build for some detailed explanation.
-
-FROM alpine:3.9
-
-COPY . /context
+FILES_FOR_REBUILD_CHECK=(
+ "setup.py"
+ "setup.cfg"
+ "Dockerfile"
+ "Dockerfile-checklicence"
+ ".dockerignore"
+ "airflow/version.py"
+ "airflow/www/package.json"
+ "airflow/www/package-lock.json" )
+export FILES_FOR_REBUILD_CHECK
