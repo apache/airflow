@@ -27,6 +27,8 @@ from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.mysql_hook import MySqlHook
+from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -164,8 +166,6 @@ class CloudSqlBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        self._hook = CloudSqlHook(gcp_conn_id=self.gcp_conn_id,
-                                  api_version=self.api_version)  # type: CloudSqlHook
         super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
@@ -174,19 +174,21 @@ class CloudSqlBaseOperator(BaseOperator):
         if not self.instance:
             raise AirflowException("The required parameter 'instance' is empty or None")
 
-    def _check_if_instance_exists(self, instance):
+    def _check_if_instance_exists(self, instance, hook: CloudSqlHook):
         try:
-            return self._hook.get_instance(project_id=self.project_id,
-                                           instance=instance)
+            return hook.get_instance(
+                project_id=self.project_id,
+                instance=instance
+            )
         except HttpError as e:
             status = e.resp.status
             if status == 404:
                 return False
             raise e
 
-    def _check_if_db_exists(self, db_name):
+    def _check_if_db_exists(self, db_name, hook: CloudSqlHook):
         try:
-            return self._hook.get_database(
+            return hook.get_database(
                 project_id=self.project_id,
                 instance=self.instance,
                 database=db_name)
@@ -260,17 +262,24 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                                   api_version=self.api_version).validate(self.body)
 
     def execute(self, context):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
         self._validate_body_fields()
-        if not self._check_if_instance_exists(self.instance):
-            self._hook.create_instance(
+        if not self._check_if_instance_exists(self.instance, hook):
+            hook.create_instance(
                 project_id=self.project_id,
-                body=self.body)
+                body=self.body
+            )
         else:
             self.log.info("Cloud SQL instance with ID %s already exists. "
                           "Aborting create.", self.instance)
 
-        instance_resource = self._hook.get_instance(project_id=self.project_id,
-                                                    instance=self.instance)
+        instance_resource = hook.get_instance(
+            project_id=self.project_id,
+            instance=self.instance
+        )
         service_account_email = instance_resource["serviceAccountEmailAddress"]
         task_instance = context['task_instance']
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
@@ -327,12 +336,16 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
             raise AirflowException("The required parameter 'body' is empty")
 
     def execute(self, context):
-        if not self._check_if_instance_exists(self.instance):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        if not self._check_if_instance_exists(self.instance, hook):
             raise AirflowException('Cloud SQL instance with ID {} does not exist. '
                                    'Please specify another instance to patch.'
                                    .format(self.instance))
         else:
-            return self._hook.patch_instance(
+            return hook.patch_instance(
                 project_id=self.project_id,
                 body=self.body,
                 instance=self.instance)
@@ -372,12 +385,16 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
             api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        if not self._check_if_instance_exists(self.instance):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        if not self._check_if_instance_exists(self.instance, hook):
             print("Cloud SQL instance with ID {} does not exist. Aborting delete."
                   .format(self.instance))
             return True
         else:
-            return self._hook.delete_instance(
+            return hook.delete_instance(
                 project_id=self.project_id,
                 instance=self.instance)
 
@@ -441,14 +458,20 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
             self.log.error("Body doesn't contain 'name'. Cannot check if the"
                            " database already exists in the instance %s.", self.instance)
             return False
-        if self._check_if_db_exists(database):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        if self._check_if_db_exists(database, hook):
             self.log.info("Cloud SQL instance with ID %s already contains database"
                           " '%s'. Aborting database insert.", self.instance, database)
             return True
         else:
-            return self._hook.create_database(project_id=self.project_id,
-                                              instance=self.instance,
-                                              body=self.body)
+            return hook.create_database(
+                project_id=self.project_id,
+                instance=self.instance,
+                body=self.body
+            )
 
 
 class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
@@ -513,13 +536,17 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        if not self._check_if_db_exists(self.database):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        if not self._check_if_db_exists(self.database, hook):
             raise AirflowException("Cloud SQL instance with ID {instance} does not contain "
                                    "database '{database}'. "
                                    "Please specify another database to patch.".
                                    format(instance=self.instance, database=self.database))
         else:
-            return self._hook.patch_database(
+            return hook.patch_database(
                 project_id=self.project_id,
                 instance=self.instance,
                 database=self.database,
@@ -570,13 +597,17 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
             raise AirflowException("The required parameter 'database' is empty")
 
     def execute(self, context):
-        if not self._check_if_db_exists(self.database):
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        if not self._check_if_db_exists(self.database, hook):
             print("Cloud SQL instance with ID {} does not contain database '{}'. "
                   "Aborting database delete."
                   .format(self.instance, self.database))
             return True
         else:
-            return self._hook.delete_database(
+            return hook.delete_database(
                 project_id=self.project_id,
                 instance=self.instance,
                 database=self.database)
@@ -640,7 +671,11 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        return self._hook.export_instance(
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        return hook.export_instance(
             project_id=self.project_id,
             instance=self.instance,
             body=self.body)
@@ -716,7 +751,11 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        return self._hook.import_instance(
+        hook = CloudSqlHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version
+        )
+        return hook.import_instance(
             project_id=self.project_id,
             instance=self.instance,
             body=self.body)
@@ -771,43 +810,38 @@ class CloudSqlQueryOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
-        self.cloudsql_db_hook = CloudSqlDatabaseHook(
-            gcp_cloudsql_conn_id=gcp_cloudsql_conn_id,
-            gcp_conn_id=gcp_conn_id,
-            default_gcp_project_id=self.gcp_connection.extra_dejson.get(
-                'extra__google_cloud_platform__project'))
-        self.cloud_sql_proxy_runner = None
-        self.database_hook = None
 
-    def _execute_query(self):
+    def _execute_query(self, hook: CloudSqlDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]):
+        cloud_sql_proxy_runner = None
         try:
-            if self.cloudsql_db_hook.use_proxy:
-                self.cloud_sql_proxy_runner = self.cloudsql_db_hook. \
-                    get_sqlproxy_runner()
-                self.cloudsql_db_hook.free_reserved_port()
+            if hook.use_proxy:
+                cloud_sql_proxy_runner = hook.get_sqlproxy_runner()
+                hook.free_reserved_port()
                 # There is very, very slim chance that the socket will
                 # be taken over here by another bind(0).
                 # It's quite unlikely to happen though!
-                self.cloud_sql_proxy_runner.start_proxy()
+                cloud_sql_proxy_runner.start_proxy()
             self.log.info('Executing: "%s"', self.sql)
-            self.database_hook.run(self.sql, self.autocommit,
-                                   parameters=self.parameters)
+            database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
         finally:
-            if self.cloud_sql_proxy_runner:
-                self.cloud_sql_proxy_runner.stop_proxy()
-                self.cloud_sql_proxy_runner = None
+            if cloud_sql_proxy_runner:
+                cloud_sql_proxy_runner.stop_proxy()
 
     def execute(self, context):
-        self.cloudsql_db_hook.validate_ssl_certs()
-        self.cloudsql_db_hook.create_connection()
-
+        hook = CloudSqlDatabaseHook(
+            gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
+            default_gcp_project_id=self.gcp_connection.extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.validate_ssl_certs()
+        hook.create_connection()
         try:
-            self.cloudsql_db_hook.validate_socket_path_length()
-            self.database_hook = self.cloudsql_db_hook.get_database_hook()
+            hook.validate_socket_path_length()
+            database_hook = hook.get_database_hook()
             try:
-                self._execute_query()
+                self._execute_query(hook, database_hook)
             finally:
-                self.cloudsql_db_hook.cleanup_database_hook()
+                hook.cleanup_database_hook()
         finally:
-            self.cloudsql_db_hook.delete_connection()
-            self.cloudsql_db_hook = None
+            hook.delete_connection()
