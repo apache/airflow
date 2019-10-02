@@ -273,7 +273,7 @@ class BaseOperator(LoggingMixin):
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: Optional[int] = None,
+        retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
@@ -346,8 +346,7 @@ class BaseOperator(LoggingMixin):
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retries = retries if retries is not None else \
-            conf.getint('core', 'default_task_retries', fallback=0)
+        self.retries = retries
         self.queue = queue
         self.pool = pool
         self.sla = sla
