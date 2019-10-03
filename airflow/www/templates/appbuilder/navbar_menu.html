@@ -25,7 +25,7 @@
     {{_(item.label)}}</a>
 {% endmacro %}
 
-<li class="dropdown"><a href="{{ url_for('Airflow.index') }}">DAGs</a></li>
+<li class="dropdown"><a href="{{ url_for('Airflow.index') }}"><i class="fas fa-list"></i> DAGs</a></li>
 
 {% for item1 in menu.get_list() %}
     {% if item1 | is_menu_visible %}

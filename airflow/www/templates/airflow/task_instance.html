@@ -43,16 +43,16 @@
   </h4>
   <ul class="nav nav-pills">
     <li><a href="{{ url_for("Airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
       Task Instance Details</a></li>
     <li><a href="{{ url_for("Airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <i class="fas fa-file-alt" aria-hidden="true"></i>
       Rendered Template</a></li>
     <li><a href="{{ url_for("Airflow.log", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <i class="fas fa-align-justify" aria-hidden="true"></i>
       Log</a></li>
     <li><a href="{{ url_for("Airflow.xcom", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <i class="fas fa-file-export" aria-hidden="true"></i>
       XCom</a></li>
   </ul>
   <hr>

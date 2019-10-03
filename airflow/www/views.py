@@ -2446,10 +2446,10 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'operator',
+    list_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'log_url', 'operator',
                     'start_date', 'end_date', 'duration', 'job_id', 'hostname',
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
-                    'pool', 'log_url']
+                    'pool']
 
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
@@ -2462,7 +2462,7 @@ class TaskInstanceModelView(AirflowModelView):
         log_url = attr.get('log_url')
         return Markup(
             '<a href="{log_url}">'
-            '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
+            '    <i class="fas fa-align-justify" aria-hidden="true"></i>'
             '</span></a>').format(log_url=log_url)
 
     def duration_f(attr):

@@ -57,67 +57,61 @@
     <ul class="nav nav-pills">
       {% if dag.parent_dag is defined and dag.parent_dag %}
           <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
-              <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
-          <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
-        Graph View</a></li>
+      <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
+          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+          <i class="far fa-play-circle" aria-hidden="true"></i>
+          Trigger DAG
+      </a></li>
       <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
-        Tree View
+          <i class="fas fa-th" aria-hidden="true"></i>
+          DAG Runs
+      </a></li>
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <i class="fas fa-project-diagram" aria-hidden="true"></i>
+          DAG Diagram
       </a></li>
       <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
+          <i class="far fa-clock" aria-hidden="true"></i>
           Task Duration
       </a></li>
       <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
+          <i class="fas fa-layer-group" aria-hidden="true"></i>
           Task Tries
       </a></li>
-      <li>
-        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
+      <li><a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+          <i class="fas fa-plane-arrival" aria-hidden="true"></i>
           Landing Times
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
-          <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
-          <i class="icon-align-left"></i>
+      </a></li>
+      <li><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <i class="fas fa-stream" aria-hidden="true"></i>
           Gantt
-        </a>
-      </li>
-      <li>
-      <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
-          <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+      </a></li>
+      <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
+          <i class="fas fa-info-circle" aria-hidden="true"></i>
           Details
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
-          <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
+      </a></li>
+      <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
+          <i class="fas fa-code" aria-hidden="true"></i>
           Code
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
-          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
-          Trigger DAG
-        </a>
-      </li>
+      </a></li>
+      <li><a href="{{ url_for('LogModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}&_od_LogModelView=desc&_oc_LogModelView=dttm">
+          <i class="fas fa-align-justify" aria-hidden="true"></i>
+          Logs
+      </a></li>
       <li>
         <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh" onclick="postAsForm(this.href); return false">
-          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+          <i class="fas fa-sync" aria-hidden="true"></i>
           Refresh
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
+        <a style="color:red" href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
           onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
+          <i class="fas fa-trash" aria-hidden="true"></i>
           Delete
         </a>
       </li>
@@ -134,7 +128,7 @@
           <h4 class="modal-title" id="myModalLabel">
             <span id='task_id'></span>
             <button id="btn_filter" type="button" class="btn btn-default" title="Filter on this task and upstream ">
-              <span class="glyphicon glyphicon-filter" style="margin-left: 0px;" aria-hidden="true"></span>
+              <i class="fas fa-filter" style="margin-left: 0px;" aria-hidden="true"></i>
             </button>
               on
             <span id='execution_date'></span>

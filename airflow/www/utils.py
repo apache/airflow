@@ -243,7 +243,7 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left: 0px;"
+        <span class="fas fa-filter" style="margin-left: 0px;"
             aria-hidden="true"></span>
         </a>
         </span>

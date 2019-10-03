@@ -43,10 +43,6 @@ nav{
 a.navbar-brand {
     cursor: default;
 }
-td>span.glyphicon{
-    padding-left: 3px;
-    padding-top: 3px;
-}
 button.btn, label.btn {
     border: 1px solid black;
 }

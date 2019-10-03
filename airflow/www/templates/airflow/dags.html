@@ -47,18 +47,18 @@
         <thead>
             <tr>
                 <th></th>
-                <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
+                <th width="12"><span id="pause_header" class="fas fa-question-circle" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
                 <th>Schedule</th>
                 <th>Owner</th>
                 <th style="padding-left: 5px;">Recent Tasks
-                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
+                  <span id="statuses_info" class="fas fa-question-circle" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="fas fa-question-circle" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
                 </th>
                 <th style="padding-left: 5px;">DAG Runs
-                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
+                  <span id="statuses_info" class="fas fa-question-circle" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
                 <th class="text-center">Links</th>
@@ -70,7 +70,7 @@
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
-                        <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+                        <i class="fas fa-edit" aria-hidden="true"></i>
                     </a>
                 </td>
 
@@ -108,7 +108,7 @@
                   <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
                     <a></a>
                     <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
-                    <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
+                    <span aria-hidden="true" id="statuses_info" title=" " class="fas fa-question-circle" style="display:none"></span>
                   </div>
                 </td>
 
@@ -124,60 +124,65 @@
                 <!-- Trigger Dag -->
                 <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}"
                    onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
-                    <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
+                    <span class="far fa-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
-                <!-- Tree -->
+                <!-- DAG Runs -->
                 <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
-                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
+                    <span class="fas fa-th" aria-hidden="true" data-original-title="DAG Runs"></span>
                 </a>
 
                 <!-- Graph -->
                 <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-certificate" aria-hidden="true" data-original-title="Graph View"></span>
+                    <span class="fas fa-project-diagram" aria-hidden="true" data-original-title="DAG Visualization"></span>
                 </a>
 
                 <!-- Duration -->
                 <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-stats" aria-hidden="true" data-original-title="Tasks Duration"></span>
+                    <span class="far fa-clock" aria-hidden="true" data-original-title="Tasks Duration"></span>
                 </a>
 
                 <!-- Retries -->
                 <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-duplicate" aria-hidden="true" data-original-title="Task Tries"></span>
+                    <span class="fas fa-layer-group" aria-hidden="true" data-original-title="Task Tries"></span>
                 </a>
 
                 <!-- Landing Times -->
                 <a href="{{ url_for("Airflow.landing_times", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-plane" aria-hidden="true" data-original-title="Landing Times"></span>
+                    <span class="fas fa-plane-arrival" aria-hidden="true" data-original-title="Landing Times"></span>
                 </a>
 
                 <!-- Gantt -->
                 <a href="{{ url_for("Airflow.gantt", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt View"></span>
+                    <span class="fas fa-stream" aria-hidden="true" data-original-title="Gantt View"></span>
+                </a>
+
+                <!-- Details -->
+                <a href="{{ url_for("Airflow.dag_details", dag_id=dag.dag_id) }}">
+                    <span class="fas fa-info-circle" aria-hidden="true" data-original-title="Details"></span>
                 </a>
 
                 <!-- Code -->
                 <a href="{{ url_for("Airflow.code", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code View"></span>
+                    <span class="fas fa-code" aria-hidden="true" data-original-title="Code View"></span>
                 </a>
 
                 <!-- Logs -->
                 <a href="{{ url_for('LogModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}&_od_LogModelView=desc&_oc_LogModelView=dttm">
-                    <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
+                    <span class="fas fa-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
                 {% endif %}
 
                 <!-- Refresh -->
                 <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
-                  <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
+                  <span class="fas fa-sync" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
                 <!-- Delete -->
                 <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
                   onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
-                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                   <span class="fas fa-trash" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>
             </tr>
