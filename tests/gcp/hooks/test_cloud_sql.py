@@ -1284,8 +1284,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('/bin/bash', conn.extra_dejson['sslrootcert'])
 
     @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_hook_with_correct_parameters_postgres_proxy_socket(
-        self, get_connections):
+    def test_hook_with_correct_parameters_postgres_proxy_socket(self, get_connections):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
               "project_id=example-project&location=europe-west1&instance=testdb&" \
               "use_proxy=True&sql_proxy_use_tcp=False"
@@ -1308,8 +1307,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('testdb', conn.schema)
 
     @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_hook_with_correct_parameters_project_id_missing(self,
-                                                                        get_connections):
+    def test_hook_with_correct_parameters_project_id_missing(self, get_connections):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
               "location=europe-west1&instance=testdb&" \
               "use_proxy=False&use_ssl=False"
@@ -1331,8 +1329,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('testdb', conn.schema)
 
     @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_hook_with_correct_parameters_postgres_proxy_tcp(self,
-                                                                        get_connections):
+    def test_hook_with_correct_parameters_postgres_proxy_tcp(self, get_connections):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
               "project_id=example-project&location=europe-west1&instance=testdb&" \
               "use_proxy=True&sql_proxy_use_tcp=True"
