@@ -1663,6 +1663,20 @@ class DagModel(Base):
             session.rollback()
             raise
 
+    @classmethod
+    @provide_session
+    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+        """Deletes DAGs not included in alive_dag_filelocs.
+
+        :param alive_dag_filelocs: file paths of alive DAGs
+        :param session: ORM Session
+        """
+        log = LoggingMixin().log
+        log.debug("Deleting DAGs (for which DAG files are deleted) from %s table ",
+                  cls.__tablename__)
+        session.execute(
+            cls.__table__.delete().where(cls.fileloc.notin_(alive_dag_filelocs)))
+
 
 # Stringified DAGs and operators contain exactly these fields.
 
