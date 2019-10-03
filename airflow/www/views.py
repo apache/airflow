@@ -596,6 +596,36 @@ class Airflow(BaseView):
                 })
         return wwwutils.json_response(payload)
 
+    @expose('/previous_runs')
+    @login_required
+    @provide_session
+    def previous_runs(self, session=None):
+        dm = models.DagModel
+        dr = models.DagRun
+
+        dag_ids = session.query(dm.dag_id)
+
+        payload = {}
+        for (dag_id, ) in dag_ids:
+            payload[dag_id] = []
+            previous_runs = dr.find(dag_id=dag_id)[0:10] #limit the number of previous runs to 10
+
+            for x in reversed(previous_runs): #reversed to get the more recent runs first
+                payload[dag_id].append({
+                    'state': x.state,
+                    'color': State.color(x.state),
+                    'dag_id': x.dag_id
+                })
+
+            while len(payload[dag_id]) < 10:
+                payload[dag_id].append({
+                    'state': None,
+                    'color': 'white',
+                    'dag_id': None
+                })
+
+        return wwwutils.json_response(payload)
+
     @expose('/task_stats')
     @login_required
     @provide_session
@@ -2125,9 +2155,15 @@ class HomeView(AdminIndexView):
         arg_search_query = request.args.get('search', None)
         arg_include_owners = request.args.get('owners', None)
         include_owners = arg_include_owners.split(',') if arg_include_owners is not None else None
+        selected_ui = request.args.get('ui', 'coatue-ui')
+        use_coatue_ui = selected_ui == 'coatue-ui'
 
         dags_per_page = PAGE_SIZE
         current_page = get_int_arg(arg_current_page, default=0)
+        if selected_ui == 'coatue-ui':
+            selected_ui = 'airflow/coatue-dags.html'
+        else:
+            selected_ui = 'airflow/dags.html'
 
         if show_paused_arg.strip().lower() == 'false':
             hide_paused = True
@@ -2240,7 +2276,7 @@ class HomeView(AdminIndexView):
         log_regex = re.compile(conf.get('core', 'log_task_regex'))
 
         return self.render(
-            'airflow/dags.html',
+            selected_ui,
             dags=dags,
             hide_paused=hide_paused,
             current_page=current_page,
@@ -2264,7 +2300,8 @@ class HomeView(AdminIndexView):
             get_xcom=functools.partial(get_xcom, session),
             include_owners=include_owners,
             owner_dict=owner_dict,
-            auto_complete_data=auto_complete_data)
+            auto_complete_data=auto_complete_data,
+            use_coatue_ui=use_coatue_ui)
 
 def get_xcom(session, dag_id, task_id, dttm):
     """
