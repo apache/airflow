@@ -18,6 +18,7 @@
 # under the License.
 
 from unittest import TestCase, mock
+
 from airflow.gcp.sensors.display_video import GoogleDisplayVideo360ReportSensor
 
 API_VERSION = "api_version"

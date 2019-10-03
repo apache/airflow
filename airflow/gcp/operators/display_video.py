@@ -19,16 +19,17 @@
 """
 This module contains Google DisplayVideo operators.
 """
+import shutil
 import tempfile
 import urllib.request
-import shutil
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
-
-from airflow.utils.decorators import apply_defaults
-from airflow.models.baseoperator import BaseOperator
+from airflow import AirflowException
 from airflow.gcp.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.models.baseoperator import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
@@ -56,6 +57,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
     """
 
     template_fields = ("body",)
+    template_ext = (".json",)
 
     @apply_defaults
     def __init__(
@@ -101,6 +103,8 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
 
     :param report_id: Report ID to delete.
     :type report_id: str
+    :param report_name: Name of the report to delete.
+    :type report_name: str
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -115,7 +119,8 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        report_id: str,
+        report_id: Optional[str] = None,
+        report_name: Optional[str] = None,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
@@ -124,9 +129,18 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.report_id = report_id
+        self.report_name = report_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+        if report_name and report_id:
+            raise AirflowException("Use only one value - `report_name` or `report_id`.")
+
+        if not (report_name or report_id):
+            raise AirflowException(
+                "Provide one of the values: `report_name` or `report_id`."
+            )
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
@@ -134,9 +148,20 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        self.log.info("Deleting report with id: %s", self.report_id)
-        hook.delete_query(query_id=self.report_id)
-        self.log.info("Report deleted.")
+        if self.report_id:
+            reports_ids_to_delete = [self.report_id]
+        else:
+            reports = hook.list_queries()
+            reports_ids_to_delete = [
+                report["queryId"]
+                for report in reports
+                if report["metadata"]["title"] == self.report_name
+            ]
+
+        for report_id in reports_ids_to_delete:
+            self.log.info("Deleting report with id: %s", report_id)
+            hook.delete_query(query_id=report_id)
+            self.log.info("Report deleted.")
 
 
 class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
@@ -177,9 +202,9 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         self,
         report_id: str,
         bucket_name: str,
-        report_name: str,
-        gzip: bool = False,
-        chunk_size: int = 5 * 1024 * 1024,
+        report_name: Optional[str] = None,
+        gzip: bool = True,
+        chunk_size: int = 10 * 1024 * 1024,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
@@ -191,14 +216,19 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         self.chunk_size = chunk_size
         self.gzip = gzip
         self.bucket_name = self._set_bucket_name(bucket_name)
-        self.report_name = self._set_report_name(report_name)
+        self.report_name = report_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
-    @staticmethod
-    def _set_report_name(name: str) -> str:
-        return name if name.endswith(".csv") else name + ".csv"
+    def _resolve_file_name(self, name: str) -> str:
+        csv = ".csv"
+        gzip = ".gz"
+        if not name.endswith(csv):
+            name += csv
+        if self.gzip:
+            name += gzip
+        return name
 
     @staticmethod
     def _set_bucket_name(name: str) -> str:
@@ -215,20 +245,27 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 
-        self.log.info("Starting downloading report %s", self.report_id)
         resource = hook.get_query(query_id=self.report_id)
+        # Check if report is ready
+        if resource["metadata"]["running"]:
+            raise AirflowException('Report {} is still running'.format(self.report_id))
+
+        # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePathForLatestReport"]
+        report_name = self.report_name or urlparse(file_url).path.split('/')[2]
+        report_name = self._resolve_file_name(report_name)
 
         # Download the report
+        self.log.info("Starting downloading report %s", self.report_id)
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             with urllib.request.urlopen(file_url) as response:
-                shutil.copyfileobj(response, temp_file)
+                shutil.copyfileobj(response, temp_file, length=self.chunk_size)
 
             temp_file.flush()
             # Upload the local file to bucket
             gcs_hook.upload(
                 bucket_name=self.bucket_name,
-                object_name=self.report_name,
+                object_name=report_name,
                 gzip=self.gzip,
                 filename=temp_file.name,
                 mime_type="text/csv",
@@ -237,8 +274,9 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             "Report %s was saved in bucket %s as %s.",
             self.report_id,
             self.bucket_name,
-            self.report_name,
+            report_name,
         )
+        self.xcom_push(context, key='report_name', value=report_name)
 
 
 class GoogleDisplayVideo360RunReportOperator(BaseOperator):

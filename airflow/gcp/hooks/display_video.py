@@ -19,11 +19,11 @@
 """
 This module contains Google DisplayVideo hook.
 """
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):

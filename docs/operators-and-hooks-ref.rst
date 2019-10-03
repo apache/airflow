@@ -855,6 +855,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
      - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
 
+   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
+     - :doc:`How to use <howto/operator/gcp/display_video>`
+     - :mod:`airflow.gcp.hooks.display_video`
+     - :mod:`airflow.gcp.operators.display_video`
+     - :mod:`airflow.gcp.sensors.display_video`
+
    * - `Google Drive <https://www.google.com/drive/>`__
      -
      - :mod:`airflow.contrib.hooks.gdrive_hook`

@@ -18,11 +18,10 @@
 # under the License.
 
 from unittest import TestCase, mock
+
 from airflow.gcp.operators.display_video import (
-    GoogleDisplayVideo360CreateReportOperator,
-    GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadReportOperator,
-    GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
+    GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
 )
 
 API_VERSION = "api_version"
@@ -69,6 +68,9 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
     @mock.patch("airflow.gcp.operators.display_video.shutil")
     @mock.patch("airflow.gcp.operators.display_video.urllib.request")
     @mock.patch("airflow.gcp.operators.display_video.tempfile")
+    @mock.patch(
+        "airflow.gcp.operators.display_video.GoogleDisplayVideo360DownloadReportOperator.xcom_push"
+    )
     @mock.patch("airflow.gcp.operators.display_video.GoogleCloudStorageHook")
     @mock.patch("airflow.gcp.operators.display_video.GoogleDisplayVideo360Hook")
     @mock.patch("airflow.gcp.operators.display_video.BaseOperator")
@@ -77,6 +79,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         mock_base_op,
         mock_hook,
         mock_gcs_hook,
+        mock_xcom,
         mock_temp,
         mock_reuqest,
         mock_shutil,
@@ -86,6 +89,12 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         report_name = "TEST.csv"
         filename = "test"
         mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = filename
+        mock_hook.return_value.get_query.return_value = {
+            "metadata": {
+                "running": False,
+                "googleCloudStoragePathForLatestReport": "test",
+            }
+        }
         op = GoogleDisplayVideo360DownloadReportOperator(
             report_id=report_id,
             api_version=API_VERSION,
@@ -107,7 +116,10 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
             filename=filename,
             gzip=True,
             mime_type="text/csv",
-            object_name=report_name,
+            object_name=report_name + ".gz",
+        )
+        mock_xcom.assert_called_once_with(
+            None, key="report_name", value=report_name + ".gz"
         )
 
 
