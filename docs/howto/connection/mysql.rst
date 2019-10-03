@@ -40,7 +40,7 @@ Extra (optional)
     connection. The following parameters are supported:
 
     * ``charset``: specify charset of the connection
-    * ``cursor**: one of ``sscursor``, ``dictcursor``, ``ssdictcursor`` . Specifies cursor class to be
+    * ``cursor``: one of ``sscursor``, ``dictcursor``, ``ssdictcursor`` . Specifies cursor class to be
       used
     * ``local_infile``: controls MySQL's LOCAL capability (permitting local data loading by
       clients). See `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_
