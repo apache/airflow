@@ -602,26 +602,30 @@ class Airflow(BaseView):
     def previous_runs(self, session=None):
         dm = models.DagModel
         dr = models.DagRun
+        num_previous_runs = 10
 
         dag_ids = session.query(dm.dag_id)
 
         payload = {}
         for (dag_id, ) in dag_ids:
             payload[dag_id] = []
-            previous_runs = dr.find(dag_id=dag_id)[0:10] #limit the number of previous runs to 10
+            previous_runs = dr.find(dag_id=dag_id)
+            most_recent_runs = itertools.islice(reversed(previous_runs), num_previous_runs)
 
-            for x in reversed(previous_runs): #reversed to get the more recent runs first
+            for x in most_recent_runs:
                 payload[dag_id].append({
                     'state': x.state,
                     'color': State.color(x.state),
-                    'dag_id': x.dag_id
+                    'dag_id': x.dag_id,
+                    'execution_date': x.execution_date
                 })
 
-            while len(payload[dag_id]) < 10:
+            while len(payload[dag_id]) < num_previous_runs:
                 payload[dag_id].append({
                     'state': None,
                     'color': 'white',
-                    'dag_id': None
+                    'dag_id': None,
+                    'execution_date': None
                 })
 
         return wwwutils.json_response(payload)

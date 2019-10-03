@@ -342,7 +342,7 @@ limitations under the License.
                 })
                 .on('click', function(d, i) {
                     if (d.state)
-                        window.location = "{{ url_for('dagrun.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                        window.location = "{{ url_for('airflow.graph') }}?dag_id=" + d.dag_id + "&execution_date=" + d.execution_date;
                 })
             d3.select("#loading").remove();
         }
