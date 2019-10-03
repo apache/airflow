@@ -22,6 +22,7 @@ This module contains Google Search Ads operators.
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
+from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.search_ads import GoogleSearchAdsHook
 from airflow.models.baseoperator import BaseOperator
@@ -139,12 +140,16 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         self.chunk_size = chunk_size
         self.gzip = gzip
         self.bucket_name = self._set_bucket_name(bucket_name)
-        name = report_name or report_id
-        self.report_name = self._set_report_name(name)
+        self.report_name = report_name
 
-    @staticmethod
-    def _set_report_name(name: str) -> str:
-        return name if name.endswith(".csv") else name + ".csv"
+    def _resolve_file_name(self, name: str) -> str:
+        csv = ".csv"
+        gzip = ".gz"
+        if not name.endswith(csv):
+            name += csv
+        if self.gzip:
+            name += gzip
+        return name
 
     @staticmethod
     def _set_bucket_name(name: str) -> str:
@@ -169,13 +174,19 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 
-        self.log.info("Downloading Search Ads report %s", self.report_id)
+        # Resolve file name of the report
+        report_name = self.report_name or self.report_id
+        report_name = self._resolve_file_name(report_name)
+
+        response = hook.get(report_id=self.report_id)
+        if not response['isReportReady']:
+            raise AirflowException('Report {} is not ready yet'.format(self.report_id))
 
         # Resolve report fragments
-        response = hook.get(report_id=self.report_id)
         fragments_count = len(response["files"])
 
         # Download chunks of report's data
+        self.log.info("Downloading Search Ads report %s", self.report_id)
         with NamedTemporaryFile() as temp_file:
             for i in range(fragments_count):
                 byte_content = hook.get_file(
@@ -192,8 +203,8 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
             gcs_hook.upload(
                 bucket_name=self.bucket_name,
-                object_name=self.report_name,
+                object_name=report_name,
                 gzip=self.gzip,
                 filename=temp_file.name,
             )
-        self.xcom_push(context, key="file_name", value=self.report_name)
+        self.xcom_push(context, key="file_name", value=report_name)

@@ -58,10 +58,12 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        mode: str = "reschedule",
+        poke_interval: int = 5 * 60,
         *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(mode=mode, poke_interval=poke_interval, *args, **kwargs)
         self.report_id = report_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id

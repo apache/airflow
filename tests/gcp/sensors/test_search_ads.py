@@ -32,7 +32,7 @@ class TestSearchAdsReportSensor(TestCase):
         op = GoogleSearchAdsReportSensor(
             report_id=report_id, api_version=API_VERSION, task_id="test_task"
         )
-        op.execute(context=None)
+        op.poke(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
         )

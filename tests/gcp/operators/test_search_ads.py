@@ -62,7 +62,7 @@ class TestSearchAdsGetfileReportOperator(TestCase):
         bucket_name = "test"
         data = b"data"
 
-        hook_mock.return_value.get.return_value = {'files': [0]}
+        hook_mock.return_value.get.return_value = {'files': [0], 'isReportReady': True}
         hook_mock.return_value.get_file.return_value = data
         tempfile_mock.return_value.__enter__.return_value.name = temp_file_name
 
@@ -84,9 +84,9 @@ class TestSearchAdsGetfileReportOperator(TestCase):
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
             gzip=True,
-            object_name=file_name + ".csv",
+            object_name=file_name + ".csv.gz",
             filename=temp_file_name,
         )
         xcom_mock.assert_called_once_with(
-            None, key="file_name", value=file_name + ".csv"
+            None, key="file_name", value=file_name + ".csv.gz"
         )
