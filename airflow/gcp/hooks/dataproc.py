@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -138,6 +138,41 @@ class _DataProcJob(LoggingMixin):
             'DataProc job %s is %s',
             self.job_id, str(self.job['status']['state'])
         )
+        return self
+
+    def poke_job(self) -> bool:
+        self.log.debug(
+            'DataProc job %s is %s',
+            self.job_id, str(self.job['status']['state'])
+        )
+
+        self.job = self.dataproc_api.projects().regions().jobs().get(
+            projectId=self.project_id,
+            region=self.region,
+            jobId=self.job_id).execute(num_retries=self.num_retries)
+
+        if self.job['status']['state'] == DataprocJobStatus.ERROR:
+            self.log.error('DataProc job %s has errors', self.job_id)
+            self.log.error(self.job['status']['details'])
+            self.log.debug(str(self.job))
+            self.log.info('Driver output location: %s',
+                          self.job['driverOutputResourceUri'])
+            return False
+
+        if self.job['status']['state'] == DataprocJobStatus.CANCELLED:
+            self.log.warning('DataProc job %s is cancelled', self.job_id)
+            if 'details' in self.job['status']:
+                self.log.warning(self.job['status']['details'])
+            self.log.debug(str(self.job))
+            self.log.info('Driver output location: %s',
+                          self.job['driverOutputResourceUri'])
+            return False
+
+        if self.job['status']['state'] == DataprocJobStatus.DONE:
+            self.log.info('Driver output location: %s',
+                          self.job['driverOutputResourceUri'])
+            return True
+
 
     def wait_for_done(self) -> bool:
         """
@@ -147,37 +182,7 @@ class _DataProcJob(LoggingMixin):
         :rtype: bool
         """
         while True:
-            self.job = self.dataproc_api.projects().regions().jobs().get(
-                projectId=self.project_id,
-                region=self.region,
-                jobId=self.job_id).execute(num_retries=self.num_retries)
-
-            if self.job['status']['state'] == DataprocJobStatus.ERROR:
-                self.log.error('DataProc job %s has errors', self.job_id)
-                self.log.error(self.job['status']['details'])
-                self.log.debug(str(self.job))
-                self.log.info('Driver output location: %s',
-                              self.job['driverOutputResourceUri'])
-                return False
-
-            if self.job['status']['state'] == DataprocJobStatus.CANCELLED:
-                self.log.warning('DataProc job %s is cancelled', self.job_id)
-                if 'details' in self.job['status']:
-                    self.log.warning(self.job['status']['details'])
-                self.log.debug(str(self.job))
-                self.log.info('Driver output location: %s',
-                              self.job['driverOutputResourceUri'])
-                return False
-
-            if self.job['status']['state'] == DataprocJobStatus.DONE:
-                self.log.info('Driver output location: %s',
-                              self.job['driverOutputResourceUri'])
-                return True
-
-            self.log.debug(
-                'DataProc job %s is %s',
-                self.job_id, str(self.job['status']['state'])
-            )
+            self.poke_job()
             time.sleep(5)
 
     def raise_error(self, message=None):
@@ -485,7 +490,8 @@ class DataProcHook(GoogleCloudBaseHook):
         project_id: str,
         job: Dict,
         region: str = 'global',
-        job_error_states: Optional[Iterable[str]] = None
+        job_error_states: Optional[Iterable[str]] = None,
+        async: bool = False
     ) -> None:
         """
         Submits Google Cloud Dataproc job.
@@ -503,6 +509,8 @@ class DataProcHook(GoogleCloudBaseHook):
         submitted = _DataProcJob(self.get_conn(), project_id, job, region,
                                  job_error_states=job_error_states,
                                  num_retries=self.num_retries)
+        if async:
+            return job['job']['reference']['jobId']
         if not submitted.wait_for_done():
             submitted.raise_error()
 
@@ -538,6 +546,11 @@ class DataProcHook(GoogleCloudBaseHook):
             job_type,
             properties
         )
+
+    def poke_job(self, job_id):
+        submitted = _DataProcJob(self.get_conn(), self.project_id, self.job,
+                                 self.region, num_retries=self.num_retries)
+        result = submitted.poke_job()
 
     def wait(self, operation: Dict) -> None:
         """

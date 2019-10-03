@@ -698,7 +698,7 @@ class DataprocClusterDeleteOperator(DataprocOperationBaseOperator):
             ).execute())
 
 
-class DataProcJobBaseOperator(BaseOperator):
+class DataProcJobBaseOperator(BaseAsyncOperator):
     """
     The base class for operators that launch job on DataProc.
 
@@ -781,13 +781,24 @@ class DataProcJobBaseOperator(BaseOperator):
         self.job_template.add_jar_file_uris(self.dataproc_jars)
         self.job_template.add_labels(self.labels)
 
+    def submit_request(self, context):
+        self.job = self.job_template.build()
+        self.dataproc_job_id = self.job["job"]["reference"]["jobId"]
+        self.set_external_resource_id(self.dataproc_job_id)
+        return self.hook.submit(self.hook.project_id, self.job, self.region,
+                                self.job_error_states, async=False)
+    def poke(self, context):
+        job_id = self.get_external_resource_id()
+        return self.hook.poke_job(job_id)
+
     def execute(self, context):
-        if self.job_template:
-            self.job = self.job_template.build()
-            self.dataproc_job_id = self.job["job"]["reference"]["jobId"]
-            self.hook.submit(self.hook.project_id, self.job, self.region, self.job_error_states)
-        else:
+        if not self.job_template:
             raise AirflowException("Create a job template before")
+        if self.async:
+            super.execute(context)
+        else:
+            job = self.submit_request(context)
+            job.wait_for_done()
 
     def on_kill(self):
         """

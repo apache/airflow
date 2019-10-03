@@ -77,7 +77,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         :returns: a resource_id for the long running operation.
         :rtype: Optional[Union[String, List, Dict]]
         """
-        raise AirflowException('Async Operators must override the `submit_request` method.')
+        raise NotImplementedError
 
     def process_result(self, context):
         """
