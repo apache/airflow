@@ -452,6 +452,10 @@ configure connections to GCP.
 
 All hooks are based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`.
 
+.. note::
+    You can learn how to use GCP integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
+
 Service operators and hooks
 '''''''''''''''''''''''''''
 
@@ -740,10 +744,6 @@ Services via the `Google API Python Client <https://github.com/googleapis/google
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
-
-.. note::
-    You can learn how to use GCP integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
 
 Other operators and hooks
 '''''''''''''''''''''''''
