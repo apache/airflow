@@ -47,7 +47,7 @@ Extra (optional)
       for details.
     * ``unix_socket``: UNIX socket used instead of the default socket.
     * ``ssl``: Dictionary of SSL parameters that control connecting using SSL. Those
-      parameters are server specific and should contain ``ca``, ``cert``, ```key``, ``capath``,
+      parameters are server specific and should contain ``ca``, ``cert``, ``key``, ``capath``,
       ``cipher`` parameters. See
       `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_ for details.
       Note that to be useful in URL notation, this parameter might also be

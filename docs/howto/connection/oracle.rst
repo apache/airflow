@@ -55,7 +55,7 @@ Extra (optional)
     * ``threaded`` - Whether or not Oracle should wrap accesses to connections with a mutex.
       Default value is False.
     * ``events`` - Whether or not to initialize Oracle in events mode.
-    * ``mode** - one of ``sysdba``, ``sysasm``, ``sysoper``, ``sysbkp``, ``sysdgd``, ``syskmt`` or ``sysrac``
+    * ``mode`` - one of ``sysdba``, ``sysasm``, ``sysoper``, ``sysbkp``, ``sysdgd``, ``syskmt`` or ``sysrac``
       which are defined at the module level, Default mode is connecting.
     * ``purity`` - one of ``new``, ``self``, ``default``. Specify the session acquired from the pool.
       configuration parameter.
