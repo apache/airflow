@@ -826,7 +826,7 @@ For example a ``html_content_template`` file could look like this:
   Log file: {{ti.log_filepath}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
 
-.. _contepts/trigger_rule:
+.. _concepts/trigger_rule:
 
 Trigger Rules
 =============
