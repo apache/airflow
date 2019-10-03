@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Exposed Macros objects"""
 
 import time  # noqa
 import uuid  # noqa
@@ -91,4 +92,4 @@ def _integrate_plugins():
     from airflow.plugins_manager import macros_modules
     for macros_module in macros_modules:
         sys.modules[macros_module.__name__] = macros_module
-        globals()[macros_module._name] = macros_module
+        globals()[macros_module.name] = macros_module

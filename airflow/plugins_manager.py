@@ -160,7 +160,7 @@ def make_module(name, objects):
     log.debug('Creating module %s', name)
     name = name.lower()
     module = imp.new_module(name)
-    module._name = name.split('.')[-1]
+    module.name = name.split('.')[-1]
     module._objects = objects
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
