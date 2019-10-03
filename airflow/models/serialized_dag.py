@@ -63,10 +63,6 @@ class SerializedDagModel(Base):
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(Integer, nullable=False)
     data = Column(JSON, nullable=False)
-    # try:
-    #     data = Column(JSON, nullable=False)
-    # except exc.OperationalError:
-    #     data = Column(Text, nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
