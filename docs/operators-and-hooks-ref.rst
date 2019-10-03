@@ -22,6 +22,36 @@ Operators and Hooks Reference
   :local:
   :depth: 1
 
+.. _fundamentals:
+
+Fundamentals
+------------
+
+**Base:**
+
+* :mod:`airflow.hooks.base_hook`
+* :mod:`airflow.hooks.dbapi_hook`
+* :mod:`airflow.models.baseoperator`
+* :mod:`airflow.sensors.base_sensor_operator`
+
+**Operators:**
+
+* :mod:`airflow.contrib.sensors.weekday_sensor`
+* :mod:`airflow.operators.branch_operator`
+* :mod:`airflow.operators.check_operator`
+* :mod:`airflow.operators.dagrun_operator`
+* :mod:`airflow.operators.dummy_operator`
+* :mod:`airflow.operators.generic_transfer`
+* :mod:`airflow.operators.latest_only_operator`
+* :mod:`airflow.operators.subdag_operator`
+
+**Sensors:**
+
+* :mod:`airflow.sensors.external_task_sensor`
+* :mod:`airflow.sensors.sql_sensor`
+* :mod:`airflow.sensors.time_delta_sensor`
+* :mod:`airflow.sensors.time_sensor`
+
 .. _Apache:
 
 ASF: Apache Software Foundation
@@ -432,6 +462,11 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
      - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+
+   * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.contrib.operators.mongo_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
@@ -1114,6 +1149,10 @@ These integrations allow you to copy data.
      -
      - :mod:`airflow.operators.hive_to_samba_operator`
 
+   * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
+     - :mod:`airflow.contrib.operators.mongo_to_s3`
 
 .. _protocol:
 
