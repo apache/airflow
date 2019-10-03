@@ -20,14 +20,14 @@
 This module contains Google CampaignManager operators.
 """
 import tempfile
-from typing import Any, Dict, Optional
 import uuid
+from typing import Any, Dict, Optional
 
 from googleapiclient import http
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

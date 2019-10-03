@@ -19,10 +19,10 @@
 """
 This module contains Google Campaign Manager hook.
 """
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
-from googleapiclient.discovery import build, Resource
 from googleapiclient import http
+from googleapiclient.discovery import Resource, build
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 

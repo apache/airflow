@@ -19,10 +19,8 @@
 from unittest import TestCase, mock
 
 from airflow.gcp.operators.campaign_manager import (
-    GoogleCampaignManagerDeleteReportOperator,
-    GoogleCampaignManagerDownloadReportOperator,
-    GoogleCampaignManagerInsertReportOperator,
-    GoogleCampaignManagerRunReportOperator,
+    GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
+    GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
 
 API_VERSION = "api_version"

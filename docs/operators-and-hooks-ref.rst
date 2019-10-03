@@ -813,6 +813,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.contrib.operators.discord_webhook_operator`
      -
 
+   * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
+     - :doc:`How to use <howto/operator/gcp/campaign_manager>`
+     - :mod:`airflow.gcp.hooks.campaign_manager`
+     - :mod:`airflow.gcp.operators.campaign_manager`
+     - :mod:`airflow.gcp.sensors.campaign_manager`
+
    * - `Google Drive <https://www.google.com/drive/>`__
      -
      - :mod:`airflow.contrib.hooks.gdrive_hook`
