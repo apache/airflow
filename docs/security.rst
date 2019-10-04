@@ -238,7 +238,7 @@ use it, simply update the connection details with, for example:
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM"}
 
-Adjust the principal to your settings. The _HOST part will be replaced by the fully qualified domain name of
+Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
 You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
@@ -311,16 +311,16 @@ backend. In order to setup an application:
 4. Click 'Register new application'
 5. Fill in the required information (the 'Authorization callback URL' must be fully qualified e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
-7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your callback route to your ``airflow.cfg`` according to the above example
 
 Using GHE Authentication with github.com
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to use GHE authentication with github.com:
 
-1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+1. `Create an OAuth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
 2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
-3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in ``airflow.cfg``
 
 Google Authentication
 '''''''''''''''''''''
@@ -359,7 +359,7 @@ backend. In order to setup an application:
 4. Choose 'Web application'
 5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualified e.g. http://airflow.example.com/oauth2callback)
 6. Click 'Create'
-7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your redirect URI to your ``airflow.cfg`` according to the above example
 
 SSL
 ---

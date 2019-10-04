@@ -20,7 +20,7 @@
 Google Cloud SQL Connection
 ===========================
 
-The gcpcloudsql:// connection is used by
+The ``gcpcloudsql://`` connection is used by
 :class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator` to perform query
 on a Google Cloud SQL database. Google Cloud SQL database can be either
 Postgres or MySQL, so this is a "meta" connection type. It introduces common schema
@@ -67,7 +67,7 @@ Extra (optional)
           "sql_proxy_use_tcp": false
        }
 
-    When specifying the connection as URI (in AIRFLOW_CONN_* variable), you should specify
+    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable), you should specify
     it following the standard syntax of DB connection, where extras are passed as
     parameters of the URI. Note that all components of the URI should be URL-encoded.
 
