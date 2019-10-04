@@ -268,12 +268,12 @@ def action_logging(f):
             event=f.__name__,
             task_instance=None,
             owner=user,
-            extra=str(list(request.args.items())),
-            task_id=request.args.get('task_id'),
-            dag_id=request.args.get('dag_id'))
+            extra=str(list(request.values.items())),
+            task_id=request.values.get('task_id'),
+            dag_id=request.values.get('dag_id'))
 
-        if request.args.get('execution_date'):
-            log.execution_date = timezone.parse(request.args.get('execution_date'))
+        if request.values.get('execution_date'):
+            log.execution_date = timezone.parse(request.values.get('execution_date'))
 
         with create_session() as session:
             session.add(log)
