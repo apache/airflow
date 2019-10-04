@@ -270,7 +270,7 @@ class BaseOperator(LoggingMixin):
         email=None,  # type: Optional[str]
         email_on_retry=True,  # type: bool
         email_on_failure=True,  # type: bool
-        retries=None,  # type: int
+        retries=conf.getint('core', 'default_task_retries', fallback=0),  # type: int
         retry_delay=timedelta(seconds=300),  # type: timedelta
         retry_exponential_backoff=False,  # type: bool
         max_retry_delay=None,  # type: Optional[datetime]
@@ -352,8 +352,7 @@ class BaseOperator(LoggingMixin):
                 self
             )
         self._schedule_interval = schedule_interval
-        self.retries = retries if retries is not None else \
-            conf.getint('core', 'default_task_retries', fallback=0)
+        self.retries = retries
         self.queue = queue
         self.pool = pool
         self.sla = sla
