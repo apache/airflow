@@ -107,6 +107,52 @@ For more details about Celery pool implementation, please refer to:
 - https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
 - https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
 
+
+### Change to method signature in `BaseOperator` and `DAG` classes
+
+The signature of the `get_task_instances` method in the `BaseOperator` and `DAG` classes has changed. The change does not change the behavior of the method in either case.
+
+#### For `BaseOperator`
+
+Old signature:
+
+```python
+def get_task_instances(self, session, start_date=None, end_date=None):
+```
+
+New signature:
+
+```python
+@provide_session
+def get_task_instances(self, start_date=None, end_date=None, session=None):
+```
+
+#### For `DAG`
+
+Old signature:
+
+```python
+def get_task_instances(
+    self, session, start_date=None, end_date=None, state=None):
+```
+
+New signature:
+
+```python
+@provide_session
+def get_task_instances(
+    self, start_date=None, end_date=None, state=None, session=None):
+```
+
+In either case, it is necessary to rewrite calls to the `get_task_instances` method that currently provide the `session` positional argument. New calls to this method look like:
+
+```python
+# if you can rely on @provide_session
+dag.get_task_instances()
+# if you need to provide the session
+dag.get_task_instances(session=your_session)
+```
+
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series
