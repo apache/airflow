@@ -36,7 +36,6 @@ Fundamentals
 
 **Operators:**
 
-* :mod:`airflow.contrib.sensors.weekday_sensor`
 * :mod:`airflow.operators.branch_operator`
 * :mod:`airflow.operators.check_operator`
 * :mod:`airflow.operators.dagrun_operator`
@@ -51,6 +50,8 @@ Fundamentals
 * :mod:`airflow.sensors.sql_sensor`
 * :mod:`airflow.sensors.time_delta_sensor`
 * :mod:`airflow.sensors.time_sensor`
+* :mod:`airflow.contrib.sensors.weekday_sensor`
+
 
 .. _Apache:
 
