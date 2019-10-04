@@ -61,7 +61,7 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
 TEMP_DAG_FILENAME = "temp_dag.py"
-
+DAGS_FOLDER = settings.DAGS_FOLDER
 
 class TestSchedulerJob(unittest.TestCase):
 
@@ -2736,3 +2736,28 @@ class TestSchedulerJob(unittest.TestCase):
         dags = scheduler._find_dags_to_process(dagbag.dags.values(), paused_dag_ids=[dag.dag_id])
 
         self.assertNotIn(dag, dags)
+
+    def test_change_filepath_in_enqueue_task_instances_with_queued_state(self):
+        dag_id = 'SchedulerJobTest.test_change_filepath_in_enqueue_task_instances_with_queued_state'
+        task_id_1 = 'dummyTask1'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, full_filepath=os.path.join(DAGS_FOLDER, TEMP_DAG_FILENAME))
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = self._make_simple_dag_bag([dag])
+
+        scheduler = SchedulerJob()
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dr1.execution_date)
+        session.merge(ti1)
+        session.commit()
+
+        scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
+
+        for value in scheduler.executor.queued_tasks.values():
+            command = value[0]
+            try:
+                assert (command[command.index('-sd') + 1].startswith('DAGS_FOLDER'))
+            except:
+                assert False
