@@ -98,7 +98,7 @@ class JsonCoder:
     @staticmethod
     def encode(x):
         """JSON encoder."""
-        return json.dumps(x)
+        return json.dumps(x).encode()
 
     @staticmethod
     def decode(x):

@@ -63,7 +63,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             schedule_interval='@daily')
         self.metric_fn = lambda x: (0.1,)
         self.metric_fn_encoded = mlengine_operator_utils.base64.b64encode(
-            mlengine_operator_utils.dill.dumps(self.metric_fn, recurse=True))
+            mlengine_operator_utils.dill.dumps(self.metric_fn, recurse=True)).decode()
 
     def test_successful_run(self):
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
@@ -76,7 +76,9 @@ class TestCreateEvaluateOps(unittest.TestCase):
             prediction_path=input_with_model['outputPath'],
             metric_fn_and_keys=(self.metric_fn, ['err']),
             validate_fn=(lambda x: 'err=%.1f' % x['err']),
-            dag=self.dag)
+            dag=self.dag,
+            py_interpreter="python3",
+        )
 
         with patch('airflow.gcp.operators.mlengine.MLEngineHook') as mock_mlengine_hook:
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
@@ -109,7 +111,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
                 'airflow.gcp.utils.mlengine_prediction_summary',
-                ['-m'], py_interpreter='python2')
+                ['-m'], py_interpreter='python3')
 
         with patch('airflow.gcp.utils.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:
