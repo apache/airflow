@@ -18,7 +18,7 @@
 
 
 
-.. image:: img/pin_large.png
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation

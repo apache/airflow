@@ -17,12 +17,20 @@
  under the License.
 #}
 
-<div style="font-family: verdana;">
-    <h1>Airflow 404 = lots of circles</h1>
-    <div>{{ hostname }}</div>
-<div
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Airflow 404 = lots of circles</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
+</head>
+
+<body>
+    <div style="font-family: verdana;">
+        <h1>Airflow 404 = lots of circles</h1>
+        <p>{{ hostname }}</p>
+    </div>
+    <div
             id="div_svg"
-            class="content"
             class="centered text-center"
             style="border: 1px solid #CCC; padding:0px;margin:0;">
         <svg></svg>
@@ -143,3 +151,5 @@
     toggle();
 
     </script>
+</body>
+</html>
