@@ -379,8 +379,7 @@ class MLEngineVersionOperator(BaseOperator):
             information to create that version
             (e.g. `name`, `deploymentUrl`).
 
-        *   ``get``: Gets full information of a particular version in the model
-            specified by `model_name`.
+        *   ``set_defaults``: Sets a version in the model specified by `model_name` to be the default.
             The name of the version should be specified in the `version`
             parameter.
 
@@ -469,7 +468,7 @@ class MLEngineTrainingOperator(BaseOperator):
     :param package_uris: A list of package locations for MLEngine training job,
         which should include the main training program + any additional
         dependencies. (templated)
-    :type package_uris: str
+    :type package_uris: List[str]
 
     :param training_python_module: The Python module name to run within MLEngine
         training job after installing 'package_uris' packages. (templated)
@@ -477,7 +476,7 @@ class MLEngineTrainingOperator(BaseOperator):
 
     :param training_args: A list of templated command line arguments to pass to
         the MLEngine training program. (templated)
-    :type training_args: str
+    :type training_args: List[str]
 
     :param region: The Google Compute Engine region to run the MLEngine training
         job in (templated).
@@ -534,9 +533,9 @@ class MLEngineTrainingOperator(BaseOperator):
     def __init__(self,  # pylint:disable=too-many-arguments
                  project_id: str,
                  job_id: str,
-                 package_uris: str,
+                 package_uris: List[str],
                  training_python_module: str,
-                 training_args: str,
+                 training_args: List[str],
                  region: str,
                  scale_tier: Optional[str] = None,
                  master_type: Optional[str] = None,
