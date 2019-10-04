@@ -144,6 +144,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param location: [Optional] The geographic location of the job. Required except for US and EU.
+        See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -180,6 +183,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  cluster_fields=None,
                  autodetect=True,
                  encryption_configuration=None,
+                 location=None,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -220,10 +224,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
