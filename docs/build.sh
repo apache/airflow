@@ -114,7 +114,7 @@ mapfile -t CURRENT_MODULES < <(cat operators-and-hooks-ref.rst | \
 mapfile -t MISSING_MODULES < \
     <(\
         comm -2 -3 \
-        <(printf '%s\n' "${ALL_MODULES[@]}" | \sort ) \
+        <(printf '%s\n' "${ALL_MODULES[@]}" | sort ) \
         <(printf '%s\n' "${CURRENT_MODULES[@]}" | sort)
     )
 
@@ -122,11 +122,11 @@ if [[ "${#MISSING_MODULES[@]}" -ne "0" ]]; then
     echo
     echo "Unexpected problems found in the documentation."
     echo "You should try to keep the list of operators and hooks up to date."
-    echo ""
+    echo
     echo "Missing modules:"
     printf '%s\n' "${MISSING_MODULES[@]}"
     echo
-    echo "Please add this module to operators-and-hooks-ref.rst file"
+    echo "Please add this module to operators-and-hooks-ref.rst file."
     echo
     exit 1
 else
