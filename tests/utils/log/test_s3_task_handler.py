@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
-import unittest
 import os
+import unittest
+from unittest import mock
 
-from airflow import configuration
+from airflow.hooks.S3_hook import S3Hook
+from airflow.models import DAG, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.hooks.S3_hook import S3Hook
-from airflow.models import TaskInstance, DAG
-from airflow.operators.dummy_operator import DummyOperator
 
 try:
     import boto3
@@ -43,7 +42,7 @@ except ImportError:
 class TestS3TaskHandler(unittest.TestCase):
 
     def setUp(self):
-        super(TestS3TaskHandler, self).setUp()
+        super().setUp()
         self.remote_log_base = 's3://bucket/remote/log/location'
         self.remote_log_location = 's3://bucket/remote/log/location/1.log'
         self.remote_log_key = 'remote/log/location/1.log'
@@ -55,7 +54,6 @@ class TestS3TaskHandler(unittest.TestCase):
             self.filename_template
         )
 
-        configuration.load_test_config()
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
         task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=self.dag)
@@ -90,7 +88,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that airflow[s3] is installed and the S3 connection exists.',
+                'sure that airflow[aws] is installed and the S3 connection exists.',
                 ''
             )
 

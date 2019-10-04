@@ -18,25 +18,19 @@
 # under the License.
 #
 
-import unittest
 import time
+import unittest
 from datetime import datetime
+
 from tzlocal import get_localzone
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-from airflow import configuration
-from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
-                                                  secondary_training_status_message, LogState)
-from airflow.hooks.S3_hook import S3Hook
+from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
+from airflow.contrib.hooks.sagemaker_hook import (
+    LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
+)
 from airflow.exceptions import AirflowException
-
+from airflow.hooks.S3_hook import S3Hook
+from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'
 
@@ -252,9 +246,13 @@ test_evaluation_config = {
 
 
 class TestSageMakerHook(unittest.TestCase):
-
-    def setUp(self):
-        configuration.load_test_config()
+    @mock.patch.object(AwsLogsHook, 'get_log_events')
+    def test_multi_stream_iter(self, mock_log_stream):
+        event = {'timestamp': 1}
+        mock_log_stream.side_effect = [iter([event]), iter([]), None]
+        hook = SageMakerHook()
+        event_iter = hook.multi_stream_iter('log', [None, None, None])
+        self.assertEqual(next(event_iter), (0, event))
 
     @mock.patch.object(S3Hook, 'create_bucket')
     @mock.patch.object(S3Hook, 'load_file')
@@ -307,7 +305,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_check_url.assert_called_once_with(data_url)
 
     @mock.patch.object(SageMakerHook, 'get_client_type')
-    def test_conn(self, mock_get_client):
+    def test_conn(self, mock_get_client_type):
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
         self.assertEqual(hook.aws_conn_id, 'sagemaker_test_conn_id')
 
@@ -371,7 +369,7 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'check_tuning_config')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_tuning_job(self, mock_client, mock_check_tuning):
+    def test_create_tuning_job(self, mock_client, mock_check_tuning_config):
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
                  test_arn_return}
@@ -552,7 +550,7 @@ class TestSageMakerHook(unittest.TestCase):
             secondary_training_status_message(SECONDARY_STATUS_DESCRIPTION_1, SECONDARY_STATUS_DESCRIPTION_2),
             expected)
 
-    @mock.patch.object(SageMakerHook, 'get_log_conn')
+    @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(time, 'time')
     def test_describe_training_job_with_logs_in_progress(self, mock_time, mock_client, mock_log_client):
@@ -581,7 +579,7 @@ class TestSageMakerHook(unittest.TestCase):
                                                        last_describe_job_call=0)
         self.assertEqual(response, (LogState.JOB_COMPLETE, {}, 50))
 
-    @mock.patch.object(SageMakerHook, 'get_log_conn')
+    @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_training_job_with_logs_job_complete(self, mock_client, mock_log_client):
         mock_session = mock.Mock()
@@ -608,7 +606,7 @@ class TestSageMakerHook(unittest.TestCase):
                                                        last_describe_job_call=0)
         self.assertEqual(response, (LogState.COMPLETE, {}, 0))
 
-    @mock.patch.object(SageMakerHook, 'get_log_conn')
+    @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_training_job_with_logs_complete(self, mock_client, mock_log_client):
         mock_session = mock.Mock()
@@ -636,7 +634,7 @@ class TestSageMakerHook(unittest.TestCase):
         self.assertEqual(response, (LogState.COMPLETE, {}, 0))
 
     @mock.patch.object(SageMakerHook, 'check_training_config')
-    @mock.patch.object(SageMakerHook, 'get_log_conn')
+    @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_training_job_with_log')
     def test_training_with_logs(self, mock_describe, mock_client, mock_log_client, mock_check_training):

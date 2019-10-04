@@ -24,9 +24,10 @@ graft licenses/
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
-graft airflow/www/translations
+graft airflow/_vendor/
 include airflow/alembic.ini
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
+global-exclude __pycache__  *.pyc

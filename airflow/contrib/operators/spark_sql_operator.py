@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 
 
 class SparkSqlOperator(BaseOperator):
@@ -73,7 +73,7 @@ class SparkSqlOperator(BaseOperator):
                  yarn_queue='default',
                  *args,
                  **kwargs):
-        super(SparkSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._sql = sql
         self._conf = conf
         self._conn_id = conn_id

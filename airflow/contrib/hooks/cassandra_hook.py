@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from cassandra.cluster import Cluster
-from cassandra.policies import (RoundRobinPolicy, DCAwareRoundRobinPolicy,
-                                TokenAwarePolicy, WhiteListRoundRobinPolicy)
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.cluster import Cluster
+from cassandra.policies import (
+    DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
+)
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -36,14 +37,17 @@ class CassandraHook(BaseHook, LoggingMixin):
     Port can be specified in the port field of the connection.
 
     If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
-    ``ssl.wrap_socket()``. For example:
-            {
-                'ssl_options' : {
-                    'ca_certs' : PATH_TO_CA_CERTS
-                }
-            }
+    ``ssl.wrap_socket()``. For example::
 
-    Default load balancing policy is RoundRobinPolicy. To specify a different LB policy:
+        {
+            'ssl_options' : {
+                'ca_certs' : PATH_TO_CA_CERTS
+            }
+        }
+
+    Default load balancing policy is RoundRobinPolicy. To specify a different
+    LB policy::
+
         - DCAwareRoundRobinPolicy
             {
                 'load_balancing_policy': 'DCAwareRoundRobinPolicy',

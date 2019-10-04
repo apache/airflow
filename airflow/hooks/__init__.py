@@ -20,9 +20,9 @@
 
 import sys
 
-
 # Imports the hooks dynamically while keeping the package API clean,
 # abstracting the underlying modules
+
 
 def _integrate_plugins():
     """Integrate plugins to the context"""

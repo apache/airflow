@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.exceptions import AirflowException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
@@ -35,7 +35,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
             self,
             aws_conn_id='aws_default',
             *args, **kwargs):
-        super(SageMakerBaseSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):

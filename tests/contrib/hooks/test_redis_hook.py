@@ -19,15 +19,11 @@
 
 
 import unittest
-from airflow import configuration
+
 from airflow.contrib.hooks.redis_hook import RedisHook
 
 
 class TestRedisHook(unittest.TestCase):
-
-    def setUp(self):
-        configuration.load_test_config()
-
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id='redis_default')
         self.assertEqual(hook.redis, None)

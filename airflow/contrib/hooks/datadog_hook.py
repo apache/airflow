@@ -18,10 +18,11 @@
 # under the License.
 
 import time
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException
-from datadog import initialize, api
 
+from datadog import api, initialize
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -135,8 +136,8 @@ class DatadogHook(BaseHook, LoggingMixin):
         :type priority: str
         :param related_event_id: Post event as a child of the given event
         :type related_event_id: id
-        :param tags: List of string tags to apply to the event
-        :type tags: list
+        :param tags: List of tags to apply to the event
+        :type tags: list[str]
         :param device_name: device_name to post the event with
         :type device_name: list
         """

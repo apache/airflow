@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import chr
 from collections import OrderedDict
-import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks.hive_hooks import HiveCliHook
+import unicodecsv as csv
+
 from airflow.contrib.hooks.vertica_hook import VerticaHook
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -80,7 +80,7 @@ class VerticaToHiveTransfer(BaseOperator):
             vertica_conn_id='vertica_default',
             hive_cli_conn_id='hive_cli_default',
             *args, **kwargs):
-        super(VerticaToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

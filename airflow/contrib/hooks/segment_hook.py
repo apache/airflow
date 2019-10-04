@@ -26,13 +26,12 @@ NOTE:   this hook also relies on the Segment analytics package:
         https://github.com/segmentio/analytics-python
 """
 import analytics
-from airflow.hooks.base_hook import BaseHook
+
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-
-class SegmentHook(BaseHook, LoggingMixin):
+class SegmentHook(BaseHook):
     def __init__(
             self,
             segment_conn_id='segment_default',

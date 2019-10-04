@@ -20,7 +20,6 @@
 """
 Utilities module for cli
 """
-from __future__ import absolute_import
 
 import functools
 import getpass
@@ -30,7 +29,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 
-import airflow.models
+from airflow.models import Log
 from airflow.utils import cli_action_loggers
 
 
@@ -46,7 +45,7 @@ def action_logging(f):
         end_datetime : end datetime instance by utc
         full_command : full command line arguments
         user : current user
-        log : airflow.models.Log ORM instance
+        log : airflow.models.log.Log ORM instance
         dag_id : dag id (optional)
         task_id : task_id (optional)
         execution_date : execution date (optional)
@@ -104,8 +103,8 @@ def _build_metrics(func_name, namespace):
     metrics['execution_date'] = tmp_dic.get('execution_date')
     metrics['host_name'] = socket.gethostname()
 
-    extra = json.dumps(dict((k, metrics[k]) for k in ('host_name', 'full_command')))
-    log = airflow.models.Log(
+    extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
+    log = Log(
         event='cli_{}'.format(func_name),
         task_instance=None,
         owner=metrics['user'],

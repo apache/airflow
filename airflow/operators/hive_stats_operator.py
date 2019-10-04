@@ -18,8 +18,8 @@
 # under the License.
 
 import json
-from builtins import zip
 from collections import OrderedDict
+from typing import Callable, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveMetastoreHook
@@ -65,20 +65,20 @@ class HiveStatsCollectionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 table,
-                 partition,
-                 extra_exprs=None,
-                 col_blacklist=None,
-                 assignment_func=None,
-                 metastore_conn_id='metastore_default',
-                 presto_conn_id='presto_default',
-                 mysql_conn_id='airflow_db',
-                 *args, **kwargs):
-        super(HiveStatsCollectionOperator, self).__init__(*args, **kwargs)
+                 table: str,
+                 partition: str,
+                 extra_exprs: Optional[Dict] = None,
+                 col_blacklist: Optional[List] = None,
+                 assignment_func: Optional[Callable[[str, str], Optional[Dict]]] = None,
+                 metastore_conn_id: str = 'metastore_default',
+                 presto_conn_id: str = 'presto_default',
+                 mysql_conn_id: str = 'airflow_db',
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.col_blacklist = col_blacklist or {}
+        self.col_blacklist = col_blacklist or []  # type: List
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
@@ -113,7 +113,6 @@ class HiveStatsCollectionOperator(BaseOperator):
             ('', 'count'): 'COUNT(*)'
         }
         for col, col_type in list(field_types.items()):
-            d = {}
             if self.assignment_func:
                 d = self.assignment_func(col, col_type)
                 if d is None:
@@ -129,13 +128,8 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         where_clause = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause)
-        sql = """
-        SELECT
-            {exprs_str}
-        FROM {self.table}
-        WHERE
-            {where_clause};
-        """.format(**locals())
+        sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
+            exprs_str=exprs_str, table=self.table, where_clause=where_clause)
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info('Executing SQL check: %s', sql)
@@ -151,19 +145,19 @@ class HiveStatsCollectionOperator(BaseOperator):
         sql = """
         SELECT 1 FROM hive_stats
         WHERE
-            table_name='{self.table}' AND
+            table_name='{table}' AND
             partition_repr='{part_json}' AND
-            dttm='{self.dttm}'
+            dttm='{dttm}'
         LIMIT 1;
-        """.format(**locals())
+        """.format(table=self.table, part_json=part_json, dttm=self.dttm)
         if mysql.get_records(sql):
             sql = """
             DELETE FROM hive_stats
             WHERE
-                table_name='{self.table}' AND
+                table_name='{table}' AND
                 partition_repr='{part_json}' AND
-                dttm='{self.dttm}';
-            """.format(**locals())
+                dttm='{dttm}';
+            """.format(table=self.table, part_json=part_json, dttm=self.dttm)
             mysql.run(sql)
 
         self.log.info("Pivoting and loading cells into the Airflow db")

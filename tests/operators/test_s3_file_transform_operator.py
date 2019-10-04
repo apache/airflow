@@ -25,9 +25,9 @@ import shutil
 import sys
 import unittest
 from tempfile import mkdtemp
+from unittest import mock
 
 import boto3
-import mock
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException

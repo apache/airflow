@@ -18,37 +18,35 @@
 # under the License.
 
 import json
-import mock
 import os
 import socket
 import unittest
-
 from datetime import datetime
+from unittest import mock
 
-from airflow import configuration
-from airflow.api.auth.backend.kerberos_auth import client_auth
+from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
+from airflow.configuration import conf
 from airflow.www import app as application
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
-class ApiKerberosTests(unittest.TestCase):
+class TestApiKerberos(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         try:
-            configuration.conf.add_section("api")
+            conf.add_section("api")
         except Exception:
             pass
-        configuration.conf.set("api",
-                               "auth_backend",
-                               "airflow.api.auth.backend.kerberos_auth")
+        conf.set("api",
+                 "auth_backend",
+                 "airflow.api.auth.backend.kerberos_auth")
         try:
-            configuration.conf.add_section("kerberos")
+            conf.add_section("kerberos")
         except Exception:
             pass
-        configuration.conf.set("kerberos",
-                               "keytab",
-                               os.environ['KRB5_KTNAME'])
+        conf.set("kerberos",
+                 "keytab",
+                 os.environ['KRB5_KTNAME'])
 
         self.app, _ = application.create_app(testing=True)
 
@@ -64,7 +62,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
-            class Request(object):
+            class Request:
                 headers = {}
 
             response.request = Request()
@@ -74,12 +72,12 @@ class ApiKerberosTests(unittest.TestCase):
             response.connection.send = mock.MagicMock()
 
             # disable mutual authentication for testing
-            client_auth.mutual_authentication = 3
+            CLIENT_AUTH.mutual_authentication = 3
 
             # case can influence the results
-            client_auth.hostname_override = socket.getfqdn()
+            CLIENT_AUTH.hostname_override = socket.getfqdn()
 
-            client_auth.handle_response(response)
+            CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
             response2 = c.post(

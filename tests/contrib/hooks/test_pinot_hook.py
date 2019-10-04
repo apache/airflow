@@ -18,8 +18,8 @@
 # under the License.
 #
 
-import mock
 import unittest
+from unittest import mock
 
 from airflow.contrib.hooks.pinot_hook import PinotDbApiHook
 
@@ -27,7 +27,7 @@ from airflow.contrib.hooks.pinot_hook import PinotDbApiHook
 class TestPinotDbApiHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPinotDbApiHook, self).setUp()
+        super().setUp()
         self.conn = conn = mock.MagicMock()
         self.conn.host = 'host'
         self.conn.port = '1000'

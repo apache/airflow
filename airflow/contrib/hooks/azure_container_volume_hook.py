@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
+
 from airflow.hooks.base_hook import BaseHook
-from azure.mgmt.containerinstance.models import (Volume,
-                                                 AzureFileVolume)
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -27,7 +27,7 @@ class AzureContainerVolumeHook(BaseHook):
     A hook which wraps an Azure Volume.
 
     :param wasb_conn_id: connection id of a Azure storage account of
-    which file shares should be mounted
+        which file shares should be mounted
     :type wasb_conn_id: str
     """
 

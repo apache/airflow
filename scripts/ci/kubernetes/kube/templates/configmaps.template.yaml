@@ -1,27 +1,28 @@
-#  Licensed to the Apache Software Foundation (ASF) under one   *
-#  or more contributor license agreements.  See the NOTICE file *
-#  distributed with this work for additional information        *
-#  regarding copyright ownership.  The ASF licenses this file   *
-#  to you under the Apache License, Version 2.0 (the            *
-#  "License"); you may not use this file except in compliance   *
-#  with the License.  You may obtain a copy of the License at   *
-#                                                               *
-#    http://www.apache.org/licenses/LICENSE-2.0                 *
-#                                                               *
-#  Unless required by applicable law or agreed to in writing,   *
-#  software distributed under the License is distributed on an  *
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
-#  KIND, either express or implied.  See the License for the    *
-#  specific language governing permissions and limitations      *
-#  under the License.                                           *
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: airflow-configmap
 data:
+  # yamllint disable rule:line-length
   airflow.cfg: |
     [core]
-    airflow_home = /root/airflow
     dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
     base_log_folder = /root/airflow/logs
     logging_level = INFO
@@ -117,20 +118,6 @@ data:
     # Expose the configuration file in the web server
     expose_config = False
 
-    # Set to true to turn on authentication:
-    # https://airflow.apache.org/security.html#web-authentication
-    authenticate = False
-
-    # Filter the list of dags by owner name (requires authentication to be enabled)
-    filter_by_owner = False
-
-    # Filtering mode. Choices include user (default) and ldapgroup.
-    # Ldap group filtering requires using the ldap backend
-    #
-    # Note that the ldap server needs the "memberOf" overlay to be set up
-    # in order to user the ldapgroup mode.
-    owner_mode = user
-
     # Default DAG view.  Valid values are:
     # tree, graph, duration, gantt, landing_times
     dag_default_view = tree
@@ -195,6 +182,9 @@ data:
     # Example affinity and toleration definitions.
     affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}
     tolerations = [{ "key": "dedicated", "operator": "Equal", "value": "airflow", "effect": "NoSchedule" }, { "key": "prod", "operator": "Exists" }]
+
+    # Example kubertenes worker pods annotations declaration.
+    worker_annotations = { "iam.amazonaws.com/role" : "role-arn", "iam.amazonaws.com/external-id" : "external-id" }
 
     # For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64
@@ -311,48 +301,6 @@ data:
     cacert = /etc/ca/ldap_ca.crt
     search_scope = LEVEL
 
-    [mesos]
-    # Mesos master address which MesosExecutor will connect to.
-    master = localhost:5050
-
-    # The framework name which Airflow scheduler will register itself as on mesos
-    framework_name = Airflow
-
-    # Number of cpu cores required for running one task instance using
-    # 'airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>'
-    # command on a mesos slave
-    task_cpu = 1
-
-    # Memory in MB required for running one task instance using
-    # 'airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>'
-    # command on a mesos slave
-    task_memory = 256
-
-    # Enable framework checkpointing for mesos
-    # See http://mesos.apache.org/documentation/latest/slave-recovery/
-    checkpoint = False
-
-    # Failover timeout in milliseconds.
-    # When checkpointing is enabled and this option is set, Mesos waits
-    # until the configured timeout for
-    # the MesosExecutor framework to re-register after a failover. Mesos
-    # shuts down running tasks if the
-    # MesosExecutor framework fails to re-register within this timeframe.
-    # failover_timeout = 604800
-
-    # Enable framework authentication for mesos
-    # See http://mesos.apache.org/documentation/latest/configuration/
-    authenticate = False
-
-    # Mesos credentials, if authentication is enabled
-    # default_principal = admin
-    # default_secret = admin
-
-    # Optional Docker Image to run on slave before running the command
-    # This image should be accessible from mesos slave i.e mesos slave
-    # should be able to pull this docker image before executing the command.
-    # docker_image_slave = puckel/docker-airflow
-
     [kerberos]
     ccache = /tmp/airflow_krb5_ccache
     # gets augmented with fqdn
@@ -376,4 +324,5 @@ data:
     hide_sensitive_variable_fields = True
 
     [elasticsearch]
-    elasticsearch_host =
+    host =
+  # yamllint enable rule:line-length

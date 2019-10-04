@@ -19,8 +19,8 @@
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
@@ -42,8 +42,8 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     def __init__(self,
                  config,
                  *args, **kwargs):
-        super(SageMakerModelOperator, self).__init__(config=config,
-                                                     *args, **kwargs)
+        super().__init__(config=config,
+                         *args, **kwargs)
 
         self.config = config
 
