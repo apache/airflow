@@ -20,6 +20,7 @@
 """Utils for DAG serialization with JSON."""
 
 import datetime
+import enum
 import json
 import logging
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -49,7 +50,8 @@ class Serialization:
     _primitive_types = (int, bool, float, str)
 
     # Time types.
-    _datetime_types = (datetime.datetime, datetime.date, datetime.time)
+    # datetime.date and datetime.time are converted to strings.
+    _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
     # FIXME: not needed if _included_fields of DAG and operator are customized.
@@ -132,6 +134,9 @@ class Serialization:
         """
         try:
             if cls._is_primitive(var):
+                # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
+                if isinstance(var, enum.Enum):
+                    return var.value
                 return var
             elif isinstance(var, dict):
                 return cls._encode(
