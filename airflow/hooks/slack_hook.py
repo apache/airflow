@@ -53,7 +53,7 @@ class SlackHook(BaseHook):
 
     def call(self, method: str, api_params: dict) -> None:
         """
-        Calls the clack client.
+        Calls the slack client.
 
         :param method: method
         :param api_params: parameters of the API
