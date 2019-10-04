@@ -63,6 +63,7 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 DAGS_FOLDER = settings.DAGS_FOLDER
 
+
 class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
@@ -2738,7 +2739,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertNotIn(dag, dags)
 
     def test_change_filepath_in_enqueue_task_instances_with_queued_state(self):
-        dag_id = 'SchedulerJobTest.test_change_filepath_in_enqueue_task_instances_with_queued_state'
+        dag_id = 'test_change_filepath_in_enqueue_task_instances_with_queued_state'
         task_id_1 = 'dummyTask1'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, full_filepath=os.path.join(DAGS_FOLDER, TEMP_DAG_FILENAME))
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
