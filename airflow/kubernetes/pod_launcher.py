@@ -16,6 +16,7 @@
 # under the License.
 """Launches PODs"""
 import json
+import threading
 import time
 from datetime import datetime as dt
 from typing import Optional, Tuple
@@ -34,6 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 from .kube_client import get_kube_client
+from .pod_usage_metrics_logger import PodUsageMetricsLogger
 
 
 class PodStatus:
@@ -97,13 +99,19 @@ class PodLauncher(LoggingMixin):
             self,
             pod: V1Pod,
             startup_timeout: int = 120,
-            get_logs: bool = True) -> Tuple[State, Optional[str]]:
+            get_logs: bool = True,
+            get_resource_usage_logs: bool = False,
+            resource_usage_fetch_interval: int = 1,
+            resource_usage_log_interval: int = 60) -> Tuple[State, Optional[str]]:
         """
         Launches the pod synchronously and waits for completion.
 
         :param pod:
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
         :param get_logs:  whether to query k8s for logs
+        :param get_resource_usage_logs: whether to get resource usage of the pod or not
+        :param resource_usage_fetch_interval: How often (in seconds) to fetch resource utilization
+        :param resource_usage_log_interval: How often (in seconds) to log resource utilization
         :return:
         """
         resp = self.run_pod_async(pod)
@@ -116,9 +124,27 @@ class PodLauncher(LoggingMixin):
                 time.sleep(1)
             self.log.debug('Pod not yet started')
 
-        return self._monitor_pod(pod, get_logs)
+        return self._monitor_pod(pod,
+                                 get_logs,
+                                 get_resource_usage_logs,
+                                 resource_usage_fetch_interval,
+                                 resource_usage_log_interval)
 
-    def _monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+    def _monitor_pod(self,
+                     pod: V1Pod,
+                     get_logs: bool,
+                     get_resource_usage_logs: bool,
+                     resource_usage_fetch_interval: int,
+                     resource_usage_log_interval: int) -> Tuple[State, Optional[str]]:
+        # Initialize the resource monitoring thread to do nothing.
+        resource_monitoring_thread = threading.Thread(target=lambda: None)
+        if get_resource_usage_logs:
+            metric_server_logger = PodUsageMetricsLogger(self,
+                                                         pod,
+                                                         resource_usage_fetch_interval,
+                                                         resource_usage_log_interval)
+            resource_monitoring_thread = threading.Thread(target=metric_server_logger.log_pod_usage_metrics)
+        resource_monitoring_thread.start()
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:
@@ -134,10 +160,12 @@ class PodLauncher(LoggingMixin):
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
+        resource_monitoring_thread.join()
         return self._task_status(self.read_pod(pod)), result
 
     def _task_status(self, event):
-        self.log.info(
+        # Lowered logging level to debug since this is redundant.
+        self.log.debug(
             'Event: %s had an event of type %s',
             event.metadata.name, event.status.phase)
         status = self.process_status(event.metadata.name, event.status.phase)
@@ -243,3 +271,12 @@ class PodLauncher(LoggingMixin):
         else:
             self.log.info('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED
+
+    def call_api(self, *args, **kwargs):
+        """
+        Using Kubernetes client object, makes API calls with arguments given
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        return self._client.api_client.call_api(*args, **kwargs)
