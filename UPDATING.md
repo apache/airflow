@@ -690,7 +690,7 @@ Old signature:
 
 ```python
 def get_task_instances(
-	self, session, start_date=None, end_date=None, state=None):
+    self, session, start_date=None, end_date=None, state=None):
 ```
 
 New signature:
@@ -698,7 +698,7 @@ New signature:
 ```python
 @provide_session
 def get_task_instances(
-	self, start_date=None, end_date=None, state=None, session=None):
+    self, start_date=None, end_date=None, state=None, session=None):
 ```
 
 In either case, it is necessary to rewrite calls to the `get_task_instances` method that currently provide the `session` positional argument. New calls to this method look like:
