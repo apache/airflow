@@ -2756,8 +2756,8 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
 
         for value in scheduler.executor.queued_tasks.values():
-            command = value[0]
             try:
+                command = value[0]
                 assert (command[command.index('-sd') + 1].startswith('DAGS_FOLDER'))
-            except:
+            except ValueError:
                 assert False
