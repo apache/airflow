@@ -217,17 +217,13 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
             parent=full_parent_name, pageSize=100)
 
-        response = request.execute()
-        next_page_token = response.get('nextPageToken', None)
-        result.extend(response.get('versions', []))
-        while next_page_token is not None:
-            next_request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
-                parent=full_parent_name,
-                pageToken=next_page_token,
-                pageSize=100)
-            response = next_request.execute()
-            next_page_token = response.get('nextPageToken', None)
+        while request is not None:
+            response = request.execute()
             result.extend(response.get('versions', []))
+
+            request = self._mlengine.projects().models().versions().list_next(  # pylint: disable=no-member
+                previous_request=request,
+                previous_response=response)
             time.sleep(5)
         return result
 

@@ -179,7 +179,7 @@ class TestMLEngineHook(unittest.TestCase):
         response_bodies = [
             {
                 'name': operation_name,
-                'nextPageToken': ix,
+                'nextPageToken': "TOKEN-{}".format(ix),
                 'versions': [ver]
             } for ix, ver in enumerate(versions)]
         response_bodies[-1].pop('nextPageToken')
@@ -191,7 +191,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken=TOKEN-{}&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]
