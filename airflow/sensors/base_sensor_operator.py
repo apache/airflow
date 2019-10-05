@@ -124,8 +124,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         self.log.info("Success criteria met. Exiting.")
 
-
-
     def _do_skip_downstream_tasks(self, context: Dict) -> None:
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task_ids %s", downstream_tasks)

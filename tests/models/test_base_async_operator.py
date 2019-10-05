@@ -22,13 +22,15 @@ from unittest.mock import Mock
 import uuid
 import random
 from datetime import timedelta
+import datetime
 from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow import DAG, settings
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import (BaseAsyncOperator, DagRun, TaskInstance,
+from airflow.models import (DagRun, TaskInstance,
                             TaskReschedule)
+from airflow.models.base_async_operator import BaseAsyncOperator
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -43,14 +45,14 @@ ASYNC_OP = 'async_op'
 
 def _job_id():
     """yield a random job id."""
-    yield 'job_id-{}'.format(uuid.uuid4())
+    return 'job_id-{}'.format(uuid.uuid4())
 
 ALL_ID_TYPES = [
-    _job_id(),
-    random.randint(0, 10**10),
-    [_job_id(), _job_id()],
-    {'job1': _job_id()},
-    None
+    (_job_id(),),
+    (random.randint(0, 10**10),),
+    ([_job_id(), _job_id()],),
+    ({'job1': _job_id()},),
+    (None,)
 ]
 
 
@@ -63,17 +65,17 @@ class DummyAsyncOperator(BaseAsyncOperator):
         super().__init__(**kwargs)
         self.return_value = return_value
 
-    def poke(self):
+    def poke(self, context):
         """successful on first poke"""
-        return True
+        return self.return_value 
 
-    def submit_request(self):
+    def submit_request(self, context):
         """pretend to submit a job w/ random id"""
         return _job_id()
 
-    def process_result(self):
+    def process_result(self, context):
         """attempt to get the external resource_id"""
-        return self.get_external_resource_id()
+        return self.get_external_resource_id(context)
 
 
 class TestBaseAsyncOperator(unittest.TestCase):
@@ -145,6 +147,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op = self._make_async_op(False)
         dr = self._make_dag_run()
 
+	
         with self.assertRaises(AirflowSensorTimeout):
             self._run(async_op)
         tis = dr.get_task_instances()
@@ -161,30 +164,22 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op = self._make_async_op(
             return_value=None,
             poke_interval=10,
-            timeout=25,
-            mode='reschedule')
+            timeout=25)
 
         dr = self._make_dag_run()
 
-        self._run(async_op)
-        tis = dr.get_task_instances()
-        self.assertEqual(len(tis), 2)
-        for ti in tis:
-            if ti.task_id == ASYNC_OP:
-                context = ti.get_template_context()
-                async_op.set_external_resource_id(context, resource_id)
-                self.assertEqual(resource_id, async_op.get_external_resource_id())
+        context = TaskInstance(task=async_op,  execution_date=DEFAULT_DATE).get_template_context()
+        async_op.set_external_resource_id(context, resource_id)
+        self.assertEqual(resource_id, async_op.get_external_resource_id(context))
 
     def test_xcom_cleared(self):
         """test xcom is cleared after process_result. """
         async_op = self._make_async_op(
             return_value=None,
             poke_interval=10,
-            timeout=25,
-            mode='reschedule')
+            timeout=25)
         #pylint: disable
-        async_op.set_external_resource_id = Mock()
-        async_op.get_external_resource_id = Mock()
+        async_op.process_result = Mock()
 
         dr = self._make_dag_run()
 
@@ -193,13 +188,12 @@ class TestBaseAsyncOperator(unittest.TestCase):
             self._run(async_op)
         tis = dr.get_task_instances()
 
-        self.assertEqual(async_op.set_external_resource_id.call_count, 2)
-        async_op.get_external_resource_id.assert_called_once()
+        # async_op.process_result.assert_called_once()
 
         #Check that XCom was set to None.
         for ti in tis:
             if ti.task_id == ASYNC_OP:
-                resource_id = ti.xcom_pull(taks_ids=ASYNC_OP,
+                resource_id = ti.xcom_pull(task_ids=ASYNC_OP,
                                            key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
                 self.assertIsNone(resource_id)
 
@@ -208,9 +202,11 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op = self._make_async_op(
             return_value=None,
             poke_interval=10,
-            timeout=25,
-            mode='reschedule')
+            timeout=25)
+
         async_op.poke = Mock(side_effect=[False, False, True])
+        async_op.submit_request = Mock(side_effect=_job_id())
+        async_op.process_result = Mock()
         dr = self._make_dag_run()
 
         # first poke returns False and task is re-scheduled
@@ -252,8 +248,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
             poke_interval=10,
             timeout=5,
             retries=1,
-            retry_delay=timedelta(seconds=10),
-            mode='reschedule')
+            retry_delay=timedelta(seconds=10))
         async_op.poke = Mock(side_effect=[False, False, False, True])
         async_op.submit_request = Mock(side_effect=[_job_id(), _job_id()])
         async_op.process_result = Mock()

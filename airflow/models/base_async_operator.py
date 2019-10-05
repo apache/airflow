@@ -99,21 +99,16 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
                 resource_id = PLACEHOLDER_RESOURCE_ID
             self.set_external_resource_id(context, resource_id)
 
-        super().execute(self, context)
+        super().execute(context)
 
-        # The above should raise AirflowRescheduleException if we are
-        # rescheduling a poke, and thus never reach this code below.
-        try:
-            resource_id = self.get_external_resource_id(context)
-            if resource_id == PLACEHOLDER_RESOURCE_ID:
-                self.log.info("Calling process_result for %s.", resource_id)
-            else:
-                self.log.info("Calling process_result.")
-            self.process_result(context)
-        finally:
-            #TODO(mik-laj) is there a way to clear this key?
-            # Clear the resource id for this task.
-            self.set_external_resource_id(context, None)
+        # TODO: find out why code below here never called.
+        resource_id = self.get_external_resource_id(context)
+        if resource_id == PLACEHOLDER_RESOURCE_ID:
+            self.log.info("Calling process_result.")
+        else:
+            self.log.info("Calling process_result for %s.", resource_id)
+        self.process_result(context)
+        self.set_external_resource_id(context, None)
 
     @staticmethod
     def set_external_resource_id(context, value):
