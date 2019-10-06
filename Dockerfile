@@ -43,7 +43,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="1"
+ARG DEPENDENCIES_EPOCH_NUMBER="2"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
