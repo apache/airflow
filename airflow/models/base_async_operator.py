@@ -69,7 +69,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     ```
 
     AsyncOperators must override the following methods:
-        :meth:`submit_request`: fire a request for a long running operation
+        :py:meth:`submit_request`: fire a request for a long running operation
         :meth:`poke`: a method to check if the long running operation is
             complete it should return True when a success criteria is met.
     Optionally, AsyncOperators can override:
