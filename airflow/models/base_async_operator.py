@@ -25,7 +25,6 @@ operations and polling for completion with reschedule mode.
 from abc import abstractmethod
 from typing import Dict, List, Optional, Union
 
-from airflow.exceptions import AirflowException
 from airflow.models import SkipMixin, TaskReschedule
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -109,7 +108,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         :returns: a resource_id for the long running operation.
         :rtype: Optional[Union[String, List, Dict]]
         """
-        raise AirflowException('Async Operators must override the `submit_request` method.')
+        raise NotImplementedError
 
     def process_result(self, context: Dict):
         """
