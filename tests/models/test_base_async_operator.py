@@ -21,9 +21,9 @@
 
 import random
 import unittest
-from unittest.mock import Mock
 import uuid
 from datetime import timedelta
+from unittest.mock import Mock  # pylint: disable=ungrouped-imports
 
 from freezegun import freeze_time
 from parameterized import parameterized
