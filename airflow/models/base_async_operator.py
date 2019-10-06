@@ -64,19 +64,21 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
       def sumbit_request(self, context: Dict) -> Optional[str]:
         return None
+
       def poke(self, context: Dict) -> bool:
         return bool(random.getrandbits(1))
     ```
 
     AsyncOperators must override the following methods:
-        :py:meth:`submit_request`: fire a request for a long running operation
-        :meth:`poke`: a method to check if the long running operation is
-            complete it should return True when a success criteria is met.
-    Optionally, AsyncOperators can override:
-        :meth: `process_result` to perform any operations after the success
-            criteria is met in :meth: `poke`
+    :py:meth:`submit_request`: fire a request for a long running operation
+    :py:meth:`poke`: a method to check if the long running operation is
+    complete it should return True when a success criteria is met.
 
-    :meth: `poke` is executed at a time interval and succeed when a
+    Optionally, AsyncOperators can override:
+    :py:meth: `process_result` to perform any operations after the success
+    criteria is met in :py:meth: `poke`
+
+    :py:meth: `poke` is executed at a time interval and succeed when a
     criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
@@ -86,6 +88,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     :type poke_interval: int
     :param timeout: Time, in seconds before the task times out and fails.
     :type timeout: int
+
     """
     ui_color = '#9933ff'  # type: str
 
