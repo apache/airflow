@@ -22,7 +22,6 @@ from unittest.mock import Mock
 import uuid
 import random
 from datetime import timedelta
-import datetime
 from freezegun import freeze_time
 from parameterized import parameterized
 
@@ -37,15 +36,16 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 DUMMY_OP = 'dummy_op'
 ASYNC_OP = 'async_op'
 
+
 def _job_id():
     """yield a random job id."""
     return 'job_id-{}'.format(uuid.uuid4())
+
 
 ALL_ID_TYPES = [
     (_job_id(),),
@@ -67,7 +67,7 @@ class DummyAsyncOperator(BaseAsyncOperator):
 
     def poke(self, context):
         """successful on first poke"""
-        return self.return_value 
+        return self.return_value
 
     def submit_request(self, context):
         """pretend to submit a job w/ random id"""
@@ -147,7 +147,6 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op = self._make_async_op(False)
         dr = self._make_dag_run()
 
-	
         with self.assertRaises(AirflowSensorTimeout):
             self._run(async_op)
         tis = dr.get_task_instances()
@@ -166,9 +165,8 @@ class TestBaseAsyncOperator(unittest.TestCase):
             poke_interval=10,
             timeout=25)
 
-        dr = self._make_dag_run()
-
-        context = TaskInstance(task=async_op,  execution_date=DEFAULT_DATE).get_template_context()
+        context = TaskInstance(task=async_op,
+                               execution_date=DEFAULT_DATE).get_template_context()
         async_op.set_external_resource_id(context, resource_id)
         self.assertEqual(resource_id, async_op.get_external_resource_id(context))
 
@@ -178,8 +176,8 @@ class TestBaseAsyncOperator(unittest.TestCase):
             return_value=None,
             poke_interval=10,
             timeout=25)
-        #pylint: disable
         async_op.process_result = Mock()
+        async_op.poke = Mock(side_effect=[True])
 
         dr = self._make_dag_run()
 
@@ -188,9 +186,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
             self._run(async_op)
         tis = dr.get_task_instances()
 
-        # async_op.process_result.assert_called_once()
-
-        #Check that XCom was set to None.
+        # Check that XCom was set to None.
         for ti in tis:
             if ti.task_id == ASYNC_OP:
                 resource_id = ti.xcom_pull(task_ids=ASYNC_OP,
@@ -204,6 +200,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
             poke_interval=10,
             timeout=25)
 
+        async_op.execute = Mock(side_effect=async_op.execute)
         async_op.poke = Mock(side_effect=[False, False, True])
         async_op.submit_request = Mock(side_effect=_job_id())
         async_op.process_result = Mock()
@@ -240,6 +237,7 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op.submit_request.assert_called_once()
         async_op.process_result.assert_called_once()
         self.assertEqual(async_op.poke.call_count, 3)
+        self.assertEqual(async_op.execute.call_count, 3)
 
     def test_ok_with_reschedule_and_retry(self):
         """ Tests expected behavior when retrying"""

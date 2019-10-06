@@ -16,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """
 Base Asynchronous Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
+
 from abc import abstractmethod
 from typing import Dict, List, Union, Optional
 
@@ -30,6 +32,7 @@ from airflow.models import SkipMixin, TaskReschedule
 from airflow.utils.decorators import apply_defaults
 
 PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'
+
 
 class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
@@ -65,7 +68,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         super().__init__(mode='reschedule', *args, **kwargs)
 
     @abstractmethod
-    def submit_request(self, context) -> Optional[Union[str, List, Dict]]:
+    def submit_request(self, context: Dict) -> Optional[Union[str, List, Dict]]:
         """
         This method should kick off a long running operation.
         This method should return the ID for the long running operation if
@@ -79,7 +82,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         """
         raise AirflowException('Async Operators must override the `submit_request` method.')
 
-    def process_result(self, context):
+    def process_result(self, context: Dict):
         """
         This method can optionally be overriden to process the result of a long running operation.
         Context is the same dictionary used as when rendering jinja templates.
@@ -89,9 +92,11 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         self.log.info('Using default process_result. Got result of %s. Done.',
                       self.get_external_resource_id(context))
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         # On the first execute call submit_request and set the
         # external resource id.
+
+        # pylint: disable=no-value-for-parameter
         task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
         if not task_reschedules:
             resource_id = self.submit_request(context)
@@ -101,7 +106,6 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
 
         super().execute(context)
 
-        # TODO: find out why code below here never called.
         resource_id = self.get_external_resource_id(context)
         if resource_id == PLACEHOLDER_RESOURCE_ID:
             self.log.info("Calling process_result.")
