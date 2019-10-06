@@ -303,6 +303,14 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError):
             return False
 
+    def file_has_option(self, section, option):
+        """
+        Check that the config file itself has the specified option.
+        This bypasses the overwritten 'has_option' in this class, which also
+        checks whether the option is in the environment variables
+        """
+        return super().has_option(section, option)
+
     def remove_option(self, section, option, remove_default=True):
         """
         Remove an option if it exists in config from a file or
@@ -548,7 +556,7 @@ conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 
-if conf.has_option('core', 'AIRFLOW_HOME'):
+if conf.file_has_option('core', 'AIRFLOW_HOME'):
     msg = (
         'Specifying both AIRFLOW_HOME environment variable and airflow_home '
         'in the config file is deprecated. Please use only the AIRFLOW_HOME '
