@@ -19,6 +19,7 @@
 This module contains GCP MLEngine operators.
 """
 import re
+import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowException
@@ -350,6 +351,10 @@ class MLEngineVersionOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
 
+    .. warning::
+       This operator is deprecated. Consider using operators for specific operations:
+       MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.
+
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs.
     :type project_id: str
@@ -418,7 +423,6 @@ class MLEngineVersionOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model_name = model_name
@@ -427,6 +431,13 @@ class MLEngineVersionOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+
+        warnings.warn(
+            "This operator is deprecated. Consider using operators for specific operations: "
+            "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
+            DeprecationWarning,
+            stacklevel=3
+        )
 
     def execute(self, context):
         if 'name' not in self._version:
@@ -451,6 +462,257 @@ class MLEngineVersionOperator(BaseOperator):
                                        self._version['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
+
+
+class MLEngineCreateVersionOperator(BaseOperator):
+    """
+    Creates a new version in the model
+
+    Model should be specified by `model_name`, in which case the `version` parameter should contain all the
+    information to create that version
+
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+    :type project_id: str
+
+    :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
+    :type model_name: str
+
+    :param version: A dictionary containing the information about the version. (templated)
+    :type version: dict
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_model_name',
+        '_version',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 version: dict,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._version = version
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        if not self._model_name:
+            raise AirflowException("The model_name parameter could not be empty.")
+
+        if not self._version:
+            raise AirflowException("The version parameter could not be empty.")
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        return hook.create_version(
+            project_id=self._project_id,
+            model_name=self._model_name,
+            version_spec=self._version
+        )
+
+
+class MLEngineSetDefaultVersionOperator(BaseOperator):
+    """
+    Sets a version in the model.
+
+    The model should be specified by `model_name` to be the default. The name of the version should be
+    specified in the `version` parameter.
+
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+    :type project_id: str
+
+    :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
+    :type model_name: str
+
+    :param version_name: A name to use for the version being operated upon. (templated)
+    :type version_name: str
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_model_name',
+        '_version_name',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 version_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._version_name = version_name
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        if not self._model_name:
+            raise AirflowException("The model_name parameter could not be empty.")
+
+        if not self._version_name:
+            raise AirflowException("The version_name parameter could not be empty.")
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        return hook.set_default_version(
+            project_id=self._project_id,
+            model_name=self._model_name,
+            version_name=self._version_name
+        )
+
+
+class MLEngineListVersionsOperator(BaseOperator):
+    """
+    Lists all available versions of the model
+
+    The model should be specified by `model_name`.
+
+    :param project_id: The Google Cloud project name to which MLEngine
+        model belongs.
+    :type project_id: str
+
+    :param model_name: The name of the Google Cloud ML Engine model that the version
+        belongs to. (templated)
+    :type model_name: str
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+    template_fields = [
+        '_model_name',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        if not self._model_name:
+            raise AirflowException("The model_name parameter could not be empty.")
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        return hook.list_versions(
+            project_id=self._project_id,
+            model_name=self._model_name,
+        )
+
+
+class MLEngineDeleteVersionOperator(BaseOperator):
+    """
+    Deletes the version from the model.
+
+    The name of the version should be specified in `version_name` parameter from the model specified
+    by `model_name`.
+
+    :param project_id: The Google Cloud project name to which MLEngine
+        model belongs.
+    :type project_id: str
+
+    :param model_name: The name of the Google Cloud ML Engine model that the version
+        belongs to. (templated)
+    :type model_name: str
+
+    :param version_name: A name to use for the version being operated upon. (templated)
+    :type version_name: str
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+    template_fields = [
+        '_model_name',
+        '_version_name',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 version_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._version_name = version_name
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        if not self._model_name:
+            raise AirflowException("The model_name parameter could not be empty.")
+
+        if not self._version_name:
+            raise AirflowException("The version_name parameter could not be empty.")
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        return hook.delete_version(
+            project_id=self._project_id,
+            model_name=self._model_name,
+            version_name=self._version_name
+        )
 
 
 class MLEngineTrainingOperator(BaseOperator):

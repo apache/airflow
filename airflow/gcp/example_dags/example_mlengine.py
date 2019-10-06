@@ -26,7 +26,9 @@ from typing import Dict
 import airflow
 from airflow import models
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineModelOperator, MLEngineTrainingOperator, MLEngineVersionOperator,
+    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteVersionOperator,
+    MLEngineListVersionsOperator, MLEngineModelOperator, MLEngineSetDefaultVersionOperator,
+    MLEngineTrainingOperator,
 )
 from airflow.gcp.utils import mlengine_operator_utils
 from airflow.operators.bash_operator import BashOperator
@@ -93,11 +95,10 @@ with models.DAG(
         task_id="get-model-result",
     )
 
-    create_version = MLEngineVersionOperator(
+    create_version = MLEngineCreateVersionOperator(
         task_id="create-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
-        operation='create',
         version={
             "name": "v1",
             "description": "First-version",
@@ -109,11 +110,10 @@ with models.DAG(
         }
     )
 
-    create_version_2 = MLEngineVersionOperator(
+    create_version_2 = MLEngineCreateVersionOperator(
         task_id="create-version-2",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
-        operation='create',
         version={
             "name": "v2",
             "description": "Second version",
@@ -125,19 +125,17 @@ with models.DAG(
         }
     )
 
-    set_defaults_version = MLEngineVersionOperator(
+    set_defaults_version = MLEngineSetDefaultVersionOperator(
         task_id="set-default-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
-        operation='set_default',
         version_name="v2",
     )
 
-    list_version = MLEngineVersionOperator(
+    list_version = MLEngineListVersionsOperator(
         task_id="list-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
-        operation='list',
     )
 
     list_version_result = BashOperator(
@@ -156,11 +154,10 @@ with models.DAG(
         output_path=PREDICTION_OUTPUT,
     )
 
-    delete_version = MLEngineVersionOperator(
+    delete_version = MLEngineDeleteVersionOperator(
         task_id="delete-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
-        operation='delete',
         version_name="v1"
     )
 

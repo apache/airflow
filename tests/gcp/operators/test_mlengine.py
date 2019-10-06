@@ -26,10 +26,22 @@ from googleapiclient.errors import HttpError
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineTrainingOperator, MLEngineVersionOperator,
+    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteVersionOperator,
+    MLEngineListVersionsOperator, MLEngineSetDefaultVersionOperator, MLEngineTrainingOperator,
+    MLEngineVersionOperator,
 )
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+TEST_VERSION = {
+    'name': 'v1',
+    'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
+    'runtimeVersion': '1.6'
+}
+TEST_PROJECT_ID = "test-project-id"
+TEST_MODEL_NAME = "test-model-name"
+TEST_VERSION_NAME = "test-version"
+TEST_GCP_CONN_ID = "test-gcp-conn-id"
+TEST_DELEGATE_TO = "test-delegate-to"
 
 
 class TestMLEngineBatchPredictionOperator(unittest.TestCase):
@@ -400,11 +412,6 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         'model_name': 'test-model',
         'task_id': 'test-version'
     }
-    VERSION_INPUT = {
-        'name': 'v1',
-        'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
-        'runtimeVersion': '1.6'
-    }
 
     def test_success_create_version(self):
         with patch('airflow.gcp.operators.mlengine.MLEngineHook') \
@@ -414,7 +421,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
             hook_instance.create_version.return_value = success_response
 
             training_op = MLEngineVersionOperator(
-                version=self.VERSION_INPUT,
+                version=TEST_VERSION,
                 **self.VERSION_DEFAULT_ARGS)
             training_op.execute(None)
 
@@ -422,7 +429,173 @@ class TestMLEngineVersionOperator(unittest.TestCase):
             # Make sure only 'create_version' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_version.assert_called_once_with(
-                'test-project', 'test-model', self.VERSION_INPUT)
+                'test-project', 'test-model', TEST_VERSION)
+
+
+class TestMLEngineCreateVersion(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success(self, mock_hook):
+        task = MLEngineCreateVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version=TEST_VERSION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.create_version.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_spec=TEST_VERSION
+        )
+
+    def test_missing_model_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineCreateVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version=TEST_VERSION,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+    def test_missing_version(self):
+        with self.assertRaises(AirflowException):
+            MLEngineCreateVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+
+class TestMLEngineSetDefaultVersion(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success(self, mock_hook):
+        task = MLEngineSetDefaultVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.set_default_version.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME
+        )
+
+    def test_missing_model_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineSetDefaultVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+    def test_missing_version_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineSetDefaultVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+
+class TestMLEngineListVersions(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success(self, mock_hook):
+        task = MLEngineListVersionsOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.list_versions.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+        )
+
+    def test_missing_model_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineListVersionsOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+
+class TestMLEngineDeleteVersion(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success(self, mock_hook):
+        task = MLEngineDeleteVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.delete_version.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME
+        )
+
+    def test_missing_version_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineDeleteVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
+
+    def test_missing_model_name(self):
+        with self.assertRaises(AirflowException):
+            MLEngineDeleteVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                delegate_to=TEST_DELEGATE_TO,
+            )
 
 
 if __name__ == '__main__':
