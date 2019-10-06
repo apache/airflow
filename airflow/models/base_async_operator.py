@@ -23,12 +23,12 @@ operations and polling for completion with reschedule mode.
 """
 
 from abc import abstractmethod
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional, Union
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.exceptions import AirflowException
-from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.models import SkipMixin, TaskReschedule
+from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'

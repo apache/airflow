@@ -19,18 +19,18 @@
 
 """ Tests for BaseAsyncOperator"""
 
+import random
 import unittest
 from unittest.mock import Mock
 import uuid
-import random
 from datetime import timedelta
+
 from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow import DAG, settings
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import (DagRun, TaskInstance,
-                            TaskReschedule)
+from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.models.base_async_operator import BaseAsyncOperator
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.operators.dummy_operator import DummyOperator
