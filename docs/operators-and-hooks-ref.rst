@@ -254,7 +254,7 @@ These integrations allow you to perform various operations within the Microsoft 
 
 
 Transfer operators and hooks
-""""""""""""""""""""""""""""
+''''''''''''''''''''''''''''
 
 These integrations allow you to copy data from/to Microsoft Azure.
 
@@ -393,7 +393,7 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.contrib.sensors.aws_sqs_sensor`
 
 Transfer operators and hooks
-""""""""""""""""""""""""""""
+''''''''''''''''''''''''''''
 
 These integrations allow you to copy data from/to Amazon Web Services.
 
@@ -1236,7 +1236,7 @@ communication protocols or interface.
      -
 
 Transfer operators and hooks
-""""""""""""""""""""""""""""
+''''''''''''''''''''''''''''
 
 These integrations allow you to copy data.
 
