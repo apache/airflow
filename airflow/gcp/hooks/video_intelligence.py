@@ -61,6 +61,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_video(
         self,
         input_uri: Optional[str] = None,

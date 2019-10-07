@@ -64,6 +64,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
 
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def synthesize_speech(
         self,
         input_data: Union[Dict, SynthesisInput],

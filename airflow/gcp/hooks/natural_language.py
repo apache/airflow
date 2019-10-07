@@ -63,6 +63,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entities(
         self,
         document: Union[Dict, Document],
@@ -97,6 +98,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
         document: Union[Dict, Document],
@@ -131,6 +133,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_sentiment(
         self,
         document: Union[Dict, Document],
@@ -164,6 +167,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_syntax(
         self,
         document: Union[Dict, Document],
@@ -198,6 +202,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_text(
         self,
         document: Union[Dict, Document],
@@ -241,6 +246,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def classify_text(
         self,
         document: Union[Dict, Document],

@@ -544,6 +544,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def batch_annotate_images(
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
@@ -567,6 +568,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def text_detection(
         self,
         image: Union[Dict, Image],
@@ -597,6 +599,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def document_text_detection(
         self,
         image: Union[Dict, Image],
@@ -627,6 +630,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def label_detection(
         self,
         image: Union[Dict, Image],
@@ -657,6 +661,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def safe_search_detection(
         self,
         image: Union[Dict, Image],
