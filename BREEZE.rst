@@ -245,7 +245,7 @@ the database.
 Adding/modifying dependencies
 -----------------------------
 
-If you change apt dependencies in the ``Dockerfile`` or add python pacakges in ``setup.py` or
+If you change apt dependencies in the ``Dockerfile`` or add python pacakges in ``setup.py`` or
 javascript dependencies in ``package.json``. You can add dependencies temporarily for one Breeze
 session or permanently in ``setup.py``, ``Dockerfile``, ``package.json``.
 
