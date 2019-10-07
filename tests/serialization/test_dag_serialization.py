@@ -271,6 +271,7 @@ class TestStringifiedDAGs(unittest.TestCase):
     ])
     def test_roundtrip_relativedelta(self, val, expected):
         serialized = SerializedDAG._serialize(val)
+        self.maxDiff = None     # pylint: disable = invalid-name
         self.assertDictEqual(serialized, expected)
 
         round_tripped = SerializedDAG._deserialize(serialized)
