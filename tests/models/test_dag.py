@@ -890,3 +890,11 @@ class TestDag(unittest.TestCase):
             self.assertIn('t1', stdout_lines[0])
             self.assertIn('t2', stdout_lines[1])
             self.assertIn('t3', stdout_lines[2])
+
+    def test_period_end(self):
+        """Verify period_end calculation."""
+        from datetime import timedelta
+        with DAG("test_dag", start_date=DEFAULT_DATE, schedule_at_interval_end=True) as dag:
+            self.assertEqual(dag.period_end(DEFAULT_DATE), DEFAULT_DATE + timedelta(days=1))
+        with DAG("test_dag", start_date=DEFAULT_DATE, schedule_at_interval_end=False) as dag:
+            self.assertEqual(dag.period_end(DEFAULT_DATE), DEFAULT_DATE)

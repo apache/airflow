@@ -32,7 +32,7 @@ Airflow production environment. To kick it off, all you need to do is
 execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
-Note that if you run a DAG on a ``schedule_interval`` of one day,
+Note that, by default, if you run a DAG on a ``schedule_interval`` of one day,
 the run stamped ``2016-01-01`` will be triggered soon after ``2016-01-01T23:59``.
 In other words, the job instance is started once the period it covers
 has ended.
@@ -95,6 +95,76 @@ scheduler would have much more work to do in order to figure out what tasks
 should be triggered and come to a crawl. It might also create undesired
 processing when changing the shape of your DAG, by say adding in new
 tasks.
+
+Scheduled Time vs Execution Time
+''''''''''''''''''''''''''''''''
+
+A DAG with a ``schedule_interval`` will execute once per interval. By
+default, the execution of a DAG will occur at the **end** of the
+schedule interval.
+
+A few examples:
+
+- A DAG with ``schedule_interval='@hourly'``: The DAG run that processes
+  2019-08-16 17:00 will start running just after 2019-08-16 17:59:59,
+  i.e. once that hour is over.
+- A DAG with ``schedule_interval='@daily'``: The DAG run that processes
+  2019-08-16 will start running shortly after 2019-08-17 00:00.
+
+The reasoning behind this execution vs scheduling behaviour is that
+data for the interval to be processed won't be fully available until
+the interval has elapsed.
+
+In cases where you wish the DAG to be executed at the **start** of the
+interval, specify ``schedule_at_interval_end=False``, either in
+``airflow.cfg``, or on a per-DAG basis.
+
+The following example illustrates the differences
+
+.. code:: python
+
+    """
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
+    """
+
+    from airflow import DAG
+    from airflow.operators.bash_operator import BashOperator
+    from datetime import datetime, timedelta
+
+    default_args = {
+        'owner': 'Airflow',
+        'depends_on_past': False,
+        'start_date': datetime(2015, 12, 1),
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5)
+    }
+
+    # Processing: 2019-08-08
+    # Execution: Shortly after 2019-08-09 00:00
+    # Will execute at the end of the day to be processed
+    eod = DAG(
+        'tutorial',
+        default_args=default_args,
+        description='A simple tutorial DAG',
+        schedule_interval='@daily',
+        catchup=False)
+
+
+    # Processing: 2019-08-08
+    # Execution: Shortly after 2019-08-08 00:00
+    # Will execute at the start of the day to be processed
+    start_of_day = DAG(
+        'tutorial',
+        default_args=default_args,
+        description='A simple tutorial DAG',
+        schedule_interval='@daily',
+        catchup=False,
+        schedule_at_interval_end=False
+        )
 
 Backfill and Catchup
 ''''''''''''''''''''

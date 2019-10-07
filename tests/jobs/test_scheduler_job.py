@@ -2734,3 +2734,38 @@ class TestSchedulerJob(unittest.TestCase):
         dags = scheduler._find_dags_to_process(dagbag.dags.values(), paused_dag_ids=[dag.dag_id])
 
         self.assertNotIn(dag, dags)
+
+    def test_schedule_at_interval_end(self):
+        today = datetime.date.today()
+        start_date = timezone.datetime(today.year, today.month, today.day)
+        # default to run at end of the interval
+        end_dag_id = 'test_schedule_at_interval_end_true'
+        end_dag = DAG(dag_id=end_dag_id,
+                      start_date=start_date,
+                      schedule_interval='@daily',
+                      schedule_at_interval_end=True
+                      )
+        end_task_id = end_dag_id + '_task'
+        DummyOperator(task_id=end_task_id, dag=end_dag)
+
+        #
+        start_dag_id = 'test_schedule_at_interval_end_false'
+        start_dag = DAG(dag_id=start_dag_id,
+                        start_date=start_date,
+                        schedule_interval='@daily',
+                        schedule_at_interval_end=False
+                        )
+        start_task_id = start_dag_id + '_task'
+        DummyOperator(task_id=start_task_id, dag=start_dag)
+
+        scheduler = SchedulerJob()
+
+        # With no catchup, and today as a start date, there
+        # should be no pending run for the end edge
+        end_dr = scheduler.create_dag_run(end_dag)
+        self.assertIsNone(end_dr)
+
+        # But there should be if the start edge is used
+        # for scheduling
+        start_dr = scheduler.create_dag_run(start_dag)
+        self.assertIsNotNone(start_dr)

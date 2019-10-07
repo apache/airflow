@@ -426,8 +426,8 @@ class SchedulerJob(BaseJob):
             if isinstance(task.sla, timedelta):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
-                    following_schedule = dag.following_schedule(dttm)
-                    if following_schedule + task.sla < timezone.utcnow():
+                    period_end = dag.period_end(dttm)
+                    if period_end + task.sla < timezone.utcnow():
                         session.merge(SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
@@ -595,7 +595,7 @@ class SchedulerJob(BaseJob):
                 # one period before, so that timezone.utcnow() is AFTER
                 # the period end, and the job can be created...
                 now = timezone.utcnow()
-                next_start = dag.following_schedule(now)
+                next_start = dag.period_end(now)
                 last_start = dag.previous_schedule(now)
                 if next_start <= now:
                     new_start = last_start
@@ -648,7 +648,7 @@ class SchedulerJob(BaseJob):
             if dag.schedule_interval == '@once':
                 period_end = next_run_date
             elif next_run_date:
-                period_end = dag.following_schedule(next_run_date)
+                period_end = dag.period_end(next_run_date)
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
@@ -1214,7 +1214,7 @@ class SchedulerJob(BaseJob):
             if not dag.is_subdag:
                 dag_run = self.create_dag_run(dag)
                 if dag_run:
-                    expected_start_date = dag.following_schedule(dag_run.execution_date)
+                    expected_start_date = dag.period_end(dag_run.execution_date)
                     if expected_start_date:
                         schedule_delay = dag_run.start_date - expected_start_date
                         Stats.timing(

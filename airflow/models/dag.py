@@ -96,6 +96,9 @@ class DAG(BaseDag, LoggingMixin):
     :type schedule_interval: datetime.timedelta or
         dateutil.relativedelta.relativedelta or str that acts as a cron
         expression
+    :param schedule_at_interval_end: Should a DAG be scheduled to run at
+        the end (True, default) or the start (False) of the scheduled interval.
+    :type schedule_at_interval_end: bool
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :type start_date: datetime.datetime
@@ -222,6 +225,7 @@ class DAG(BaseDag, LoggingMixin):
         params: Optional[Dict] = None,
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
+        schedule_at_interval_end: bool = conf.get('scheduler', 'schedule_at_interval_end'),
         jinja_environment_kwargs: Optional[Dict] = None
     ):
         self.user_defined_macros = user_defined_macros
@@ -287,6 +291,7 @@ class DAG(BaseDag, LoggingMixin):
             self._schedule_interval = None
         else:
             self._schedule_interval = schedule_interval
+        self.schedule_at_interval_end = schedule_at_interval_end
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
@@ -388,6 +393,35 @@ class DAG(BaseDag, LoggingMixin):
             return True
 
         return False
+
+    def period_end(self, dttm):
+        """
+        Calculates the end time of the period in which dttm lies.
+
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+
+        if isinstance(self._schedule_interval, str):
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self._schedule_interval, naive)
+
+            period_end = cron.get_next(datetime)
+
+            if not self.schedule_at_interval_end:
+                next_period_end = cron.get_next(datetime)
+                interval = next_period_end - period_end
+                period_end -= interval
+
+            return timezone.convert_to_utc(period_end)
+        elif self._schedule_interval is not None:
+            if self.schedule_at_interval_end:
+                return dttm + self._schedule_interval
+            else:
+                return dttm
 
     def following_schedule(self, dttm):
         """
