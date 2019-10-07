@@ -172,13 +172,20 @@ class TestGoogleCampaignManagerHook(TestCase):
         scope = "SCOPE"
         sort_field = "SORT_FIELD"
         sort_order = "SORT_ORDER"
-        items = [1, 2, 3]
+        items = ['item']
 
         return_value = {"nextPageToken": None, "items": items}
-        get_conn_mock.return_value.reports.return_value.list.return_value.execute.return_value = (
-            return_value
-        )
-        get_conn_mock.return_value.reports.return_value.list_next.return_value = None
+        get_conn_mock.return_value.reports.return_value.list.return_value.\
+            execute.return_value = return_value
+
+        request_mock = mock.MagicMock()
+        request_mock.execute.return_value = {"nextPageToken": None, "items": items}
+        get_conn_mock.return_value.reports.return_value.list_next.side_effect = [
+            request_mock,
+            request_mock,
+            request_mock,
+            None
+        ]
 
         result = self.hook.list_reports(
             profile_id=profile_id,
@@ -196,7 +203,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             sortOrder=sort_order,
         )
 
-        self.assertEqual(items, result)
+        self.assertEqual(items * 4, result)
 
     @mock.patch(
         "airflow.provider.google.marketing_platform.hooks."

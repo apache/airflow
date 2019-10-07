@@ -124,7 +124,7 @@ class GoogleCampaignManagerHook(GoogleCloudBaseHook):
         )
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
-            reports = response.get("items", [])
+            reports.extend(response.get("items", []))
             request = conn.reports().list_next(  # pylint: disable=no-member
                 previous_request=request, previous_response=response
             )
