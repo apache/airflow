@@ -18,9 +18,11 @@
 # under the License.
 import unittest
 
-from tests.gcp.operators.test_campaign_manager_system_helper import GoogleCampaignManagerTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
+from tests.provider.google.marketing_platform.operators.test_campaign_manager_system_helper import (
+    GoogleCampaignManagerTestHelper,
+)
 
 # Required scopes for future tests
 # ['https://www.googleapis.com/auth/dfatrafficking',

@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.gcp.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.provider.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v3.3"
@@ -28,7 +28,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestGoogleCampaignManagerHook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleCampaignManagerHook(
@@ -36,9 +36,13 @@ class TestGoogleCampaignManagerHook(TestCase):
             )
 
     @mock.patch(
-        "airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook._authorize"
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook._authorize"
     )
-    @mock.patch("airflow.gcp.hooks.campaign_manager.build")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.build"
+    )
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -49,8 +53,14 @@ class TestGoogleCampaignManagerHook(TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_delete_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -68,8 +78,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_get_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -89,8 +105,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_get_report_file(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -111,8 +133,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_insert_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report = {"body": "test"}
@@ -130,8 +158,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_list_reports(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         max_results = 42
@@ -164,8 +198,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(items, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_patch_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -186,8 +226,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_run_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -208,8 +254,14 @@ class TestGoogleCampaignManagerHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCampaignManagerHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.campaign_manager.GoogleCloudBaseHook.__init__")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCampaignManagerHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.hooks."
+        "campaign_manager.GoogleCloudBaseHook.__init__"
+    )
     def test_update_report(self, mock_base_hook, get_conn_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"

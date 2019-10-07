@@ -22,11 +22,13 @@ Example Airflow DAG that shows how to use CampaignManager.
 import os
 
 from airflow import models
-from airflow.gcp.operators.campaign_manager import (
+from airflow.provider.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
     GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
-from airflow.gcp.sensors.campaign_manager import GoogleCampaignManagerReportSensor
+from airflow.provider.google.marketing_platform.sensors.campaign_manager import (
+    GoogleCampaignManagerReportSensor,
+)
 from airflow.utils import dates
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")

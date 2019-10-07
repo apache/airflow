@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.gcp.operators.campaign_manager import (
+from airflow.provider.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
     GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
@@ -28,8 +28,14 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
-    @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -49,13 +55,29 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
 
 
 class TestGoogleCampaignManagerGetReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.campaign_manager.http")
-    @mock.patch("airflow.gcp.operators.campaign_manager.tempfile")
-    @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
-    @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCloudStorageHook")
-    @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
     @mock.patch(
-        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.http"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.tempfile"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCloudStorageHook"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.BaseOperator"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
     )
     def test_execute(
         self,
@@ -106,14 +128,23 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
             filename=temp_file_name,
             mime_type="text/csv",
         )
-        xcom_mock.assert_called_once_with(None, key="report_name", value=report_name + ".gz")
+        xcom_mock.assert_called_once_with(
+            None, key="report_name", value=report_name + ".gz"
+        )
 
 
 class TestGoogleCampaignManagerInsertReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
-    @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
     @mock.patch(
-        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator.xcom_push"
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.BaseOperator"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerInsertReportOperator.xcom_push"
     )
     def test_execute(self, xcom_mock, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
@@ -139,10 +170,17 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
 
 
 class TestGoogleCampaignManagerRunReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.campaign_manager.GoogleCampaignManagerHook")
-    @mock.patch("airflow.gcp.operators.campaign_manager.BaseOperator")
     @mock.patch(
-        "airflow.gcp.operators.campaign_manager.GoogleCampaignManagerRunReportOperator.xcom_push"
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerHook"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.BaseOperator"
+    )
+    @mock.patch(
+        "airflow.provider.google.marketing_platform.operators."
+        "campaign_manager.GoogleCampaignManagerRunReportOperator.xcom_push"
     )
     def test_execute(self, xcom_mock, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"

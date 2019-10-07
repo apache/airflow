@@ -26,9 +26,9 @@ from typing import Any, Dict, Optional
 from googleapiclient import http
 
 from airflow import AirflowException
-from airflow.gcp.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models.baseoperator import BaseOperator
+from airflow.provider.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -217,9 +217,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         report = hook.get_report(
             file_id=self.file_id, profile_id=self.profile_id, report_id=self.report_id
         )
-        report_name = self.report_name or report.get(
-            "fileName", str(uuid.uuid4())
-        )
+        report_name = self.report_name or report.get("fileName", str(uuid.uuid4()))
         report_name = self._resolve_file_name(report_name)
 
         # Download the report
