@@ -33,10 +33,12 @@ import pytz
 import airflow.bin.cli as cli
 from airflow import models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
+from airflow.jobs import SchedulerJob
 from airflow.models import TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
+from tests import conf_vars
 from tests.compat import mock
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -488,3 +490,26 @@ class TestCLI(unittest.TestCase):
             pickle_id=None,
             pool=None,
         )
+
+    @mock.patch("airflow.bin.cli.jobs.SchedulerJob.most_recent_job")
+    def test_health_scheduler(self, mock_most_recent):
+        """
+        Test that the 'scheduler' subcommand for health works
+        """
+        job = SchedulerJob(
+            state='running',
+            latest_heartbeat=timezone.utcnow()
+        )
+        mock_most_recent.return_value = job
+
+        with conf_vars({("scheduler", "scheduler_health_check_threshold"): '60'}):
+            with mock.patch('sys.exit') as mock_exit:
+                args = ['health', 'scheduler']
+                cli.health_scheduler(self.parser.parse_args(args))
+
+                mock_exit.assert_called_with(0)
+
+                job.latest_heartbeat = timezone.utcnow() + timedelta(seconds=61)
+
+                cli.health_scheduler(self.parser.parse_args(args))
+                mock_exit.assert_called_with(1)

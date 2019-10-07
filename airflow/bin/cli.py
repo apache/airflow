@@ -1080,6 +1080,29 @@ def scheduler(args):
 
 
 @cli_utils.action_logging
+def health_scheduler(args):
+    scheduler_job = jobs.SchedulerJob.most_recent_job()
+
+    latest_scheduler_heartbeat = None
+
+    exit_code = 1
+
+    if scheduler_job:
+        latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+        if scheduler_job.is_alive():
+            exit_code = 0
+
+    print(
+        "Scheduler heartbeat outside of threshold set by 'scheduler_health_check_threshold'. "
+        " Last heartbeat: {}".format(
+            latest_scheduler_heartbeat,
+            conf.getint('scheduler', 'scheduler_health_check_threshold')
+        )
+    )
+    sys.exit(exit_code)
+
+
+@cli_utils.action_logging
 def serve_logs(args):
     print("Starting flask")
     import flask
@@ -2552,6 +2575,19 @@ class CLIFactory:
                     '#rotating-encryption-keys.',
             'args': (),
         },
+        {
+            'help': 'Health checks',
+            'name': 'health',
+            'subcommands': (
+                {
+                    'func': health_scheduler,
+                    'name': 'scheduler',
+                    'help': 'Check that the scheduler heartbeat has occured within the threshold '
+                            'configured by \'scheduler_health_check_threshold\'',
+                    'args': ()
+                },
+            )
+        }
     )
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

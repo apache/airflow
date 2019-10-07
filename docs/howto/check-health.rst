@@ -48,3 +48,10 @@ To check the health status of your Airflow instance, you can simply access the e
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).
+
+You can also check the health of the scheduler through the command line with the following command,
+which returns an exit code of 1 if the scheduler is unhealthy.
+
+.. code-block:: bash
+
+  airflow health scheduler
