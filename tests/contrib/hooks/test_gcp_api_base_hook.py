@@ -70,13 +70,13 @@ class NoForbiddenAfterCount:
 
 
 @hook.GoogleCloudBaseHook.quota_retry(wait=tenacity.wait_none())
-def _retryable_test_with_temporare_quota_retry(thing):
+def _retryable_test_with_temporary_quota_retry(thing):
     return thing()
 
 
 class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
     def test_do_nothing_on_non_error(self):
-        result = _retryable_test_with_temporare_quota_retry(lambda: 42)
+        result = _retryable_test_with_temporary_quota_retry(lambda: 42)
         self.assertTrue(result, 42)
 
     def test_retry_on_exception(self):
@@ -88,15 +88,13 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
                 'reason': 'userRateLimitExceeded',
             }
         ]
-        try:
-            _retryable_test_with_temporare_quota_retry(NoForbiddenAfterCount(
-                count=5,
-                message=message,
-                errors=errors
-            ))
-            self.assertTrue(True)  # pylint: disable=redundant-unittest-assert
-        except Exception:  # pylint: disable=broad-except
-            self.assertFalse(False)  # pylint: disable=redundant-unittest-assert
+        custom_fn = NoForbiddenAfterCount(
+            count=5,
+            message=message,
+            errors=errors
+        )
+        _retryable_test_with_temporary_quota_retry(custom_fn)
+        self.assertEqual(5, custom_fn.counter)
 
     def test_raise_exception_on_non_quota_exception(self):
         with six.assertRaisesRegex(self, Forbidden, "Daily Limit Exceeded"):
@@ -105,7 +103,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
                 {'message': 'Daily Limit Exceeded', 'domain': 'usageLimits', 'reason': 'dailyLimitExceeded'}
             ]
 
-            _retryable_test_with_temporare_quota_retry(
+            _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
 
