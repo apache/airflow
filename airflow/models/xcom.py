@@ -16,10 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import copy
 import json
 import pickle
 
+import dateutil.parser
 from sqlalchemy import Column, Index, Integer, LargeBinary, String, and_
 from sqlalchemy.orm import reconstructor
 
@@ -69,7 +70,8 @@ class XCom(Base, LoggingMixin):
             self.value = pickle.loads(self.value)
         else:
             try:
-                self.value = json.loads(self.value.decode('UTF-8'))
+                decoded = json.loads(self.value.decode('UTF-8'))
+                self.value = self._format_xcom_values(decoded)
             except (UnicodeEncodeError, ValueError):
                 # For backward-compatibility.
                 # Preventing errors in webserver
@@ -161,7 +163,8 @@ class XCom(Base, LoggingMixin):
                 return pickle.loads(result.value)
             else:
                 try:
-                    return json.loads(result.value.decode('UTF-8'))
+                    decoded = json.loads(result.value.decode('UTF-8'))
+                    return cls._format_xcom_values(decoded)
                 except ValueError:
                     log = LoggingMixin().log
                     log.error("Could not deserialize the XCOM value from JSON. "
@@ -217,15 +220,16 @@ class XCom(Base, LoggingMixin):
             session.delete(xcom)
         session.commit()
 
-    @staticmethod
-    def serialize_value(value):
+    @classmethod
+    def serialize_value(cls, value):
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
 
         try:
-            return json.dumps(value).encode('UTF-8')
+            sanitized = cls._sanitize_xcom_value(value)
+            return json.dumps(sanitized).encode('UTF-8')
         except ValueError:
             log = LoggingMixin().log
             log.error("Could not serialize the XCOM value into JSON. "
@@ -233,3 +237,33 @@ class XCom(Base, LoggingMixin):
                       "for XCOM, then you need to enable pickle "
                       "support for XCOM in your airflow config.")
             raise
+
+    @staticmethod
+    def _sanitize_xcom_value(value):
+        """
+        Sanitize XCOM-specific values to JSON-serialize them
+        """
+        sanitized = copy.deepcopy(value)
+        execution_date_key = 'execution_date'
+        try:
+            if execution_date_key in value:
+                sanitized[execution_date_key] = value[execution_date_key].isoformat()
+        except TypeError:
+            pass
+        return sanitized
+
+    @staticmethod
+    def _format_xcom_values(value):
+        """
+        Format JSON decoded XCOM-specific values
+        """
+        formatted = copy.deepcopy(value)
+        execution_date_key = 'execution_date'
+        try:
+            if execution_date_key in value:
+                formatted[execution_date_key] = dateutil.parser.parse(
+                    value[execution_date_key]
+                )
+        except TypeError:
+            pass
+        return formatted
