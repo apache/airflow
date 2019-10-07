@@ -843,7 +843,7 @@ class TestDag(unittest.TestCase):
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = 'old_existing_dag'
-        dag_fileloc = "/non_existing_path.py"
+        dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
         dag = DAG(
             dag_id,
             is_paused_upon_creation=True,

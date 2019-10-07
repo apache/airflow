@@ -47,7 +47,6 @@ serialized_simple_dag_ground_truth = {
                 "task_id": "simple_task",
                 "owner": "airflow",
                 "start_date": 1564617600.0,
-                "retries": 0,
                 "_downstream_task_ids": [],
                 "_inlets": {
                     "auto": False, "task_ids": [], "datasets": []
@@ -146,6 +145,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                        '"use_proxy": "False", '
                        '"use_ssl": "False"'
                        '}')))
+        self.maxDiff = None  # pylint: disable=invalid-name
 
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -271,7 +271,6 @@ class TestStringifiedDAGs(unittest.TestCase):
     ])
     def test_roundtrip_relativedelta(self, val, expected):
         serialized = SerializedDAG._serialize(val)
-        self.maxDiff = None     # pylint: disable = invalid-name
         self.assertDictEqual(serialized, expected)
 
         round_tripped = SerializedDAG._deserialize(serialized)
