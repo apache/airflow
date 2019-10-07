@@ -26,9 +26,9 @@ from typing import Dict
 import airflow
 from airflow import models
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteVersionOperator,
-    MLEngineListVersionsOperator, MLEngineModelOperator, MLEngineSetDefaultVersionOperator,
-    MLEngineTrainingOperator,
+    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
+    MLEngineDeleteVersionOperator, MLEngineListVersionsOperator, MLEngineModelOperator,
+    MLEngineSetDefaultVersionOperator, MLEngineTrainingOperator,
 )
 from airflow.gcp.utils import mlengine_operator_utils
 from airflow.operators.bash_operator import BashOperator
@@ -161,6 +161,12 @@ with models.DAG(
         version_name="v1"
     )
 
+    delete_model = MLEngineDeleteModelOperator(
+        task_id="delete-model",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+    )
+
     training >> create_version
     training >> create_version_2
     create_model >> get_model >> get_model_result
@@ -170,6 +176,7 @@ with models.DAG(
     prediction >> delete_version
     list_version >> list_version_result
     list_version >> delete_version
+    delete_version >> delete_model
 
     def get_metric_fn_and_keys():
         """

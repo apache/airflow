@@ -293,6 +293,10 @@ class MLEngineModelOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
+    .. warning::
+       This operator is deprecated. Consider using operators for specific operations:
+       MLEngineCreateModelOperator, MLEngineGetModelOperator.
+
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs. (templated)
     :type project_id: str
@@ -330,6 +334,14 @@ class MLEngineModelOperator(BaseOperator):
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+        warnings.warn(
+            "This operator is deprecated. Consider using operators for specific operations: "
+            "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
+            DeprecationWarning,
+            stacklevel=3
+        )
+
         self._project_id = project_id
         self._model = model
         self._operation = operation
@@ -347,13 +359,136 @@ class MLEngineModelOperator(BaseOperator):
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
 
+class MLEngineCreateModelOperator(BaseOperator):
+    """
+    Operator for managing a Google Cloud ML Engine model.
+
+    :param project_id: The Google Cloud project name to which MLEngine
+        model belongs. (templated)
+    :type project_id: str
+    :param model: A dictionary containing the information about the model.
+    :type model: dict
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_model',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model: dict,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model = model
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        return hook.create_model(project_id=self._project_id, model=self._model)
+
+
+class MLEngineGetModelOperator(BaseOperator):
+    """
+    Operator for managing a Google Cloud ML Engine model.
+
+    :param project_id: The Google Cloud project name to which MLEngine model belongs. (templated)
+    :type project_id: str
+    :param model_name: The name of the model.
+    :type model_name: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_model_name',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        return hook.get_model(project_id=self._project_id, model_name=self._model_name)
+
+
+class MLEngineDeleteModelOperator(BaseOperator):
+    """
+    Deletes a model.
+
+    The model should be provided by the `model_name` parameter.
+
+    :param project_id: The Google Cloud project name to which MLEngine model belongs. (templated)
+    :type project_id: str
+    :param model_name: The name of the model.
+    :type model_name: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_model_name',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id: str,
+                 model_name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._model_name = model_name
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        return hook.delete_model(project_id=self._project_id, model_name=self._model_name)
+
+
 class MLEngineVersionOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
 
     .. warning::
        This operator is deprecated. Consider using operators for specific operations:
-       MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.
+       MLEngineCreateVersionOperator, MLEngineSetDefaultVersionOperator,
+       MLEngineListVersionsOperator, MLEngineDeleteVersionOperator.
 
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs.

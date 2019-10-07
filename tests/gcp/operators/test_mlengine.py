@@ -26,22 +26,27 @@ from googleapiclient.errors import HttpError
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteVersionOperator,
-    MLEngineListVersionsOperator, MLEngineSetDefaultVersionOperator, MLEngineTrainingOperator,
-    MLEngineVersionOperator,
+    MLEngineBatchPredictionOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator,
+    MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,
+    MLEngineListVersionsOperator, MLEngineModelOperator, MLEngineSetDefaultVersionOperator,
+    MLEngineTrainingOperator, MLEngineVersionOperator,
 )
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
-TEST_VERSION = {
-    'name': 'v1',
-    'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
-    'runtimeVersion': '1.6'
-}
+
 TEST_PROJECT_ID = "test-project-id"
 TEST_MODEL_NAME = "test-model-name"
 TEST_VERSION_NAME = "test-version"
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
 TEST_DELEGATE_TO = "test-delegate-to"
+TEST_MODEL = {
+    'name': TEST_MODEL_NAME,
+}
+TEST_VERSION = {
+    'name': 'v1',
+    'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
+    'runtimeVersion': '1.6'
+}
 
 
 class TestMLEngineBatchPredictionOperator(unittest.TestCase):
@@ -404,6 +409,116 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             hook_instance.create_job.assert_called_once_with(
                 'test-project', self.TRAINING_INPUT, ANY)
             self.assertEqual('A failure message', str(context.exception))
+
+
+class TestMLEngineModelOperator(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success_create_model(self, mock_hook):
+        task = MLEngineModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model=TEST_MODEL,
+            operation="create",
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.create_model.assert_called_once_with(TEST_PROJECT_ID, TEST_MODEL)
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success_get_model(self, mock_hook):
+        task = MLEngineModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model=TEST_MODEL,
+            operation="get",
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+
+        result = task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.get_model.assert_called_once_with(TEST_PROJECT_ID, TEST_MODEL_NAME)
+        self.assertEqual(mock_hook.return_value.get_model.return_value, result)
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_fail(self, mock_hook):
+        task = MLEngineModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model=TEST_MODEL,
+            operation="invalid",
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+        with self.assertRaises(ValueError):
+            task.execute(None)
+
+
+class TestMLEngineCreateModelOperator(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success_create_model(self, mock_hook):
+        task = MLEngineCreateModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model=TEST_MODEL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.create_model.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, model=TEST_MODEL
+        )
+
+
+class TestMLEngineGetModelOperator(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success_get_model(self, mock_hook):
+        task = MLEngineGetModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+
+        result = task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.get_model.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
+        )
+        self.assertEqual(mock_hook.return_value.get_model.return_value, result)
+
+
+class TestMLEngineDeleteModelOperator(unittest.TestCase):
+
+    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    def test_success_delete_model(self, mock_hook):
+        task = MLEngineDeleteModelOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO
+        )
+
+        task.execute(None)
+
+        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.delete_model.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
+        )
 
 
 class TestMLEngineVersionOperator(unittest.TestCase):

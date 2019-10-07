@@ -275,3 +275,19 @@ class MLEngineHook(GoogleCloudBaseHook):
                 self.log.error('Model was not found: %s', e)
                 return None
             raise
+
+    def delete_model(self, project_id: str, model_name: str) -> None:
+        """
+        Delete a Model. Blocks until finished.
+        """
+        if not model_name:
+            raise ValueError("Model name must be provided and it could not be an empty string")
+        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        request = self._mlengine.projects().models().delete(name=model_path)  # pylint: disable=no-member
+        try:
+            request.execute()
+        except HttpError as e:
+            if e.resp.status == 404:
+                self.log.error('Model was not found: %s', e)
+                return
+            raise
