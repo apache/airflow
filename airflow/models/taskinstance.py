@@ -639,10 +639,27 @@ class TaskInstance(Base, LoggingMixin):
                     yield dep_status
 
     def __repr__(self):
+        ti_handle = ''
+        if hasattr(self, 'dag_id'):
+            ti_handle += '{dag_id}'.format(dag_id=self.dag_id)
+        if hasattr(self, 'task_id'):
+            ti_handle += '.{task_id}'.format(task_id=self.task_id)
+        if ti_handle:
+            ti_handle += ' '
+
+        ti_execution_date = ''
+        if hasattr(self, 'execution_date'):
+            ti_execution_date = str(self.execution_date) + ' '
+        
+        ti_state = ''
+        if hasattr(self, 'state'):
+            ti_state += '[{state}]'.format(state=self.state)
+
         return (
-            "<TaskInstance: {ti.dag_id}.{ti.task_id} "
-            "{ti.execution_date} [{ti.state}]>"
-        ).format(ti=self)
+            "<TaskInstance: {ti_handle}{ti_execution_date}{ti_state}>"
+        ).format(
+            ti_handle=ti_handle, ti_execution_date=ti_execution_date, ti_state=ti_state
+        )
 
     def next_retry_datetime(self):
         """
