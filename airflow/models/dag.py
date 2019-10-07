@@ -1683,13 +1683,16 @@ class DagModel(Base):
         dag_models = session.query(cls).all()
         try:
             for dag_model in dag_models:
-                if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
-                    dag_model.is_active = False
+                if dag_model.fileloc is not None:
+                    if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
+                        dag_model.is_active = False
+                    else:
+                        # If is_active is set as False and the DAG File still exists
+                        # Change is_active=True
+                        if not dag_model.is_active:
+                            dag_model.is_active = True
                 else:
-                    # If is_active is set as False and the DAG File still exists
-                    # Change is_active=True
-                    if not dag_model.is_active:
-                        dag_model.is_active = True
+                    continue
             session.commit()
         except Exception:
             session.rollback()
