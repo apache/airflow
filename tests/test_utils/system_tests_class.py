@@ -106,7 +106,6 @@ class SystemTest(TestCase, LoggingMixin):
         """
         dag_folder = resolve_dags_folder()
         with empty_dags_directory(dag_folder):
-            db.upgradedb()
             db.resetdb()
         super().setUp()
 
