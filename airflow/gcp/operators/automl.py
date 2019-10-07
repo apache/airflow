@@ -22,14 +22,14 @@
 This module contains Google AutoML operators.
 """
 import ast
-from typing import Sequence, Tuple, Union, List, Dict, Optional
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
+from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.gcp.hooks.automl import CloudAutoMLHook
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -785,8 +785,8 @@ class AutoMLDeployModelOperator(BaseOperator):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        image_detection_metadata: Optional[dict] = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        image_detection_metadata: Optional[Optional[Optional[dict]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",

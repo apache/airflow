@@ -21,9 +21,9 @@ Class responsible for colouring logs based on log level.
 """
 import re
 import sys
+from logging import LogRecord
 from typing import Any, Union
 
-from logging import LogRecord
 from colorlog import TTYColoredFormatter
 from termcolor import colored
 

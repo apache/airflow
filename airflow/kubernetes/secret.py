@@ -18,10 +18,12 @@
 Classes for interacting with Kubernetes API
 """
 
-import uuid
 import copy
+import uuid
 from typing import Tuple
+
 import kubernetes.client.models as k8s
+
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import K8SModel
 

@@ -24,11 +24,11 @@ import time
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.jobs.base_job import BaseJob
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
-from airflow.jobs.base_job import BaseJob
 from airflow.utils.state import State
 
 

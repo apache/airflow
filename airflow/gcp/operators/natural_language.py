@@ -19,12 +19,12 @@
 """
 This module contains Google Cloud Language operators.
 """
-from typing import Union, Tuple, Sequence, Optional
+from typing import Optional, Sequence, Tuple, Union
 
-from google.protobuf.json_format import MessageToDict
-from google.cloud.language_v1.types import Document
-from google.cloud.language_v1 import enums
 from google.api_core.retry import Retry
+from google.cloud.language_v1 import enums
+from google.cloud.language_v1.types import Document
+from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from airflow.models import BaseOperator

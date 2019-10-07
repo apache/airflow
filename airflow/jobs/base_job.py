@@ -20,18 +20,16 @@
 
 import getpass
 from time import sleep
+from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
-from typing import Optional
 
-from airflow.configuration import conf
 from airflow import executors, models
-from airflow.exceptions import (
-    AirflowException,
-)
-from airflow.models.base import Base, ID_LEN
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.db import create_session, provide_session

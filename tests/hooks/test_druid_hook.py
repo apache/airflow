@@ -18,10 +18,11 @@
 # under the License.
 #
 
+import unittest
 from unittest.mock import MagicMock, patch
+
 import requests
 import requests_mock
-import unittest
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook

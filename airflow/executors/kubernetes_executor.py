@@ -17,30 +17,29 @@
 """Kubernetes executor"""
 import base64
 import hashlib
-from queue import Empty
-
-import re
 import json
 import multiprocessing
+import re
+from queue import Empty
 from uuid import uuid4
 
-from dateutil import parser
-
 import kubernetes
-from kubernetes import watch, client
+from dateutil import parser
+from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
-from airflow.kubernetes.pod_launcher import PodLauncher
-from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.executors.base_executor import BaseExecutor
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
-from airflow.utils.state import State
-from airflow.utils.db import provide_session, create_session
+
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.executors.base_executor import BaseExecutor
+from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.worker_configuration import WorkerConfiguration
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
@@ -51,7 +50,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
     core_section = 'core'
     kubernetes_section = 'kubernetes'
 
-    def __init__(self):
+    def __init__(self):  # pylint: disable=too-many-statements
         configuration_dict = conf.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
@@ -73,7 +72,13 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
-        self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
+
+        kube_worker_annotations = conf.get(self.kubernetes_section, 'worker_annotations')
+        if kube_worker_annotations:
+            self.kube_annotations = json.loads(kube_worker_annotations)
+        else:
+            self.kube_annotations = None
+
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')

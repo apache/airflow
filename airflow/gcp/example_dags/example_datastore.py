@@ -26,11 +26,8 @@ This example requires that your project contains Datastore instance.
 import os
 
 from airflow import models
+from airflow.gcp.operators.datastore import DatastoreExportOperator, DatastoreImportOperator
 from airflow.utils import dates
-from airflow.gcp.operators.datastore import (
-    DatastoreImportOperator,
-    DatastoreExportOperator,
-)
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")

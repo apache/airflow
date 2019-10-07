@@ -23,13 +23,13 @@ This module contains a Google Cloud Dataproc hook.
 
 import time
 import uuid
-from typing import Dict, List, Optional, Any, Iterable
+from typing import Any, Dict, Iterable, List, Optional
 
 from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version
 
@@ -52,7 +52,7 @@ class _DataProcJob(LoggingMixin):
         project_id: str,
         job: Dict,
         region: str = 'global',
-        job_error_states: Iterable[str] = None,
+        job_error_states: Optional[Iterable[str]] = None,
         num_retries: int = 5
     ) -> None:
         self.dataproc_api = dataproc_api
@@ -446,7 +446,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         api_version: str = 'v1beta2'
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
@@ -485,7 +485,7 @@ class DataProcHook(GoogleCloudBaseHook):
         project_id: str,
         job: Dict,
         region: str = 'global',
-        job_error_states: Iterable[str] = None
+        job_error_states: Optional[Iterable[str]] = None
     ) -> None:
         """
         Submits Google Cloud Dataproc job.

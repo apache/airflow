@@ -23,36 +23,14 @@ This module contains Google Cloud Transfer operators.
 
 from copy import deepcopy
 from datetime import date, time
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    GCPTransferServiceHook,
-    GcpTransferJobsStatus,
-    TRANSFER_OPTIONS,
-    OBJECT_CONDITIONS,
-    PROJECT_ID,
-    BUCKET_NAME,
-    GCS_DATA_SINK,
-    STATUS,
-    DESCRIPTION,
-    GCS_DATA_SOURCE,
-    HTTP_DATA_SOURCE,
-    SECONDS,
-    MINUTES,
-    HOURS,
-    YEAR,
-    MONTH,
-    DAY,
-    START_TIME_OF_DAY,
-    SCHEDULE_END_DATE,
-    SCHEDULE_START_DATE,
-    SCHEDULE,
-    SECRET_ACCESS_KEY,
-    ACCESS_KEY_ID,
-    AWS_ACCESS_KEY,
-    AWS_S3_DATA_SOURCE,
-    TRANSFER_SPEC,
+    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
+    GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
+    SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
+    TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, GcpTransferJobsStatus, GCPTransferServiceHook,
 )
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

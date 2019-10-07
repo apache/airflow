@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
-from typing import Any
+from typing import Any, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 # noinspection PyAbstractClass
@@ -43,7 +43,10 @@ class GoogleDriveHook(GoogleCloudBaseHook):
     _conn = None
 
     def __init__(
-        self, api_version: str = "v3", gcp_conn_id: str = "google_cloud_default", delegate_to: str = None
+        self,
+        api_version: str = "v3",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version

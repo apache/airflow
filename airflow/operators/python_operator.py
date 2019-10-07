@@ -26,7 +26,7 @@ import types
 from inspect import signature
 from itertools import islice
 from textwrap import dedent
-from typing import Optional, Iterable, Dict, Callable, List
+from typing import Callable, Dict, Iterable, List, Optional
 
 import dill
 
@@ -254,8 +254,8 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[str] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        op_args: Iterable = None,
-        op_kwargs: Dict = None,
+        op_args: Optional[Iterable] = None,
+        op_kwargs: Optional[Dict] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[Iterable[str]] = None,

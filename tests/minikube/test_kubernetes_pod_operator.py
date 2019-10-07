@@ -15,27 +15,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
+import os
+import shutil
 import unittest
+from subprocess import check_call
 from unittest import mock
 from unittest.mock import ANY
 
-import os
-import shutil
-import json
-from subprocess import check_call
-
-from kubernetes.client.rest import ApiException
 import kubernetes.client.models as k8s
 from kubernetes.client.api_client import ApiClient
+from kubernetes.client.rest import ApiException
 
-from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-from airflow.kubernetes.secret import Secret
 from airflow import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])

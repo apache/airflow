@@ -28,15 +28,15 @@ import re
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Set, Optional
+from typing import Dict, List, Optional, Set
 
+from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.dataproc import DataProcHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
-from airflow.utils import timezone
 
 
 class DataprocOperationBaseOperator(BaseOperator):
@@ -1121,8 +1121,8 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
             main: str,
             arguments: Optional[List] = None,
             archives: Optional[List] = None,
-            pyfiles: Optional[List] = None,
-            files: List = None,
+            pyfiles: Optional[Optional[Optional[List]]] = None,
+            files: Optional[List] = None,
             *args,
             **kwargs) -> None:
 

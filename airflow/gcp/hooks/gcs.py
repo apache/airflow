@@ -20,18 +20,19 @@
 """
 This module contains a Google Cloud Storage hook.
 """
+import gzip as gz
 import os
+import shutil
+import warnings
+from io import BytesIO
 from os import path
 from typing import Optional, Set, Tuple, Union
-import gzip as gz
-import shutil
-from io import BytesIO
-
 from urllib.parse import urlparse
+
 from google.cloud import storage
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.version import version
 
 
@@ -43,11 +44,20 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     _conn = None  # type: Optional[storage.Client]
 
-    def __init__(self,
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None):
-        super().__init__(google_cloud_storage_conn_id,
-                         delegate_to)
+    def __init__(
+        self,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            google_cloud_storage_conn_id: Optional[str] = None
+    ) -> None:
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+            gcp_conn_id = google_cloud_storage_conn_id
+        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
 
     def get_conn(self):
         """
@@ -186,8 +196,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         else:
             return blob.download_as_string()
 
-    def upload(self, bucket_name: str, object_name: str, filename: str = None,
-               data: Union[str, bytes] = None, mime_type: str = None, gzip: bool = False,
+    def upload(self, bucket_name: str, object_name: str, filename: Optional[str] = None,
+               data: Optional[Union[str, bytes]] = None, mime_type: Optional[str] = None, gzip: bool = False,
                encoding: str = 'utf-8') -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.

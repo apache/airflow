@@ -19,25 +19,23 @@
 """
 Base operator for all operators.
 """
-from abc import ABCMeta, abstractmethod
 import copy
 import functools
 import logging
 import sys
 import warnings
-from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
-
-from dateutil.relativedelta import relativedelta
-
-from cached_property import cached_property
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 
 import jinja2
+from cached_property import cached_property
+from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.lineage import prepare_lineage, apply_lineage, DataSet
+from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.dag import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -275,7 +273,7 @@ class BaseOperator(LoggingMixin):
         email: Optional[str] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: Optional[int] = None,
+        retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
@@ -348,8 +346,7 @@ class BaseOperator(LoggingMixin):
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retries = retries if retries is not None else \
-            conf.getint('core', 'default_task_retries', fallback=0)
+        self.retries = retries
         self.queue = queue
         self.pool = pool
         self.sla = sla

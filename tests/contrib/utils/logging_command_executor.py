@@ -19,7 +19,7 @@
 import os
 import subprocess
 
-from airflow import LoggingMixin, AirflowException
+from airflow import AirflowException, LoggingMixin
 
 
 class LoggingCommandExecutor(LoggingMixin):

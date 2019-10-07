@@ -20,14 +20,14 @@
 This module contains Google Cloud Bigtable operators.
 """
 from enum import IntEnum
-from typing import Iterable, List, Optional, Dict
+from typing import Dict, Iterable, List, Optional
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.gcp.hooks.bigtable import BigtableHook
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

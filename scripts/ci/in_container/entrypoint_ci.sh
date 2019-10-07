@@ -122,6 +122,9 @@ export PATH=${PATH}:${AIRFLOW_SOURCES}
 
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
+# Make sure all AWS API calls default to the us-east-1 region
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
+
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
 if [[ ! -h /home/travis/build/apache/airflow ]]; then

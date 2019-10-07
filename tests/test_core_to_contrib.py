@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import TestCase
 import importlib
-
+from unittest import TestCase
 
 from parameterized import parameterized
 
@@ -140,6 +139,10 @@ class TestMovingCoreToContrib(TestCase):
             (
                 "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
                 "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
+            ),
+            (
+                "airflow.gcp.hooks.base.GoogleCloudBaseHook",
+                "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
             ),
         ]
     )

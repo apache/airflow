@@ -20,9 +20,9 @@
 from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
-from airflow.utils.state import State
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils.db import provide_session
+from airflow.utils.state import State
 
 
 class Pool(Base):

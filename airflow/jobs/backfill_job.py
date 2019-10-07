@@ -18,26 +18,23 @@
 # under the License.
 #
 
-from datetime import datetime
 import time
 from collections import OrderedDict
+from datetime import datetime
 
-from sqlalchemy.orm.session import make_transient, Session
+from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import executors, models
 from airflow.exceptions import (
-    AirflowException,
-    DagConcurrencyLimitReached,
-    NoAvailablePoolSlot,
-    PoolNotFound,
+    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
+from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
-from airflow.ti_deps.dep_context import DepContext, BACKFILL_QUEUED_DEPS
+from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.db import provide_session
-from airflow.jobs.base_job import BaseJob
 from airflow.utils.state import State
 
 

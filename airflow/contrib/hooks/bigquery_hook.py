@@ -22,15 +22,11 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.hooks.bigquery import (  # noqa
-    BigQueryPandasConnector,
-    BigQueryCursor,
-    BigQueryConnection,
-    BigQueryHook,
-    BigQueryBaseCursor,
+    BigQueryBaseCursor, BigQueryConnection, BigQueryCursor, BigQueryHook, BigQueryPandasConnector,
     GbqConnector,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

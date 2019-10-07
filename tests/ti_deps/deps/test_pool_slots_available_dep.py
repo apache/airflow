@@ -21,8 +21,7 @@ import unittest
 from mock import Mock, patch
 
 from airflow.models import Pool
-from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep, \
-    STATES_TO_COUNT_AS_RUNNING
+from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING, PoolSlotsAvailableDep
 from airflow.utils.db import create_session
 from tests.test_utils import db
 

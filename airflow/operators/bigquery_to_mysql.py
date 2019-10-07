@@ -21,10 +21,10 @@ This module contains Google BigQuery to MySQL operator.
 """
 from typing import Optional
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.hooks.mysql_hook import MySqlHook
+from airflow.models.baseoperator import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToMySqlOperator(BaseOperator):
@@ -89,7 +89,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  replace: bool = False,
                  batch_size: int = 1000,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)

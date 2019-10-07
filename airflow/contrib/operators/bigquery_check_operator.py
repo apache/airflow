@@ -22,12 +22,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.bigquery import (  # noqa
-    BigQueryCheckOperator,
-    BigQueryIntervalCheckOperator,
-    BigQueryValueCheckOperator
+    BigQueryCheckOperator, BigQueryIntervalCheckOperator, BigQueryValueCheckOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigquery`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -24,11 +24,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.gcs import (  # noqa
-    GoogleCloudStorageObjectCreateAclEntryOperator,
-    GoogleCloudStorageBucketCreateAclEntryOperator
+    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

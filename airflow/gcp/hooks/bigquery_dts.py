@@ -20,19 +20,17 @@
 """
 This module contains a BigQuery Hook.
 """
-from typing import Union, Sequence, Tuple
 from copy import copy
+from typing import Optional, Sequence, Tuple, Union
 
-from google.protobuf.json_format import MessageToDict, ParseDict
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
-    TransferConfig,
-    StartManualTransferRunsResponse,
-    TransferRun,
+    StartManualTransferRunsResponse, TransferConfig, TransferRun,
 )
+from google.protobuf.json_format import MessageToDict, ParseDict
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 def get_object_id(obj: dict) -> str:
@@ -54,7 +52,7 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
     _conn = None
 
     def __init__(
-        self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None
+        self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
 
@@ -100,11 +98,11 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
-        project_id: str = None,
-        authorization_code: str = None,
+        project_id: Optional[str] = None,
+        authorization_code: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> TransferConfig:
         """
         Creates a new data transfer configuration.
@@ -145,10 +143,10 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
     def delete_transfer_config(
         self,
         transfer_config_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         Deletes transfer configuration.
@@ -183,12 +181,12 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
-        project_id: str = None,
-        requested_time_range: dict = None,
-        requested_run_time: dict = None,
+        project_id: Optional[str] = None,
+        requested_time_range: Optional[dict] = None,
+        requested_run_time: Optional[dict] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> StartManualTransferRunsResponse:
         """
         Start manual transfer runs to be executed now with schedule_time equal
@@ -241,10 +239,10 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
         self,
         run_id: str,
         transfer_config_id: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> TransferRun:
         """
         Returns information about the particular transfer run.

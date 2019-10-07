@@ -197,9 +197,9 @@ Creates and returns a new product resource.
 
 Possible errors regarding the :code:`Product` object provided:
 
-- Returns INVALID_ARGUMENT if `display_name` is missing or longer than 4096 characters.
-- Returns INVALID_ARGUMENT if `description` is longer than 4096 characters.
-- Returns INVALID_ARGUMENT if `product_category` is missing or invalid.
+- Returns INVALID_ARGUMENT if ``display_name`` is missing or longer than 4096 characters.
+- Returns INVALID_ARGUMENT if ``description`` is longer than 4096 characters.
+- Returns INVALID_ARGUMENT if ``product_category`` is missing or invalid.
 
 For parameter definition, take a look at
 :class:`~airflow.gcp.operators.vision.CloudVisionProductCreateOperator`
@@ -347,7 +347,7 @@ Gets information associated with a :code:`Product`.
 
 Possible errors:
 
-- Returns NOT_FOUND if the `Product` does not exist.
+- Returns NOT_FOUND if the ``Product`` does not exist.
 
 For parameter definition, take a look at
 :class:`~airflow.gcp.operators.vision.CloudVisionProductGetOperator`
@@ -606,16 +606,16 @@ CloudVisionProductSetUpdateOperator
 Makes changes to a :code:`ProductSet` resource. Only :code:`display_name` can be updated
 currently.
 
-.. note:: To locate the `ProductSet` resource, its `name` in the form
+.. note:: To locate the ``ProductSet`` resource, its ``name`` in the form
   ``projects/PROJECT_ID/locations/LOC_ID/productSets/PRODUCT_SET_ID`` is necessary.
 
-You can provide the `name` directly as an attribute of the `product_set` object.
-However, you can leave it blank and provide `location` and `product_set_id` instead (and
-optionally `project_id` - if not present, the connection default will be used) and the
-`name` will be created by the operator itself.
+You can provide the ``name`` directly as an attribute of the ``product_set`` object.
+However, you can leave it blank and provide ``location`` and ``product_set_id`` instead (and
+optionally ``project_id`` - if not present, the connection default will be used) and the
+``name`` will be created by the operator itself.
 
-This mechanism exists for your convenience, to allow leaving the `project_id` empty and
-having Airflow use the connection default `project_id`.
+This mechanism exists for your convenience, to allow leaving the ``project_id`` empty and
+having Airflow use the connection default ``project_id``.
 
 For parameter definition, take a look at
 :class:`~airflow.gcp.operators.vision.CloudVisionProductSetUpdateOperator`
@@ -693,25 +693,25 @@ Makes changes to a :code:`Product` resource. Only the :code:`display_name`,
 If labels are updated, the change will not be reflected in queries until the next index
 time.
 
-.. note:: To locate the `Product` resource, its `name` in the form
+.. note:: To locate the ``Product`` resource, its ``name`` in the form
   ``projects/PROJECT_ID/locations/LOC_ID/products/PRODUCT_ID`` is necessary.
 
-You can provide the `name` directly as an attribute of the `product` object. However, you
-can leave it blank and provide `location` and `product_id` instead (and optionally
-`project_id` - if not present, the connection default will be used) and the `name` will
+You can provide the ``name`` directly as an attribute of the ``product`` object. However, you
+can leave it blank and provide ``location`` and ``product_id`` instead (and optionally
+``project_id`` - if not present, the connection default will be used) and the ``name`` will
 be created by the operator itself.
 
-This mechanism exists for your convenience, to allow leaving the `project_id` empty and
-having Airflow use the connection default `project_id`.
+This mechanism exists for your convenience, to allow leaving the ``project_id`` empty and
+having Airflow use the connection default ``project_id``.
 
 Possible errors:
 
-- Returns NOT_FOUND if the `Product` does not exist.
-- Returns INVALID_ARGUMENT if `display_name` is present in `update_mask` but is missing
+- Returns NOT_FOUND if the ``Product`` does not exist.
+- Returns INVALID_ARGUMENT if ``display_name`` is present in ``update_mask`` but is missing
   from the request or longer than 4096 characters.
-- Returns INVALID_ARGUMENT if `description` is present in `update_mask` but is longer than
+- Returns INVALID_ARGUMENT if ``description`` is present in ``update_mask`` but is longer than
   4096 characters.
-- Returns INVALID_ARGUMENT if `product_category` is present in `update_mask`.
+- Returns INVALID_ARGUMENT if ``product_category`` is present in ``update_mask``.
 
 For parameter definition, take a look at
 :class:`~airflow.gcp.operators.vision.CloudVisionProductUpdateOperator`

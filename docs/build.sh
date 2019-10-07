@@ -79,6 +79,63 @@ else
     echo
 fi
 
+echo
+echo "Checking the status of the operators-and-hooks-ref.rst file."
+echo
+
+mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../airflow --include '*.py' | \
+    cut -d "/" -f 2- | \
+    sort | \
+    uniq | \
+    cut -d "." -f 1 | \
+    sed "s#/#.#g")
+
+IGNORED_MISSING_MODULES=('airflow.gcp.hooks.base')
+
+mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,contrib/}{operators,sensors,hooks} -name "*.py" | \
+    grep -v "__init__" | \
+    grep -v "__pycache__" | \
+    cut -d "/" -f 2- | \
+    cut -d "." -f 1 | \
+    sed "s#/#.#g" | \
+    sort | \
+    uniq | \
+    grep -vf <(printf '%s\n' "${DEPRECATED_MODULES[@]}") |\
+    grep -vf <(printf '%s\n' "${IGNORED_MISSING_MODULES[@]}"))
+
+# shellcheck disable=SC2002
+mapfile -t CURRENT_MODULES < <(cat operators-and-hooks-ref.rst | \
+    grep ":mod:" | \
+    cut -d '`' -f 2 | \
+    sort | \
+    uniq | \
+    grep -v "__pycache__")
+
+mapfile -t MISSING_MODULES < \
+    <(\
+        comm -2 -3 \
+        <(printf '%s\n' "${ALL_MODULES[@]}" | sort ) \
+        <(printf '%s\n' "${CURRENT_MODULES[@]}" | sort)
+    )
+
+if [[ "${#MISSING_MODULES[@]}" -ne "0" ]]; then
+    echo
+    echo "Unexpected problems found in the documentation."
+    echo "You should try to keep the list of operators and hooks up to date."
+    echo
+    echo "Missing modules:"
+    printf '%s\n' "${MISSING_MODULES[@]}"
+    echo
+    echo "Please add this module to operators-and-hooks-ref.rst file."
+    echo
+    exit 1
+else
+    echo
+    echo "The operators-and-hooks-ref.rst file seems to be in good condition."
+    echo
+fi
+
+
 SUCCEED_LINE=$(make html |\
     tee /dev/tty |\
     grep 'build succeeded' |\

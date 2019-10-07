@@ -21,6 +21,7 @@ import getpass
 import os
 import warnings
 from io import StringIO
+from typing import Optional
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -257,8 +258,12 @@ class SSHHook(BaseHook):
 
         return client
 
-    def create_tunnel(self, local_port: int, remote_port: int = None, remote_host: str = "localhost") \
-            -> SSHTunnelForwarder:
+    def create_tunnel(
+        self,
+        local_port: int,
+        remote_port: Optional[int] = None,
+        remote_host: str = "localhost"
+    ) -> SSHTunnelForwarder:
         """
         Creates tunnel for SSH connection [Deprecated].
 

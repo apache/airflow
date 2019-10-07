@@ -24,25 +24,16 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.vision import (  # noqa
-    CloudVisionAddProductToProductSetOperator,
-    CloudVisionAnnotateImageOperator,
-    CloudVisionDetectDocumentTextOperator,
-    CloudVisionDetectImageLabelsOperator,
-    CloudVisionDetectImageSafeSearchOperator,
-    CloudVisionDetectTextOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductDeleteOperator,
-    CloudVisionProductGetOperator,
-    CloudVisionProductSetCreateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductSetGetOperator,
-    CloudVisionProductSetUpdateOperator,
-    CloudVisionProductUpdateOperator,
-    CloudVisionReferenceImageCreateOperator,
-    CloudVisionRemoveProductFromProductSetOperator,
+    CloudVisionAddProductToProductSetOperator, CloudVisionAnnotateImageOperator,
+    CloudVisionDetectDocumentTextOperator, CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator, CloudVisionProductGetOperator, CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator, CloudVisionProductSetGetOperator,
+    CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
+    CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.vision`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

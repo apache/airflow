@@ -18,23 +18,24 @@
 # under the License.
 #
 """Qubole hook"""
+import datetime
 import os
 import pathlib
-import time
-import datetime
 import re
+import time
 
+from qds_sdk.commands import (
+    Command, DbExportCommand, DbImportCommand, DbTapQueryCommand, HadoopCommand, HiveCommand, PigCommand,
+    PrestoCommand, ShellCommand, SparkCommand, SqlCommand,
+)
 from qds_sdk.qubole import Qubole
-from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
-    PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
-    DbImportCommand, SqlCommand
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.configuration import conf
+from airflow.models import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.models import TaskInstance
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,

@@ -20,17 +20,16 @@
 import json
 import pickle
 
-from sqlalchemy import Column, Integer, String, Index, LargeBinary, and_
+from sqlalchemy import Column, Index, Integer, LargeBinary, String, and_
 from sqlalchemy.orm import reconstructor
 
 from airflow.configuration import conf
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import as_tuple
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
-
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677

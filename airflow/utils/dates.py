@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 
 from croniter import croniter
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
+
+from airflow.utils import timezone
 
 cron_presets = {
     '@hourly': '0 * * * *',

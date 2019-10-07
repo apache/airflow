@@ -17,21 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
 import logging
 import socket
+from typing import Any, Optional
+from urllib.parse import urlparse
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA
+from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from typing import Any
-from urllib.parse import urlparse
-from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from airflow.configuration import conf
 from airflow import settings
+from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files

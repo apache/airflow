@@ -22,22 +22,13 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.dataproc import (  # noqa
-    DataProcHadoopOperator,
-    DataProcPySparkOperator,
-    DataProcHiveOperator,
-    DataProcPigOperator,
-    DataProcSparkOperator,
-    DataProcSparkSqlOperator,
-    DataprocClusterScaleOperator,
-    DataprocOperationBaseOperator,
-    DataProcJobBaseOperator,
-    DataprocClusterDeleteOperator,
-    DataprocClusterCreateOperator,
-    DataprocWorkflowTemplateInstantiateOperator,
-    DataprocWorkflowTemplateInstantiateInlineOperator,
+    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
+    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataprocOperationBaseOperator,
+    DataProcPigOperator, DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator,
+    DataprocWorkflowTemplateInstantiateInlineOperator, DataprocWorkflowTemplateInstantiateOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.dataproc`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

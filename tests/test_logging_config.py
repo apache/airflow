@@ -22,12 +22,11 @@ import os
 import pathlib
 import sys
 import tempfile
+import unittest
 
 from airflow.configuration import conf
 from tests.compat import patch
 from tests.test_utils.config import conf_vars
-
-import unittest
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {

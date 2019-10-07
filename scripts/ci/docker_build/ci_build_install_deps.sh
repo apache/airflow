@@ -20,7 +20,7 @@
 set -euxo pipefail
 
 # TODO: We should think about removing those and moving them into docker-compose dependencies.
-# TODO: We might come up with just ine airflow CI image not the SLIM/CI versions. That would simplify a lot.
+# TODO: We might come up with just one airflow CI image not the SLIM/CI versions. That would simplify a lot.
 # TODO: We could likely get rid of the multi-staging approach. It introduces a number of limitations
 # TODO: As long as we decrease the size of the CI image, we should be fine with using single CI image for
 # TODO: everything. Currently the CI image is about 1GB where CI_SLIM is around 0.5 GB.

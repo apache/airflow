@@ -18,7 +18,7 @@
 # under the License.
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 from airflow.configuration import conf
 from airflow.utils.file import mkdirs

@@ -21,8 +21,8 @@ This module contains a Google Cloud Translate Speech operator.
 """
 from typing import Optional
 
-from google.protobuf.json_format import MessageToDict
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
+from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
 from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook

@@ -21,8 +21,9 @@
 This module contains Base AWS Hook
 """
 
-import logging
 import configparser
+import logging
+
 import boto3
 
 from airflow.exceptions import AirflowException

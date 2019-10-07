@@ -23,19 +23,18 @@ This module contains a Google Kubernetes Engine Hook.
 
 import time
 import warnings
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
-
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -51,8 +50,8 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None,
-        location: str = None
+        delegate_to: Optional[str] = None,
+        location: Optional[str] = None
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
@@ -80,7 +79,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
                       "You should use the get_conn method.", DeprecationWarning)
         return self.get_conn()
 
-    def wait_for_operation(self, operation: Operation, project_id: str = None) -> Operation:
+    def wait_for_operation(self, operation: Operation, project_id: Optional[str] = None) -> Operation:
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
@@ -104,7 +103,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name: str, project_id: str = None) -> Operation:
+    def get_operation(self, operation_name: str, project_id: Optional[str] = None) -> Operation:
         """
         Fetches the operation from Google Cloud
 
@@ -143,7 +142,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def delete_cluster(
         self,
         name: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Optional[str]:
@@ -190,7 +189,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def create_cluster(
         self,
         cluster: Union[Dict, Cluster],
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> str:
@@ -248,7 +247,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
     def get_cluster(
         self,
         name: str,
-        project_id: str = None,
+        project_id: Optional[str] = None,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Cluster:

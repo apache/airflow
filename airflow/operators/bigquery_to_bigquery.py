@@ -20,11 +20,11 @@
 This module contains Google BigQuery to BigQuery operator.
 """
 import warnings
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
 
+from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.gcp.hooks.bigquery import BigQueryHook
 
 
 class BigQueryToBigQueryOperator(BaseOperator):
@@ -86,7 +86,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
-                 location: str = None,
+                 location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)

@@ -19,23 +19,16 @@
 """
 This module contains a Google Cloud Natural Language Hook.
 """
-from typing import Sequence, Tuple, Union, Dict
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import LanguageServiceClient
-
+from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
-    Document,
-    AnalyzeEntitiesResponse,
-    ClassifyTextResponse,
-    AnalyzeSyntaxResponse,
-    AnnotateTextResponse,
-    AnalyzeSentimentResponse,
-    AnalyzeEntitySentimentResponse
+    AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, AnalyzeSyntaxResponse,
+    AnnotateTextResponse, ClassifyTextResponse, Document,
 )
-from google.cloud.language_v1 import enums
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 # noinspection PyAbstractClass
@@ -51,7 +44,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._conn = None
 
@@ -75,8 +68,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         document: Union[Dict, Document],
         encoding_type: enums.EncodingType = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeEntitiesResponse:
         """
         Finds named entities in the text along with entity types,
@@ -109,8 +102,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         document: Union[Dict, Document],
         encoding_type: enums.EncodingType = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeEntitySentimentResponse:
         """
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
@@ -143,8 +136,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         document: Union[Dict, Document],
         encoding_type: enums.EncodingType = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeSentimentResponse:
         """
         Analyzes the sentiment of the provided text.
@@ -176,8 +169,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         document: Union[Dict, Document],
         encoding_type: enums.EncodingType = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeSyntaxResponse:
         """
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
@@ -211,8 +204,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         features: Dict,
         encoding_type: enums.EncodingType = None,
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnnotateTextResponse:
         """
         A convenience method that provides all the features that analyzeSentiment,
@@ -252,8 +245,8 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         self,
         document: Union[Dict, Document],
         retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> ClassifyTextResponse:
         """
         Classifies a document into categories.

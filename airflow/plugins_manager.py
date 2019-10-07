@@ -21,8 +21,9 @@ import imp
 import inspect
 import os
 import re
+from typing import Any, List
+
 import pkg_resources
-from typing import List, Any
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink

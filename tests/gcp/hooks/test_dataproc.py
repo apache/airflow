@@ -19,18 +19,18 @@
 #
 
 import unittest
+
 from mock import MagicMock
 
-from airflow.gcp.hooks.dataproc import _DataProcJob
-from airflow.gcp.hooks.dataproc import DataProcHook
-from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
+from airflow.gcp.hooks.dataproc import DataProcHook, _DataProcJob
 from tests.compat import mock
+from tests.gcp.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
 JOB = 'test-job'
 GCP_REGION = 'global'
 TASK_ID = 'test-task-id'
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 DATAPROC_STRING = 'airflow.gcp.hooks.dataproc.{}'
 
 

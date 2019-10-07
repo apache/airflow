@@ -19,7 +19,10 @@
 """
 This module contains a Google PubSub sensor.
 """
+import warnings
 from typing import Optional
+
+from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -63,26 +66,35 @@ class PubSubPullSensor(BaseSensorOperator):
         must have domain-wide delegation enabled.
     :type delegate_to: str
     """
-    template_fields = ['project', 'subscription']
+    template_fields = ['project_id', 'subscription']
     ui_color = '#ff7f50'
 
     @apply_defaults
     def __init__(
             self,
-            project: str,
+            project_id: str,
             subscription: str,
             max_messages: int = 5,
             return_immediately: bool = False,
             ack_messages: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
+            project: Optional[str] = None,
             *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if project:
+            warnings.warn(
+                "The project parameter has been deprecated. You should pass "
+                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+            project_id = project
+
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.project = project
+        self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
         self.return_immediately = return_immediately
@@ -98,11 +110,16 @@ class PubSubPullSensor(BaseSensorOperator):
     def poke(self, context):
         hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
                           delegate_to=self.delegate_to)
-        self._messages = hook.pull(
-            self.project, self.subscription, self.max_messages,
-            self.return_immediately)
+        pulled_messages = hook.pull(
+            project_id=self.project_id,
+            subscription=self.subscription,
+            max_messages=self.max_messages,
+            return_immediately=self.return_immediately
+        )
+
+        self._messages = [MessageToDict(m) for m in pulled_messages]
+
         if self._messages and self.ack_messages:
-            if self.ack_messages:
-                ack_ids = [m['ackId'] for m in self._messages if m.get('ackId')]
-                hook.acknowledge(self.project, self.subscription, ack_ids)
+            ack_ids = [m['ackId'] for m in self._messages if m.get('ackId')]
+            hook.acknowledge(project_id=self.project_id, subscription=self.subscription, ack_ids=ack_ids)
         return self._messages

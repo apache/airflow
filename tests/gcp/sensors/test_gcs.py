@@ -21,11 +21,13 @@ from unittest import TestCase, mock
 
 import pendulum
 
+from airflow import DAG, models
 from airflow.exceptions import AirflowSensorTimeout
-from airflow import models, DAG
+from airflow.gcp.sensors.gcs import (
+    GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
+    ts_function,
+)
 from airflow.settings import Session
-from airflow.gcp.sensors.gcs import GoogleCloudStorageObjectSensor, \
-    GoogleCloudStorageObjectUpdatedSensor, ts_function, GoogleCloudStoragePrefixSensor
 
 TEST_DAG_ID = 'test-dag_id'
 

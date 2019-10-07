@@ -23,7 +23,7 @@ import unittest
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.models import DAG, TaskInstance as TI, clear_task_instances, XCom
+from airflow.models import DAG, TaskInstance as TI, XCom, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State

@@ -19,7 +19,7 @@
 """
 This module contains a Google Cloud Transfer sensor.
 """
-from typing import Set, Union, Optional
+from typing import Optional, Set, Union
 
 from airflow.gcp.hooks.cloud_storage_transfer_service import GCPTransferServiceHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator

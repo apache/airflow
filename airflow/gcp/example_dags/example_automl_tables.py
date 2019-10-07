@@ -20,27 +20,18 @@
 """
 Example Airflow DAG that uses Google AutoML services.
 """
-from typing import List, Dict
 import os
 from copy import deepcopy
+from typing import Dict, List
 
 import airflow
 from airflow import models
 from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.gcp.operators.automl import (
-    AutoMLTrainModelOperator,
-    AutoMLTablesListColumnSpecsOperator,
-    AutoMLPredictOperator,
-    AutoMLBatchPredictOperator,
-    AutoMLCreateDatasetOperator,
-    AutoMLTablesUpdateDatasetOperator,
-    AutoMLTablesListTableSpecsOperator,
-    AutoMLImportDataOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLListDatasetOperator,
-    AutoMLDeployModelOperator,
-    AutoMLGetModelOperator,
-    AutoMLDeleteModelOperator,
+    AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
+    AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
+    AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
 )
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")

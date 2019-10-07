@@ -19,6 +19,7 @@
 #
 
 import unittest
+
 import boto3
 
 from airflow.contrib.hooks.emr_hook import EmrHook

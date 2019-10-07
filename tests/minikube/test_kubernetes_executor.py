@@ -20,10 +20,10 @@ import os
 import re
 import time
 import unittest
-
 from subprocess import check_call, check_output
-import requests.exceptions
+
 import requests
+import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 

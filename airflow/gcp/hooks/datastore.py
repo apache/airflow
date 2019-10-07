@@ -22,11 +22,12 @@ This module contains Google Datastore hook.
 """
 
 import time
-from typing import Any, List, Dict, Union, Optional
+import warnings
+from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class DatastoreHook(GoogleCloudBaseHook):
@@ -40,11 +41,19 @@ class DatastoreHook(GoogleCloudBaseHook):
     :type api_version: str
     """
 
-    def __init__(self,
-                 datastore_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 api_version: str = 'v1') -> None:
-        super().__init__(datastore_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        api_version: str = 'v1',
+        datastore_conn_id: Optional[str] = None
+    ) -> None:
+        if datastore_conn_id:
+            warnings.warn(
+                "The datastore_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+            gcp_conn_id = datastore_conn_id
+        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.connection = None
         self.api_version = api_version
 

@@ -19,16 +19,17 @@
 #
 
 import unittest
-from unittest import mock
 from typing import List, Optional
+from unittest import mock
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from airflow.gcp.hooks import bigquery as hook
-from airflow.gcp.hooks.bigquery import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check, \
-    _validate_src_fmt_configs
+from airflow.gcp.hooks.bigquery import (
+    _api_resource_configs_duplication_check, _cleanse_time_partitioning, _validate_src_fmt_configs,
+    _validate_value,
+)
 
 bq_available = True
 
@@ -64,7 +65,7 @@ class TestBigQueryHookConnection(unittest.TestCase):
 
 class TestPandasGbqCredentials(unittest.TestCase):
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook._get_credentials_and_project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch('airflow.gcp.hooks.bigquery.read_gbq')
@@ -83,7 +84,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.instance = hook.BigQueryHook()
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -94,7 +95,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -105,7 +106,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertIn('Reason: ', str(context.exception), "")
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -115,7 +116,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -126,7 +127,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=None
     )
@@ -656,6 +657,50 @@ class TestTableOperations(unittest.TestCase):
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
         with self.assertRaises(Exception):
             cursor.create_empty_table(project_id, dataset_id, table_id)
+
+    def test_get_tables_list(self):
+        expected_result = {
+            "kind": "bigquery#tableList",
+            "etag": "N/b12GSqMasEfwBOXofGQ==",
+            "tables": [
+                {
+                    "kind": "bigquery#table",
+                    "id": "your-project:your_dataset.table1",
+                    "tableReference": {
+                        "projectId": "your-project",
+                        "datasetId": "your_dataset",
+                        "tableId": "table1"
+                    },
+                    "type": "TABLE",
+                    "creationTime": "1565781859261"
+                },
+                {
+                    "kind": "bigquery#table",
+                    "id": "your-project:your_dataset.table2",
+                    "tableReference": {
+                        "projectId": "your-project",
+                        "datasetId": "your_dataset",
+                        "tableId": "table2"
+                    },
+                    "type": "TABLE",
+                    "creationTime": "1565782713480"
+                }
+            ],
+            "totalItems": 2
+        }
+
+        project_id = 'your-project'
+        dataset_id = 'your_dataset'
+
+        mock_service = mock.Mock()
+        with mock.patch.object(hook.BigQueryBaseCursor(mock_service, dataset_id).service,
+                               'tables') as MockService:
+            MockService.return_value.list(
+                dataset_id=dataset_id).execute.return_value = expected_result
+            result = hook.BigQueryBaseCursor(
+                mock_service, project_id).get_dataset_tables(
+                dataset_id=dataset_id)
+            self.assertEqual(result, expected_result)
 
 
 class TestBigQueryCursor(unittest.TestCase):

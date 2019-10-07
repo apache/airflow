@@ -20,8 +20,8 @@
 import requests
 import tenacity
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class HttpHook(BaseHook):
@@ -75,7 +75,7 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warn('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 

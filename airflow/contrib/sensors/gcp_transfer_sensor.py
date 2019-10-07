@@ -22,10 +22,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.sensors.cloud_storage_transfer_service import (  # noqa
-    GCPTransferServiceWaitForJobStatusSensor
+    GCPTransferServiceWaitForJobStatusSensor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.cloud_storage_transfer_service`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

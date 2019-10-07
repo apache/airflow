@@ -22,15 +22,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.spanner import (  # noqa
-    CloudSpannerInstanceDatabaseDeleteOperator,
-    CloudSpannerInstanceDatabaseDeployOperator,
-    CloudSpannerInstanceDatabaseQueryOperator,
-    CloudSpannerInstanceDatabaseUpdateOperator,
-    CloudSpannerInstanceDeleteOperator,
-    CloudSpannerInstanceDeployOperator,
+    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseDeployOperator,
+    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
+    CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.spanner`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

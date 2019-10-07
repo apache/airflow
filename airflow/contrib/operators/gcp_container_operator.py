@@ -24,12 +24,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.kubernetes_engine import (  # noqa
-    GKEClusterCreateOperator,
-    GKEClusterDeleteOperator,
-    GKEPodOperator
+    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.container`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

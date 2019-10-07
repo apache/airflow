@@ -27,7 +27,7 @@ from google.cloud.tasks_v2 import CloudTasksClient
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudTasksHook(GoogleCloudBaseHook):

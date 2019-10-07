@@ -17,19 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
-import elasticsearch
 import logging
 import sys
+
+# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
+import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
+from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.configuration import conf
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -249,7 +250,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
+        self.handler.stream.write(self.end_of_log_mark)
 
         if self.write_stdout:
             self.handler.close()

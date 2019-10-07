@@ -17,57 +17,49 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import errno
-import importlib
-import logging
-
-import os
-import subprocess
-import textwrap
-import random
-import string
-from importlib import import_module
-import functools
-
-import getpass
-import reprlib
 import argparse
-from argparse import RawTextHelpFormatter
-
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.timezone import parse as parsedate
+import errno
+import functools
+import getpass
+import importlib
 import json
-from tabulate import tabulate
+import logging
+import os
+import random
+import re
+import reprlib
+import signal
+import string
+import subprocess
+import sys
+import textwrap
+import threading
+import time
+import traceback
+from argparse import RawTextHelpFormatter
+from importlib import import_module
+from typing import Any
+from urllib.parse import urlunparse
 
 import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-import signal
-import sys
-import threading
-import traceback
-import time
 import psutil
-import re
-from urllib.parse import urlunparse
-from typing import Any
+from daemon.pidfile import TimeoutPIDLockFile
+from sqlalchemy.orm import exc
+from tabulate import tabulate
 
 import airflow
-from airflow import api
-from airflow import jobs, settings
+from airflow import api, jobs, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import (
-    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
-)
-from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
+from airflow.models import DAG, Connection, DagBag, DagModel, DagPickle, DagRun, TaskInstance, Variable
+from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.dot_renderer import render_dag
+from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
 from airflow.utils.net import get_hostname
-from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
-                                             redirect_stdout)
-from airflow.www.app import cached_app, create_app, cached_appbuilder
-
-from sqlalchemy.orm import exc
+from airflow.utils.timezone import parse as parsedate
+from airflow.www.app import cached_app, cached_appbuilder, create_app
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
@@ -196,7 +188,7 @@ def backfill(args, dag=None):
                 [dag],
                 start_date=args.start_date,
                 end_date=args.end_date,
-                confirm_prompt=True,
+                confirm_prompt=not args.yes,
                 include_subdags=True,
             )
 
@@ -781,7 +773,7 @@ def clear(args):
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.no_confirm,
+        confirm_prompt=not args.yes,
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
     )
@@ -1385,7 +1377,8 @@ def users_create(args):
     appbuilder = cached_appbuilder()
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        raise SystemExit('{} is not a valid role.'.format(args.role))
+        valid_roles = appbuilder.sm.get_all_roles()
+        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
 
     if args.use_random_password:
         password = ''.join(random.choice(string.printable) for _ in range(16))
@@ -1442,7 +1435,8 @@ def users_manage_role(args, remove=False):
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        raise SystemExit('"{}" is not a valid role.'.format(args.role))
+        valid_roles = appbuilder.sm.get_all_roles()
+        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
 
     if remove:
         if role in user.roles:
@@ -1525,7 +1519,8 @@ def _import_users(users_list):
         for rolename in user['roles']:
             role = appbuilder.sm.find_role(rolename)
             if not role:
-                print("Error: '{}' is not a valid role".format(rolename))
+                valid_roles = appbuilder.sm.get_all_roles()
+                print("Error: '{}' is not a valid role. Valid roles are: {}".format(rolename, valid_roles))
                 exit(1)
             else:
                 roles.append(role)
@@ -1804,9 +1799,6 @@ class CLIFactory:
             ("-r", "--only_running"), "Only running jobs", "store_true"),
         'downstream': Arg(
             ("-d", "--downstream"), "Include downstream tasks", "store_true"),
-        'no_confirm': Arg(
-            ("-c", "--no_confirm"),
-            "Do not request confirmation", "store_true"),
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
@@ -2249,7 +2241,7 @@ class CLIFactory:
                             " within the backfill date range.",
                     'args': (
                         'dag_id', 'task_regex', 'start_date', 'end_date',
-                        'mark_success', 'local', 'donot_pickle',
+                        'mark_success', 'local', 'donot_pickle', 'yes',
                         'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                         'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
                         'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
@@ -2272,7 +2264,7 @@ class CLIFactory:
                     'help': "Clear a set of task instance, as if they never ran",
                     'args': (
                         'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                        'upstream', 'downstream', 'no_confirm', 'only_failed',
+                        'upstream', 'downstream', 'yes', 'only_failed',
                         'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
                 },
                 {

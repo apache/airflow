@@ -47,6 +47,9 @@ export AIRFLOW__CORE__UNIT_TEST_MODE=True
 # add test/test_utils to PYTHONPATH TODO: Do we need that ??? Looks fishy.
 export PYTHONPATH=${PYTHONPATH:=}:${AIRFLOW_SOURCES}/tests/test_utils
 
+# make sure the default AWS_REGION is set
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
+
 echo Airflow home: "${AIRFLOW_HOME}"
 echo Airflow root: "${AIRFLOW_SOURCES}"
 echo Home of the user: "${HOME}"

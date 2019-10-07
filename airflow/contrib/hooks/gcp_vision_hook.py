@@ -27,5 +27,5 @@ from airflow.gcp.hooks.vision import CloudVisionHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.vision`.",
-    DeprecationWarning
+    DeprecationWarning, stacklevel=2
 )

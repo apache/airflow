@@ -24,13 +24,11 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.natural_language import (  # noqa
-    CloudLanguageClassifyTextOperator,
-    CloudLanguageAnalyzeSentimentOperator,
-    CloudLanguageAnalyzeEntitySentimentOperator,
-    CloudLanguageAnalyzeEntitiesOperator,
+    CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
+    CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.natural_language`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

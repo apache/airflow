@@ -16,10 +16,10 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 from airflow.exceptions import AirflowException
+from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.kubernetes import pod_generator, kube_client, pod_launcher
-from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.utils.state import State
 
 

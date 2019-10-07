@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from urllib.parse import urlparse
 
 from cached_property import cached_property
-from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

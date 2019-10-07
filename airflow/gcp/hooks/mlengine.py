@@ -21,12 +21,12 @@ This module contains a Google ML Engine Hook.
 
 import random
 import time
-from typing import Dict, Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
-from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -62,7 +62,7 @@ class MLEngineHook(GoogleCloudBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._mlengine = self.get_conn()
 
@@ -73,7 +73,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Callable = None) -> Dict:
+    def create_job(self, project_id: str, job: Dict, use_existing_job_fn: Optional[Callable] = None) -> Dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -217,17 +217,13 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
             parent=full_parent_name, pageSize=100)
 
-        response = request.execute()
-        next_page_token = response.get('nextPageToken', None)
-        result.extend(response.get('versions', []))
-        while next_page_token is not None:
-            next_request = self._mlengine.projects().models().versions().list(  # pylint: disable=no-member
-                parent=full_parent_name,
-                pageToken=next_page_token,
-                pageSize=100)
-            response = next_request.execute()
-            next_page_token = response.get('nextPageToken', None)
+        while request is not None:
+            response = request.execute()
             result.extend(response.get('versions', []))
+
+            request = self._mlengine.projects().models().versions().list_next(  # pylint: disable=no-member
+                previous_request=request,
+                previous_response=response)
             time.sleep(5)
         return result
 

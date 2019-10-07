@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup

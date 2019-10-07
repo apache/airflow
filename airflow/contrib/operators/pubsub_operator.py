@@ -22,14 +22,11 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.pubsub import (  # noqa
-    PubSubPublishOperator,
-    PubSubSubscriptionCreateOperator,
-    PubSubSubscriptionDeleteOperator,
-    PubSubTopicCreateOperator,
-    PubSubTopicDeleteOperator,
+    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
+    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.pubsub`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

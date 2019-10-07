@@ -17,12 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import time  # noqa
+import uuid  # noqa
 from datetime import datetime, timedelta
-import dateutil # noqa
-from random import random # noqa
-import time # noqa
-from . import hive # noqa
-import uuid # noqa
+from random import random  # noqa
+
+import dateutil  # noqa
+
+from . import hive  # noqa
 
 
 def ds_add(ds, days):

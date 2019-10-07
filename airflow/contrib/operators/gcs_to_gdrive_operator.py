@@ -22,11 +22,11 @@ This module contains a Google Cloud Storage operator.
 import tempfile
 from typing import Optional
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.contrib.hooks.gdrive_hook import GoogleDriveHook
+from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
 
 WILDCARD = "*"
 
@@ -78,10 +78,10 @@ class GcsToGDriveOperator(BaseOperator):
         self,
         source_bucket: str,
         source_object: str,
-        destination_object: str = None,
+        destination_object: Optional[str] = None,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         *args,
         **kwargs
     ):

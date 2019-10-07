@@ -21,17 +21,12 @@ This module contains a Google Cloud Vision operator.
 """
 
 from copy import deepcopy
-from typing import Union, List, Dict, Any, Sequence, Tuple, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 from google.cloud.vision_v1.types import (
-    ProductSet,
-    FieldMask,
-    Image,
-    Product,
-    AnnotateImageRequest,
-    ReferenceImage
+    AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
 )
 
 from airflow.gcp.hooks.vision import CloudVisionHook

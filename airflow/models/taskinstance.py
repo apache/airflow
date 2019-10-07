@@ -29,27 +29,29 @@ import time
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
-import lazy_object_proxy
-import pendulum
 
 import dill
+import lazy_object_proxy
+import pendulum
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
-from airflow.exceptions import (AirflowException, AirflowRescheduleException,
-                                AirflowSkipException, AirflowTaskTimeout)
 from airflow import settings
 from airflow.configuration import conf
-from airflow.models.base import Base, ID_LEN
+from airflow.exceptions import (
+    AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
+)
+from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -525,7 +527,11 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
-    def _get_previous_ti(self, state: str = None, session: Session = None) -> Optional['TaskInstance']:
+    def _get_previous_ti(
+        self,
+        state: Optional[str] = None,
+        session: Session = None
+    ) -> Optional['TaskInstance']:
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -851,6 +857,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
+    @Sentry.enrich_errors
     def _run_raw_task(
             self,
             mark_success=False,

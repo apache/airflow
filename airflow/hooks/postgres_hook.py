@@ -18,9 +18,10 @@
 # under the License.
 
 import os
+from contextlib import closing
+
 import psycopg2
 import psycopg2.extensions
-from contextlib import closing
 
 from airflow.hooks.dbapi_hook import DbApiHook
 

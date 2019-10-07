@@ -23,21 +23,21 @@ implementation for BigQuery.
 """
 
 import time
+import warnings
 from copy import deepcopy
-from typing import Any, NoReturn, Mapping, Union, Iterable, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas import DataFrame
-from pandas_gbq.gbq import \
-    _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import \
-    _test_google_api_imports as gbq_test_google_api_imports
-from pandas_gbq.gbq import GbqConnector
+from pandas_gbq.gbq import (
+    GbqConnector, _check_google_client_version as gbq_check_google_client_version,
+    _test_google_api_imports as gbq_test_google_api_imports,
+)
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -47,15 +47,23 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
     """
-    conn_name_attr = 'bigquery_conn_id'  # type: str
+    conn_name_attr = 'gcp_conn_id'  # type: str
 
     def __init__(self,
-                 bigquery_conn_id: str = 'google_cloud_default',
+                 gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  use_legacy_sql: bool = True,
-                 location: Optional[str] = None) -> None:
+                 location: Optional[str] = None,
+                 bigquery_conn_id: Optional[str] = None) -> None:
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+            gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
 
@@ -1429,6 +1437,39 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('Waiting for canceled job with id %s to finish.',
                               self.running_job_id)
                 time.sleep(5)
+
+    def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
+                           max_results: Optional[int] = None,
+                           page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
+        """
+        Get the list of tables for a given dataset.
+        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: the dataset ID of the requested dataset.
+        :type dataset_id: str
+        :param project_id: (Optional) the project of the requested dataset. If None,
+            self.project_id will be used.
+        :type project_id: str
+        :param max_results: (Optional) the maximum number of tables to return.
+        :type max_results: int
+        :param page_token: (Optional) page token, returned from a previous call,
+            identifying the result set.
+        :type page_token: str
+
+        :return: map containing the list of tables + metadata.
+        """
+        optional_params = {}  # type: Dict[str, Union[str, int]]
+        if max_results:
+            optional_params['maxResults'] = max_results
+        if page_token:
+            optional_params['pageToken'] = page_token
+
+        dataset_project_id = project_id or self.project_id
+
+        return (self.service.tables().list(
+            projectId=dataset_project_id,
+            datasetId=dataset_id,
+            **optional_params).execute(num_retries=self.num_retries))
 
     def get_schema(self, dataset_id: str, table_id: str) -> Dict:
         """

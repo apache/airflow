@@ -21,13 +21,11 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.functions import (  # noqa
-    GcfFunctionDeleteOperator,
-    GcfFunctionDeployOperator,
-    ZipPathPreprocessor
+from airflow.gcp.operators.functions import (  # # noqa
+    GcfFunctionDeleteOperator, GcfFunctionDeployOperator, ZipPathPreprocessor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.functions`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
 from airflow.exceptions import AirflowException
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class SQSSensor(BaseSensorOperator):
@@ -73,7 +73,7 @@ class SQSSensor(BaseSensorOperator):
                                             MaxNumberOfMessages=self.max_messages,
                                             WaitTimeSeconds=self.wait_time_seconds)
 
-        self.log.info("reveived message %s", str(messages))
+        self.log.info("received message %s", str(messages))
 
         if 'Messages' in messages and len(messages['Messages']) > 0:
 

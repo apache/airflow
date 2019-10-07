@@ -18,10 +18,11 @@
 # under the License.
 #
 
-from unittest import mock
 import unittest
+from unittest import mock
 
 from boto3.session import Session
+
 from airflow.operators.redshift_to_s3_operator import RedshiftToS3Transfer
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 

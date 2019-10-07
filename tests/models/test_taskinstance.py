@@ -20,13 +20,15 @@
 import datetime
 import time
 import unittest
-from unittest.mock import patch, mock_open
 import urllib
-from typing import Union, List
+from typing import List, Union
+from unittest.mock import mock_open, patch
+
 import pendulum
 from freezegun import freeze_time
-from parameterized import parameterized, param
+from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
+
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -40,11 +42,10 @@ from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNI
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
-from airflow.utils.db import provide_session
 
 
 class TestTaskInstance(unittest.TestCase):

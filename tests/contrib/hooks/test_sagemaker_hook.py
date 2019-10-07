@@ -18,18 +18,19 @@
 # under the License.
 #
 
-import unittest
 import time
+import unittest
 from datetime import datetime
+
 from tzlocal import get_localzone
 
-from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
-                                                  secondary_training_status_message, LogState)
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.contrib.hooks.sagemaker_hook import (
+    LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
+)
 from airflow.exceptions import AirflowException
+from airflow.hooks.S3_hook import S3Hook
 from tests.compat import mock
-
 
 role = 'arn:aws:iam:role/test-role'
 

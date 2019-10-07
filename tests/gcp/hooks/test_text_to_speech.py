@@ -21,8 +21,8 @@
 import unittest
 
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from tests.compat import patch, PropertyMock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.compat import PropertyMock, patch
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT = {"text": "test text"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
@@ -32,7 +32,7 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 class TestTextToSpeechHook(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")

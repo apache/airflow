@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, List
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.utils.email import send_email
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.email import send_email
 
 
 class EmailOperator(BaseOperator):
@@ -57,9 +57,9 @@ class EmailOperator(BaseOperator):
             to: Union[List[str], str],
             subject: str,
             html_content: str,
-            files: List = None,
-            cc: Union[List[str], str] = None,
-            bcc: Union[List[str], str] = None,
+            files: Optional[List] = None,
+            cc: Optional[Union[List[str], str]] = None,
+            bcc: Optional[Union[List[str], str]] = None,
             mime_subtype: str = 'mixed',
             mime_charset: str = 'utf-8',
             *args, **kwargs) -> None:

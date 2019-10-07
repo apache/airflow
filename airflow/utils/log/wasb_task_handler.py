@@ -19,12 +19,12 @@
 import os
 import shutil
 
+from azure.common import AzureHttpError
 from cached_property import cached_property
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
-from azure.common import AzureHttpError
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
