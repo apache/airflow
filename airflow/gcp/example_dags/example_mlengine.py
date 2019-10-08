@@ -165,6 +165,7 @@ with models.DAG(
         task_id="delete-model",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
+        delete_contents=True
     )
 
     training >> create_version

@@ -510,14 +510,15 @@ class TestMLEngineDeleteModelOperator(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO
+            delegate_to=TEST_DELEGATE_TO,
+            delete_contents=True
         )
 
         task.execute(None)
 
         mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
         mock_hook.return_value.delete_model.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
+            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, delete_contents=True
         )
 
 

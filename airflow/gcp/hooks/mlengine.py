@@ -276,13 +276,15 @@ class MLEngineHook(GoogleCloudBaseHook):
                 return None
             raise
 
-    def delete_model(self, project_id: str, model_name: str) -> None:
+    def delete_model(self, project_id: str, model_name: str, delete_contents: bool = False) -> None:
         """
         Delete a Model. Blocks until finished.
         """
         if not model_name:
             raise ValueError("Model name must be provided and it could not be an empty string")
         model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        if delete_contents:
+            self._delete_all_versions(model_name, project_id)
         request = self._mlengine.projects().models().delete(name=model_path)  # pylint: disable=no-member
         try:
             request.execute()
@@ -291,3 +293,15 @@ class MLEngineHook(GoogleCloudBaseHook):
                 self.log.error('Model was not found: %s', e)
                 return
             raise
+
+    def _delete_all_versions(self, model_name, project_id):
+        versions = self.list_versions(project_id=project_id, model_name=model_name)
+        # The default version can only be deleted when it is the last one in the model
+        non_default_versions = (version for version in versions if not version.get('isDefault', False))
+        for version in non_default_versions:
+            _, _, version_name = version['name'].rpartition('/')
+            self.delete_version(project_id=project_id, model_name=model_name, version_name=version_name)
+        default_versions = (version for version in versions if version.get('isDefault', False))
+        for version in default_versions:
+            _, _, version_name = version['name'].rpartition('/')
+            self.delete_version(project_id=project_id, model_name=model_name, version_name=version_name)

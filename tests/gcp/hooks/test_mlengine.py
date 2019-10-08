@@ -297,6 +297,59 @@ class TestMLEngineHook(unittest.TestCase):
         mock_log.error.assert_called_once_with('Model was not found: %s', http_error)
 
     @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    def test_delete_model_with_contents(self, mock_get_conn):
+        project_id = 'test-project'
+        model_name = 'test-model'
+        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
+        operation_done = {'name': operation_path, 'done': True}
+        version_names = ["AAA", "BBB", "CCC"]
+        versions = [{
+            'name': 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name),
+            "isDefault": i == 0
+        } for i, version_name in enumerate(version_names)]
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            operations.return_value.
+            get.return_value.
+            execute.return_value
+        ) = operation_done
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            versions.return_value.
+            list.return_value.
+            execute.return_value
+        ) = {"versions": versions}
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            versions.return_value.
+            list_next.return_value
+        ) = None
+
+        mle_engine_hook = hook.MLEngineHook()
+        mle_engine_hook.delete_model(
+            project_id=project_id, model_name=model_name, delete_contents=True
+        )
+
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call().projects().models().delete(name=model_path),
+                mock.call().projects().models().delete().execute()
+            ] + [
+                mock.call().projects().models().versions().delete(
+                    name='projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name),
+                ) for version_name in version_names
+            ],
+            any_order=True
+        )
+
+    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn):
         project_id = 'test-project'
         job_id = 'test-job-id'

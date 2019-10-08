@@ -449,6 +449,10 @@ class MLEngineDeleteModelOperator(BaseOperator):
     :type project_id: str
     :param model_name: The name of the model.
     :type model_name: str
+    :param delete_contents: (Optional) Whether to force the deletion even if the models is not empty.
+        Will delete all version (if any) in the dataset if set to True.
+        The default value is False.
+    :type delete_contents: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
@@ -465,6 +469,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
     def __init__(self,
                  project_id: str,
                  model_name: str,
+                 delete_contents: bool = False,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -472,13 +477,16 @@ class MLEngineDeleteModelOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model_name = model_name
+        self._delete_contents = delete_contents
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
 
     def execute(self, context):
         hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
-        return hook.delete_model(project_id=self._project_id, model_name=self._model_name)
+        return hook.delete_model(
+            project_id=self._project_id, model_name=self._model_name, delete_contents=self._delete_contents
+        )
 
 
 class MLEngineVersionOperator(BaseOperator):
