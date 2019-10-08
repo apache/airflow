@@ -1615,9 +1615,6 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        # Last time that self.heartbeat() was called.
-        last_self_heartbeat_time = timezone.utcnow()
-
         is_unit_test = conf.getboolean('core', 'unit_test_mode')
 
         # For the execute duration, parse and schedule DAGs
@@ -1642,12 +1639,7 @@ class SchedulerJob(BaseJob):
                 continue
 
             # Heartbeat the scheduler periodically
-            time_since_last_heartbeat = (timezone.utcnow() -
-                                         last_self_heartbeat_time).total_seconds()
-            if time_since_last_heartbeat > self.heartrate:
-                self.log.debug("Heartbeating the scheduler")
-                self.heartbeat()
-                last_self_heartbeat_time = timezone.utcnow()
+            self.heartbeat(only_if_necessary=True)
 
             self._emit_pool_metrics()
 
