@@ -21,7 +21,7 @@
 
 import hashlib
 from datetime import timedelta
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from sqlalchemy import Column, Index, Integer, String, and_, JSON
 from sqlalchemy.sql import exists
