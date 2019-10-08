@@ -123,25 +123,33 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        from airflow.dag.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
-        serialized_dags = session.query(cls.dag_id, cls.data).all()
+        serialized_dags = session.query(cls)
 
         dags = {}
-        for dag_id, data in serialized_dags:
-            log.debug("Deserializing DAG: %s", dag_id)
-            if isinstance(data, dict):
-                dag = SerializedDAG.from_dict(data)  # type: Any
-            else:
-                dag = SerializedDAG.from_json(data)
+        for row in serialized_dags:
+            log.debug("Deserializing DAG: %s", row.dag_id)
+            dag = row.dag
 
             # Sanity check.
-            if dag.dag_id == dag_id:
-                dags[dag_id] = dag
+            if dag.dag_id == row.dag_id:
+                dags[row.dag_id] = dag
             else:
                 log.warning(
                     "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG "
-                    "with '%s' dag_id", dag_id, dag.dag_id)
+                    "with '%s' dag_id", row.dag_id, dag.dag_id)
         return dags
+
+    @property
+    def dag(self):
+        """The DAG deserialized from the ``data`` column"""
+        from airflow.dag.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
+
+        if isinstance(self.data, dict):
+            dag = SerializedDAG.from_dict(self.data)  # type: Any
+        else:
+            # noinspection PyTypeChecker
+            dag = SerializedDAG.from_json(self.data)
+        return dag
 
     @classmethod
     @db.provide_session
@@ -181,3 +189,26 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         return session.query(exists().where(cls.dag_id == dag_id)).scalar()
+
+    @classmethod
+    @db.provide_session
+    def get(cls, dag_id: str, session=None) -> Optional['SerializedDagModel']:
+        """
+        Get the SerializedDAG for the given dag ID.
+        It will cope with being passed the ID of a subdag by looking up the
+        root dag_id from the DAG table.
+
+        :param dag_id: the DAG to fetch
+        :param session: ORM Session
+        """
+        from airflow.models.dag import DagModel
+        row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
+        if row:
+            return row
+
+        # If we didn't find a matching DAG id then ask the DAG table to find
+        # out the root dag
+        root_dag_id = session.query(
+            DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
+
+        return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()

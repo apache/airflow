@@ -84,7 +84,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             executor=None,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            store_serialized_dags=False):
+            store_serialized_dags=False,
+    ):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
@@ -132,6 +133,17 @@ class DagBag(BaseDagBag, LoggingMixin):
         # FIXME: this exception should be removed in future, then webserver can be
         # decoupled from DAG files.
         if self.store_serialized_dags and not from_file_only:
+            if dag_id not in self.dags:
+                # Load from DB if not (yet) in the bag
+                row = SerializedDagModel.get(dag_id)
+                if not row:
+                    return None
+
+                dag = row.dag
+                for subdag in dag.subdags:
+                    self.dags[subdag.dag_id] = subdag
+                self.dags[dag.dag_id] = dag
+
             return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
@@ -382,8 +394,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         un-anchored regexes, not shell-like glob patterns.
         """
         if self.store_serialized_dags:
-            self.collect_dags_from_db()
-            Stats.gauge('dagbag_size', len(self.dags), 1)
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
@@ -451,7 +461,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.dags.update(subdags)
 
         Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
-        Stats.gauge('dagbag_size', len(self.dags), 1)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
