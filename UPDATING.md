@@ -41,6 +41,19 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes in Google Cloud Platform related hooks
+
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Hooks involved:
+
+  * PubSubHook
+  * MLEngineHook
+
+Other GCP hooks are unaffected.
+
 ### Fernet is enabled by default
 
 The fernet mechanism is enabled by default to increase the security of the default installation.  In order to

@@ -119,10 +119,13 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
 
             mock_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', {
+                project_id='test-project',
+                job={
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_model
-                }, ANY)
+                },
+                use_existing_job_fn=ANY
+            )
             self.assertEqual(success_message['predictionOutput'],
                              prediction_output)
 
@@ -158,10 +161,13 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
 
             mock_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', {
+                project_id='test-project',
+                job={
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_version
-                }, ANY)
+                },
+                use_existing_job_fn=ANY
+            )
             self.assertEqual(success_message['predictionOutput'],
                              prediction_output)
 
@@ -195,10 +201,13 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
 
             mock_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', {
+                project_id='test-project',
+                job={
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_uri
-                }, ANY)
+                },
+                use_existing_job_fn=ANY
+            )
             self.assertEqual(success_message['predictionOutput'],
                              prediction_output)
 
@@ -336,7 +345,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', self.TRAINING_INPUT, ANY)
+                project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
 
     def test_success_create_training_job_with_optional_args(self):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
@@ -362,7 +371,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', training_input, ANY)
+                project_id='test-project', job=training_input, use_existing_job_fn=ANY)
 
     def test_http_error(self):
         http_error_code = 403
@@ -385,7 +394,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', self.TRAINING_INPUT, ANY)
+                project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
             self.assertEqual(http_error_code, context.exception.resp.status)
 
     def test_failed_job_error(self):
@@ -407,7 +416,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_job.assert_called_once_with(
-                'test-project', self.TRAINING_INPUT, ANY)
+                project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
             self.assertEqual('A failure message', str(context.exception))
 
 
@@ -427,7 +436,9 @@ class TestMLEngineModelOperator(unittest.TestCase):
         task.execute(None)
 
         mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
-        mock_hook.return_value.create_model.assert_called_once_with(TEST_PROJECT_ID, TEST_MODEL)
+        mock_hook.return_value.create_model.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, model=TEST_MODEL
+        )
 
     @patch('airflow.gcp.operators.mlengine.MLEngineHook')
     def test_success_get_model(self, mock_hook):
@@ -443,7 +454,9 @@ class TestMLEngineModelOperator(unittest.TestCase):
         result = task.execute(None)
 
         mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
-        mock_hook.return_value.get_model.assert_called_once_with(TEST_PROJECT_ID, TEST_MODEL_NAME)
+        mock_hook.return_value.get_model.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
+        )
         self.assertEqual(mock_hook.return_value.get_model.return_value, result)
 
     @patch('airflow.gcp.operators.mlengine.MLEngineHook')
@@ -545,7 +558,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
             # Make sure only 'create_version' is invoked on hook instance
             self.assertEqual(len(hook_instance.mock_calls), 1)
             hook_instance.create_version.assert_called_once_with(
-                'test-project', 'test-model', TEST_VERSION)
+                project_id='test-project', model_name='test-model', version_spec=TEST_VERSION)
 
 
 class TestMLEngineCreateVersion(unittest.TestCase):

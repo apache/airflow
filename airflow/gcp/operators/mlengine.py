@@ -96,8 +96,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     See https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs
     for further documentation on the parameters.
 
-    :param project_id: The Google Cloud project name where the
-        prediction job is submitted. (templated)
+    :param project_id: The Google Cloud project name where the prediction job is submitted.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param job_id: A unique id for the prediction job on Google Cloud
@@ -178,7 +178,6 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint:disable=too-many-arguments
-                 project_id: str,
                  job_id: str,
                  region: str,
                  data_format: str,
@@ -190,6 +189,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  max_worker_count: Optional[int] = None,
                  runtime_version: Optional[str] = None,
                  signature_name: Optional[str] = None,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -278,7 +278,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                 prediction_request['predictionInput']
 
         finished_prediction_job = hook.create_job(
-            self._project_id, prediction_request, check_existing_job)
+            project_id=self._project_id, job=prediction_request, use_existing_job_fn=check_existing_job
+        )
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
             self.log.error(
@@ -297,8 +298,8 @@ class MLEngineModelOperator(BaseOperator):
        This operator is deprecated. Consider using operators for specific operations:
        MLEngineCreateModelOperator, MLEngineGetModelOperator.
 
-    :param project_id: The Google Cloud project name to which MLEngine
-        model belongs. (templated)
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP connection is used. (templated)
     :type project_id: str
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
@@ -326,9 +327,9 @@ class MLEngineModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model: dict,
                  operation: str = 'create',
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -352,9 +353,9 @@ class MLEngineModelOperator(BaseOperator):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
         if self._operation == 'create':
-            return hook.create_model(self._project_id, self._model)
+            return hook.create_model(project_id=self._project_id, model=self._model)
         elif self._operation == 'get':
-            return hook.get_model(self._project_id, self._model['name'])
+            return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
@@ -363,8 +364,8 @@ class MLEngineCreateModelOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
-    :param project_id: The Google Cloud project name to which MLEngine
-        model belongs. (templated)
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
     :param model: A dictionary containing the information about the model.
     :type model: dict
@@ -382,8 +383,8 @@ class MLEngineCreateModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model: dict,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -404,7 +405,8 @@ class MLEngineGetModelOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
-    :param project_id: The Google Cloud project name to which MLEngine model belongs. (templated)
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
     :param model_name: The name of the model.
     :type model_name: str
@@ -422,8 +424,8 @@ class MLEngineGetModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -445,7 +447,8 @@ class MLEngineDeleteModelOperator(BaseOperator):
 
     The model should be provided by the `model_name` parameter.
 
-    :param project_id: The Google Cloud project name to which MLEngine model belongs. (templated)
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
     :param model_name: The name of the model.
     :type model_name: str
@@ -467,9 +470,9 @@ class MLEngineDeleteModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
                  delete_contents: bool = False,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -498,8 +501,8 @@ class MLEngineVersionOperator(BaseOperator):
        MLEngineCreateVersionOperator, MLEngineSetDefaultVersionOperator,
        MLEngineListVersionsOperator, MLEngineDeleteVersionOperator.
 
-    :param project_id: The Google Cloud project name to which MLEngine
-        model belongs.
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
@@ -550,6 +553,7 @@ class MLEngineVersionOperator(BaseOperator):
     """
 
     template_fields = [
+        '_project_id',
         '_model_name',
         '_version_name',
         '_version',
@@ -557,11 +561,11 @@ class MLEngineVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
                  version_name: Optional[str] = None,
                  version: Optional[dict] = None,
                  operation: str = 'create',
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -593,16 +597,28 @@ class MLEngineVersionOperator(BaseOperator):
             if not self._version:
                 raise ValueError("version attribute of {} could not "
                                  "be empty".format(self.__class__.__name__))
-            return hook.create_version(self._project_id, self._model_name,
-                                       self._version)
+            return hook.create_version(
+                project_id=self._project_id,
+                model_name=self._model_name,
+                version_spec=self._version
+            )
         elif self._operation == 'set_default':
-            return hook.set_default_version(self._project_id, self._model_name,
-                                            self._version['name'])
+            return hook.set_default_version(
+                project_id=self._project_id,
+                model_name=self._model_name,
+                version_name=self._version['name']
+            )
         elif self._operation == 'list':
-            return hook.list_versions(self._project_id, self._model_name)
+            return hook.list_versions(
+                project_id=self._project_id,
+                model_name=self._model_name
+            )
         elif self._operation == 'delete':
-            return hook.delete_version(self._project_id, self._model_name,
-                                       self._version['name'])
+            return hook.delete_version(
+                project_id=self._project_id,
+                model_name=self._model_name,
+                version_name=self._version['name']
+            )
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
@@ -615,6 +631,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
     information to create that version
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
@@ -633,15 +650,16 @@ class MLEngineCreateVersionOperator(BaseOperator):
     """
 
     template_fields = [
+        '_project_id',
         '_model_name',
         '_version',
     ]
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
                  version: dict,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -680,6 +698,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     specified in the `version` parameter.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
@@ -698,15 +717,16 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     """
 
     template_fields = [
+        '_project_id',
         '_model_name',
         '_version_name',
     ]
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
                  version_name: str,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -743,8 +763,8 @@ class MLEngineListVersionsOperator(BaseOperator):
 
     The model should be specified by `model_name`.
 
-    :param project_id: The Google Cloud project name to which MLEngine
-        model belongs.
+    :param project_id: The Google Cloud project name to which MLEngine model belongs.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
@@ -760,13 +780,14 @@ class MLEngineListVersionsOperator(BaseOperator):
     :type delegate_to: str
     """
     template_fields = [
+        '_project_id',
         '_model_name',
     ]
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -819,15 +840,16 @@ class MLEngineDeleteVersionOperator(BaseOperator):
     :type delegate_to: str
     """
     template_fields = [
+        '_project_id',
         '_model_name',
         '_version_name',
     ]
 
     @apply_defaults
     def __init__(self,
-                 project_id: str,
                  model_name: str,
                  version_name: str,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args,
@@ -862,8 +884,8 @@ class MLEngineTrainingOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
 
-    :param project_id: The Google Cloud project name within which MLEngine
-        training job should run (templated).
+    :param project_id: The Google Cloud project name within which MLEngine training job should run.
+        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
     :type project_id: str
 
     :param job_id: A unique templated id for the submitted Google MLEngine
@@ -936,7 +958,6 @@ class MLEngineTrainingOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint:disable=too-many-arguments
-                 project_id: str,
                  job_id: str,
                  package_uris: List[str],
                  training_python_module: str,
@@ -947,6 +968,7 @@ class MLEngineTrainingOperator(BaseOperator):
                  runtime_version: Optional[str] = None,
                  python_version: Optional[str] = None,
                  job_dir: Optional[str] = None,
+                 project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  mode: str = 'PRODUCTION',
@@ -1028,7 +1050,8 @@ class MLEngineTrainingOperator(BaseOperator):
                 training_request['trainingInput']
 
         finished_training_job = hook.create_job(
-            self._project_id, training_request, check_existing_job)
+            project_id=self._project_id, job=training_request, use_existing_job_fn=check_existing_job
+        )
 
         if finished_training_job['state'] != 'SUCCEEDED':
             self.log.error('MLEngine training job failed: %s', str(finished_training_job))
