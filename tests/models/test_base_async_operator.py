@@ -172,8 +172,8 @@ class TestBaseAsyncOperator(unittest.TestCase):
         async_op.set_external_resource_id(context, resource_id)
         self.assertEqual(resource_id, async_op.get_external_resource_id(context))
 
-    def test_xcom_cleared(self):
-        """test xcom is cleared after process_result. """
+    def test_xcom(self):
+        """test xcom is set w/ job id. """
         async_op = self._make_async_op(
             return_value=None,
             poke_interval=10,
@@ -188,12 +188,13 @@ class TestBaseAsyncOperator(unittest.TestCase):
             self._run(async_op)
         tis = dr.get_task_instances()
 
-        # Check that XCom was set to None.
+        # Check that XCom was set to job_id.
         for ti in tis:
             if ti.task_id == ASYNC_OP:
                 resource_id = ti.xcom_pull(task_ids=ASYNC_OP,
                                            key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
-                self.assertIsNone(resource_id)
+                self.assertIsNotNone(resource_id)
+                self.assertTrue(resource_id.startswith('job_id'))
 
     def test_ok_with_reschedule(self):
         """ Tests expected behavior when rescheduling. """

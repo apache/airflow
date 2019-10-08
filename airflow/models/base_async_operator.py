@@ -30,8 +30,6 @@ from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
-PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'
-
 
 class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
@@ -131,17 +129,12 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
         if not task_reschedules:
             resource_id = self.submit_request(context)
-            if not resource_id:
-                resource_id = PLACEHOLDER_RESOURCE_ID
             self.set_external_resource_id(context, resource_id)
 
         super().execute(context)
 
         resource_id = self.get_external_resource_id(context)
-        if resource_id == PLACEHOLDER_RESOURCE_ID:
-            self.log.info("Calling process_result.")
-        else:
-            self.log.info("Calling process_result for %s.", resource_id)
+        self.log.info("Calling process_result for %s.", resource_id)
         self.process_result(context)
         self.set_external_resource_id(context, None)
 
