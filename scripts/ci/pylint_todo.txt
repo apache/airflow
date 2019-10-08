@@ -1,5 +1,4 @@
 ./airflow/__init__.py
-./airflow/bin/cli.py
 ./airflow/config_templates/airflow_local_settings.py
 ./airflow/configuration.py
 ./airflow/contrib/auth/backends/github_enterprise_auth.py
@@ -280,8 +279,6 @@
 ./airflow/www/views.py
 ./airflow/www/widgets.py
 ./scripts/perf/scheduler_ops_metrics.py
-./tests/cli/test_cli.py
-./tests/cli/test_worker_initialisation.py
 ./tests/contrib/hooks/test_aws_hook.py
 ./tests/contrib/hooks/test_aws_lambda_hook.py
 ./tests/contrib/hooks/test_azure_container_instance_hook.py

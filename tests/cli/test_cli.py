@@ -55,7 +55,7 @@ def reset(dag_id):
     session.close()
 
 
-def create_mock_args(
+def create_mock_args(  # pylint: disable=too-many-arguments
     task_id,
     dag_id,
     subdir,
@@ -158,15 +158,15 @@ class TestCLI(unittest.TestCase):
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
-        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
         sleep(3)  # wait for webserver to start
-        return_code = p.poll()
+        return_code = proc.poll()
         self.assertEqual(
             None,
             return_code,
             "webserver terminated with return code {} in debug mode".format(return_code))
-        p.terminate()
-        p.wait()
+        proc.terminate()
+        proc.wait()
 
     def test_local_run(self):
         args = create_mock_args(
@@ -236,18 +236,18 @@ class TestCLI(unittest.TestCase):
                            "None",
                            "None"]
 
-        for i in range(len(dag_ids)):
+        for i in range(len(dag_ids)):  # pylint: disable=consider-using-enumerate
             dag_id = dag_ids[i]
 
             # Clear dag run so no execution history fo each DAG
             reset_dr_db(dag_id)
 
-            p = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                  "--subdir", self.EXAMPLE_DAGS_FOLDER],
-                                 stdout=subprocess.PIPE)
-            p.wait()
+            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+                                    "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                    stdout=subprocess.PIPE)
+            proc.wait()
             stdout = []
-            for line in p.stdout:
+            for line in proc.stdout:
                 stdout.append(str(line.decode("utf-8").rstrip()))
 
             # `next_execution` function is inapplicable if no execution record found
@@ -263,12 +263,12 @@ class TestCLI(unittest.TestCase):
                 state=State.FAILED
             )
 
-            p = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                  "--subdir", self.EXAMPLE_DAGS_FOLDER],
-                                 stdout=subprocess.PIPE)
-            p.wait()
+            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+                                    "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                    stdout=subprocess.PIPE)
+            proc.wait()
             stdout = []
-            for line in p.stdout:
+            for line in proc.stdout:
                 stdout.append(str(line.decode("utf-8").rstrip()))
             self.assertEqual(stdout[-1], expected_output[i])
 
@@ -463,7 +463,7 @@ class TestCLI(unittest.TestCase):
         """
         Test that we can run naive (non-localized) task instances
         """
-        NAIVE_DATE = datetime(2016, 1, 1)
+        naive_date = datetime(2016, 1, 1)
         dag_id = 'test_run_ignores_all_dependencies'
 
         dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
@@ -475,7 +475,7 @@ class TestCLI(unittest.TestCase):
                  '--local',
                  dag_id,
                  task0_id,
-                 NAIVE_DATE.isoformat()]
+                 naive_date.isoformat()]
 
         cli.run(self.parser.parse_args(args0), dag=dag)
         mock_local_job.assert_called_once_with(
