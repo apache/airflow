@@ -40,7 +40,7 @@ Here are some of the common causes:
   files collocated with user's DAGs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
-  task soon after the ``start_date + scheduler_interval`` is passed.
+  task soon after the ``start_date + schedule_interval`` is passed.
 
 - Is your ``schedule_interval`` set properly? The default ``schedule_interval``
   is one day (``datetime.timedelta(1)``). You must specify a different ``schedule_interval``
