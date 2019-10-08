@@ -53,8 +53,10 @@ class JdbcHook(DbApiHook):
         """
         Enable or disable autocommit for the given connection.
 
-        :param conn: The connection
-        :return:
+        :param conn: The connection.
+        :type conn: connection object
+        :param autocommit: The connection's autocommit setting.
+        :type autocommit: bool
         """
         conn.jconn.setAutoCommit(autocommit)
 
@@ -64,7 +66,8 @@ class JdbcHook(DbApiHook):
         Return True if conn.autocommit is set to True.
         Return False if conn.autocommit is not set or set to False
 
-        :param conn: The connection
+        :param conn: The connection.
+        :type conn: connection object
         :return: connection autocommit setting.
         :rtype: bool
         """
