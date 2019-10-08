@@ -52,6 +52,7 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
+from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import validate_key
@@ -1668,17 +1669,31 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_dags(cls, alive_dag_filelocs, session=None):
-        """Deletes DAGs not included in alive_dag_filelocs.
+    def deactivate_deleted_dags(cls, alive_dag_filelocs, session=None):
+        """
+        Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
+        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
         log = LoggingMixin().log
-        log.debug("Deleting DAGs (for which DAG files are deleted) from %s table ",
+        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
-        session.execute(
-            cls.__table__.delete().where(cls.fileloc.notin_(alive_dag_filelocs)))
+        dag_models = session.query(cls).all()
+        try:
+            for dag_model in dag_models:
+                if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
+                    dag_model.is_active = False
+                else:
+                    # If is_active is set as False and the DAG File still exists
+                    # Change is_active=True
+                    if not dag_model.is_active:
+                        dag_model.is_active = True
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
 
 # Stringified DAGs and operators contain exactly these fields.

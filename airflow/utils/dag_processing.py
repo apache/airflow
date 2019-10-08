@@ -924,7 +924,7 @@ class DagFileProcessorManager(LoggingMixin):
                 from airflow.models import SerializedDagModel
                 from airflow.models.dag import DagModel
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
-                DagModel.remove_deleted_dags(self._file_paths)
+                DagModel.deactivate_deleted_dags(self._file_paths)
 
     def _print_stat(self):
         """
