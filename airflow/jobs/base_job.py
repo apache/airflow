@@ -122,8 +122,8 @@ class BaseJob(Base, LoggingMixin):
         :rtype: boolean
         """
         return (
-            (timezone.utcnow() - self.latest_heartbeat).seconds <
-            (conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1)
+            self.state == State.RUNNING and
+            (timezone.utcnow() - self.latest_heartbeat).seconds < self.heartrate * grace_multiplier
         )
 
     @provide_session
