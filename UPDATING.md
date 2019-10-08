@@ -47,7 +47,7 @@ The fernet mechanism is enabled by default to increase the security of the defau
 restore the previous behavior, the user must consciously set an empty key in the ``fernet_key`` option of
 section ``[core]`` in the ``airflow.cfg`` file.
 
-At the same time, this means that the `airflow[crypto]` extra-packages are always installed.
+At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
 However, this requires that your operating system has ``libffi-dev`` installed.
 
 ### Changes to Google PubSub Operators, Hook and Sensor
