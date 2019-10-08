@@ -19,6 +19,8 @@
 
 from typing import Optional
 
+from cryptography.fernet import Fernet, MultiFernet
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.typing import Protocol
@@ -31,12 +33,6 @@ class FernetProtocol(Protocol):
 
     def encrypt(self, b):
         ...
-
-
-class InvalidFernetToken(Exception):
-    # If Fernet isn't loaded we need a valid exception class to catch. If it is
-    # loaded this will get reset to the actual class once get_fernet() is called
-    pass
 
 
 class NullFernet:
@@ -74,17 +70,6 @@ def get_fernet():
     log = LoggingMixin().log
 
     if _fernet:
-        return _fernet
-    try:
-        from cryptography.fernet import Fernet, MultiFernet, InvalidToken
-        global InvalidFernetToken
-        InvalidFernetToken = InvalidToken
-
-    except ImportError:
-        log.warning(
-            "cryptography not found - values will not be stored encrypted."
-        )
-        _fernet = NullFernet()
         return _fernet
 
     try:

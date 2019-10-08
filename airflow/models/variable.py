@@ -20,12 +20,13 @@
 import json
 from typing import Any
 
+from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import InvalidFernetToken, get_fernet
+from airflow.models.crypto import get_fernet
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -50,12 +51,10 @@ class Variable(Base, LoggingMixin):
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except InvalidFernetToken:
-                log.error("Can't decrypt _val for key={}, invalid token "
-                          "or value".format(self.key))
+                log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
             except Exception:
-                log.error("Can't decrypt _val for key={}, FERNET_KEY "
-                          "configuration missing".format(self.key))
+                log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
             return self._val

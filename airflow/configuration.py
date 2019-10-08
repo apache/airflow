@@ -29,6 +29,7 @@ from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 
+from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -41,15 +42,6 @@ warnings.filterwarnings(
     action='default', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
-
-
-def generate_fernet_key():
-    try:
-        from cryptography.fernet import Fernet
-    except ImportError:
-        return ''
-    else:
-        return Fernet.generate_key().decode()
 
 
 def expand_env_var(env_var):
@@ -517,7 +509,7 @@ TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
-    FERNET_KEY = generate_fernet_key()
+    FERNET_KEY = Fernet.generate_key().decode()
 else:
     FERNET_KEY = ''
 
