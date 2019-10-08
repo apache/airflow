@@ -160,22 +160,24 @@ class BaseJob(Base, LoggingMixin):
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
         """
+        previous_heartbeat = self.latest_heartbeat
+
         try:
             with create_session() as session:
-                job = session.query(BaseJob).filter_by(id=self.id).one()
-                make_transient(job)
-                session.commit()
+                # This will cause it to load from the db
+                session.merge(self)
+                previous_heartbeat = self.latest_heartbeat
 
-            if job.state == State.SHUTDOWN:
+            if self.state == State.SHUTDOWN:
                 self.kill()
 
             is_unit_test = conf.getboolean('core', 'unit_test_mode')
             if not is_unit_test:
                 # Figure out how long to sleep for
                 sleep_for = 0
-                if job.latest_heartbeat:
+                if self.latest_heartbeat:
                     seconds_remaining = self.heartrate - \
-                        (timezone.utcnow() - job.latest_heartbeat)\
+                        (timezone.utcnow() - self.latest_heartbeat)\
                         .total_seconds()
                     sleep_for = max(0, seconds_remaining)
 
@@ -183,10 +185,12 @@ class BaseJob(Base, LoggingMixin):
 
             # Update last heartbeat time
             with create_session() as session:
-                job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-                job.latest_heartbeat = timezone.utcnow()
-                session.merge(job)
+                # Make the sesion aware of this object
+                session.merge(self)
+                self.latest_heartbeat = timezone.utcnow()
                 session.commit()
+                # At this point, the DB has updated.
+                previous_heartbeat = self.latest_heartbeat
 
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
@@ -195,6 +199,8 @@ class BaseJob(Base, LoggingMixin):
                 convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
                 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+            self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)

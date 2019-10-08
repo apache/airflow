@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
+from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -98,14 +99,12 @@ class LocalTaskJob(BaseJob):
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
-                # Periodically heartbeat so that the scheduler doesn't think this
-                # is a zombie
-                last_heartbeat_time = time.time()
                 self.heartbeat()
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.
-                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                # This can only really happen if the worker can't readh the DB for a long time
+                time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limited exceeded!")
