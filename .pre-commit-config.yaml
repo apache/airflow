@@ -29,7 +29,7 @@ repos:
         always_run: true
         pass_filenames: false
       - id: check-apache-license
-        name: Check if licences are OK for Apache
+        name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit_check_license.sh"
         language: system
         files: ^.*LICENSE.*$|^.*LICENCE.*$
@@ -41,7 +41,7 @@ repos:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
       - id: insert-license
-        name: Add licence for all SQL files
+        name: Add license for all SQL files
         files: \.sql$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
@@ -51,7 +51,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all other files
+        name: Add license for all other files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -62,7 +62,7 @@ repos:
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
-        name: Add licence for all rst files
+        name: Add license for all rst files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -72,7 +72,7 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add licence for all JS files
+        name: Add license for all JS files
         files: \.js$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
@@ -82,7 +82,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all JINJA template files
+        name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
@@ -92,7 +92,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all shell files
+        name: Add license for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         files: ^breeze$|^breeze-complete$|\.sh$
         args:
@@ -102,7 +102,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all python files
+        name: Add license for all python files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [python]
         args:
@@ -112,7 +112,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all XML files
+        name: Add license for all XML files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [xml]
         args:
@@ -122,7 +122,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all yaml files
+        name: Add license for all yaml files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [yaml]
         args:
@@ -132,7 +132,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all md files
+        name: Add license for all md files
         files: \.md$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:

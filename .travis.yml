@@ -32,10 +32,10 @@ stages:
   - test
 jobs:
   include:
-    - name: "Static checks (no pylint, no licence check)"
+    - name: "Static checks (no pylint, no license check)"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
-    - name: "Check licence compliance for Apache"
+    - name: "Check license compliance for Apache"
       stage: pre-test
       script: ./scripts/ci/ci_check_license.sh
       env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
