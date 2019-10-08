@@ -169,7 +169,6 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 cloudant = ['cloudant>=2.0']
-crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
@@ -316,7 +315,7 @@ else:
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
+devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + sentry +
@@ -356,6 +355,7 @@ def do_setup():
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
+            'cryptography>=0.9.3',
             'dill>=0.2.2, <0.3',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
@@ -413,7 +413,6 @@ def do_setup():
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
-            'crypto': crypto,
             'dask': dask,
             'databricks': databricks,
             'datadog': datadog,

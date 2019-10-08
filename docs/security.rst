@@ -516,3 +516,50 @@ DAG Level Role
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+
+
+.. _security/fernet:
+
+Securing Connections
+--------------------
+
+Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
+configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
+Fernet is an implementation of symmetric (also known as “secret key”) authenticated cryptography.
+
+The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
+key. The key is saved to option ``fernet_key`` of section ``[core]``.
+
+You can also configure a fernet key using environment variables. This will overwrite the value from the
+`airflow.cfg` file
+
+    .. code-block:: bash
+
+      # Note the double underscores
+      export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+
+Generating fernet key
+'''''''''''''''''''''
+
+If you need to generate a new fernet key you can use the following code snippet.
+
+    .. code-block:: python
+
+      from cryptography.fernet import Fernet
+      fernet_key= Fernet.generate_key()
+      print(fernet_key.decode()) # your fernet_key, keep it in secured place!
+
+
+Rotating encryption keys
+''''''''''''''''''''''''
+
+Once connection credentials and variables have been encrypted using a fernet
+key, changing the key will cause decryption of existing credentials to fail. To
+rotate the fernet key without invalidating existing encrypted values, prepend
+the new key to the ``fernet_key`` setting, run
+``airflow rotate_fernet_key``, and then drop the original key from
+``fernet_keys``:
+
+#. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
+#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
+#. Set ``fernet_key`` to ``new_fernet_key``

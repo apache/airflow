@@ -35,6 +35,8 @@ You can also install Airflow with support for extra features like ``gcp`` or ``p
 
     pip install 'apache-airflow[postgres,gcp]'
 
+Airflow require that your operating system has ``libffi-dev`` installed.
+
 Extra Packages
 ''''''''''''''
 
