@@ -25,7 +25,7 @@ function assert_in_container() {
         echo >&2 "You are not inside the Airflow docker container!"
         echo >&2 "You should only run this script in the Airflow docker container as it may override your files."
         echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md"
+        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
         echo >&2
         exit 1
     fi
