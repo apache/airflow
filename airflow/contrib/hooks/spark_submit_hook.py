@@ -93,6 +93,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
@@ -199,6 +200,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "Could not load connection string %s, defaulting to %s",
                 self._conn_id, conn_data['master']
             )
+
+            raise AirflowException("Could not load connection string %s, defaulting to %s",
+                                   self._conn_id, conn_data['master']
+                                   )
 
         return conn_data
 
