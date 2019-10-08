@@ -86,6 +86,27 @@ class TestSFTPHook(unittest.TestCase):
             os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(new_dir_name not in output)
 
+    def test_create_and_delete_directories(self):
+        base_dir = "base_dir"
+        sub_dir = "sub_dir"
+        new_dir_path = os.path.join(base_dir, sub_dir)
+        self.hook.create_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.assertTrue(base_dir in output)
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        self.assertTrue(sub_dir in output)
+        self.hook.delete_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        self.hook.delete_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.assertTrue(new_dir_path not in output)
+        self.assertTrue(base_dir not in output)
+
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
             remote_full_path=os.path.join(
