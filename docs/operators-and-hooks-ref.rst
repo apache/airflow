@@ -336,6 +336,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
      - :mod:`airflow.contrib.sensors.emr_base_sensor`,
        :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
+       :mod:`airflow.contrib.sensors.emr_run_job_flows`,
        :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
