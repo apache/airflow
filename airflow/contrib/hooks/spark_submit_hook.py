@@ -93,6 +93,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
@@ -199,7 +200,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "Could not load connection string %s, defaulting to %s",
                 self._conn_id, conn_data['master']
             )
-
+            raise AirflowException("Could not load connection string %s, defaulting to %s",
+                                   self._conn_id, conn_data['master']
+                                   )
         return conn_data
 
     def get_conn(self):
@@ -231,7 +234,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         if self._conf:
             for key in self._conf:
-                connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+                connection_cmd += ["--conf",
+                                   "{}={}".format(key, str(self._conf[key]))]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -268,7 +272,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._total_executor_cores:
-            connection_cmd += ["--total-executor-cores", str(self._total_executor_cores)]
+            connection_cmd += ["--total-executor-cores",
+                               str(self._total_executor_cores)]
         if self._executor_cores:
             connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:
@@ -290,7 +295,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._connection['queue']:
             connection_cmd += ["--queue", self._connection['queue']]
         if self._connection['deploy_mode']:
-            connection_cmd += ["--deploy-mode", self._connection['deploy_mode']]
+            connection_cmd += ["--deploy-mode",
+                               self._connection['deploy_mode']]
 
         # The actual script to execute
         connection_cmd += [application]
@@ -348,7 +354,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                            universal_newlines=True,
                                            **kwargs)
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout.readline, ''))
+        self._process_spark_submit_log(
+            iter(self._submit_sp.stdout.readline, ''))
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -360,7 +367,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             )
 
-        self.log.debug("Should track driver: {}".format(self._should_track_driver_status))
+        self.log.debug(
+            "Should track driver: {}".format(
+                self._should_track_driver_status))
 
         # We want the Airflow job to wait until the Spark driver is finished
         if self._should_track_driver_status:
@@ -398,7 +407,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         for line in itr:
             line = line.strip()
             # If we run yarn cluster mode, we want to extract the application id from
-            # the logs so we can kill the application when we stop it unexpectedly
+            # the logs so we can kill the application when we stop it
+            # unexpectedly
             if self._is_yarn and self._connection['deploy_mode'] == 'cluster':
                 match = re.search('(application[0-9_]+)', line)
                 if match:
@@ -407,9 +417,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                   self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
-            # from the logs so we can kill the application when we stop it unexpectedly
+            # from the logs so we can kill the application when we stop it
+            # unexpectedly
             elif self._is_kubernetes:
-                match = re.search(r'\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
+                match = re.search(
+                    r'\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
                 if match:
                     self._kubernetes_driver_pod = match.groups()[0]
                     self.log.info("Identified spark driver pod: %s",
@@ -422,7 +434,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             # if we run in standalone cluster mode and we want to track the driver status
             # we need to extract the driver id from the logs. This allows us to poll for
-            # the status using the driver id. Also, we can kill the driver when needed.
+            # the status using the driver id. Also, we can kill the driver when
+            # needed.
             elif self._should_track_driver_status and not self._driver_id:
                 match_driver_id = re.search(r'(driver-[0-9\-]+)', line)
                 if match_driver_id:
@@ -442,7 +455,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         for line in itr:
             line = line.strip()
 
-            # Check if the log line is about the driver status and extract the status.
+            # Check if the log line is about the driver status and extract the
+            # status.
             if "driverState" in line:
                 self._driver_status = line.split(' : ')[1] \
                     .replace(',', '').replace('\"', '').strip()
@@ -502,7 +516,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                               bufsize=-1,
                                               universal_newlines=True)
 
-            self._process_spark_status_log(iter(status_process.stdout.readline, ''))
+            self._process_spark_status_log(
+                iter(status_process.stdout.readline, ''))
             returncode = status_process.wait()
 
             if returncode:
@@ -558,7 +573,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                               .format(self._driver_id, driver_kill.wait()))
 
         if self._submit_sp and self._submit_sp.poll() is None:
-            self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
+            self.log.info(
+                'Sending kill signal to %s',
+                self._connection['spark_binary'])
             self._submit_sp.kill()
 
             if self._yarn_application_id:
@@ -571,12 +588,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)
 
-                self.log.info("YARN killed with return code: %s", yarn_kill.wait())
+                self.log.info(
+                    "YARN killed with return code: %s",
+                    yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
-                self.log.info('Killing pod %s on Kubernetes', self._kubernetes_driver_pod)
+                self.log.info(
+                    'Killing pod %s on Kubernetes',
+                    self._kubernetes_driver_pod)
 
-                # Currently only instantiate Kubernetes client for killing a spark pod.
+                # Currently only instantiate Kubernetes client for killing a
+                # spark pod.
                 try:
                     import kubernetes
                     client = kube_client.get_kube_client()
@@ -586,8 +608,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         body=kubernetes.client.V1DeleteOptions(),
                         pretty=True)
 
-                    self.log.info("Spark on K8s killed with response: %s", api_response)
+                    self.log.info(
+                        "Spark on K8s killed with response: %s",
+                        api_response)
 
                 except kube_client.ApiException as e:
-                    self.log.info("Exception when attempting to kill Spark on K8s:")
+                    self.log.info(
+                        "Exception when attempting to kill Spark on K8s:")
                     self.log.exception(e)
