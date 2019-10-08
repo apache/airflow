@@ -24,10 +24,9 @@ from gcp.utils.base_gcp_mock import (
 )
 from googleapiclient.errors import HttpError
 
-from tests.compat import PropertyMock
-
 from airflow import AirflowException
 from airflow.gcp.hooks import mlengine as hook
+from tests.compat import PropertyMock
 
 
 class TestMLEngineHook(unittest.TestCase):

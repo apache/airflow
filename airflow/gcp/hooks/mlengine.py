@@ -80,7 +80,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         Launches a MLEngine job and wait for it to reach a terminal state.
 
         :param project_id: The Google Cloud project id within which MLEngine
-            job will be launched. If set to None or missing, the default ``project_id `` from the GCP
+            job will be launched. If set to None or missing, the default project_id from the GCP
             connection is used.
         :type project_id: str
         :param job: MLEngine Job object that should be provided to the MLEngine

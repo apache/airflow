@@ -97,7 +97,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     for further documentation on the parameters.
 
     :param project_id: The Google Cloud project name where the prediction job is submitted.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param job_id: A unique id for the prediction job on Google Cloud
@@ -299,7 +299,7 @@ class MLEngineModelOperator(BaseOperator):
        MLEngineCreateModelOperator, MLEngineGetModelOperator.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
@@ -365,7 +365,7 @@ class MLEngineCreateModelOperator(BaseOperator):
     Operator for managing a Google Cloud ML Engine model.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
     :param model: A dictionary containing the information about the model.
     :type model: dict
@@ -406,7 +406,7 @@ class MLEngineGetModelOperator(BaseOperator):
     Operator for managing a Google Cloud ML Engine model.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
     :param model_name: The name of the model.
     :type model_name: str
@@ -448,7 +448,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
     The model should be provided by the `model_name` parameter.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
     :param model_name: The name of the model.
     :type model_name: str
@@ -502,7 +502,7 @@ class MLEngineVersionOperator(BaseOperator):
        MLEngineListVersionsOperator, MLEngineDeleteVersionOperator.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
@@ -631,7 +631,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
     information to create that version
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
@@ -698,7 +698,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     specified in the `version` parameter.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version belongs to. (templated)
@@ -764,7 +764,7 @@ class MLEngineListVersionsOperator(BaseOperator):
     The model should be specified by `model_name`.
 
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
@@ -885,7 +885,7 @@ class MLEngineTrainingOperator(BaseOperator):
     Operator for launching a MLEngine training job.
 
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
-        If set to None or missing, the default ``project_id `` from the GCP  connection is used. (templated)
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
 
     :param job_id: A unique templated id for the submitted Google MLEngine
