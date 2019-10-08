@@ -37,7 +37,7 @@ import six
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from future.standard_library import install_aliases
-from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
+from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 
 from airflow import settings, utils
 from airflow.configuration import conf
@@ -1373,8 +1373,13 @@ class DAG(BaseDag, LoggingMixin):
             if self.is_paused_upon_creation is not None:
                 orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
-        orm_dag.is_subdag = self.is_subdag
+        if self.is_subdag:
+            orm_dag.is_subdag = True
+            orm_dag.fileloc = self.parent_dag.fileloc
+            orm_dag.root_dag_id = self.parent_dag.dag_id
+        else:
+            orm_dag.is_subdag = False
+            orm_dag.fileloc = self.fileloc
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
@@ -1520,6 +1525,7 @@ class DagModel(Base):
     These items are stored in the database for state related information
     """
     dag_id = Column(String(ID_LEN), primary_key=True)
+    root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = conf\
@@ -1554,6 +1560,10 @@ class DagModel(Base):
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)
+
+    __table_args__ = (
+        Index('idx_root_dag_id', root_dag_id, unique=False),
+    )
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

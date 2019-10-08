@@ -1302,8 +1302,11 @@ class Airflow(AirflowViewMixin, BaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            if dag_id in dagbag.dags:
-                max_active_runs = dagbag.dags[dag_id].max_active_runs
+            dag = dagbag.get_dag(dag_id)
+            max_active_runs = dagbag.dags[dag_id].max_active_runs
+            if dag:
+                # TODO: Make max_active_runs a column so we can query for it directly
+                max_active_runs = dag.max_active_runs
             payload.append({
                 'dag_id': dag_id,
                 'active_dag_run': active_dag_runs,
@@ -1484,7 +1487,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/admin/')
 
@@ -1609,7 +1612,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/admin/')
 
@@ -1983,14 +1986,6 @@ class Airflow(AirflowViewMixin, BaseView):
 
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
-
-    @expose('/refresh_all', methods=['POST'])
-    @login_required
-    @wwwutils.action_logging
-    def refresh_all(self):
-        # TODO: Is this method still needed after AIRFLOW-3561?
-        flash("All DAGs are now up to date")
-        return redirect('/')
 
     @expose('/gantt')
     @login_required
