@@ -162,7 +162,7 @@ class SFTPHook(SSHHook):
         :param mode: int representation of octal mode for directory
         """
         conn = self.get_conn()
-        conn.mkdir(path, mode)
+        conn.makedirs(path, mode)
 
     def delete_directory(self, path):
         """
