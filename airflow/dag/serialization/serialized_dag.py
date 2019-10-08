@@ -39,7 +39,7 @@ class SerializedDAG(DAG, Serialization):
     not pickable. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {'schedule_interval'}
+    _decorated_fields = {'schedule_interval', 'default_args'}
 
     @staticmethod
     def __get_constructor_defaults():  # pylint: disable=no-method-argument
