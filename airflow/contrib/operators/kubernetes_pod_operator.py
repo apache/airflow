@@ -129,7 +129,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         XCom when the container completes.
     :type do_xcom_push: bool
     :param init_containers: init container for the launched Pod
-    :type init_containers: list[airflow.kubernetes.init_container.InitContainer]
+    :type init_containers: list[kubernetes.client.models.V1Container]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -242,6 +242,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
                 pod=self.full_pod_spec,
+                init_containers=self.init_containers,
             ).gen_pod()
 
             pod = append_to_pod(

@@ -29,7 +29,6 @@ from kubernetes.client.rest import ApiException
 
 from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-from airflow.kubernetes.init_container import InitContainer
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
@@ -88,6 +87,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
+                'initContainers': [],
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
@@ -644,10 +644,29 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     def test_init_container(self):
         # GIVEN
-        volume_mount = VolumeMount(name='test-volume',
-                                   mount_path='/etc/foo',
-                                   sub_path=None,
-                                   read_only=True)
+        volume_mounts = [k8s.V1VolumeMount(
+            mount_path='/etc/foo',
+            name='test-volume',
+            sub_path=None,
+            read_only=True
+        )]
+
+        init_environments = [k8s.V1EnvVar(
+            name='key1',
+            value='value1'
+        ), k8s.V1EnvVar(
+            name='key2',
+            value='value2'
+        )]
+
+        init_container = k8s.V1Container(
+            name="init-container",
+            image="ubuntu:16.04",
+            env=init_environments,
+            volume_mounts=volume_mounts,
+            command=["bash", "-cx"],
+            args=["echo 10"]
+        )
 
         volume_config = {
             'persistentVolumeClaim':
@@ -656,14 +675,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
         }
         volume = Volume(name='test-volume', configs=volume_config)
-
-        init_container = InitContainer(
-            name="init-container",
-            image="ubuntu:16.04",
-            init_environment={"key1": "value1", "key2": "value2"},
-            volume_mounts=[volume_mount],
-            cmds=["bash", "-cx"],
-            args=["echo 10"])
 
         expected_init_container = {
             'name': 'init-container',
