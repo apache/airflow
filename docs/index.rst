@@ -83,11 +83,8 @@ Content
     ui
     concepts
     scheduler
-<<<<<<< HEAD
     executor/index
-=======
     dag-run
->>>>>>> adding dag re-run documentation
     plugins
     security
     timezone
