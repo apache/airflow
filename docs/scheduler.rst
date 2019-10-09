@@ -17,6 +17,7 @@
 
 Scheduler
 ==========
+>>>>>>> adding dag re-run documentation
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,

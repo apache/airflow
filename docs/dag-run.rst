@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+..  Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,9 +6,9 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..    http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
+..  Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
@@ -17,14 +17,14 @@
 
 DAG Runs
 =========
-A DAG Run is an object representing an instantiation of the DAG in time.
+A DAG Run is an object representing an instantiation of the DAG in time
 
-Each DAG may or may not have a schedule, which informs how DAG Runs are
-created. ``schedule_interval`` is defined as a DAG argument, and receives
+Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
+created. ``schedule_interval`` is defined as a DAG arguments, and receives
 preferably a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
 a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
-use one of these cron "presets":
+use one of these cron "preset":
 
 +--------------+----------------------------------------------------------------+---------------+
 | preset       | meaning                                                        | cron          |
@@ -71,7 +71,7 @@ Catchup
 An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a 
 series of intervals which the scheduler turn into individual DAG Runs and execute. A key capability 
 of Airflow is that these DAG Runs are atomic and idempotent items. The scheduler, by default, will
-kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
+kick off a DAG Run for any interval that has not been run (or has been cleared). This concept is called Catchup.
 
 If your DAG is written to handle its own catchup (i.e. not limited to the interval, but instead to ``Now`` for instance.), 
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
