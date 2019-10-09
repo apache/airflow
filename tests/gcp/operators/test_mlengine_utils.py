@@ -88,12 +88,12 @@ class TestCreateEvaluateOps(unittest.TestCase):
             result = pred.execute(None)
             mock_mlengine_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project',
-                {
+                project_id='test-project',
+                job={
                     'jobId': 'eval_test_prediction',
                     'predictionInput': input_with_model,
                 },
-                ANY)
+                use_existing_job_fn=ANY)
             self.assertEqual(success_message['predictionOutput'], result)
 
         with patch('airflow.gcp.operators.dataflow.DataFlowHook') as mock_dataflow_hook:
