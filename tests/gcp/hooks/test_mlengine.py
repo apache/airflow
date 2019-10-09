@@ -16,6 +16,7 @@
 # under the License.
 
 import unittest
+from copy import deepcopy
 from unittest import mock
 
 from googleapiclient.errors import HttpError
@@ -49,7 +50,17 @@ class TestMLEngineHook(unittest.TestCase):
         project_id = 'test-project'
         model_name = 'test-model'
         version_name = 'test-version'
-        version = {'name': version_name}
+        version = {
+            'name': version_name,
+            'labels': {'other-label': 'test-value'}
+        }
+        version_with_airflow_version = {
+            'name': 'test-version',
+            'labels': {
+                'other-label': 'test-value',
+                'airflow-version': hook._AIRFLOW_VERSION
+            }
+        }
         operation_path = 'projects/{}/operations/test-operation'.format(project_id)
         model_path = 'projects/{}/models/{}'.format(project_id, model_name)
         operation_done = {'name': operation_path, 'done': True}
@@ -73,12 +84,63 @@ class TestMLEngineHook(unittest.TestCase):
         create_version_response = self.hook.create_version(
             project_id=project_id,
             model_name=model_name,
-            version_spec=version
+            version_spec=deepcopy(version)
         )
 
         self.assertEqual(create_version_response, operation_done)
+
         mock_get_conn.assert_has_calls([
-            mock.call().projects().models().versions().create(body=version, parent=model_path),
+            mock.call().projects().models().versions().create(
+                body=version_with_airflow_version,
+                parent=model_path
+            ),
+            mock.call().projects().models().versions().create().execute(),
+            mock.call().projects().operations().get(name=version_name),
+        ], any_order=True)
+
+    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    def test_create_version_with_labels(self, mock_get_conn):
+        project_id = 'test-project'
+        model_name = 'test-model'
+        version_name = 'test-version'
+        version = {'name': version_name}
+        version_with_airflow_version = {
+            'name': 'test-version',
+            'labels': {'airflow-version': hook._AIRFLOW_VERSION}
+        }
+        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
+        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        operation_done = {'name': operation_path, 'done': True}
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            versions.return_value.
+            create.return_value.
+            execute.return_value
+        ) = version
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            operations.return_value.
+            get.return_value.
+            execute.return_value
+        ) = {'name': operation_path, 'done': True}
+
+        create_version_response = self.hook.create_version(
+            project_id=project_id,
+            model_name=model_name,
+            version_spec=deepcopy(version)
+        )
+
+        self.assertEqual(create_version_response, operation_done)
+
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().versions().create(
+                body=version_with_airflow_version,
+                parent=model_path
+            ),
             mock.call().projects().models().versions().create().execute(),
             mock.call().projects().operations().get(name=version_name),
         ], any_order=True)
@@ -108,6 +170,7 @@ class TestMLEngineHook(unittest.TestCase):
         )
 
         self.assertEqual(set_default_version_response, operation_done)
+
         mock_get_conn.assert_has_calls([
             mock.call().projects().models().versions().setDefault(body={}, name=version_path),
             mock.call().projects().models().versions().setDefault().execute()
@@ -200,6 +263,10 @@ class TestMLEngineHook(unittest.TestCase):
         model = {
             'name': model_name,
         }
+        model_with_airflow_version = {
+            'name': model_name,
+            'labels': {'airflow-version': hook._AIRFLOW_VERSION}
+        }
         project_path = 'projects/{}'.format(project_id)
 
         (
@@ -211,12 +278,47 @@ class TestMLEngineHook(unittest.TestCase):
         ) = model
 
         create_model_response = self.hook.create_model(
-            project_id=project_id, model=model
+            project_id=project_id, model=deepcopy(model)
         )
 
         self.assertEqual(create_model_response, model)
         mock_get_conn.assert_has_calls([
-            mock.call().projects().models().create(body=model, parent=project_path),
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
+            mock.call().projects().models().create().execute()
+        ])
+
+    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    def test_create_model_with_labels(self, mock_get_conn):
+        project_id = 'test-project'
+        model_name = 'test-model'
+        model = {
+            'name': model_name,
+            'labels': {'other-label': 'test-value'}
+        }
+        model_with_airflow_version = {
+            'name': model_name,
+            'labels': {
+                'other-label': 'test-value',
+                'airflow-version': hook._AIRFLOW_VERSION
+            }
+        }
+        project_path = 'projects/{}'.format(project_id)
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            create.return_value.
+            execute.return_value
+        ) = model
+
+        create_model_response = self.hook.create_model(
+            project_id=project_id, model=deepcopy(model)
+        )
+
+        self.assertEqual(create_model_response, model)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
             mock.call().projects().models().create().execute()
         ])
 
@@ -360,6 +462,12 @@ class TestMLEngineHook(unittest.TestCase):
             'jobId': job_id,
             'foo': 4815162342,
         }
+        new_job_with_airflow_version = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'labels': {'airflow-version': hook._AIRFLOW_VERSION}
+        }
+
         job_succeeded = {
             'jobId': job_id,
             'state': 'SUCCEEDED',
@@ -385,12 +493,68 @@ class TestMLEngineHook(unittest.TestCase):
         ) = [job_queued, job_succeeded]
 
         create_job_response = self.hook.create_job(
-            project_id=project_id, job=new_job
+            project_id=project_id, job=deepcopy(new_job)
         )
 
         self.assertEqual(create_job_response, job_succeeded)
         mock_get_conn.assert_has_calls([
-            mock.call().projects().jobs().create(body=new_job, parent=project_path),
+            mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
+            mock.call().projects().jobs().get(name=job_path),
+            mock.call().projects().jobs().get().execute()
+        ], any_order=True)
+
+    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    def test_create_mlengine_job_with_labels(self, mock_get_conn, mock_sleep):
+        project_id = 'test-project'
+        job_id = 'test-job-id'
+        project_path = 'projects/{}'.format(project_id)
+        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        new_job = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'labels': {'other-label': 'test-value'}
+        }
+        new_job_with_airflow_version = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'labels': {
+                'other-label': 'test-value',
+                'airflow-version': hook._AIRFLOW_VERSION
+            }
+        }
+
+        job_succeeded = {
+            'jobId': job_id,
+            'state': 'SUCCEEDED',
+        }
+        job_queued = {
+            'jobId': job_id,
+            'state': 'QUEUED',
+        }
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            create.return_value.
+            execute.return_value
+        ) = job_queued
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            get.return_value.
+            execute.side_effect
+        ) = [job_queued, job_succeeded]
+
+        create_job_response = self.hook.create_job(
+            project_id=project_id, job=deepcopy(new_job)
+        )
+
+        self.assertEqual(create_job_response, job_succeeded)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
             mock.call().projects().jobs().get(name=job_path),
             mock.call().projects().jobs().get().execute()
         ], any_order=True)
