@@ -323,7 +323,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             Otherwise raises an error.
         :rtype: Dict
         """
-        assert project_id is None
+        assert project_id is not None
 
         hook = self.get_conn()
         full_name = 'projects/{}/models/{}/versions/{}'.format(
