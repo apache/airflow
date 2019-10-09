@@ -61,7 +61,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Functions.
+        Retrieves the connection to Cloud Build.
 
         :return: Google Cloud Build services object.
         """
