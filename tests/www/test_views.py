@@ -37,8 +37,6 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from tests.test_utils.config import conf_vars
-
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
@@ -52,6 +50,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
 
 
 class TestBase(unittest.TestCase):
