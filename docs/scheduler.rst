@@ -15,19 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-<<<<<<< HEAD
 Scheduler
 ==========
-=======
-<<<<<<< HEAD
-
-
-Scheduling & Triggers
-=======
-Scheduler
->>>>>>> adding dag re-run documentation
-=====================
->>>>>>> adding dag re-run documentation
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,
