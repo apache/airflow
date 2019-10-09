@@ -95,7 +95,7 @@ Architecture
             dag[label="DAG files"]
 
             subgraph cluster_queue {
-                label="Queue";
+                label="Celery";
                 {rank = same; queue_broker; queue_result_backend}
                 queue_broker[label="Queue broker"]
                 queue_result_backend[label="Result backend"]
@@ -132,7 +132,7 @@ Please note that the queue at Celery consists of two components:
 
 The components communicate with each other in many places
 
-* [1] **Web server** --> **Workers** - Fetchs task execution logs
+* [1] **Web server** --> **Workers** - Fetches task execution logs
 * [2] **Web server** --> **DAG files** - Reveal the DAG structure
 * [3] **Web server** --> **Database** - Fetch the status of the tasks
 * [4] **Workers** --> **DAG files** - Reveal the DAG structure and execute the tasks
