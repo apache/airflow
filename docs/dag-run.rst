@@ -1,8 +1,4 @@
-<<<<<<< HEAD
  .. Licensed to the Apache Software Foundation (ASF) under one
-=======
-..  Licensed to the Apache Software Foundation (ASF) under one
->>>>>>> adding dag re-run documentation
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -10,15 +6,9 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-<<<<<<< HEAD
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-=======
-..    http://www.apache.org/licenses/LICENSE-2.0
-
-..  Unless required by applicable law or agreed to in writing,
->>>>>>> adding dag re-run documentation
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
@@ -27,11 +17,7 @@
 
 DAG Runs
 =========
-<<<<<<< HEAD
 A DAG Run is an object representing an instantiation of the DAG in time.
-=======
-A DAG Run is an object representing an instantiation of the DAG in time
->>>>>>> adding dag re-run documentation
 
 Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
 created. ``schedule_interval`` is defined as a DAG arguments, and receives
@@ -195,8 +181,4 @@ To Keep in Mind
 ''''''''''''''''
 * Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or 
-<<<<<<< HEAD
   for instance when the fix has been applied outside of Airflow.
-=======
-  for instance when the fix has been applied outside of Airflow.
->>>>>>> adding dag re-run documentation
