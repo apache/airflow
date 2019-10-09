@@ -1228,6 +1228,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             projectId=project_id, datasetId=dataset_id, body=body
         )
 
+    # pylint: disable=too-many-locals
     def test_create_external_table_with_kms(self):
         project_id = "bq-project"
         dataset_id = "bq_dataset"
@@ -1246,6 +1247,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
         quote_character = None
         allow_quoted_newlines = False
         allow_jagged_rows = False
+        encoding = "UTF-8"
         labels = {'label1': 'test1', 'label2': 'test2'}
         schema_fields = [
             {"name": "id", "type": "STRING", "mode": "REQUIRED"}
@@ -1270,6 +1272,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             field_delimiter=field_delimiter,
             quote_character=quote_character,
             allow_jagged_rows=allow_jagged_rows,
+            encoding=encoding,
             allow_quoted_newlines=allow_quoted_newlines,
             labels=labels,
             schema_fields=schema_fields,
@@ -1290,7 +1293,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
                     'fieldDelimiter': field_delimiter,
                     'quote': quote_character,
                     'allowQuotedNewlines': allow_quoted_newlines,
-                    'allowJaggedRows': allow_jagged_rows
+                    'allowJaggedRows': allow_jagged_rows,
+                    'encoding': encoding
                 }
             },
             'tableReference': {

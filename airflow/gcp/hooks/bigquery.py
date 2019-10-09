@@ -360,6 +360,7 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character: Optional[str] = None,
                               allow_quoted_newlines: bool = False,
                               allow_jagged_rows: bool = False,
+                              encoding: str = "UTF-8",
                               src_fmt_configs: Optional[Dict] = None,
                               labels: Optional[Dict] = None,
                               encryption_configuration: Optional[Dict] = None
@@ -500,7 +501,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'quote': quote_character,
                                           'allowQuotedNewlines': allow_quoted_newlines,
-                                          'allowJaggedRows': allow_jagged_rows}
+                                          'allowJaggedRows': allow_jagged_rows,
+                                          'encoding': encoding}
 
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
@@ -511,7 +513,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'csvOptions': [
                 'allowJaggedRows', 'allowQuotedNewlines',
                 'fieldDelimiter', 'skipLeadingRows',
-                'quote'
+                'quote', 'encoding'
             ],
             'googleSheetsOptions': ['skipLeadingRows']
         }
@@ -1071,6 +1073,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  ignore_unknown_values: bool = False,
                  allow_quoted_newlines: bool = False,
                  allow_jagged_rows: bool = False,
+                 encoding: str = "UTF-8",
                  schema_update_options: Optional[Iterable] = None,
                  src_fmt_configs: Optional[Dict] = None,
                  time_partitioning: Optional[Dict] = None,
@@ -1268,7 +1271,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
                 'fieldDelimiter', 'skipLeadingRows', 'ignoreUnknownValues',
-                'nullMarker', 'quote'
+                'nullMarker', 'quote', 'encoding'
             ],
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
@@ -1284,7 +1287,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'ignoreUnknownValues': ignore_unknown_values,
                                           'quote': quote_character,
-                                          'allowQuotedNewlines': allow_quoted_newlines}
+                                          'allowQuotedNewlines': allow_quoted_newlines,
+                                          'encoding': encoding}
 
         src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
                                                     backward_compatibility_configs)

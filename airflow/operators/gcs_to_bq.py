@@ -172,6 +172,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
+                 encoding="UTF-8",
                  max_id_key=None,
                  bigquery_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id='google_cloud_default',
@@ -212,6 +213,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
         self.external_table = external_table
+        self.encoding = encoding
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -267,6 +269,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
+                encoding=self.encoding,
                 src_fmt_configs=self.src_fmt_configs,
                 encryption_configuration=self.encryption_configuration
             )
@@ -286,6 +289,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
+                encoding=self.encoding,
                 schema_update_options=self.schema_update_options,
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,
