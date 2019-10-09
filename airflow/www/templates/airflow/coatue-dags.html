@@ -151,11 +151,12 @@ limitations under the License.
     <!-- Column 8: Next Scheduled -->
     <div>
       {% set following = dag_obj.get_next_run_date(now_time) %}
+              {% if following %}
       <td class="text-nowrap {{ dag.dag_id }}" title = "{{ stringify_timedelta(client_timezone.convert(following) - now_time) }}">
-        {% if following %}
         {{ client_timezone.convert(following).strftime(time_fmt_str) }}
-        {% endif %}
       </td>
+              {% endif %}
+
     </div>
     {% else %}
     <td align="center" colspan="1000" class="alert alert-warning">
