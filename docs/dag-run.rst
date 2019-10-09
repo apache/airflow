@@ -17,7 +17,7 @@
 
 DAG Runs
 =========
-A DAG Run is an object representing an instantiation of the DAG in time
+A DAG Run is an object representing an instantiation of the DAG in time.
 
 Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
 created. ``schedule_interval`` is defined as a DAG arguments, and receives
