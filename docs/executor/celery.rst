@@ -101,17 +101,17 @@ Architecture
                 queue_result_backend[label="Result backend"]
             }
 
-            scheduler->workers[label="1"]
-            web->database[label="2"]
-            web->dag[label="3"]
+            web->workers[label="1"]
+            web->dag[label="2"]
+            web->database[label="3"]
 
-            workers->database[label="4"]
-            workers->dag[label="5"]
+            workers->dag[label="4"]
+            workers->database[label="5"]
             workers->queue_result_backend[label="6"]
             workers->queue_broker[label="7"]
 
-            scheduler->database[label="8"]
-            scheduler->dag[label="9"]
+            scheduler->dag[label="8"]
+            scheduler->database[label="9"]
             scheduler->queue_result_backend[label="10"]
             scheduler->queue_broker[label="11"]
         }
@@ -121,25 +121,25 @@ Airflow consist of several components:
 
 * **Workers** - Execute the assigned tasks
 * **Scheduler** - Responsible for adding the necessary tasks to the queue
-* **Web server** - Server HTTP provides access to DAG/task status information
+* **Web server** - HTTP Server provides access to DAG/task status information
 * **Database** - Contains information about the status of tasks, DAGs, Variables, connections, etc.
-* **Queue** - Queue mechanism provided by Celery
+* **Celery** - Queue mechanism
 
 Please note that the queue at Celery consists of two components:
 
 * **Broker** - Stores commands for execution
-* **Result backend** - Stores status of completed command
+* **Result backend** - Stores status of completed commands
 
 The components communicate with each other in many places
 
-* [1] **Scheduler** --> **Workers** - Fetchs task execution logs
-* [2] **Web server** --> **Database** - Fetch the status of the tasks
-* [3] **Web server** --> **DAG files** - Reveal the DAG structure
-* [4] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
-* [5] **Workers** --> **DAG files** - Reveal the DAG structure and execute the tasks
-* [6] **Workers** --> **Queue's result backend** - Saves the status of tasks
-* [7] **Workers** --> **Queue's broker** - Stores commands for execution
+* [1] **Web server** --> **Workers** - Fetchs task execution logs
+* [2] **Web server** --> **DAG files** - Reveal the DAG structure
+* [3] **Web server** --> **Database** - Fetch the status of the tasks
+* [4] **Workers** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [5] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
+* [6] **Workers** --> **Celery's result backend** - Saves the status of tasks
+* [7] **Workers** --> **Celery's broker** - Stores commands for execution
 * [8] **Scheduler** --> **Database** - Store a DAG run and related tasks
 * [9] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
-* [10] **Scheduler** --> **Queue's result backend** - Gets information about the status of completed tasks
-* [11] **Scheduler** --> **Queue's broker** - Put the commands to be executed
+* [10] **Scheduler** --> **Celery's result backend** - Gets information about the status of completed tasks
+* [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed
