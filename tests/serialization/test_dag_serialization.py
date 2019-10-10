@@ -34,6 +34,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator, Connection, DAG, DagBag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.utils.tests import CustomBaseOperator, GoogleLink
 
 
 serialized_simple_dag_ground_truth = {
@@ -69,6 +70,22 @@ serialized_simple_dag_ground_truth = {
                 "ui_fgcolor": "#000",
                 "template_fields": [],
                 "_task_type": "BaseOperator",
+                "_task_module": "airflow.models.baseoperator",
+            },
+            {
+                "task_id": "custom_task",
+                "retries": 1,
+                "retry_delay": 300.0,
+                "_downstream_task_ids": [],
+                "_inlets": {
+                    "auto": False, "task_ids": [], "datasets": []
+                },
+                "_outlets": {"datasets": []},
+                "ui_color": "#fff",
+                "ui_fgcolor": "#000",
+                "template_fields": [],
+                "_task_type": "CustomBaseOperator",
+                "_task_module": "airflow.utils.tests",
             },
         ],
         "timezone": "UTC",
@@ -93,8 +110,8 @@ def make_simple_dag():
         },
         start_date=datetime(2019, 8, 1),
     )
-    BaseOperator(task_id='simple_task', dag=dag,
-                 owner="airflow")
+    BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
+    CustomBaseOperator(task_id='custom_task', dag=dag)
     return {'simple_dag': dag}
 
 
@@ -239,6 +256,10 @@ class TestStringifiedDAGs(unittest.TestCase):
             SubDagOperator.ui_fgcolor
         )
 
+        simple_dag = stringified_dags['simple_dag']
+        custom_task = simple_dag.task_dict['custom_task']
+        self.validate_operator_extra_links(custom_task)
+
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
         self.assertTrue(isinstance(task, SerializedBaseOperator))
@@ -254,6 +275,22 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(task.subdag, DAG))
         else:
             self.assertIsNone(task.subdag)
+
+    def validate_operator_extra_links(self, task):
+        """
+        This tests also depends on GoogleLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+        self.assertEqual(
+            task.operator_extra_link_dict[GoogleLink.name].get_link(
+                task, datetime(2019, 8, 1)),
+            "https://www.google.com"
+        )
 
     @parameterized.expand([
         (None, None),

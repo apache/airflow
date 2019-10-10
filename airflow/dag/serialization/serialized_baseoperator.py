@@ -53,6 +53,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         # subdag parameter is only set for SubDagOperator.
         # Setting it to None by default as other Operators do not have that field
         self.subdag = None
+        self.operator_extra_links = BaseOperator.operator_extra_links
 
     @property
     def task_type(self):
@@ -90,6 +91,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
 
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
+        serialize_op['_task_module'] = op.__class__.__module__
 
         return serialize_op
 
@@ -99,8 +101,20 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         """Deserializes an operator from a JSON object.
         """
         from airflow.dag.serialization import SerializedDAG
+        from airflow.plugins_manager import operator_extra_links
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+
+        # Extra Operator Links
+        op_extra_links_from_plugin = {}
+
+        for ope in operator_extra_links:
+            for operator in ope.operators:
+                if operator.__name__ == encoded_op["_task_type"] and \
+                        operator.__module__ == encoded_op["_task_module"]:
+                    op_extra_links_from_plugin.update({ope.name: ope})
+
+        setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
 

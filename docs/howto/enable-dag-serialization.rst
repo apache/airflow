@@ -71,3 +71,34 @@ which is why we said "almost" stateless.
     the execution date and even the data passed by the upstream task using Xcom.
 *   **Code View** will read the DAG File & show it using Pygments.
     However, it does not need to Parse the Python file so it is still a small operation.
+*   :doc:`Extra Operator Links <define_extra_link>` would not work out of
+    the box. They need to be defined in Airflow Plugin.
+
+    **Existing Airflow Operators**:
+    To make extra operator links work with existing operators like BigQuery, copy all
+    the classes that are defined in ``operator_extra_links`` property.
+
+    For :class:`~airflow.gcp.operators.bigquery.BigQueryOperator` you can create the following plugin for extra links:
+
+    .. code-block:: python
+
+        from airflow.plugins_manager import AirflowPlugin
+        from airflow.models.baseoperator import BaseOperatorLink
+        from airflow.gcp.operators.bigquery import BigQueryOperator
+
+        class BigQueryConsoleLink(BaseOperatorLink):
+            """
+            Helper class for constructing BigQuery link.
+            """
+            name = 'BigQuery Console'
+            operators = [BigQueryOperator]
+
+            def get_link(self, operator, dttm):
+                ti = TaskInstance(task=operator, execution_date=dttm)
+                job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+                return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+
+        # Defining the plugin class
+        class AirflowExtraLinkPlugin(AirflowPlugin):
+            name = "extra_link_plugin"
+            operator_extra_links = [BigQueryConsoleLink(), ]
