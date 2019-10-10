@@ -305,10 +305,14 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        self.log.info('Total Extracted rows: %s', response['totalRows'])
-        rows = response['rows']
+        total_rows = int(response['totalRows'])
+        self.log.info('Total Extracted rows: %s', total_rows)
 
         table_data = []
+        if total_rows == 0:
+            return table_data
+
+        rows = response['rows']
         for dict_row in rows:
             single_row = []
             for fields in dict_row['f']:
