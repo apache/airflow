@@ -114,8 +114,6 @@ If the ``dag.catchup`` value had been True instead, the scheduler would have c
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
 as that interval hasn’t completed) and the scheduler will execute them sequentially. 
 
-Catchup is also triggered when you turn off a DAG for a specified period of time and then re-enable.
-
 This behavior 
 is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
 if your DAG performs catchup internally.
@@ -143,8 +141,7 @@ the errors after going through the logs, you can re-run the tasks by clearing it
 scheduled date. Clearing a task instance doesn't delete the task instance record. 
 Instead it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
 
-Click on the failed task in the Tree or Graph views and then click on **Clear**.
-``
+Select the failed task and click on **Clear**. This will clear the status of the task from 
 failed to ``None`` and the executor will re-run it.
 
 There are multiple options you can select to re-run - 
@@ -169,6 +166,11 @@ the mentioned interval. For more options, you can run the command:
 
     airflow tasks clear -h
 
+**Note**: When clearing a set of tasks’ state in hope of getting them to re-run, it is important 
+to keep in mind the DAG Run’s state too as it defines whether the scheduler should look
+into triggering tasks for that run.
+
+
 External Triggers
 '''''''''''''''''
 
@@ -182,7 +184,7 @@ The DAG Runs created externally to the scheduler get associated to the trigge
 in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using -e argument 
 otherwise the current date in UTC timezone is used as default.
 
-In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a `DAG Run` using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 To Keep in Mind
 ''''''''''''''''
