@@ -97,6 +97,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         invalid error is returned in the job result. Only applicable to CSV, ignored
         for other formats.
     :type allow_jagged_rows: bool
+    :param encoding: The character encoding of the data. See:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).csvOptions.encoding
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
     :param max_id_key: If set, the name of a column in the BigQuery table
         that's to be loaded. This will be used to select the MAX value from
         BigQuery after the load occurs. The results will be returned by the
