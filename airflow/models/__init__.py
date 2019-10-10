@@ -263,7 +263,7 @@ def get_last_dagrun_by_run_date(dag_id, session, include_externally_triggered=Fa
     return query.first()
 
 
-def get_last_dagrun(dag_id, session, include_externally_triggered=False):
+def get_last_dagrun(dag_id, session, include_externally_triggered=False, include_incomplete=False):
     """
     Returns the last dag run for a dag, None if there was none.
     Last dag run can be any type of run eg. scheduled or backfilled.
@@ -273,6 +273,8 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     query = session.query(DR).filter(DR.dag_id == dag_id)
     if not include_externally_triggered:
         query = query.filter(DR.external_trigger == False)  # noqa
+    if not include_incomplete:
+        query = query.filter(DR.state != State.RUNNING)
     query = query.order_by(DR.execution_date.desc())
     return query.first()
 
@@ -2903,9 +2905,10 @@ class DagModel(Base):
                                include_externally_triggered=include_externally_triggered)
 
     @provide_session
-    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+    def get_last_dagrun(self, session=None, include_externally_triggered=False, include_incomplete=True):
         return get_last_dagrun(self.dag_id, session=session,
-                               include_externally_triggered=include_externally_triggered)
+                               include_externally_triggered=include_externally_triggered,
+                               include_incomplete=include_incomplete)
 
     @property
     def safe_dag_id(self):
@@ -3370,9 +3373,10 @@ class DAG(BaseDag, LoggingMixin):
                                include_externally_triggered=include_externally_triggered)
 
     @provide_session
-    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+    def get_last_dagrun(self, session=None, include_externally_triggered=False, include_incomplete=True):
         return get_last_dagrun(self.dag_id, session=session,
-                               include_externally_triggered=include_externally_triggered)
+                               include_externally_triggered=include_externally_triggered,
+                               include_incomplete=include_incomplete)
 
     @property
     def dag_id(self):

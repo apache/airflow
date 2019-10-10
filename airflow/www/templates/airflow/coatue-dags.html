@@ -128,7 +128,7 @@ limitations under the License.
 
     <!-- Column 6: Last Run Start  -->
     <td>
-      {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+      {% set last_run = dag.get_last_dagrun(include_externally_triggered=True, include_incomplete=False) %}
       {% if last_run and last_run.execution_date %}
       {{ client_timezone.convert(last_run.start_date).strftime(time_fmt_str) }}
       {% endif %}
@@ -136,7 +136,7 @@ limitations under the License.
 
     <!-- Column 7: Last Run End -->
     <td>
-      {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+      {% set last_run = dag.get_last_dagrun(include_externally_triggered=True, include_incomplete=False) %}
       {% if last_run and last_run.execution_date %}
       {% if last_run.end_date %}
       {{ client_timezone.convert(last_run.end_date).strftime(time_fmt_str) }}
