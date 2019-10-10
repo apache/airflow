@@ -22,6 +22,7 @@ import unittest
 
 from airflow.models import BaseOperator
 from airflow.models.baseoperator import BaseOperatorLink
+from airflow.utils.decorators import apply_defaults
 
 
 def skipUnlessImported(module, obj):
@@ -71,12 +72,23 @@ class Dummy3TestOperator(BaseOperator):
     operator_extra_links = ()
 
 
+class CustomBaseOperator(BaseOperator):
+    operator_extra_links = ()
+
+    @apply_defaults
+    def __init__(self, *args, **kwargs):
+        super(CustomBaseOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        self.log.info("Hello World!")
+
+
 class GoogleLink(BaseOperatorLink):
     """
     Operator Link for Apache Airflow Website for Google
     """
     name = 'google'
-    operators = [Dummy3TestOperator]
+    operators = [Dummy3TestOperator, CustomBaseOperator]
 
     def get_link(self, operator, dttm):
         return 'https://www.google.com'
