@@ -782,6 +782,7 @@ class SchedulerJob(BaseJob):
         for a DAG based on scheduling interval.
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
+        self.log.info("in create_dag_run")
         if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
@@ -790,6 +791,7 @@ class SchedulerJob(BaseJob):
                 session=session
             )
             # return if already reached maximum active runs and no timeout setting
+            self.log.info(f"Is maximum active runs and no timeout setting | active_runs={active_runs} dag.max_active_runs={dag.max_active_runs} dag.dagrun_timeout={dag.dagrun_timeout}")
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
                 return
             timedout_runs = 0
@@ -803,6 +805,7 @@ class SchedulerJob(BaseJob):
                                         session=session)
                     timedout_runs += 1
             session.commit()
+            self.log.info(f"Is len(active_runs) - timedout_runs >= dag.max_active_runs | len(active_runs)={len(active_runs)} timedout_runs={timedout_runs} dag.max_active_runs={dag.max_active_runs}")
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
                 return
 
@@ -817,12 +820,16 @@ class SchedulerJob(BaseJob):
                 ))
             )
             last_scheduled_run = qry.scalar()
+            self.log.info(f"last_scheduled_run={last_scheduled_run}")
 
             # don't schedule @once again
+            self.log.info(f"dag.schedule_interval == '@once' and last_scheduled_run? dag.schedule_interval={dag.schedule_interval} last_scheduled_run={last_scheduled_run}")
             if dag.schedule_interval == '@once' and last_scheduled_run:
                 return None
 
             # don't do scheduler catchup for dag's that don't have dag.catchup = True
+            self.log.info(f"dag.catchup or dag.schedule_interval == '@once'? dag.catchup={dag.catchup} dag.schedule_interval={dag.schedule_interval}")
+
             if not (dag.catchup or dag.schedule_interval == '@once'):
                 # The logic is that we move start_date up until
                 # one period before, so that timezone.utcnow() is AFTER
@@ -830,6 +837,7 @@ class SchedulerJob(BaseJob):
                 now = timezone.utcnow()
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)
+                self.log.info(f"[if not (dag.catchup or dag.schedule_interval == '@once')] Start | now={now} next_start={next_start} last_start={last_start}")
                 if next_start <= now:
                     new_start = last_start
                 else:
@@ -841,17 +849,26 @@ class SchedulerJob(BaseJob):
                 else:
                     dag.start_date = new_start
 
+                self.log.info(f"[if not (dag.catchup or dag.schedule_interval == '@once')] End | new_start={new_start}  dag.start_date={dag.start_date}")
+
             next_run_date = None
+
             if not last_scheduled_run:
+                self.log.info(f"[if not last_scheduled_run] Start")
                 # First run
                 task_start_dates = [t.start_date for t in dag.tasks]
+                self.log.info(f"[if not last_scheduled_run] task_start_dates={task_start_dates}")
+
                 if task_start_dates:
                     next_run_date = dag.normalize_schedule(min(task_start_dates))
                     self.log.debug(
                         "Next run date based on tasks %s",
                         next_run_date
                     )
+                self.log.info(f"[if not last_scheduled_run] next_run_date={next_run_date}")
+
                 if next_run_date and next_run_date <= dag.following_schedule(timezone.utcnow()):
+                    self.log.info(f"[if next_run_date and next_run_date <= dag.following_schedule(timezone.utcnow())] START")
                     # if it is the very first run, set last run to previous, previous period
                     # This will force subsequent runs to be in the next future period
                     # We need to set execution_date to 2 periods in the past, to force the next run
@@ -866,31 +883,38 @@ class SchedulerJob(BaseJob):
                         external_trigger=False,
                         schedule_interval=dag.schedule_interval
                     )
-
+                    self.log.info(f"[if next_run_date and next_run_date <= dag.following_schedule(timezone.utcnow())] END | Dummy run created for execution_date={previous_execution_period}")
                     return
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
+            self.log.info(f"[if not last_scheduled_run] END | next_run_date={next_run_date}")
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)
+            self.log.info(f"last_run={last_run}")
+
             if last_run and next_run_date:
+                self.log.info(f"[if last_run and next_run_date] START | last_run={last_run} next_run_date={next_run_date} last_run.execution_date={last_run.execution_date}")
                 while next_run_date <= last_run.execution_date:
                     next_run_date = dag.following_schedule(next_run_date)
+                self.log.info(f"[if last_run and next_run_date] END | next_run_date={next_run_date}")
 
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
+                self.log.info(f"[if dag.start_date] START | dag.start_date={dag.start_date} next_run_date={next_run_date}")
                 next_run_date = (dag.start_date if not next_run_date
                                  else max(next_run_date, dag.start_date))
                 if next_run_date == dag.start_date:
                     next_run_date = dag.normalize_schedule(dag.start_date)
 
-                self.log.debug(
-                    "Dag start date: %s. Next run date: %s",
+                self.log.info(
+                    " [if dag.start_date] END | Dag start date: %s. Next run date: %s",
                     dag.start_date, next_run_date
                 )
 
 
+            self.log.info(f"[if not next_run_date or next_run_date > timezone.utcnow()] next_run_date={next_run_date} timezone.utcnow()={timezone.utcnow()}")
             # don't ever schedule in the future or if next_run_date is None
             if not next_run_date or next_run_date > timezone.utcnow():
                 return
@@ -902,6 +926,7 @@ class SchedulerJob(BaseJob):
             elif next_run_date:
                 # get the next period end
                 period_end = dag.following_schedule(next_run_date)
+            self.log.info(f"Setting period_end to {period_end}")
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
@@ -911,10 +936,14 @@ class SchedulerJob(BaseJob):
             # Get the min task end date, which may come from the dag.default_args
             min_task_end_date = []
             task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+            self.log.info(f"Checking task_end_dates {task_end_dates}")
             if task_end_dates:
                 min_task_end_date = min(task_end_dates)
+
+            self.log.info(f"[if next_run_date and min_task_end_date and next_run_date > min_task_end_date] next_run_date={next_run_date} min_task_end_date={min_task_end_date}")
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
+
 
             """
              This is a hack to address a notorious issue with changing schedule intervals for already existing dags.
@@ -925,6 +954,7 @@ class SchedulerJob(BaseJob):
              Unfortunately, a DUMMY dag run must be created since airflow's scheduler looks at the last period.
             """
             if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow():
+                self.log.info(f"[if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow()] START | last_run.schedule_interval={last_run.schedule_interval} dag.schedule_interval={dag.schedule_interval} next_run_date={next_run_date} period_end={period_end} timezone.utcnow()={timezone.utcnow()}")
                 previous_execution_period = dag.previous_schedule(dag.previous_schedule(timezone.utcnow()))
                 dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + previous_execution_period.isoformat(),
@@ -934,9 +964,11 @@ class SchedulerJob(BaseJob):
                     external_trigger=False,
                     schedule_interval=dag.schedule_interval
                 )
+                self.log.info(f"[if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow()] END | previous_execution_period={previous_execution_period}")
                 return
 
             if next_run_date and period_end and period_end <= timezone.utcnow():
+                self.log.info(f"[if next_run_date and period_end and period_end <= timezone.utcnow()] START | next_run_date={next_run_date} period_end={period_end} timezone.utcnow()={timezone.utcnow()}")
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,
@@ -945,6 +977,7 @@ class SchedulerJob(BaseJob):
                     external_trigger=False,
                     schedule_interval=dag.schedule_interval
                 )
+                self.log.info(f"[if next_run_date and period_end and period_end <= timezone.utcnow()] END | next_run={next_run}")
                 return next_run
 
     @provide_session
