@@ -106,9 +106,11 @@ In the example above, if the DAG is picked up by the scheduler daemon on 2016-01
 (or from the command line), a single DAG Run will be created, with an `execution_date` of 2016-01-01, 
 and the next one will be created just after midnight on the morning of 2016-01-03 with an execution date of 2016-01-02.
 
-If the `dag.catchup` value had been True instead, the scheduler would have created a DAG Run 
+If the ``dag.catchup`` value had been True instead, the scheduler would have created a DAG Run 
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
-as that interval hasn’t completed) and the scheduler will execute them sequentially. This behavior 
+as that interval hasn’t completed) and the scheduler will execute them sequentially. 
+
+This behavior 
 is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
 if your DAG Runs perform backfill internally.
 
@@ -130,10 +132,10 @@ Re-run Tasks
 It can happen, that some of the tasks can fail during the scheduled run. Once you have fixed 
 the errors after going through the logs, you can re-run the tasks by clearing it for the 
 scheduled date. Clearing a task instance doesn't delete the task instance record. 
-Instead it updates max_tries and set the current task instance state to be None.
+Instead it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
 
-Select the failed task and click on Clear. This will clear the status of the task from 
-failed to None and the executor will re-run it.
+Select the failed task and click on **Clear**. This will clear the status of the task from 
+failed to ``None`` and the executor will re-run it.
 
 There are multiple options you can select to re-run - 
 
@@ -144,21 +146,21 @@ There are multiple options you can select to re-run -
 * Recursive - All the tasks in the child DAGs and parent DAGs
 * Failed - Only the failed tasks in the current DAG
 
-You can also clear the task through CLI using the command -
+You can also clear the task through CLI using the command:
 
 .. code:: bash
 
     airflow tasks clear dag_id -t task_regex -s START_DATE -d END_DATE
 
 This will clear all instances of the tasks matching the regex for the dag_id which have run during 
-the mentioned interval. For more options, you can run the command :
+the mentioned interval. For more options, you can run the command:
 
 .. code:: bash
 
     airflow tasks clear -h
 
 **Note**: When clearing a set of tasks’ state in hope of getting them to re-run, it is important 
-to keep in mind the `DAG Run`’s state too as it defines whether the scheduler should look
+to keep in mind the DAG Run’s state too as it defines whether the scheduler should look
 into triggering tasks for that run.
 
 
@@ -175,7 +177,7 @@ The ``DAG Runs`` created externally to the scheduler get associated to the tr
 in the UI alongside scheduled ``DAG runs``. The execution date passed inside the DAG can be specified using -e argument 
 otherwise the current date in UTC timezone is used as default.
 
-In addition, you can also manually trigger a `DAG Run` using the web UI (tab “DAGs” -> column “Links” -> button “Trigger Dag”)
+In addition, you can also manually trigger a `DAG Run` using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 To Keep in Mind
 ''''''''''''''''
