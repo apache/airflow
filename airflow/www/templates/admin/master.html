@@ -31,8 +31,12 @@
     var UTCseconds = (x.getTime() + x.getTimezoneOffset()*60*1000);
     $("#clock").clock({
         "dateFormat":"Y-m-d ",
+        "timeFormat":"H:i:s %America/New_York%",
+        "timestamp":x.getTime()
+        /*
         "timeFormat":"H:i:s %UTC%",
         "timestamp":UTCseconds
+         */
     }).click(function(){
         alert('{{ hostname }}');
     });
