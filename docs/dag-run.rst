@@ -60,6 +60,8 @@ will be created on 2020-01-02 i.e. after your start date has passed.
 
 Re-run DAG
 ''''''''''
+There can be cases where you will want to execute your DAG again. One such case is when the scheduled
+DAG run fails. Another can be the scheduled DAG run wasn't executed due to low resources or the DAG being turned off.
 
 Catchup
 -------
@@ -110,6 +112,8 @@ If the ``dag.catchup`` value had been True instead, the scheduler would have c
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
 as that interval hasn’t completed) and the scheduler will execute them sequentially. 
 
+Catchup is also triggered when you turn off a DAG for a specified period of time and then re-enable.
+
 This behavior 
 is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
 if your DAG Runs perform backfill internally.
@@ -117,6 +121,9 @@ if your DAG Runs perform backfill internally.
 
 Backfill
 ---------
+There can be the case when you may want to run the dag for a specified historical period e.g. a data pipeline
+which dumps data in a DFS every day and another pipeline which requires last 1 month of data in DFS. 
+This is known as Backfill.
 
 You may want to backfill the data even in the cases when catchup is disabled. This can be done through CLI. 
 Run the below command
