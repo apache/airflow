@@ -114,6 +114,8 @@ If the ``dag.catchup`` value had been True instead, the scheduler would have c
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
 as that interval hasn’t completed) and the scheduler will execute them sequentially. 
 
+Catchup is also triggered when you turn off a DAG for a specified period of time and then re-enable.
+
 This behavior 
 is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
 if your DAG performs catchup internally.
