@@ -30,14 +30,7 @@ Airflow production environment. To kick it off, all you need to do is
 execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
-The scheduler starts an instance of the executor specified in the your ``airflow.cfg``. 
-
-* :class:`airflow.executors.sequential_executor.SequentialExecutor` - This is the default executor. It runs a single task at a time on your local system. 
-  Also, this is  the only executor which supports SQLite backend.
-* :class:`airflow.executors.local_executor.LocalExecutor` -  Same as Sequential Executor but can run multiple tasks at the same time.
-* :class:`airflow.executors.celery_executor.CeleryExecutor` - Allows you to use multiple worker nodes to run your tasks on using 
-  a distributed celery task queue. This is recommended for production environments.
-* :class:`airflow.executors.kubernetes_executor.KubernetesExecutor` - Run tasks on your Kubernetes cluster.
+The scheduler starts an instance of an :doc:`Executor </executor/index>`. 
 
 To start a scheduler, simply run the command:
 
