@@ -57,6 +57,7 @@ Extra (optional)
     * ``host``: Endpoint URL for the connection
     * ``region_name``: AWS region for the connection
     * ``role_arn``: AWS role ARN for the connection
+    * ``aws_session_token``: AWS session token if you use external credentials. You are responsible for renewing these.
 
     Example "extras" field:
 
