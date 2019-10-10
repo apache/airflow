@@ -1,5 +1,4 @@
 ./airflow/__init__.py
-./airflow/config_templates/airflow_local_settings.py
 ./airflow/configuration.py
 ./airflow/contrib/auth/backends/github_enterprise_auth.py
 ./airflow/contrib/auth/backends/google_auth.py
