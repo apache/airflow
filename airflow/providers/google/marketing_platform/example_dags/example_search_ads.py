@@ -22,10 +22,10 @@ Example Airflow DAG that shows how to use SearchAds.
 import os
 
 from airflow import models
-from airflow.gcp.operators.search_ads import (
+from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
 )
-from airflow.gcp.sensors.search_ads import GoogleSearchAdsReportSensor
+from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
 from airflow.utils import dates
 
 # [START howto_search_ads_env_variables]

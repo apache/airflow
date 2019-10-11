@@ -36,20 +36,20 @@ Inserting a report
 ^^^^^^^^^^^^^^^^^^
 
 To insert a Search Ads report use the
-:class:`~airflow.gcp.operators.search_ads.GoogleSearchAdsInsertReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_search_ads.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_generate_report_operator]
     :end-before: [END howto_search_ads_generate_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.search_ads.GoogleSearchAdsInsertReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_search_ads.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_report_id]
@@ -61,16 +61,16 @@ A section title
 ^^^^^^^^^^^^^^^
 
 To wait for a report to be ready for download use
-:class:`~airflow.gcp.sensors.search_ads.GoogleSearchAdsReportSensor`.
+:class:`~airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_search_ads.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_report_operator]
     :end-before: [END howto_search_ads_get_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.sensors.search_ads.GoogleSearchAdsReportSensor`
+:template-fields:`airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:GoogleSearchAdsGetfileReportOperator:
@@ -79,15 +79,15 @@ Downloading a report
 ^^^^^^^^^^^^^^^^^^^^
 
 To download a Search Ads report to Google Cloud Storage bucket use the
-:class:`~airflow.gcp.operators.search_ads.GoogleSearchAdsDownloadReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_search_ads.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_getfile_report_operator]
     :end-before: [END howto_search_ads_getfile_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.search_ads.GoogleSearchAdsDownloadReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

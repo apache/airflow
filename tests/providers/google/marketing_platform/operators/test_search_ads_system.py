@@ -18,15 +18,19 @@
 # under the License.
 import unittest
 
-from tests.gcp.operators.test_search_ads_system_helper import GoogleSearchAdsSystemTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_SEARCHADS_KEY
+from tests.providers.google.marketing_platform.operators.test_search_ads_system_helper import (
+    GoogleSearchAdsSystemTestHelper,
+)
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_SEARCHADS_KEY), SKIP_TEST_WARNING)
 class SearchAdsSystemTest(TestDagGcpSystem):
     def __init__(self, method_name="runTest"):
-        super().__init__(method_name, dag_id="example_search_ads", gcp_key=GCP_SEARCHADS_KEY)
+        super().__init__(
+            method_name, dag_id="example_search_ads", gcp_key=GCP_SEARCHADS_KEY
+        )
         self.helper = GoogleSearchAdsSystemTestHelper()
 
     def setUp(self):

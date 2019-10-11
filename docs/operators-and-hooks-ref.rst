@@ -863,9 +863,9 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
      - :doc:`How to use <howto/operator/gcp/search_ads>`
-     - :mod:`airflow.gcp.hooks.search_ads`
-     - :mod:`airflow.gcp.operators.search_ads`
-     - :mod:`airflow.gcp.sensors.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      -

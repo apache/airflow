@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.gcp.hooks.search_ads import GoogleSearchAdsHook
+from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v2"
@@ -33,19 +33,25 @@ class TestSearchAdsHook(TestCase):
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
 
-    @mock.patch("airflow.gcp.hooks.search_ads.GoogleSearchAdsHook._authorize")
-    @mock.patch("airflow.gcp.hooks.search_ads.build")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "search_ads.GoogleSearchAdsHook._authorize"
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'doubleclicksearch',
+            "doubleclicksearch",
             API_VERSION,
             http=mock_authorize.return_value,
-            cache_discovery=False
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.search_ads.GoogleSearchAdsHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "search_ads.GoogleSearchAdsHook.get_conn"
+    )
     def test_insert(self, get_conn_mock):
         report = {"report": "test"}
 
@@ -62,7 +68,10 @@ class TestSearchAdsHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.search_ads.GoogleSearchAdsHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "search_ads.GoogleSearchAdsHook.get_conn"
+    )
     def test_get(self, get_conn_mock):
         report_id = "REPORT_ID"
 
@@ -79,7 +88,10 @@ class TestSearchAdsHook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.search_ads.GoogleSearchAdsHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "search_ads.GoogleSearchAdsHook.get_conn"
+    )
     def test_get_file(self, get_conn_mock):
         report_fragment = 42
         report_id = "REPORT_ID"

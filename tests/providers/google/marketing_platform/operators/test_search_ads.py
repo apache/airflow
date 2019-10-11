@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.gcp.operators.search_ads import (
+from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
 )
 
@@ -27,10 +27,17 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestSearchAdsGenerateReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.search_ads.GoogleSearchAdsHook")
-    @mock.patch("airflow.gcp.operators.search_ads.BaseOperator")
     @mock.patch(
-        "airflow.gcp.operators.search_ads.GoogleSearchAdsInsertReportOperator.xcom_push"
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.GoogleSearchAdsHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.BaseOperator"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.GoogleSearchAdsInsertReportOperator.xcom_push"
     )
     def test_execute(self, xcom_mock, mock_base_op, hook_mock):
         report = {"report": "test"}
@@ -48,21 +55,36 @@ class TestSearchAdsGenerateReportOperator(TestCase):
 
 
 class TestSearchAdsGetfileReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.search_ads.NamedTemporaryFile")
-    @mock.patch("airflow.gcp.operators.search_ads.GoogleCloudStorageHook")
-    @mock.patch("airflow.gcp.operators.search_ads.GoogleSearchAdsHook")
-    @mock.patch("airflow.gcp.operators.search_ads.BaseOperator")
     @mock.patch(
-        "airflow.gcp.operators.search_ads.GoogleSearchAdsDownloadReportOperator.xcom_push"
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.NamedTemporaryFile"
     )
-    def test_execute(self, xcom_mock, mock_base_op, hook_mock, gcs_hook_mock, tempfile_mock):
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.GoogleCloudStorageHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.GoogleSearchAdsHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.BaseOperator"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform."
+        "operators.search_ads.GoogleSearchAdsDownloadReportOperator.xcom_push"
+    )
+    def test_execute(
+        self, xcom_mock, mock_base_op, hook_mock, gcs_hook_mock, tempfile_mock
+    ):
         report_id = "REPORT_ID"
         file_name = "TEST"
-        temp_file_name = 'TEMP'
+        temp_file_name = "TEMP"
         bucket_name = "test"
         data = b"data"
 
-        hook_mock.return_value.get.return_value = {'files': [0], 'isReportReady': True}
+        hook_mock.return_value.get.return_value = {"files": [0], "isReportReady": True}
         hook_mock.return_value.get_file.return_value = data
         tempfile_mock.return_value.__enter__.return_value.name = temp_file_name
 
@@ -80,7 +102,9 @@ class TestSearchAdsGetfileReportOperator(TestCase):
         hook_mock.return_value.get_file.assert_called_once_with(
             report_fragment=0, report_id=report_id
         )
-        tempfile_mock.return_value.__enter__.return_value.write.assert_called_once_with(data)
+        tempfile_mock.return_value.__enter__.return_value.write.assert_called_once_with(
+            data
+        )
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
             gzip=True,
