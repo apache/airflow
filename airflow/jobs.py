@@ -944,29 +944,6 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-
-            """
-             This is a hack to address a notorious issue with changing schedule intervals for already existing dags.
-             When the schedule interval is changed, airflow will create a new dag run for the previous period with the
-             new schedule interval. THIS IS NOT AN EXPECTED BEHAVIOR!!! Work arounds in the past have included changing
-             the dag name, but this is also unacceptable. Instead this hack will check if the schedule interval changed
-             and if it did, it will create a DUMMY dag run for the previous period with the new schedule interval. 
-             Unfortunately, a DUMMY dag run must be created since airflow's scheduler looks at the last period.
-            """
-            if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow():
-                self.log.info(f"[if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow()] START | last_run.schedule_interval={last_run.schedule_interval} dag.schedule_interval={dag.schedule_interval} next_run_date={next_run_date} period_end={period_end} timezone.utcnow()={timezone.utcnow()}")
-                previous_execution_period = dag.previous_schedule(dag.previous_schedule(timezone.utcnow()))
-                dag.create_dagrun(
-                    run_id=DagRun.ID_PREFIX + previous_execution_period.isoformat(),
-                    execution_date=previous_execution_period,
-                    start_date=dag.start_date,
-                    state=State.SUCCESS,
-                    external_trigger=False,
-                    schedule_interval=dag.schedule_interval
-                )
-                self.log.info(f"[if last_run.schedule_interval != dag.schedule_interval and next_run_date and period_end and period_end <= timezone.utcnow()] END | previous_execution_period={previous_execution_period}")
-                return
-
             if next_run_date and period_end and period_end <= timezone.utcnow():
                 self.log.info(f"[if next_run_date and period_end and period_end <= timezone.utcnow()] START | next_run_date={next_run_date} period_end={period_end} timezone.utcnow()={timezone.utcnow()}")
                 next_run = dag.create_dagrun(
