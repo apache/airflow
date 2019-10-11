@@ -24,7 +24,7 @@ created. ``schedule_interval`` is defined as a DAG arguments, and receives
 preferably a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
 a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
-use one of these cron "preset":
+use one of these cron "presets":
 
 +--------------+----------------------------------------------------------------+---------------+
 | preset       | meaning                                                        | cron          |
@@ -143,7 +143,8 @@ the errors after going through the logs, you can re-run the tasks by clearing it
 scheduled date. Clearing a task instance doesn't delete the task instance record. 
 Instead it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
 
-Select the failed task and click on **Clear**. This will clear the status of the task from 
+Click on the failed task in the Tree or Graph views and then click on **Clear**.
+``
 failed to ``None`` and the executor will re-run it.
 
 There are multiple options you can select to re-run - 
