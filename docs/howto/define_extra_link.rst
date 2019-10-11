@@ -36,15 +36,16 @@ The following code shows how to add extra links to an operator:
 
 
     class GoogleLink(BaseOperatorLink):
+        name = 'Google'
 
         def get_link(self, operator, dttm):
             return "https://www.google.com"
 
     class MyFirstOperator(BaseOperator):
 
-        operator_extra_link_dict = {
-            "Google": GoogleLink(),
-        }
+        operator_extra_links = (
+            GoogleLink(),
+        )
 
         @apply_defaults
         def __init__(self, *args, **kwargs):
