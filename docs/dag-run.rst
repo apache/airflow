@@ -175,17 +175,17 @@ into triggering tasks for that run.
 External Triggers
 '''''''''''''''''
 
-Note that ``DAG Runs`` can also be created manually through the CLI. Just run the command -
+Note that DAG Runs can also be created manually through the CLI. Just run the command -
 
 .. code:: bash
 
     airflow dags trigger -e execution_date run_id
 
-The ``DAG Runs`` created externally to the scheduler get associated to the trigger’s timestamp, and will be displayed 
-in the UI alongside scheduled ``DAG runs``. The execution date passed inside the DAG can be specified using -e argument 
+The DAG Runs created externally to the scheduler get associated to the trigger’s timestamp, and will be displayed 
+in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using -e argument 
 otherwise the current date in UTC timezone is used as default.
 
-In addition, you can also manually trigger a `DAG Run` using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 To Keep in Mind
 ''''''''''''''''
