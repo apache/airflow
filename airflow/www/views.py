@@ -2555,7 +2555,7 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)
 
-    base_permissions = ['can_list', 'can_show', 'can_edit']
+    base_permissions = ['can_list', 'can_show']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']
