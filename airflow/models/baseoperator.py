@@ -1061,6 +1061,14 @@ class BaseOperatorLink(metaclass=ABCMeta):
     Abstract base class that defines how we get an operator link.
     """
 
+    operators = None   # type: Optional[List[BaseOperator]]
+    """
+    This property will be used by Airflow Plugins to find the Operators to which you want
+    to assign this Operator Link
+
+    :return: List of Operator used by task for which you want to create extra link
+    """
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -1069,17 +1077,6 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
         :return: link name
         """
-
-    @property
-    def operators(self) -> Optional[List[BaseOperator]]:
-        """
-        This property will be used by Airflow Plugins to find the Operators to which you want
-        to assign this Operator Link
-
-        :return: Name of Operator used by task for which
-            you want to create extra link
-        """
-        return None
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, dttm: datetime) -> str:

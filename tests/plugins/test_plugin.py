@@ -27,7 +27,7 @@ from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from tests.utils.extra_link_operators import AirflowLink, AirflowLink2, GithubLink, GoogleLink
+from tests.plugins.extra_link_operators import AirflowLink, AirflowLink2, GithubLink, GoogleLink
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook

@@ -1712,7 +1712,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from tests.utils.extra_link_operators import (
+        from tests.plugins.extra_link_operators import (
             Dummy2TestOperator, Dummy3TestOperator)
         super().setUp()
         self.ENDPOINT = "extra_links"
@@ -1851,6 +1851,13 @@ class TestExtraLinks(TestBase):
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_operator_extra_link_override_plugin(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
+        is overriden by Airflow Plugin (AirflowLink2).
+
+        AirflowLink returns 'https://airflow.apache.org/' link
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        """
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
@@ -1869,6 +1876,14 @@ class TestExtraLinks(TestBase):
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_operator_extra_link_multiple_operators(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink2) defined in
+        Airflow Plugin (AirflowLink2) is attached to all the list of
+        operators defined in the AirflowLink2().operators property
+
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        GoogleLink returns 'https://www.google.com'
+        """
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
@@ -1899,6 +1914,7 @@ class TestExtraLinks(TestBase):
             'error': None
         })
 
+        # Also check that the other Operator Link defined for this operator exists
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=google".format(
                 self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
