@@ -27,6 +27,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from tests.utils.extra_link_operators import CustomBaseOperator, Dummy2TestOperator
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -103,7 +104,7 @@ class GithubLink(BaseOperatorLink):
 
 class GoogleLink(BaseOperatorLink):
     name = 'google'
-    operator_name = 'CustomBaseOperator'
+    operator = CustomBaseOperator
 
     def get_link(self, operator, dttm):
         return 'https://www.google.com'
@@ -111,7 +112,7 @@ class GoogleLink(BaseOperatorLink):
 
 class AirflowLink2(BaseOperatorLink):
     name = 'airflow'
-    operator_name = 'Dummy2TestOperator'
+    operator = Dummy2TestOperator
 
     def get_link(self, operator, dttm):
         return 'https://airflow.apache.org/1.10.5/'

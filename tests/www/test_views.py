@@ -1712,6 +1712,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
+        from tests.utils.extra_link_operators import Dummy2TestOperator
         super().setUp()
         self.ENDPOINT = "extra_links"
         self.DEFAULT_DATE = datetime(2017, 1, 1)
@@ -1747,12 +1748,6 @@ class TestExtraLinks(TestBase):
                 RaiseErrorLink(),
                 NoResponseLink(),
                 FooBarLink(),
-                AirflowLink(),
-            )
-
-        class Dummy2TestOperator(BaseOperator):
-
-            operator_extra_links = (
                 AirflowLink(),
             )
 

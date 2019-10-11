@@ -219,10 +219,10 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
-    # Only register Operator links if its ``operator_name`` property is not None
+    # Only register Operator links if its ``operator`` property is not None
     # So that we can only attach this links to a specific Operator
     operator_extra_links.extend([
-        ope for ope in p.operator_extra_links if ope.operator_name is not None])
+        ope for ope in p.operator_extra_links if ope.operator is not None])
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(

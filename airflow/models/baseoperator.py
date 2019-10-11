@@ -570,7 +570,7 @@ class BaseOperator(LoggingMixin):
 
         op_extra_links_from_plugin = {}
         for ope in operator_extra_links:
-            if ope.operator_name == self.__class__.__name__:
+            if ope.operator and ope.operator == self.__class__:
                 op_extra_links_from_plugin.update({ope.name: ope})
 
         operator_extra_links_all = {
@@ -1071,9 +1071,9 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
 
     @property
-    def operator_name(self) -> Optional[str]:
+    def operator(self) -> Optional[BaseOperator]:
         """
-        This property will be used by Airflow Plugins to find the class to which you want
+        This property will be used by Airflow Plugins to find the Operators to which you want
         to assign this Operator Link
 
         :return: Name of Operator used by task for which
