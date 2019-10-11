@@ -196,7 +196,6 @@
 ./airflow/operators/presto_check_operator.py
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py
-./airflow/operators/redshift_to_s3_operator.py
 ./airflow/operators/s3_file_transform_operator.py
 ./airflow/operators/s3_to_hive_operator.py
 ./airflow/operators/s3_to_redshift_operator.py
@@ -356,7 +355,6 @@
 ./tests/operators/test_operators.py
 ./tests/operators/test_papermill_operator.py
 ./tests/operators/test_python_operator.py
-./tests/operators/test_redshift_to_s3_operator.py
 ./tests/operators/test_s3_file_transform_operator.py
 ./tests/operators/test_s3_to_hive_operator.py
 ./tests/operators/test_s3_to_redshift_operator.py
