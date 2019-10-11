@@ -101,6 +101,22 @@ class GithubLink(BaseOperatorLink):
         return 'https://github.com/apache/airflow'
 
 
+class GoogleLink(BaseOperatorLink):
+    name = 'google'
+    operator_name = 'CustomBaseOperator'
+
+    def get_link(self, operator, dttm):
+        return 'https://www.google.com'
+
+
+class AirflowLink2(BaseOperatorLink):
+    name = 'airflow'
+    operator_name = 'Dummy2TestOperator'
+
+    def get_link(self, operator, dttm):
+        return 'https://airflow.apache.org/1.10.5/'
+
+
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -116,6 +132,9 @@ class AirflowTestPlugin(AirflowPlugin):
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),
+    ]
+    operator_extra_links = [
+        GoogleLink(), AirflowLink2()
     ]
 
 

@@ -566,7 +566,20 @@ class BaseOperator(LoggingMixin):
     @cached_property
     def operator_extra_link_dict(self):
         """Returns dictionary of all extra links for the operator"""
-        return {link.name: link for link in self.operator_extra_links}
+        from airflow.plugins_manager import operator_extra_links
+
+        op_extra_links_from_plugin = {}
+        for ope in operator_extra_links:
+            if ope.operator_name == self.__class__.__name__:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {
+            link.name: link for link in self.operator_extra_links
+        }
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
 
     @cached_property
     def global_operator_extra_link_dict(self):

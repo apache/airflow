@@ -1750,8 +1750,15 @@ class TestExtraLinks(TestBase):
                 AirflowLink(),
             )
 
+        class Dummy2TestOperator(BaseOperator):
+
+            operator_extra_links = (
+                AirflowLink(),
+            )
+
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
+        self.task_2 = Dummy2TestOperator(task_id="some_dummy_task_2", dag=self.dag)
 
     def tearDown(self):
         super().tearDown()
@@ -1844,6 +1851,24 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': None,
             'error': 'No URL found for no_response'})
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_operator_extra_link_override_plugin(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
 
 
 class TestDagRunModelView(TestBase):

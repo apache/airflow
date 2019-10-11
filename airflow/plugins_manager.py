@@ -57,7 +57,20 @@ class AirflowPlugin:
     # The function should have the following signature:
     # def func_name(stat_name: str) -> str:
     stat_name_handler = None  # type: Any
+
+    # A list of global operator extra links that can redirect users to
+    # external systems. These extra links will be available on the
+    # task page in the form of buttons.
+    #
+    # Note: the global operator extra link can be overridden at each
+    # operator level.
     global_operator_extra_links = []  # type: List[BaseOperatorLink]
+
+    # A list of operator extra links to override or add operator links
+    # to existing Airflow Operators.
+    # These extra links will be available on the task page in form of
+    # buttons.
+    operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod
     def validate(cls):
@@ -181,6 +194,7 @@ flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
 global_operator_extra_links = []  # type: List[Any]
+operator_extra_links = []  # type: List[Any]
 
 stat_name_handlers = []
 for p in plugins:
@@ -205,6 +219,10 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
+    # Only register Operator links if its ``operator_name`` property is not None
+    # So that we can only attach this links to a specific Operator
+    operator_extra_links.extend([
+        ope for ope in p.operator_extra_links if ope.operator_name is not None])
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(

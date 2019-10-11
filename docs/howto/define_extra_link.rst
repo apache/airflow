@@ -57,3 +57,70 @@ The following code shows how to add extra links to an operator:
 You can also add a global operator extra link that will be available to
 all the operators through airflow plugin. Learn more about it in the
 :ref:`plugin example <plugin-example>`.
+
+
+Add Operator Link to Existing Operator
+--------------------------------------
+
+You can also add (or override) an extra link to an existing operator
+through Airflow plugin.
+
+For example, the following Airflow plugin will add an Operator Link on all
+tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator` operator.
+
+**Adding Operator Links to Existing Operators**
+``plugins/extra_link.py``:
+
+.. code-block:: python
+
+  from airflow.plugins_manager import AirflowPlugin
+  from airflow.models.baseoperator import BaseOperatorLink
+
+  class S3LogLink(BaseOperatorLink):
+      name = 'S3'
+      operator_name = 'GoogleCloudStorageToS3Operator'
+
+      def get_link(self, operator, dttm):
+          return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+              dag_id=operator.dag_id,
+              task_id=operator.task_id,
+              execution_date=dttm,
+          )
+
+  # Defining the plugin class
+  class AirflowExtraLinkPlugin(AirflowPlugin):
+      name = "extra_link_plugin"
+      operator_extra_links = [S3LogLink(), ]
+
+
+
+**Overriding Operator Links of Existing Operators**:
+
+For :class:`~airflow.gcp.operators.bigquery.BigQueryOperator` you can create
+the following plugin to override the existing extra operator links:
+
+.. code-block:: python
+
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.models.baseoperator import BaseOperatorLink
+
+    # Change from https to http just to display the override
+    BIGQUERY_JOB_DETAILS_LINK_FMT = 'http://console.cloud.google.com/bigquery?j={job_id}'
+
+
+    class BigQueryConsoleLink(BaseOperatorLink):
+        """
+        Helper class for constructing BigQuery link.
+        """
+        name = 'BigQuery Console'
+        operator_name = 'BigQueryOperator'
+
+        def get_link(self, operator, dttm):
+            ti = TaskInstance(task=operator, execution_date=dttm)
+            job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+            return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+
+    # Defining the plugin class
+    class AirflowExtraLinkPlugin(AirflowPlugin):
+        name = "extra_link_plugin"
+        operator_extra_links = [BigQueryConsoleLink(), ]
