@@ -167,11 +167,6 @@ the mentioned interval. For more options, you can run the command:
 
     airflow tasks clear -h
 
-**Note**: When clearing a set of tasks’ state in hope of getting them to re-run, it is important 
-to keep in mind the DAG Run’s state too as it defines whether the scheduler should look
-into triggering tasks for that run.
-
-
 External Triggers
 '''''''''''''''''
 
