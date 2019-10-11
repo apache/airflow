@@ -42,7 +42,7 @@ class GceOperationStatus:
 
 
 # noinspection PyAbstractClass
-class GceHook(GoogleCloudBaseHook):
+class ComputeEngineHook(GoogleCloudBaseHook):
     """
     Hook for Google Compute Engine APIs.
 
