@@ -19,7 +19,7 @@ DAG Runs
 =========
 A DAG Run is an object representing an instantiation of the DAG in time.
 
-Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
+Each DAG may or may not have a schedule, which informs how DAG Runs are
 created. ``schedule_interval`` is defined as a DAG arguments, and receives
 preferably a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
@@ -46,15 +46,15 @@ use one of these cron "presets":
 +--------------+----------------------------------------------------------------+---------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding 
-``DAG Run`` entry in backend.
+DAG Run entry in backend.
 
 **Note**: If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01 
 will be triggered soon after 2020-01-01T23:59. In other words, the job instance is 
 started once the period it covers has ended.  The execution_date passed in the dag 
 will also be 2020-01-01.
 
-The first ``DAG Run`` is created based on the minimum ``start_date`` for the tasks in your DAG. 
-Subsequent ``DAG Runs`` are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
+The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 
+Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
 sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily the first run 
 will be created on 2020-01-02 i.e. after your start date has passed.
 
@@ -69,7 +69,7 @@ Catchup
 An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a 
 series of intervals which the scheduler turn into individual DAG Runs and execute. A key capability 
 of Airflow is that these DAG Runs are atomic and idempotent items. The scheduler, by default, will
-kick off a DAG Run for any interval that has not been run (or has been cleared). This concept is called Catchup.
+kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
 
 If your DAG is written to handle its own catchup (i.e. not limited to the interval, but instead to ``Now`` for instance.), 
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
