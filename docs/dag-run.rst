@@ -187,7 +187,7 @@ The DAG Runs created externally to the scheduler get associated to the trigge
 in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using -e argument 
 otherwise the current date in UTC timezone is used as default.
 
-In addition, you can also manually trigger a `DAG Run` using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 To Keep in Mind
 ''''''''''''''''
