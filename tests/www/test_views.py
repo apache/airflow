@@ -1712,7 +1712,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from tests.plugins.extra_link_operators import (
+        from tests.plugins.test_plugin import (
             Dummy2TestOperator, Dummy3TestOperator)
         super().setUp()
         self.ENDPOINT = "extra_links"
