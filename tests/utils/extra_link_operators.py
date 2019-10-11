@@ -18,7 +18,6 @@
 # under the License.
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.utils.decorators import apply_defaults
 
 
 class AirflowLink(BaseOperatorLink):
@@ -54,12 +53,16 @@ class GoogleLink(BaseOperatorLink):
         return 'https://www.google.com'
 
 
-class CustomBaseOperator(BaseOperator):
-    operator_extra_links = (GoogleLink(),)
+class AirflowLink2(BaseOperatorLink):
+    name = 'airflow'
+    operators = [Dummy2TestOperator, Dummy3TestOperator]
 
-    @apply_defaults
-    def __init__(self, *args, **kwargs):
-        super(CustomBaseOperator, self).__init__(*args, **kwargs)
+    def get_link(self, operator, dttm):
+        return 'https://airflow.apache.org/1.10.5/'
 
-    def execute(self, context):
-        self.log.info("Hello World!")
+
+class GithubLink(BaseOperatorLink):
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'

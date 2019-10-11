@@ -59,10 +59,10 @@ all the operators through airflow plugin. Learn more about it in the
 :ref:`plugin example <plugin-example>`.
 
 
-Add Operator Link to Existing Operator
---------------------------------------
+Add Operator Link to Existing Operators
+---------------------------------------
 
-You can also add (or override) an extra link to an existing operator
+You can also add (or override) an extra link to an existing operators
 through Airflow plugin.
 
 For example, the following Airflow plugin will add an Operator Link on all
@@ -75,10 +75,14 @@ tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator`
 
   from airflow.plugins_manager import AirflowPlugin
   from airflow.models.baseoperator import BaseOperatorLink
+  from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
 
   class S3LogLink(BaseOperatorLink):
       name = 'S3'
-      operator_name = 'GoogleCloudStorageToS3Operator'
+
+      # Add list of all the operators to which you want to add this OperatorLinks
+      # Example: operators = [GoogleCloudStorageToS3Operator, GoogleCloudStorageToBigQueryOperator]
+      operators = [GoogleCloudStorageToS3Operator]
 
       def get_link(self, operator, dttm):
           return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
@@ -103,6 +107,7 @@ the following plugin to override the existing extra operator links:
 
     from airflow.plugins_manager import AirflowPlugin
     from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.gcp.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override
     BIGQUERY_JOB_DETAILS_LINK_FMT = 'http://console.cloud.google.com/bigquery?j={job_id}'
@@ -113,7 +118,7 @@ the following plugin to override the existing extra operator links:
         Helper class for constructing BigQuery link.
         """
         name = 'BigQuery Console'
-        operator_name = 'BigQueryOperator'
+        operators = [BigQueryOperator]
 
         def get_link(self, operator, dttm):
             ti = TaskInstance(task=operator, execution_date=dttm)

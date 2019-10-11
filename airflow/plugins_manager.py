@@ -222,7 +222,7 @@ for p in plugins:
     # Only register Operator links if its ``operator`` property is not None
     # So that we can only attach this links to a specific Operator
     operator_extra_links.extend([
-        ope for ope in p.operator_extra_links if ope.operator is not None])
+        ope for ope in p.operator_extra_links if ope.operators is not None])
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
