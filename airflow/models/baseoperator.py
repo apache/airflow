@@ -1070,6 +1070,17 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :return: link name
         """
 
+    @property
+    def operator_name(self) -> Optional[str]:
+        """
+        This property will be used by Airflow Plugins to find the class to which you want
+        to assign this Operator Link
+
+        :return: Name of Operator used by task for which
+            you want to create extra link
+        """
+        return None
+
     @abstractmethod
     def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
         """
