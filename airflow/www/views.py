@@ -3200,7 +3200,7 @@ class ConfigurationView(wwwutils.SuperUserMixin, AirflowViewMixin, BaseView):
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')
-    column_editable_list = ('is_paused',)
+    column_editable_list = ('is_paused', 'description', 'default_view')
     form_excluded_columns = ('is_subdag', 'is_active')
     column_searchable_list = ('dag_id',)
     column_filters = (
@@ -3245,3 +3245,15 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
             .get_count_query()\
             .filter(models.DagModel.is_active)\
             .filter(~models.DagModel.is_subdag)
+
+    def edit_form(self, obj=None):
+        # Ensure that disabled fields aren't overwritten
+        form = super(DagModelView, self).edit_form(obj)
+
+        if not obj:
+            return obj
+
+        for fld in form:
+            if self.form_widget_args.get(fld.name, {}).get('disabled'):
+                fld.data = getattr(obj, fld.name)
+        return form
