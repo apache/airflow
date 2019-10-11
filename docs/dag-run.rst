@@ -89,7 +89,6 @@ in configuration file. When turned off, the scheduler creates a DAG run only for
     default_args = {
         'owner': 'Airflow',
         'depends_on_past': False,
-        'start_date': datetime(2015, 12, 1),
         'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
@@ -100,6 +99,7 @@ in configuration file. When turned off, the scheduler creates a DAG run only for
     dag = DAG(
         'tutorial',
         default_args=default_args,
+        start_date=datetime(2015, 12, 1),
         description='A simple tutorial DAG',
         schedule_interval='@daily',
         catchup=False)
