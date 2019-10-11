@@ -39,6 +39,7 @@ from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
+data = {'called': False}
 
 class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
@@ -243,3 +244,44 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertEqual(ti.state, State.RUNNING)
 
         session.close()
+
+    def test_mark_failure_on_failure_callback(self):
+        """
+        Test that ensures that mark_failure in the UI fails
+        the task, and executes on_failure_callback
+        """
+        dagbag = models.DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get('test_mark_failure')
+        task = dag.get_task('task1')
+
+        session = settings.Session()
+
+        dag.clear()
+        dag.create_dagrun(run_id="test",
+                          state=State.RUNNING,
+                          execution_date=DEFAULT_DATE,
+                          start_date=DEFAULT_DATE,
+                          session=session)
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        process = multiprocessing.Process(target=job1.run)
+        process.start()
+        ti.refresh_from_db()
+        for _ in range(0, 50):
+            if ti.state == State.RUNNING:
+                break
+            time.sleep(0.1)
+            ti.refresh_from_db()
+        self.assertEqual(State.RUNNING, ti.state)
+        ti.state = State.FAILED
+        session.merge(ti)
+        session.commit()
+
+        job1.heartbeat_callback()
+        process.join(timeout=10)
+        self.assertFalse(process.is_alive())
+        self.assertTrue(data['called'])
