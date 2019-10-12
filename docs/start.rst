@@ -45,7 +45,9 @@ The installation is quick and straightforward.
     airflow scheduler
 
     # visit localhost:8080 in the browser and use the admin account you just
-    # created to login. Enable the example dag in the home page
+    # created to login. Enable one of the example dags in the home page.
+    # example_bash_operator might be the most straightforward. Visit the page
+    # of the DAG you activated to monitor the status of its runs.
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
@@ -61,9 +63,7 @@ only run task instances sequentially. While this is very limiting, it allows
 you to get up and running quickly and take a tour of the UI and the
 command line utilities.
 
-Here are a few commands that will trigger a few task instances. You should
-be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
-run the commands below.
+Here are a few commands that will trigger a few task instances.
 
 .. code-block:: bash
 
@@ -71,6 +71,15 @@ run the commands below.
     airflow tasks run example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow dags backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
+
+On running these commands, stdout should inform you of the status of the
+task instances and DAG runs triggered.
+
+You can also monitor the states of these from the web UI. After running
+the ``airflow tasks run`` command, you can visit localhost:8080 and go to
+``Browse->Task Instances`` to see the status of the task instance created.
+After running the ``airflow dags backfill`` command, you can go to the page of
+the ``example_bash_operator`` DAG, to see the status of the DAG runs created.
 
 What's Next?
 ''''''''''''
