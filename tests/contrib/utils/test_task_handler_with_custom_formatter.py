@@ -20,12 +20,12 @@
 import logging
 import unittest
 
-from airflow.models import TaskInstance, DAG
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.configuration import conf
+from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.timezone import datetime
 from airflow.utils.log.logging_mixin import set_context
-from airflow import configuration as conf
+from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -37,7 +37,7 @@ PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 
 class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
     def setUp(self):
-        super(TestTaskHandlerWithCustomFormatter, self).setUp()
+        super().setUp()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
             'class': TASK_HANDLER_CLASS,
             'formatter': 'airflow',

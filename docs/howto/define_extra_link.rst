@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 
 Define an operator extra link
@@ -34,15 +36,16 @@ The following code shows how to add extra links to an operator:
 
 
     class GoogleLink(BaseOperatorLink):
+        name = 'Google'
 
         def get_link(self, operator, dttm):
             return "https://www.google.com"
 
     class MyFirstOperator(BaseOperator):
 
-        operator_extra_link_dict = {
-            "Google": GoogleLink(),
-        }
+        operator_extra_links = (
+            GoogleLink(),
+        )
 
         @apply_defaults
         def __init__(self, *args, **kwargs):
@@ -54,4 +57,3 @@ The following code shows how to add extra links to an operator:
 You can also add a global operator extra link that will be available to
 all the operators through airflow plugin. Learn more about it in the
 :ref:`plugin example <plugin-example>`.
-

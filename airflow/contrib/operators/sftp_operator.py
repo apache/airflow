@@ -172,7 +172,7 @@ def _make_intermediate_dirs(sftp_client, remote_directory):
         return
     try:
         sftp_client.chdir(remote_directory)
-    except IOError:
+    except OSError:
         dirname, basename = os.path.split(remote_directory.rstrip('/'))
         _make_intermediate_dirs(sftp_client, dirname)
         sftp_client.mkdir(basename)

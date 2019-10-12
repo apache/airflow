@@ -16,30 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from six import StringIO
+import contextlib
+import io
+import os
+import subprocess
 import sys
 import unittest
-from unittest.mock import patch, Mock, MagicMock
-
-from datetime import datetime, timedelta, time
+from argparse import Namespace
+from datetime import datetime, time, timedelta
 from time import sleep
+from unittest.mock import MagicMock, Mock, patch
+
 import psutil
 import pytz
-import subprocess
-from argparse import Namespace
-from airflow import settings
+
 import airflow.bin.cli as cli
-from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow import models, settings
+from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
 from airflow.models import TaskInstance
+from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.settings import Session
-from airflow import models
 from tests.compat import mock
-
-import os
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
@@ -57,7 +55,7 @@ def reset(dag_id):
     session.close()
 
 
-def create_mock_args(
+def create_mock_args(  # pylint: disable=too-many-arguments
     task_id,
     dag_id,
     subdir,
@@ -160,15 +158,15 @@ class TestCLI(unittest.TestCase):
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
-        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
         sleep(3)  # wait for webserver to start
-        return_code = p.poll()
+        return_code = proc.poll()
         self.assertEqual(
             None,
             return_code,
             "webserver terminated with return code {} in debug mode".format(return_code))
-        p.terminate()
-        p.wait()
+        proc.terminate()
+        proc.wait()
 
     def test_local_run(self):
         args = create_mock_args(
@@ -201,12 +199,11 @@ class TestCLI(unittest.TestCase):
 
         saved_stdout = sys.stdout
         try:
-            sys.stdout = out = StringIO()
+            sys.stdout = out = io.StringIO()
             cli.test(args)
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
-            self.assertIn('END_DATE', output)
             self.assertIn("'example_python_operator__print_the_context__20180101'", output)
         finally:
             sys.stdout = saved_stdout
@@ -239,18 +236,18 @@ class TestCLI(unittest.TestCase):
                            "None",
                            "None"]
 
-        for i in range(len(dag_ids)):
+        for i in range(len(dag_ids)):  # pylint: disable=consider-using-enumerate
             dag_id = dag_ids[i]
 
             # Clear dag run so no execution history fo each DAG
             reset_dr_db(dag_id)
 
-            p = subprocess.Popen(["airflow", "next_execution", dag_id,
-                                  "--subdir", self.EXAMPLE_DAGS_FOLDER],
-                                 stdout=subprocess.PIPE)
-            p.wait()
+            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+                                    "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                    stdout=subprocess.PIPE)
+            proc.wait()
             stdout = []
-            for line in p.stdout:
+            for line in proc.stdout:
                 stdout.append(str(line.decode("utf-8").rstrip()))
 
             # `next_execution` function is inapplicable if no execution record found
@@ -266,12 +263,12 @@ class TestCLI(unittest.TestCase):
                 state=State.FAILED
             )
 
-            p = subprocess.Popen(["airflow", "next_execution", dag_id,
-                                  "--subdir", self.EXAMPLE_DAGS_FOLDER],
-                                 stdout=subprocess.PIPE)
-            p.wait()
+            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+                                    "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                    stdout=subprocess.PIPE)
+            proc.wait()
             stdout = []
-            for line in p.stdout:
+            for line in proc.stdout:
                 stdout.append(str(line.decode("utf-8").rstrip()))
             self.assertEqual(stdout[-1], expected_output[i])
 
@@ -280,10 +277,10 @@ class TestCLI(unittest.TestCase):
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
         cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator',
+            'dags', 'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -301,9 +298,9 @@ class TestCLI(unittest.TestCase):
         mock_run.reset_mock()
         dag = self.dagbag.get_dag('example_bash_operator')
 
-        with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.backfill(self.parser.parse_args([
-                'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
+                'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_stdout.seek(0, 0)
@@ -318,16 +315,16 @@ class TestCLI(unittest.TestCase):
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator', '--dry_run',
+            'dags', 'backfill', 'example_bash_operator', '--dry_run',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         cli.backfill(self.parser.parse_args([
-            'backfill', 'example_bash_operator', '-l',
+            'dags', 'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -344,6 +341,45 @@ class TestCLI(unittest.TestCase):
         )
         mock_run.reset_mock()
 
+    def test_show_dag_print(self):
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator']))
+        out = temp_stdout.getvalue()
+        self.assertIn("label=example_bash_operator", out)
+        self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
+        self.assertIn("runme_2 -> run_after_loop", out)
+
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_dave(self, mock_render_dag):
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator', '--save', 'awesome.png']
+            ))
+        out = temp_stdout.getvalue()
+        mock_render_dag.return_value.render.assert_called_once_with(
+            cleanup=True, filename='awesome', format='png'
+        )
+        self.assertIn("File awesome.png saved", out)
+
+    @mock.patch("airflow.bin.cli.subprocess.Popen")
+    @mock.patch("airflow.bin.cli.render_dag")
+    def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
+        mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
+        mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
+        temp_stdout = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout):
+            cli.show_dag(self.parser.parse_args([
+                'dags', 'show', 'example_bash_operator', '--imgcat']
+            ))
+        out = temp_stdout.getvalue()
+        mock_render_dag.return_value.pipe.assert_called_once_with(format='png')
+        mock_popen.return_value.communicate.assert_called_once_with(b'DOT_DATA')
+        self.assertIn("OUT", out)
+        self.assertIn("ERR", out)
+
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_cli_backfill_depends_on_past(self, mock_run):
         """
@@ -355,6 +391,7 @@ class TestCLI(unittest.TestCase):
         dag_id = 'test_dagrun_states_deadlock'
         run_date = DEFAULT_DATE + timedelta(days=1)
         args = [
+            'dags',
             'backfill',
             dag_id,
             '-l',
@@ -366,7 +403,7 @@ class TestCLI(unittest.TestCase):
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
 
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=run_date,
             end_date=run_date,
             conf=None,
@@ -391,6 +428,7 @@ class TestCLI(unittest.TestCase):
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
         args = [
+            'dags',
             'backfill',
             dag_id,
             '-l',
@@ -404,7 +442,7 @@ class TestCLI(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
-        mock_run.assert_called_with(
+        mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,
             conf=None,
@@ -425,21 +463,22 @@ class TestCLI(unittest.TestCase):
         """
         Test that we can run naive (non-localized) task instances
         """
-        NAIVE_DATE = datetime(2016, 1, 1)
+        naive_date = datetime(2016, 1, 1)
         dag_id = 'test_run_ignores_all_dependencies'
 
         dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
 
         task0_id = 'test_run_dependent_task'
-        args0 = ['run',
+        args0 = ['tasks',
+                 'run',
                  '-A',
                  '--local',
                  dag_id,
                  task0_id,
-                 NAIVE_DATE.isoformat()]
+                 naive_date.isoformat()]
 
         cli.run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_with(
+        mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,

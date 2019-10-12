@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-
-from cached_property import cached_property
 from urllib.parse import urlparse
 
-from airflow import configuration
+from cached_property import cached_property
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -44,9 +44,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+            from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )

@@ -18,6 +18,7 @@
 # under the License.
 
 import re
+from typing import Optional
 
 from airflow.hooks.pig_hook import PigCliHook
 from airflow.models import BaseOperator
@@ -48,11 +49,12 @@ class PigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, pig,
-            pig_cli_conn_id='pig_cli_default',
-            pigparams_jinja_translate=False,
-            pig_opts=None,
-            *args, **kwargs):
+            self,
+            pig: str,
+            pig_cli_conn_id: str = 'pig_cli_default',
+            pigparams_jinja_translate: bool = False,
+            pig_opts: Optional[str] = None,
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate

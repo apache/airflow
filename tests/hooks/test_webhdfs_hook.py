@@ -18,11 +18,11 @@
 # under the License.
 
 import unittest
+from unittest.mock import call, patch
 
 from hdfs import HdfsError
-from unittest.mock import patch, call
 
-from airflow.hooks.webhdfs_hook import WebHDFSHook, AirflowWebHDFSHookException
+from airflow.hooks.webhdfs_hook import AirflowWebHDFSHookException, WebHDFSHook
 from airflow.models.connection import Connection
 
 

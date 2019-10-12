@@ -19,15 +19,14 @@
 #
 
 import unittest
-from airflow.utils.timezone import datetime
 
 from airflow import settings
-from airflow.models import Connection, DAG
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils import db
-
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.contrib.operators.qubole_operator import QuboleOperator
+from airflow.models import DAG, Connection
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils import db
+from airflow.utils.timezone import datetime
 
 DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"
@@ -37,7 +36,7 @@ TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class QuboleOperatorTest(unittest.TestCase):
+class TestQuboleOperator(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
@@ -58,16 +57,12 @@ class QuboleOperatorTest(unittest.TestCase):
         self.assertEqual(op.qubole_conn_id, DEFAULT_CONN)
 
     def test_init_with_template_connection(self):
-        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+        with DAG(DAG_ID, start_date=DEFAULT_DATE):
+            task = QuboleOperator(task_id=TASK_ID, qubole_conn_id="{{ qubole_conn_id }}")
 
-        with dag:
-            task = QuboleOperator(task_id=TASK_ID, dag=dag,
-                                  qubole_conn_id="{{ dag_run.conf['qubole_conn_id'] }}")
-
-        result = task.render_template('qubole_conn_id', "{{ qubole_conn_id }}",
-                                      {'qubole_conn_id': TEMPLATE_CONN})
+        task.render_template_fields({'qubole_conn_id': TEMPLATE_CONN})
         self.assertEqual(task.task_id, TASK_ID)
-        self.assertEqual(result, TEMPLATE_CONN)
+        self.assertEqual(task.qubole_conn_id, TEMPLATE_CONN)
 
     def test_init_with_template_cluster_label(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)

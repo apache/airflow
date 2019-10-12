@@ -18,16 +18,16 @@
 # under the License.
 
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
-from airflow.models import DAG
 from airflow.exceptions import AirflowException
+from airflow.models import DAG
 from airflow.operators.druid_check_operator import DruidCheckOperator
 from tests.compat import mock
 
 
-class DruidCheckOperatorTest(unittest.TestCase):
+class TestDruidCheckOperator(unittest.TestCase):
 
     def setUp(self):
         self.task_id = 'test_task'

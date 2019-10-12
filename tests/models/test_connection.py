@@ -18,70 +18,67 @@
 # under the License.
 
 import unittest
-from unittest.mock import patch
 from collections import namedtuple
 
 from cryptography.fernet import Fernet
 from parameterized import parameterized
 
 from airflow.models import Connection, crypto
+from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
 
 
-class ConnectionTest(unittest.TestCase):
+class TestConnection(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
 
     def tearDown(self):
         crypto._fernet = None
 
-    @patch('airflow.configuration.conf.get')
-    def test_connection_extra_no_encryption(self, mock_get):
+    @conf_vars({('core', 'fernet_key'): ''})
+    def test_connection_extra_no_encryption(self):
         """
         Tests extras on a new connection without encryption. The fernet key
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
-        mock_get.return_value = ''
         test_connection = Connection(extra='testextra')
         self.assertFalse(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch('airflow.configuration.conf.get')
-    def test_connection_extra_with_encryption(self, mock_get):
+    @conf_vars({('core', 'fernet_key'): Fernet.generate_key().decode()})
+    def test_connection_extra_with_encryption(self):
         """
         Tests extras on a new connection with encryption.
         """
-        mock_get.return_value = Fernet.generate_key().decode()
         test_connection = Connection(extra='testextra')
         self.assertTrue(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch('airflow.configuration.conf.get')
-    def test_connection_extra_with_encryption_rotate_fernet_key(self, mock_get):
+    def test_connection_extra_with_encryption_rotate_fernet_key(self):
         """
         Tests rotating encrypted extras.
         """
         key1 = Fernet.generate_key()
         key2 = Fernet.generate_key()
 
-        mock_get.return_value = key1.decode()
-        test_connection = Connection(extra='testextra')
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-        self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
+        with conf_vars({('core', 'fernet_key'): key1.decode()}):
+            test_connection = Connection(extra='testextra')
+            self.assertTrue(test_connection.is_extra_encrypted)
+            self.assertEqual(test_connection.extra, 'testextra')
+            self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
 
         # Test decrypt of old value with new key
-        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
-        crypto._fernet = None
-        self.assertEqual(test_connection.extra, 'testextra')
+        with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
+            crypto._fernet = None
+            self.assertEqual(test_connection.extra, 'testextra')
 
-        # Test decrypt of new value with new key
-        test_connection.rotate_fernet_key()
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-        self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
+            # Test decrypt of new value with new key
+            test_connection.rotate_fernet_key()
+            self.assertTrue(test_connection.is_extra_encrypted)
+            self.assertEqual(test_connection.extra, 'testextra')
+            self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
 
     def test_connection_from_uri_without_extras(self):
         uri = 'scheme://user:password@host%2flocation:1234/schema'
@@ -106,6 +103,19 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
                                                        'extra2': '/path/'})
+
+    def test_connection_from_uri_with_empty_extras(self):
+        uri = 'scheme://user:password@host%2flocation:1234/schema?' \
+              'extra1=a%20value&extra2='
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': ''})
 
     def test_connection_from_uri_with_colon_in_hostname(self):
         uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \

@@ -1,20 +1,22 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAGs{% endblock %}
@@ -36,7 +38,7 @@
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
               <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
             </div>
         </form>
       </div>
@@ -196,9 +198,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -218,8 +220,9 @@
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
-          search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          var query = new URLSearchParams(window.location.search);
+          query.set("search", e.target.value.trim())
+          window.location = DAGS_INDEX + "?" + query.toString();
           e.preventDefault();
         }
       });
@@ -262,10 +265,8 @@
 
       var $input = $(".typeahead");
       unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
+      ]);
 
       $input.typeahead({
         source: [...unique_options_search],
@@ -273,14 +274,15 @@
         afterSelect: function(value) {
           search_query = value.trim()
           if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+            var query = new URLSearchParams(window.location.search);
+            query.set("search", search_query)
+            window.location = DAGS_INDEX + "?" + query;
           }
         }
       });
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
 
       $('#dags').dataTable({
@@ -442,7 +444,7 @@
               })
               .attr('fill-opacity', 0)
               .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
+              .attr('title', function(d) {return d.state || 'none'})
               .attr('style', function(d) {
                 if (d.count > 0)
                     return"cursor:pointer;"

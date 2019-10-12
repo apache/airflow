@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow.contrib.operators.vertica_operator import VerticaOperator
 
 
-class VerticaOperatorTest(unittest.TestCase):
+class TestVerticaOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.vertica_operator.VerticaHook')
     def test_execute(self, mock_hook):

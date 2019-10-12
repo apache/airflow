@@ -18,12 +18,13 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.email import get_email_address_list
 
 EMAILS = ['test1@example.com', 'test2@example.com']
 
 
-class EmailTest(unittest.TestCase):
+class TestEmail(unittest.TestCase):
 
     def test_get_email_address_comma_sep_string(self):
         emails_string = 'test1@example.com, test2@example.com'

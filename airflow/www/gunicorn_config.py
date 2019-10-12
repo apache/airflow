@@ -19,6 +19,7 @@
 # under the License.
 
 import setproctitle
+
 from airflow import settings
 
 

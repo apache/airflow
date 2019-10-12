@@ -37,8 +37,8 @@ This example illustrates the following features :
 """
 
 import pprint
-from datetime import datetime
 
+import airflow
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -46,8 +46,8 @@ from airflow.operators.python_operator import PythonOperator
 pp = pprint.PrettyPrinter(indent=4)
 
 args = {
-    'start_date': datetime.utcnow(),
-    'owner': 'airflow',
+    'start_date': airflow.utils.dates.days_ago(2),
+    'owner': 'Airflow',
 }
 
 dag = DAG(
@@ -69,7 +69,6 @@ def run_this_func(**kwargs):
 
 run_this = PythonOperator(
     task_id='run_this',
-    provide_context=True,
     python_callable=run_this_func,
     dag=dag,
 )

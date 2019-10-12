@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
+
 import MySQLdb
 import MySQLdb.cursors
-import json
-import six
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -106,7 +106,7 @@ class MySqlHook(DbApiHook):
             # of extra/dejson we can get string if extra is passed via
             # URL parameters
             dejson_ssl = conn.extra_dejson['ssl']
-            if isinstance(dejson_ssl, six.string_types):
+            if isinstance(dejson_ssl, str):
                 dejson_ssl = json.loads(dejson_ssl)
             conn_config['ssl'] = dejson_ssl
         if conn.extra_dejson.get('unix_socket'):

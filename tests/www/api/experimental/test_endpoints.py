@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
 import json
 import unittest
+from datetime import timedelta
 from urllib.parse import quote_plus
-
 
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
-from airflow.utils.timezone import datetime, utcnow, parse as parse_datetime
+from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
 
@@ -48,7 +47,7 @@ class TestApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestApiExperimental, cls).setUpClass()
+        super().setUpClass()
         session = Session()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
@@ -292,7 +291,7 @@ class TestPoolApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestPoolApiExperimental, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()

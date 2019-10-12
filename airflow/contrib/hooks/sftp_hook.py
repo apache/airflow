@@ -17,9 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import stat
-import pysftp
 import datetime
+import stat
+
+import pysftp
+
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
 
@@ -160,7 +162,7 @@ class SFTPHook(SSHHook):
         :param mode: int representation of octal mode for directory
         """
         conn = self.get_conn()
-        conn.mkdir(path, mode)
+        conn.makedirs(path, mode)
 
     def delete_directory(self, path):
         """

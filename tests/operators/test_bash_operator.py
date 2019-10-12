@@ -32,7 +32,7 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class BashOperatorTest(unittest.TestCase):
+class TestBashOperator(unittest.TestCase):
 
     def test_echo_env_variables(self):
         """
@@ -80,7 +80,7 @@ class BashOperatorTest(unittest.TestCase):
             with open(tmp_file.name, 'r') as file:
                 output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
-                # exported in run_unit_tests.sh as part of PYTHONPATH
+                # exported in run-tests as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
@@ -98,3 +98,22 @@ class BashOperatorTest(unittest.TestCase):
         return_value = bash_operator.execute(context={})
 
         self.assertEqual(return_value, 'stdout')
+
+    def test_task_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_task_retries',
+            retries=2,
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 2)
+
+    def test_default_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_default_retries',
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 0)

@@ -16,16 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-import six
+import io
 import unittest
-from unittest.mock import patch, call
 from itertools import dropwhile
+from unittest.mock import call, patch
 
+from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 
 
 def get_after(sentinel, iterable):
@@ -82,8 +81,8 @@ class TestSparkSqlHook(unittest.TestCase):
     @patch('airflow.contrib.hooks.spark_sql_hook.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = six.StringIO('Spark-sql communicates using stdout')
-        mock_popen.return_value.stderr = six.StringIO('stderr')
+        mock_popen.return_value.stdout = io.StringIO('Spark-sql communicates using stdout')
+        mock_popen.return_value.stderr = io.StringIO('stderr')
         mock_popen.return_value.wait.return_value = 0
 
         # When
@@ -94,12 +93,12 @@ class TestSparkSqlHook(unittest.TestCase):
         with patch.object(hook.log, 'debug') as mock_debug:
             with patch.object(hook.log, 'info') as mock_info:
                 hook.run_query()
-                mock_debug.assert_called_with(
+                mock_debug.assert_called_once_with(
                     'Spark-Sql cmd: %s',
                     ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
                      '--queue', 'default']
                 )
-                mock_info.assert_called_with(
+                mock_info.assert_called_once_with(
                     'Spark-sql communicates using stdout'
                 )
 

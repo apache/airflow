@@ -24,9 +24,8 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
-    'provide_context': True,
 }
 
 dag = DAG('example_xcom', schedule_interval="@once", default_args=args)
@@ -40,7 +39,7 @@ def push(**kwargs):
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
 
-def push_by_returning():
+def push_by_returning(**kwargs):
     """Pushes an XCom without a specific target, just by returning it"""
     return value_2
 

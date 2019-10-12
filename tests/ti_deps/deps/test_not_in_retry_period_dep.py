@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock
 from datetime import timedelta
+from unittest.mock import Mock
+
 from freezegun import freeze_time
 
 from airflow.models import TaskInstance
@@ -28,7 +29,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-class NotInRetryPeriodDepTest(unittest.TestCase):
+class TestNotInRetryPeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state, end_date=None,
                            retry_delay=timedelta(minutes=15)):

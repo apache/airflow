@@ -19,9 +19,7 @@
 #
 
 import unittest
-
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from airflow import DAG
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
@@ -81,7 +79,7 @@ class TestJiraSensor(unittest.TestCase):
         self.assertTrue(jira_mock.return_value.issue.called)
 
     @staticmethod
-    def field_checker_func(context, issue):
+    def field_checker_func(context, issue):  # pylint: disable=unused-argument
         return "test-label-1" in issue['fields']['labels']
 
 

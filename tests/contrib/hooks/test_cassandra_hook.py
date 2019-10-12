@@ -19,17 +19,18 @@
 
 import unittest
 
-from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from cassandra.cluster import Cluster
 from cassandra.policies import (
-    TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
+    DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
 )
+
+from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock, patch
 
 
-class CassandraHookTest(unittest.TestCase):
+class TestCassandraHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(

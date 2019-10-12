@@ -22,13 +22,11 @@ This module contains Databricks operators.
 """
 
 import time
-import six
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -44,9 +42,9 @@ def _deep_string_coerce(content, json_path='json'):
     for numerical values.
     """
     coerce = _deep_string_coerce
-    if isinstance(content, six.string_types):
+    if isinstance(content, str):
         return content
-    elif isinstance(content, six.integer_types + (float,)):
+    elif isinstance(content, (int, float,)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
@@ -205,7 +203,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_conn_id: The name of the Airflow connection to use.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection.
+        connection and create the key ``host`` and leave the ``host`` field empty.
     :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
@@ -414,7 +412,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param databricks_conn_id: The name of the Airflow connection to use.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection.
+        connection and create the key ``host`` and leave the ``host`` field empty.
     :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.

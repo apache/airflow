@@ -26,10 +26,10 @@ import shutil
 import sys
 import tempfile
 import unittest
-from unittest import mock
 import urllib
-from urllib.parse import quote_plus
 from datetime import timedelta
+from unittest import mock
+from urllib.parse import quote_plus
 
 import jinja2
 from flask import Markup, url_for
@@ -37,11 +37,11 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.configuration import conf
 from airflow.jobs import BaseJob
-from airflow.models import BaseOperator, Connection, DAG, DagRun, TaskInstance
+from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
@@ -50,6 +50,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
 
 
 class TestBase(unittest.TestCase):
@@ -316,7 +317,7 @@ class TestAirflowBaseViews(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestAirflowBaseViews, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -625,8 +626,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "False")
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'False'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
                                       'most likely for security reasons.'], resp)
@@ -634,8 +635,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_expose_config(self):
         self.logout()
         self.login()
-        conf.set("webserver", "expose_config", "True")
-        resp = self.client.get('configuration', follow_redirects=True)
+        with conf_vars({('webserver', 'expose_config'): 'True'}):
+            resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
 
@@ -1005,7 +1006,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGraphView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1019,7 +1020,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGraphView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1044,7 +1045,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestGanttView, cls).setUpClass()
+        super().setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1058,7 +1059,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestGanttView, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1085,7 +1086,7 @@ class TestDagACLView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestDagACLView, cls).setUpClass()
+        super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -1256,7 +1257,7 @@ class TestDagACLView(TestBase):
         self.login(username='test',
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        perms = set([str(perm) for perm in test_role.permissions])
+        perms = {str(perm) for perm in test_role.permissions}
         self.assertIn('can dag edit on example_bash_operator', perms)
         self.assertNotIn('can dag read on example_bash_operator', perms)
 
@@ -1701,7 +1702,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
     def test_trigger_dag_button(self):
 
@@ -1857,7 +1858,7 @@ class TestExtraLinks(TestBase):
 class TestDagRunModelView(TestBase):
     @classmethod
     def setUpClass(cls):
-        super(TestDagRunModelView, cls).setUpClass()
+        super().setUpClass()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 
@@ -1879,6 +1880,101 @@ class TestDagRunModelView(TestBase):
         dr = self.session.query(models.DagRun).one()
 
         self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
+
+
+class TestDecorators(TestBase):
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+    def setUp(self):
+        super().setUp()
+        self.logout()
+        self.login()
+        self.cleanup_dagruns()
+        self.prepare_dagruns()
+
+    def cleanup_dagruns(self):
+        DR = models.DagRun
+        dag_ids = ['example_bash_operator',
+                   'example_subdag_operator',
+                   'example_xcom']
+        (self.session
+             .query(DR)
+             .filter(DR.dag_id.in_(dag_ids))
+             .filter(DR.run_id == self.run_id)
+             .delete(synchronize_session='fetch'))
+        self.session.commit()
+
+    def prepare_dagruns(self):
+        dagbag = models.DagBag(include_examples=True)
+        self.bash_dag = dagbag.dags['example_bash_operator']
+        self.sub_dag = dagbag.dags['example_subdag_operator']
+        self.xcom_dag = dagbag.dags['example_xcom']
+
+        self.bash_dagrun = self.bash_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        self.sub_dagrun = self.sub_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        self.xcom_dagrun = self.xcom_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+    def check_last_log(self, dag_id, event, execution_date=None):
+        from airflow.models import Log
+        qry = self.session.query(Log.dag_id, Log.task_id, Log.event, Log.execution_date,
+                                 Log.owner, Log.extra)
+        qry = qry.filter(Log.dag_id == dag_id, Log.event == event)
+        if execution_date:
+            qry = qry.filter(Log.execution_date == execution_date)
+        logs = qry.order_by(Log.dttm.desc()).limit(5).all()
+        self.assertGreaterEqual(len(logs), 1)
+        self.assertTrue(logs[0].extra)
+
+    def test_action_logging_get(self):
+        url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
+            self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('runme_1', resp)
+
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="graph",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+    def test_action_logging_post(self):
+        form = dict(
+            task_id="runme_1",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            only_failed="false",
+        )
+        resp = self.client.post("clear", data=form)
+        self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="clear",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
 
 
 if __name__ == '__main__':

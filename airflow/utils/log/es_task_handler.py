@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
-import elasticsearch
 import logging
 import sys
+
+# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
+import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
+from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -53,8 +55,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
-                 write_stdout, json_format, record_labels,
-                 host='localhost:9200'):
+                 write_stdout, json_format, json_fields,
+                 host='localhost:9200',
+                 es_kwargs=conf.getsection("elasticsearch_configs") or {}):
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
@@ -67,13 +70,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_id_template, self.log_id_jinja_template = \
             parse_template_string(log_id_template)
 
-        self.client = elasticsearch.Elasticsearch([host])
+        self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
         self.write_stdout = write_stdout
         self.json_format = json_format
-        self.record_labels = [label.strip() for label in record_labels.split(",")]
+        self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.handler = None
 
     def _render_log_id(self, ti, try_number):
@@ -99,7 +102,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
         :param execution_date: execution date of the dag run.
         """
-        return execution_date.strftime("%Y_%m_%dT%H_%I_%S_%f")
+        return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
     def _read(self, ti, try_number, metadata=None):
         """
@@ -209,7 +212,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             else:
                 self.handler.setFormatter(self.formatter)
         else:
-            super(ElasticsearchTaskHandler, self).set_context(ti)
+            super().set_context(ti)
 
     def emit(self, record):
         if self.write_stdout:
@@ -217,7 +220,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             if self.handler is not None:
                 self.handler.emit(record)
         else:
-            super(ElasticsearchTaskHandler, self).emit(record)
+            super().emit(record)
 
     def flush(self):
         if self.handler is not None:
@@ -247,10 +250,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
+        self.handler.stream.write(self.end_of_log_mark)
 
         if self.write_stdout:
-            self.writer.close()
             self.handler.close()
             sys.stdout = sys.__stdout__
 

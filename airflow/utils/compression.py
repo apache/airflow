@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-import shutil
-import gzip
 import bz2
+import gzip
+import shutil
+from tempfile import NamedTemporaryFile
 
 
 def uncompress_file(input_file_name, file_extension, dest_dir):

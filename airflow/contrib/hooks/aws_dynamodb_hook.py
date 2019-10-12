@@ -17,8 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+
+"""
+This module contains AWS Athena hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
 
 
 class AwsDynamoDBHook(AwsHook):
@@ -41,6 +45,7 @@ class AwsDynamoDBHook(AwsHook):
         self.table_keys = table_keys
         self.table_name = table_name
         self.region_name = region_name
+        self.conn = None
         super().__init__(*args, **kwargs)
 
     def get_conn(self):

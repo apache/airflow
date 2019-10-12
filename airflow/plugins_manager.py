@@ -21,8 +21,9 @@ import imp
 import inspect
 import os
 import re
+from typing import Any, List
+
 import pkg_resources
-from typing import List, Any
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
@@ -119,6 +120,9 @@ def is_valid_plugin(plugin_obj, existing_plugins):
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
+
+if settings.PLUGINS_FOLDER is None:
+    raise AirflowPluginException("Plugins folder is not set")
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):

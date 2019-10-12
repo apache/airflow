@@ -27,7 +27,7 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 
@@ -48,7 +48,6 @@ def print_context(ds, **kwargs):
 
 run_this = PythonOperator(
     task_id='print_the_context',
-    provide_context=True,
     python_callable=print_context,
     dag=dag,
 )

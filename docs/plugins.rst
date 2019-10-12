@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Plugins
 =======
@@ -244,8 +246,8 @@ Note on role based views
 ------------------------
 
 Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
-rbac = True. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
-the fields appbuilder_views and appbuilder_menu_items were added to the AirflowTestPlugin class.
+``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
+the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
 
 
 Plugins as Python packages
@@ -256,11 +258,11 @@ your plugin using an entrypoint in your package. If the package is installed, ai
 will automatically load the registered plugins from the entrypoint list.
 
 .. note::
-    Neither the entrypoint name (eg, `my_plugin`) nor the name of the
+    Neither the entrypoint name (eg, ``my_plugin``) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
     itself. The structure is determined by
-    `airflow.plugins_manager.AirflowPlugin.name` and the class name of the plugin
-    component with the pattern `airflow.{component}.{name}.{component_class_name}`.
+    ``airflow.plugins_manager.AirflowPlugin.name`` and the class name of the plugin
+    component with the pattern ``airflow.{component}.{name}.{component_class_name}``.
 
 .. code-block:: python
 
@@ -297,5 +299,5 @@ will automatically load the registered plugins from the entrypoint list.
 
 
 This will create a hook, and an operator accessible at:
- - `airflow.hooks.my_namespace.MyHook`
- - `airflow.operators.my_namespace.MyOperator`
+ - ``airflow.hooks.my_namespace.MyHook``
+ - ``airflow.operators.my_namespace.MyOperator``

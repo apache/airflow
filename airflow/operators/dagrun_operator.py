@@ -18,13 +18,13 @@
 # under the License.
 
 import datetime
-import six
+import json
+from typing import Callable, Dict, Optional, Union
+
+from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-
-import json
 
 
 class DagRunOrder:
@@ -58,20 +58,21 @@ class TriggerDagRunOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            trigger_dag_id,
-            python_callable=None,
-            execution_date=None,
-            *args, **kwargs):
+            trigger_dag_id: str,
+            python_callable: Optional[Callable[[Dict, DagRunOrder], DagRunOrder]] = None,
+            execution_date: Optional[Union[str, datetime.datetime]] = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 
+        self.execution_date = None  # type: Optional[Union[str, datetime.datetime]]
         if isinstance(execution_date, datetime.datetime):
             self.execution_date = execution_date.isoformat()
-        elif isinstance(execution_date, six.string_types):
+        elif isinstance(execution_date, str):
             self.execution_date = execution_date
         elif execution_date is None:
-            self.execution_date = execution_date
+            self.execution_date = None
         else:
             raise TypeError(
                 'Expected str or datetime.datetime type '

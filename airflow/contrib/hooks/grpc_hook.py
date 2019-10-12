@@ -1,26 +1,33 @@
 # -*- coding: utf-8 -*-
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""GRPC Hook"""
 
 import grpc
 from google import auth as google_auth
 from google.auth import jwt as google_auth_jwt
-from google.auth.transport import grpc as google_auth_transport_grpc
-from google.auth.transport import requests as google_auth_transport_requests
+from google.auth.transport import (
+    grpc as google_auth_transport_grpc, requests as google_auth_transport_requests,
+)
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowConfigException
+from airflow.hooks.base_hook import BaseHook
 
 
 class GrpcHook(BaseHook):
@@ -58,7 +65,7 @@ class GrpcHook(BaseHook):
 
         if auth_type == "NO_AUTH":
             channel = grpc.insecure_channel(base_url)
-        elif auth_type == "SSL" or auth_type == "TLS":
+        elif auth_type in {"SSL", "TLS"}:
             credential_file_name = self._get_field("credential_pem_file")
             creds = grpc.ssl_channel_credentials(open(credential_file_name).read())
             channel = grpc.secure_channel(base_url, creds)
@@ -91,7 +98,9 @@ class GrpcHook(BaseHook):
 
         return channel
 
-    def run(self, stub_class, call_func, streaming=False, data={}):
+    def run(self, stub_class, call_func, streaming=False, data=None):
+        if data is None:
+            data = {}
         with self.get_conn() as channel:
             stub = stub_class(channel)
             try:
@@ -100,13 +109,16 @@ class GrpcHook(BaseHook):
                 if not streaming:
                     yield response
                 else:
-                    for single_response in response:
-                        yield single_response
+                    yield from response
             except grpc.RpcError as ex:
+                # noinspection PyUnresolvedReferences
                 self.log.exception(
                     "Error occurred when calling the grpc service: {0}, method: {1} \
                     status code: {2}, error details: {3}"
-                    .format(stub.__class__.__name__, call_func, ex.code(), ex.details()))
+                    .format(stub.__class__.__name__,
+                            call_func,
+                            ex.code(),  # pylint: disable=no-member
+                            ex.details()))  # pylint: disable=no-member
                 raise ex
 
     def _get_field(self, field_name, default=None):

@@ -22,8 +22,8 @@ import unittest
 
 import boto3
 
-from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.models import Connection
 from tests.compat import mock
 
 try:
@@ -150,7 +150,7 @@ class TestAwsHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
         hook._get_credentials(region_name=None)
-        mock_parse_s3_config.assert_called_with(
+        mock_parse_s3_config.assert_called_once_with(
             'aws-credentials',
             'aws',
             'test'

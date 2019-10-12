@@ -25,7 +25,7 @@ class State:
     """
 
     # scheduler
-    NONE = None
+    NONE = None  # type: None
     REMOVED = "removed"
     SCHEDULED = "scheduled"
 

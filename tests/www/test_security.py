@@ -17,21 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import unittest
 from unittest import mock
-import logging
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
+from flask_appbuilder import SQLA, AppBuilder, Model, expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.views import ModelView, BaseView
-
-from sqlalchemy import Column, Integer, String, Date, Float
+from flask_appbuilder.views import BaseView, ModelView
+from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.www.security import AirflowSecurityManager
-
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
@@ -197,7 +195,7 @@ class TestSecurity(unittest.TestCase):
 
         mock_get_user_roles.return_value = [role]
         self.assertEqual(self.security_manager
-                         .get_accessible_dag_ids(user), set(['dag_id']))
+                         .get_accessible_dag_ids(user), {'dag_id'})
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):

@@ -1,24 +1,26 @@
-#  Licensed to the Apache Software Foundation (ASF) under one   *
-#  or more contributor license agreements.  See the NOTICE file *
-#  distributed with this work for additional information        *
-#  regarding copyright ownership.  The ASF licenses this file   *
-#  to you under the Apache License, Version 2.0 (the            *
-#  "License"); you may not use this file except in compliance   *
-#  with the License.  You may obtain a copy of the License at   *
-#                                                               *
-#    http://www.apache.org/licenses/LICENSE-2.0                 *
-#                                                               *
-#  Unless required by applicable law or agreed to in writing,   *
-#  software distributed under the License is distributed on an  *
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
-#  KIND, either express or implied.  See the License for the    *
-#  specific language governing permissions and limitations      *
-#  under the License.                                           *
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: airflow-configmap
 data:
+  # yamllint disable rule:line-length
   airflow.cfg: |
     [core]
     dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
@@ -181,6 +183,9 @@ data:
     affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}
     tolerations = [{ "key": "dedicated", "operator": "Equal", "value": "airflow", "effect": "NoSchedule" }, { "key": "prod", "operator": "Exists" }]
 
+    # Example kubertenes worker pods annotations declaration.
+    worker_annotations = { "iam.amazonaws.com/role" : "role-arn", "iam.amazonaws.com/external-id" : "external-id" }
+
     # For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64
     git_sync_container_tag = v2.0.5
@@ -189,10 +194,6 @@ data:
     [kubernetes_node_selectors]
     # The Key-value pairs to be given to worker pods.
     # The worker pods will be scheduled to the nodes of the specified key-value pairs.
-    # Should be supplied in the format: key = value
-
-    [kubernetes_annotations]
-    # The Key-value annotations pairs to be given to worker pods.
     # Should be supplied in the format: key = value
 
     [kubernetes_secrets]
@@ -324,3 +325,4 @@ data:
 
     [elasticsearch]
     host =
+  # yamllint enable rule:line-length
