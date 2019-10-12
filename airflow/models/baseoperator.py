@@ -81,6 +81,16 @@ class BaseOperator(LoggingMixin):
     :type task_id: str
     :param owner: the owner of the task, using the unix username is recommended
     :type owner: str
+    :param email: the 'to' email address(es) used in email alerts. This can be a
+        single email or multiple ones. Multiple addresses can be specified as a
+        comma or semi-colon separated string or by passing a list of strings.
+    :type email: str or list[str]
+    :param email_on_retry: Indicates whether email alerts should be sent when a
+        task is retried
+    :type email_on_retry: bool
+    :param email_on_failure: Indicates whether email alerts should be sent when
+        a task failed
+    :type email_on_failure: bool
     :param retries: the number of retries that should be performed before
         failing the task
     :type retries: int
@@ -156,6 +166,8 @@ class BaseOperator(LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
+    :param queue: specifies which task queue to use
+    :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
@@ -270,7 +282,7 @@ class BaseOperator(LoggingMixin):
         self,
         task_id: str,
         owner: str = conf.get('operators', 'DEFAULT_OWNER'),
-        email: Optional[str] = None,
+        email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
