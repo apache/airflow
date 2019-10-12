@@ -55,7 +55,6 @@ from airflow.models import (
 )
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
@@ -511,18 +510,6 @@ class TestCore(unittest.TestCase):
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         self.assertTrue(data['called'])
 
-    def test_trigger_dagrun(self):
-        def trigga(_, obj):
-            if True:
-                return obj
-
-        t = TriggerDagRunOperator(
-            task_id='test_trigger_dagrun',
-            trigger_dag_id='example_bash_operator',
-            python_callable=trigga,
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_dryrun(self):
         t = BashOperator(
             task_id='test_dryrun',
@@ -967,60 +954,6 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
-
-    def test_trigger_dagrun_with_execution_date(self):
-        utc_now = timezone.utcnow()
-        run_id = 'trig__' + utc_now.isoformat()
-
-        def payload_generator(context, object):  # pylint: disable=unused-argument
-            object.run_id = run_id
-            return object
-
-        task = TriggerDagRunOperator(task_id='test_trigger_dagrun_with_execution_date',
-                                     trigger_dag_id='example_bash_operator',
-                                     python_callable=payload_generator,
-                                     execution_date=utc_now,
-                                     dag=self.dag)
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        dag_runs = DagRun.find(dag_id='example_bash_operator', run_id=run_id)
-        self.assertEqual(len(dag_runs), 1)
-        dag_run = dag_runs[0]
-        self.assertEqual(dag_run.execution_date, utc_now)
-
-    def test_trigger_dagrun_with_str_execution_date(self):
-        utc_now_str = timezone.utcnow().isoformat()
-        self.assertIsInstance(utc_now_str, (str,))
-        run_id = 'trig__' + utc_now_str
-
-        def payload_generator(context, object):  # pylint: disable=unused-argument
-            object.run_id = run_id
-            return object
-
-        task = TriggerDagRunOperator(
-            task_id='test_trigger_dagrun_with_str_execution_date',
-            trigger_dag_id='example_bash_operator',
-            python_callable=payload_generator,
-            execution_date=utc_now_str,
-            dag=self.dag)
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        dag_runs = DagRun.find(dag_id='example_bash_operator', run_id=run_id)
-        self.assertEqual(len(dag_runs), 1)
-        dag_run = dag_runs[0]
-        self.assertEqual(dag_run.execution_date.isoformat(), utc_now_str)
-
-    def test_trigger_dagrun_with_templated_execution_date(self):
-        task = TriggerDagRunOperator(
-            task_id='test_trigger_dagrun_with_str_execution_date',
-            trigger_dag_id='example_bash_operator',
-            execution_date='{{ execution_date }}',
-            dag=self.dag)
-
-        self.assertTrue(isinstance(task.execution_date, str))
-        self.assertEqual(task.execution_date, '{{ execution_date }}')
-
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.render_templates()
-        self.assertEqual(timezone.parse(task.execution_date), DEFAULT_DATE)
 
     def test_externally_triggered_dagrun(self):
         TI = TaskInstance

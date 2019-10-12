@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Simplification of the TriggerDagRunOperator
+
+The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
+As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
 ### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
