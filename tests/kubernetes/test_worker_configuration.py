@@ -317,6 +317,21 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertIsNone(init_containers[0].security_context)
 
+    def test_init_environment_using_git_sync_run_as_user_root(self):
+        # Tests if git_syn_run_as_user is '0', securityContext is created with
+        # the right uid
+
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_sync_run_as_user = 0
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        init_containers = worker_config._get_init_containers()
+        self.assertTrue(init_containers)  # check not empty
+
+        self.assertEqual(0, init_containers[0].security_context.run_as_user)
+
     def test_make_pod_run_as_user_0(self):
         # Tests the pod created with run-as-user 0 actually gets that in it's config
         self.kube_config.worker_run_as_user = 0

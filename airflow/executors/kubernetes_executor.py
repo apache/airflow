@@ -21,6 +21,7 @@ import json
 import multiprocessing
 import re
 from queue import Empty
+from typing import Union
 from uuid import uuid4
 
 import kubernetes
@@ -206,10 +207,10 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
 
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
-    def _get_security_context_val(self, scontext):
+    def _get_security_context_val(self, scontext: str) -> Union[str, int]:
         val = conf.get(self.kubernetes_section, scontext)
         if not val:
-            return 0
+            return ""
         else:
             return int(val)
 

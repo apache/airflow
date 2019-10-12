@@ -154,7 +154,7 @@ class WorkerConfiguration(LoggingMixin):
 
         if self.kube_config.git_sync_run_as_user != "":
             init_containers.security_context = k8s.V1SecurityContext(
-                run_as_user=self.kube_config.git_sync_run_as_user or 65533
+                run_as_user=self.kube_config.git_sync_run_as_user
             )  # git-sync user
 
         return [init_containers]
