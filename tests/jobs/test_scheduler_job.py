@@ -2739,7 +2739,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertNotIn(dag, dags)
 
     def test_change_filepath_in_enqueue_task_instances_with_queued_state(self):
-        dag_id = 'test_change_filepath_in_enqueue_task_instances_with_queued_state'
+        dag_id = 'test_change_full_filepath'
         task_id_1 = 'dummyTask1'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, full_filepath=os.path.join(DAGS_FOLDER, TEMP_DAG_FILENAME))
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
@@ -2749,16 +2749,17 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         dr1 = scheduler.create_dag_run(dag)
-
         ti1 = TI(task1, dr1.execution_date)
         session.merge(ti1)
         session.commit()
 
-        scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
+        executor = TestExecutor(do_update=False)
+        scheduler.executor = executor
 
-        for value in scheduler.executor.queued_tasks.values():
+        scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
+        for _, queued_task in scheduler.executor.queued_tasks.items():
             try:
-                command = value[0]
+                command = queued_task[0]
                 assert (command[command.index('-sd') + 1].startswith('DAGS_FOLDER'))
             except ValueError:
                 assert False
