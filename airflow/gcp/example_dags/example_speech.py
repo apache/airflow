@@ -28,7 +28,10 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.speech_to_text import (
+    GcpSpeechToTextRecognizeSpeechOperator,
+    GcpSpeechToTextLongRunningRecognizeSpeechOperator
+)
 from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
 from airflow.utils import dates
@@ -85,6 +88,17 @@ with models.DAG(
     # [END howto_operator_speech_to_text_recognize]
 
     text_to_speech_synthesize_task >> speech_to_text_recognize_task
+
+    # [START howto_operator_speech_to_text_long_runnning_recognize]
+    speech_to_text_long_running_recognize_task = GcpSpeechToTextLongRunningRecognizeSpeechOperator(
+        project_id=GCP_PROJECT_ID,
+        config=CONFIG,
+        audio=AUDIO,
+        task_id="speech_to_text_long_running_recognize_task"
+    )
+    # [END howto_operator_speech_to_text_long_runnning_recognize]
+
+    text_to_speech_synthesize_task >> speech_to_text_long_running_recognize_task
 
     # [START howto_operator_translate_speech]
     translate_speech_task = GcpTranslateSpeechOperator(

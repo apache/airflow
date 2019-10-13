@@ -55,3 +55,10 @@ class TestTextToSpeechOperator(unittest.TestCase):
         recognize_method.return_value = None
         self.gcp_speech_to_text_hook.recognize_speech(config=CONFIG, audio=AUDIO)
         recognize_method.assert_called_once_with(config=CONFIG, audio=AUDIO, retry=None, timeout=None)
+
+    @patch("airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook.get_conn")
+    def test_synthesize_long_running_speech(self, get_conn):
+        recognize_method = get_conn.return_value.long_running_recognize
+        recognize_method.return_value = None
+        self.gcp_speech_to_text_hook.long_running_recognize_speech(config=CONFIG, audio=AUDIO)
+        recognize_method.assert_called_once_with(config=CONFIG, audio=AUDIO, retry=None, timeout=None)
