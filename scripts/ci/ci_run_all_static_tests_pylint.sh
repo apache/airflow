@@ -31,6 +31,14 @@ basic_sanity_checks
 
 script_start
 
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skip tests"
+    echo
+    script_end
+    exit
+fi
+
 rebuild_ci_slim_image_if_needed
 
 IMAGES_TO_CHECK=("SLIM_CI")

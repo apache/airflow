@@ -28,6 +28,14 @@ basic_sanity_checks
 
 script_start
 
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skipping running tests !!!!!"
+    echo
+    script_end
+    exit
+fi
+
 rebuild_ci_image_if_needed
 
 # Test environment

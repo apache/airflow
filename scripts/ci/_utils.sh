@@ -895,6 +895,23 @@ function rebuild_all_images_if_needed_and_confirmed() {
     fi
 }
 
+function match_files_regexp() {
+    FILE_MATCHES="false"
+    REGEXP=${1}
+    while (($#))
+    do
+        REGEXP=${1}
+        for FILE in ${CHANGED_FILE_NAMES}
+        do
+          if  [[ ${FILE} =~ ${REGEXP} ]]; then
+             FILE_MATCHES="true"
+          fi
+        done
+        shift
+    done
+    export FILE_MATCHES
+}
+
 function build_image_on_ci() {
     if [[ "${CI:=}" != "true" ]]; then
         print_info
@@ -910,15 +927,44 @@ function build_image_on_ci() {
     # Cleanup docker installation. It should be empty in CI but let's not risk
     docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
+    mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        rebuild_ci_image_if_needed
+    echo
+    echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
+    echo
+
+    CHANGED_FILE_NAMES=$(git diff --name-only "${TRAVIS_BRANCH}...HEAD")
+    echo
+    echo "Changed file names in this commit"
+    echo "${CHANGED_FILE_NAMES}"
+    echo
+
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"kubernetes"* ]]; then
+        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
+            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
+    elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
+        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
     elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
         rebuild_checklicence_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_slim_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
-        rebuild_ci_slim_image_if_needed
+        match_files_regexp '.*\.py'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_slim_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
     elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
         rebuild_ci_slim_image_if_needed
     else
@@ -926,6 +972,12 @@ function build_image_on_ci() {
         echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"
         echo
         exit 1
+    fi
+
+    if [[ -f "${BUILD_CACHE_DIR}/.skip_tests" ]]; then
+        echo
+        echo "Skip running tests !!!!"
+        echo
     fi
 
     # Disable force pulling forced above
