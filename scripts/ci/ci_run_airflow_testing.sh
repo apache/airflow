@@ -63,6 +63,18 @@ export HOST_USER_ID
 HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
+if [[ ${TESTS_NEEDED} != "true" ]]; then
+    echo
+    echo "Skipping running tests. There are no .py files changed in this change."
+    echo
+    echo "Affected files:"
+    echo
+    echo "${CHANGED_FILE_NAMES}" | tr ' ' '\n'
+    echo
+    script_end
+    exit
+fi
+
 set +u
 if [[ "${ENV}" == "docker" ]]; then
   docker-compose --log-level INFO \

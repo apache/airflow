@@ -896,6 +896,9 @@ function rebuild_all_images_if_needed_and_confirmed() {
 }
 
 function build_image_on_ci() {
+    if [[ ${TESTS_NEEDED} != "true" ]]; then
+        return
+    fi
     if [[ "${CI:=}" != "true" ]]; then
         print_info
         print_info "Cleaning up docker installation!!!!!!"
@@ -932,3 +935,17 @@ function build_image_on_ci() {
     unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
+
+CHANGED_FILE_NAMES=$(git diff --name-only "HEAD...${TRAVIS_BRANCH:="HEAD"}")
+
+TESTS_NEEDED=false
+
+for FILE in ${CHANGED_FILE_NAMES}
+do
+    if [[ ${FILE} =~ .*\.py$ ]]; then
+        TESTS_NEEDED=true
+        echo "Enabling tests on ${FILE}"
+    fi
+done
+
+export TESTS_NEEDED
