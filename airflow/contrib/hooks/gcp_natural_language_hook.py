@@ -53,6 +53,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entities(self, document, encoding_type=None, retry=None, timeout=None, metadata=None):
         """
         Finds named entities in the text along with entity types,
@@ -80,6 +81,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entity_sentiment(self, document, encoding_type=None, retry=None, timeout=None, metadata=None):
         """
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
@@ -107,6 +109,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_sentiment(self, document, encoding_type=None, retry=None, timeout=None, metadata=None):
         """
         Analyzes the sentiment of the provided text.
@@ -133,6 +136,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_syntax(self, document, encoding_type=None, retry=None, timeout=None, metadata=None):
         """
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
@@ -160,6 +164,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_text(self, document, features, encoding_type=None, retry=None, timeout=None, metadata=None):
         """
         A convenience method that provides all the features that analyzeSentiment,
@@ -195,6 +200,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def classify_text(self, document, retry=None, timeout=None, metadata=None):
         """
         Classifies a document into categories.

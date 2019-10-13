@@ -50,6 +50,7 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
             self._client = TextToSpeechClient(credentials=self._get_credentials())
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def synthesize_speech(self, input_data, voice, audio_config, retry=None, timeout=None):
         """
         Synthesizes text input

@@ -433,6 +433,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self.log.info('Product removed from Product Set')
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_image(self, request, retry=None, timeout=None):
         """
         For the documentation see:
@@ -449,6 +450,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def batch_annotate_images(self, requests, retry=None, timeout=None):
         """
         For the documentation see:
@@ -465,6 +467,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return MessageToDict(response)
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def text_detection(
         self, image, max_results=None, retry=None, timeout=None, additional_properties=None
     ):
@@ -490,6 +493,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def document_text_detection(
         self, image, max_results=None, retry=None, timeout=None, additional_properties=None
     ):
@@ -515,6 +519,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def label_detection(
         self, image, max_results=None, retry=None, timeout=None, additional_properties=None
     ):
@@ -540,6 +545,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         return response
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def safe_search_detection(
         self, image, max_results=None, retry=None, timeout=None, additional_properties=None
     ):

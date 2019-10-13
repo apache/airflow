@@ -50,6 +50,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
             self._client = SpeechClient(credentials=self._get_credentials())
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def recognize_speech(self, config, audio, retry=None, timeout=None):
         """
         Recognizes audio input

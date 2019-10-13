@@ -48,6 +48,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             self._conn = VideoIntelligenceServiceClient(credentials=self._get_credentials())
         return self._conn
 
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_video(
         self,
         input_uri=None,

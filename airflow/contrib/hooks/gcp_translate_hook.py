@@ -36,12 +36,13 @@ class CloudTranslateHook(GoogleCloudBaseHook):
         Retrieves connection to Cloud Translate
 
         :return: Google Cloud Translate client object.
-        :rtype: Client
+        :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
             self._client = Client(credentials=self._get_credentials())
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def translate(
         self, values, target_language, format_=None, source_language=None, model=None
     ):
