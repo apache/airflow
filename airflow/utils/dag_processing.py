@@ -310,6 +310,9 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
+    :type safe_mode: bool
+    :param include_examples: include example DAGs
+    :type include_examples: bool
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
