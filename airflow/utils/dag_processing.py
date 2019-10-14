@@ -297,7 +297,7 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
     :param safe_mode: whether to use a heuristic to determine whether a file
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
-         to safe.
+        to safe.
     :type safe_mode: bool
     :param include_examples: include example DAGs
     :type include_examples: bool
