@@ -58,6 +58,11 @@ The Webserver now instead of having to parse the DAG file again, reads the
 serialized DAGs in JSON, de-serializes them and create the DagBag and uses it
 to show in the UI.
 
+One of the key features that is implemented as the part of DAG Serialization is that
+instead of loading an entire DagBag when the WebServer starts we only load each DAG on demand from the
+Serialized Dag table. This helps reduce Webserver startup time and memory. The reduction is notable
+when you have large number of DAGs.
+
 Below is the screenshot of the ``serialized_dag`` table in Metadata DB:
 
 .. image:: ../img/serialized_dag_table.png
