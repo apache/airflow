@@ -16,11 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Module for Operator Links
+"""
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 
 
 class AirflowLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website
+    """
     name = 'airflow'
 
     def get_link(self, operator, dttm):
@@ -47,13 +53,20 @@ class Dummy3TestOperator(BaseOperator):
 
 # Custom Operator and extra Link
 class GoogleLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website for Google
+    """
     name = 'google'
+    operators = [Dummy3TestOperator]
 
     def get_link(self, operator, dttm):
         return 'https://www.google.com'
 
 
 class AirflowLink2(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website for 1.10.5
+    """
     name = 'airflow'
     operators = [Dummy2TestOperator, Dummy3TestOperator]
 
@@ -62,6 +75,9 @@ class AirflowLink2(BaseOperatorLink):
 
 
 class GithubLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Github
+    """
     name = 'github'
 
     def get_link(self, operator, dttm):
