@@ -38,17 +38,17 @@ Deleting a report
 ^^^^^^^^^^^^^^^^^
 
 To delete Campaign Manager report you can use the
-:class:`~airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`.
 It deletes a report by its unique ID.
 
-.. exampleinclude:: ../../../../airflow/provider/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_delete_report_operator]
     :end-before: [END howto_campaign_manager_delete_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:GoogleCampaignManagerDownloadReportOperator:
@@ -56,17 +56,17 @@ parameters which allows you to dynamically determine values.
 Downloading a report
 ^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`.
+The :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`.
 allows you to download a Campaign Manager to Google Cloud Storage bucket.
 
-.. exampleinclude:: ../../../../airflow/provider/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_get_report_operator]
     :end-before: [END howto_campaign_manager_get_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:GoogleCampaignManagerReportSensor:
@@ -75,16 +75,16 @@ Waiting for a report
 ^^^^^^^^^^^^^^^^^^^^
 
 Report are generated asynchronously. To wait for report to be ready for downloading
-you can use :class:`~airflow.provider.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`.
+you can use :class:`~airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`.
 
-.. exampleinclude:: ../../../../airflow/provider/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_wait_for_operation]
     :end-before: [END howto_campaign_manager_wait_for_operation]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.provider.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`
+:template-fields:`airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:GoogleCampaignManagerInsertReportOperator:
@@ -93,17 +93,17 @@ Inserting a new report
 ^^^^^^^^^^^^^^^^^^^^^^
 
 To insert a Campaign Manager report you can use the
-:class:`~airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`.
 Running this operator creates a new report.
 
-.. exampleinclude:: ../../../../airflow/provider/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_insert_report_operator]
     :end-before: [END howto_campaign_manager_insert_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
@@ -113,15 +113,15 @@ Running a report
 ^^^^^^^^^^^^^^^^
 
 To run Campaign Manager report you can use the
-:class:`~airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`.
 
-.. exampleinclude:: ../../../../airflow/provider/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_run_report_operator]
     :end-before: [END howto_campaign_manager_run_report_operator]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.provider.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

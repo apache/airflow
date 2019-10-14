@@ -21,7 +21,7 @@ This module contains Google Campaign Manager sensor.
 """
 from typing import Dict, Optional
 
-from airflow.provider.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.provider.google.marketing_platform.sensors.campaign_manager import (
+from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
 
@@ -28,11 +28,11 @@ GCP_CONN_ID = "google_cloud_default"
 
 class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
     @mock.patch(
-        "airflow.provider.google.marketing_platform.sensors."
+        "airflow.providers.google.marketing_platform.sensors."
         "campaign_manager.GoogleCampaignManagerHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.sensors."
+        "airflow.providers.google.marketing_platform.sensors."
         "campaign_manager.BaseSensorOperator"
     )
     def test_execute(self, mock_base_op, hook_mock):

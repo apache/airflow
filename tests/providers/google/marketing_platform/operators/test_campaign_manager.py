@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.provider.google.marketing_platform.operators.campaign_manager import (
+from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
     GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
@@ -29,11 +29,11 @@ GCP_CONN_ID = "google_cloud_default"
 
 class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.BaseOperator"
     )
     def test_execute(self, mock_base_op, hook_mock):
@@ -56,27 +56,27 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
 
 class TestGoogleCampaignManagerGetReportOperator(TestCase):
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.http"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.tempfile"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCloudStorageHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.BaseOperator"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
     )
     def test_execute(
@@ -135,15 +135,15 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
 
 class TestGoogleCampaignManagerInsertReportOperator(TestCase):
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.BaseOperator"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerInsertReportOperator.xcom_push"
     )
     def test_execute(self, xcom_mock, mock_base_op, hook_mock):
@@ -171,15 +171,15 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
 
 class TestGoogleCampaignManagerRunReportOperator(TestCase):
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerHook"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.BaseOperator"
     )
     @mock.patch(
-        "airflow.provider.google.marketing_platform.operators."
+        "airflow.providers.google.marketing_platform.operators."
         "campaign_manager.GoogleCampaignManagerRunReportOperator.xcom_push"
     )
     def test_execute(self, xcom_mock, mock_base_op, hook_mock):

@@ -72,9 +72,9 @@ All operators are in the following packages:
 
   airflow/gcp/sensors/index
 
-  airflow/provider/google/marketing_platform/operators/index
+  airflow/providers/google/marketing_platform/operators/index
 
-  airflow/provider/google/marketing_platform/sensors/index
+  airflow/providers/google/marketing_platform/sensors/index
 
 
 Hooks
@@ -98,7 +98,7 @@ All hooks are in the following packages:
 
   airflow/gcp/hooks/index
 
-  airflow/provider/google/marketing_platform/hooks/index
+  airflow/providers/google/marketing_platform/hooks/index
 
 
 Executors

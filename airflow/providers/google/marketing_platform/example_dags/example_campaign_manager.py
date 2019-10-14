@@ -22,11 +22,11 @@ Example Airflow DAG that shows how to use CampaignManager.
 import os
 
 from airflow import models
-from airflow.provider.google.marketing_platform.operators.campaign_manager import (
+from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
     GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
-from airflow.provider.google.marketing_platform.sensors.campaign_manager import (
+from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
 from airflow.utils import dates

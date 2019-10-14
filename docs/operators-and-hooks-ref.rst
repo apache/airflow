@@ -851,9 +851,9 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
      - :doc:`How to use <howto/operator/gcp/campaign_manager>`
-     - :mod:`airflow.provider.google.marketing_platform.hooks.campaign_manager`
-     - :mod:`airflow.provider.google.marketing_platform.operators.campaign_manager`
-     - :mod:`airflow.provider.google.marketing_platform.sensors.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
 
    * - `Google Drive <https://www.google.com/drive/>`__
      -
