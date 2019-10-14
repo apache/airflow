@@ -19,6 +19,7 @@
 from datetime import datetime
 
 from jobs.test_local_task_job import data
+
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 
