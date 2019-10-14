@@ -104,6 +104,9 @@ class TestSqlSensor(unittest.TestCase):
         self.assertFalse(t.poke(None))
 
         mock_get_records.return_value = [['None']]
+        self.assertTrue(t.poke(None))
+
+        mock_get_records.return_value = [[0.0]]
         self.assertFalse(t.poke(None))
 
         mock_get_records.return_value = [[0]]
