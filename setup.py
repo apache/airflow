@@ -356,7 +356,7 @@ def do_setup():
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'cryptography>=0.9.3',
-            'dill>=0.2.2, <0.3.1',
+            'dill>=0.2.2, <0.4',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
