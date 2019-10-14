@@ -17,4 +17,4 @@
  under the License.
  -->
 
-The Contributing guide has been moved to [Contributing RST](Contributing.rst)
+The Contributing guide has been moved to [Contributing RST](CONTRIBUTING.rst)
