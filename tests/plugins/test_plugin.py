@@ -23,10 +23,11 @@ from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 from airflow.executors.base_executor import BaseExecutor
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from tests.plugins.extra_link_operators import AirflowLink, AirflowLink2, GithubLink, GoogleLink
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -52,54 +53,6 @@ class PluginExecutor(BaseExecutor):
 # Will show up under airflow.macros.test_plugin.plugin_macro
 def plugin_macro():
     pass
-
-
-class AirflowLink(BaseOperatorLink):
-    name = 'airflow'
-
-    def get_link(self, operator, dttm):
-        return 'should_be_overridden'
-
-
-class Dummy2TestOperator(BaseOperator):
-    """
-    Example of an Operator that has an extra operator link
-    and will be overriden by the one defined in tests/plugins/test_plugin.py
-    """
-    operator_extra_links = (
-        AirflowLink(),
-    )
-
-
-class Dummy3TestOperator(BaseOperator):
-    """
-    Example of an operator that has no extra Operator link.
-    An operator link would be added to this operator via Airflow plugin
-    """
-    operator_extra_links = ()
-
-
-# Custom Operator and extra Link
-class GoogleLink(BaseOperatorLink):
-    name = 'google'
-
-    def get_link(self, operator, dttm):
-        return 'https://www.google.com'
-
-
-class AirflowLink2(BaseOperatorLink):
-    name = 'airflow'
-    operators = [Dummy2TestOperator, Dummy3TestOperator]
-
-    def get_link(self, operator, dttm):
-        return 'https://airflow.apache.org/1.10.5/'
-
-
-class GithubLink(BaseOperatorLink):
-    name = 'github'
-
-    def get_link(self, operator, dttm):
-        return 'https://github.com/apache/airflow'
 
 
 # Creating a flask appbuilder BaseView
