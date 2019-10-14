@@ -27,7 +27,6 @@ from airflow.models import DagBag, SerializedDagModel as SDM
 from airflow.utils import db
 
 
-# FIXME: it is defined in tests/dags/test_dag_serialization.py as well.
 # To move it to a shared module.
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
@@ -35,7 +34,6 @@ def make_example_dags(module):
     return dagbag.dags
 
 
-# FIXME: move it to airflow/utils/db.py if needed.
 def clear_db_serialized_dags():
     with db.create_session() as session:
         session.query(SDM).delete()

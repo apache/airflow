@@ -100,6 +100,8 @@ class Serialization:
             cls._json_schema.validate(serialized_obj)
         elif isinstance(serialized_obj, str):
             cls._json_schema.validate(json.loads(serialized_obj))
+        else:
+            raise TypeError("Invalid type: Only dict and str are supported.")
 
     @staticmethod
     def _encode(x, type_):

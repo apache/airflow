@@ -6,21 +6,6 @@
       "description": "A date time, stored as fractional seconds since the epoch",
       "type": "number"
     },
-    "typed_datetime": {
-      "type": "object",
-      "properties": {
-        "__type": {
-          "type": "string",
-          "const": "datetime"
-        },
-        "__var": { "$ref": "#/definitions/datetime" }
-      },
-      "required": [
-        "__type",
-        "__var"
-      ],
-      "additionalProperties": false
-    },
     "timedelta": {
       "type": "number",
       "minimum": 0
@@ -72,24 +57,6 @@
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
-    },
-    "stringset": {
-      "description": "A set of strings",
-      "type": "object",
-      "properties": {
-        "__type": {
-          "type": "string",
-          "const": "set"
-        },
-        "__var": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      },
-      "required": [
-        "__type",
-        "__var"
-      ]
     },
     "dag": {
       "type": "object",
@@ -172,7 +139,7 @@
         "_downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
- }
+        }
       },
       "additionalProperties": true
     }
