@@ -423,8 +423,9 @@ class BigQueryBaseCursor(LoggingMixin):
             soure_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data. See:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).csvOptions.encoding
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
         :type encoding: str
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
@@ -1142,6 +1143,7 @@ class BigQueryBaseCursor(LoggingMixin):
             soure_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data.
+
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
         :type encoding: str
