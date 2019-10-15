@@ -150,12 +150,6 @@ ${SED_COMMAND} -i "s|{{CONFIGMAP_DAGS_VOLUME_CLAIM}}|${CONFIGMAP_DAGS_VOLUME_CLA
 cat "${BUILD_DIRNAME}/airflow.yaml"
 cat "${BUILD_DIRNAME}/configmaps.yaml"
 
-# Fix file permissions
-# TODO: Check this - this should be TRAVIS-independent
-if [[ "${TRAVIS}" == true ]]; then
-  sudo chown -R travis.travis "$HOME/.kube" "$HOME/.minikube"
-fi
-
 kubectl delete -f "${DIRNAME}/postgres.yaml"
 kubectl delete -f "${BUILD_DIRNAME}/airflow.yaml"
 kubectl delete -f "${DIRNAME}/secrets.yaml"
@@ -212,13 +206,13 @@ else
 fi
 
 # Wait until Airflow webserver is up
-MINIKUBE_IP=$(minikube ip)
+KUBERNETES_HOST=docker
 AIRFLOW_WEBSERVER_IS_READY="0"
 CONSECUTIVE_SUCCESS_CALLS=0
 for i in {1..30}
 do
   echo "------- Wait until webserver is up: $i -------"
-  HTTP_CODE=$(curl -LI "http://${MINIKUBE_IP}:30809/health" -o /dev/null -w '%{http_code}\n' -sS) || true
+  HTTP_CODE=$(curl -LI "http://${KUBERNETES_HOST}:30809/health" -o /dev/null -w '%{http_code}\n' -sS) || true
   if [[ "${HTTP_CODE}" == 200 ]]; then
     (( CONSECUTIVE_SUCCESS_CALLS+=1 ))
   else
