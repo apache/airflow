@@ -41,7 +41,6 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-
 ### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
@@ -404,7 +403,6 @@ PR: [#5990](https://github.com/apache/airflow/pull/5990)
 ### Changes to FileSensor
 
 FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
->>>>>>> upstream/master
 
 ### Change dag loading duration metric name
 Change DAG file loading duration metric from
