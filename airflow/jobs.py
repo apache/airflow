@@ -775,6 +775,54 @@ class SchedulerJob(BaseJob):
                 stacktrace=stacktrace))
         session.commit()
 
+    def get_recovery_window(self, session):
+        interval = 60
+        window_end = timezone.utcnow()
+        window_start = window_end - timedelta(seconds=interval)
+
+        return window_start, window_end
+
+    def get_last_scheduled_run(self, dag, session):
+        qry = (
+            session.query(func.max(DagRun.execution_date))
+                .filter_by(dag_id=dag.dag_id)
+                .filter(or_(
+                DagRun.external_trigger == False,  # noqa: E712
+                # add % as a wildcard for the like query
+                DagRun.run_id.like(DagRun.ID_PREFIX + '%')
+            ))
+        )
+
+        return qry.scalar()
+
+    @provide_session
+    def create_cron_dag_run(self, dag, session=None):
+        start, end = self.get_recovery_window(session)
+        self.log.info(f"DAG Id: {dag.dag_id} Recovery window - Start: {start} , End: {end}")
+        next_run_date = dag.following_schedule(start)
+        self.log.info(f"Next run: {next_run_date}")
+        if next_run_date < end:
+            last_scheduled_run = self.get_last_scheduled_run(dag, session)
+            if not last_scheduled_run or start <= last_scheduled_run < next_run_date:
+                #  create run
+                next_dag_run = dag.create_dagrun(
+                    run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
+                    execution_date=next_run_date,
+                    start_date=timezone.utcnow(),
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    schedule_interval=dag.schedule_interval
+                )
+                self.log.info(f"Next DAG run: {next_dag_run}")
+                return next_dag_run
+            else:
+                self.log.info(f"Last scheduled run: {last_scheduled_run} outside the window - skipping")
+                return
+        else:
+            self.log.info(f"Next run is at {next_run_date} - outside Recovery window")
+            return
+
+
     @provide_session
     def create_dag_run(self, dag, session=None):
         """
@@ -794,8 +842,10 @@ class SchedulerJob(BaseJob):
             self.log.info(f"Is maximum active runs and no timeout setting | active_runs={active_runs} dag.max_active_runs={dag.max_active_runs} dag.dagrun_timeout={dag.dagrun_timeout}")
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
                 return
+            # runs that have been running for more than the 'dagrun_timeout'
             timedout_runs = 0
             for dr in active_runs:
+                # fail anything that's been running loner than the timeout
                 if (
                         dr.start_date and dag.dagrun_timeout and
                         dr.start_date < timezone.utcnow() - dag.dagrun_timeout):
@@ -808,6 +858,8 @@ class SchedulerJob(BaseJob):
             self.log.info(f"Is len(active_runs) - timedout_runs >= dag.max_active_runs | len(active_runs)={len(active_runs)} timedout_runs={timedout_runs} dag.max_active_runs={dag.max_active_runs}")
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
                 return
+
+            # is the above OK? it basically says if there are more than max_active_runs - ignore and don't schedule anything.
 
             # this query should be replaced by find dagrun
             qry = (
@@ -1496,7 +1548,7 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Processing %s", dag.dag_id)
 
-            dag_run = self.create_dag_run(dag)
+            dag_run = self.create_cron_dag_run(dag) if os.environ.get("CRON_SCHEDULER") else self.create_dag_run(dag)
             if dag_run:
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
