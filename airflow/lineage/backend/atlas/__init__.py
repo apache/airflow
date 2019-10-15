@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""Send lineage metadata to Apache Atlas."""
 from atlasclient.client import Atlas
 from atlasclient.exceptions import HttpError
 
@@ -35,8 +36,8 @@ _host = conf.get("atlas", "host")
 
 
 class AtlasBackend(LineageBackend):
-    @staticmethod
-    def send_lineage(operator, inlets, outlets, context):
+    """Send lineage metadata to Atlas backend."""
+    def send_lineage(self, operator, inlets, outlets, context):
         client = Atlas(_host, port=_port, username=_username, password=_password)
         try:
             client.typedefs.create(data=operator_typedef)

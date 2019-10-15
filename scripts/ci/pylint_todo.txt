@@ -144,10 +144,6 @@
 ./airflow/jobs/base_job.py
 ./airflow/jobs/local_task_job.py
 ./airflow/jobs/scheduler_job.py
-./airflow/lineage/__init__.py
-./airflow/lineage/backend/atlas/__init__.py
-./airflow/lineage/backend/atlas/typedefs.py
-./airflow/lineage/datasets.py
 ./airflow/logging_config.py
 ./airflow/macros/__init__.py
 ./airflow/macros/hive.py

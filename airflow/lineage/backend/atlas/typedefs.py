@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""Atlas Operator type definition."""
 
 operator_typedef = {
     "enumDefs": [],
