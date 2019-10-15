@@ -336,7 +336,7 @@ limitations under the License.
                 .attr('stroke', 'gainsboro')
                 .attr('fill', function(d) { return d.color })
                 .attr('r', diameter/2)
-                .attr('title', function(d) { return d.state })
+                .attr('title', function(d) { return new Date(d.execution_date) })
                 .attr('style', function(d) {
                     if(d.state)
                         return"cursor:pointer;"
