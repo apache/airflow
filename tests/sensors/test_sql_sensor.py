@@ -50,7 +50,7 @@ class TestSqlSensor(unittest.TestCase):
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
-        'mysql' in configuration.get('core', 'sql_alchemy_conn'), "this is a mysql test")
+        'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
     def test_sql_sensor_mysql(self):
         t1 = SqlSensor(
             task_id='sql_sensor_check',
@@ -70,7 +70,7 @@ class TestSqlSensor(unittest.TestCase):
         t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
-        'postgresql' in configuration.get('core', 'sql_alchemy_conn'), "this is a postgres test")
+        'postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
     def test_sql_sensor_postgres(self):
         t1 = SqlSensor(
             task_id='sql_sensor_check',
@@ -101,18 +101,6 @@ class TestSqlSensor(unittest.TestCase):
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        self.assertFalse(t.poke(None))
-
-        mock_get_records.return_value = [['None']]
-        self.assertTrue(t.poke(None))
-
-        mock_get_records.return_value = [[0.0]]
-        self.assertFalse(t.poke(None))
-
-        mock_get_records.return_value = [[0]]
-        self.assertFalse(t.poke(None))
-
-        mock_get_records.return_value = [['0']]
         self.assertFalse(t.poke(None))
 
         mock_get_records.return_value = [['1']]
@@ -242,7 +230,6 @@ class TestSqlSensor(unittest.TestCase):
 
         mock_get_records.return_value = [[1]]
         self.assertRaises(AirflowException, t.poke, None)
-
 
     @mock.patch('airflow.sensors.sql_sensor.BaseHook')
     def test_sql_sensor_postgres_check_allow_null(self, mock_hook):
