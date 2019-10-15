@@ -133,7 +133,7 @@ class TestKubeConfig(unittest.TestCase):
         ('kubernetes', 'git_ssh_known_hosts_configmap_name'): 'airflow-configmap',
         ('kubernetes', 'git_ssh_key_secret_name'): 'airflow-secrets',
         ('kubernetes_annotations', "iam.com/role"): "role-arn",
-        ('kubernetes_annotations', "other/annotation"):  "value"
+        ('kubernetes_annotations', "other/annotation"): "value"
     })
     def test_kube_config_worker_annotations_properly_parsed(self):
         annotations = KubeConfig().kube_annotations

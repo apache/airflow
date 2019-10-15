@@ -475,7 +475,6 @@ class PodGenerator:
         """
         dynamic_pod = PodGenerator(
             namespace=namespace,
-            image='',
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
