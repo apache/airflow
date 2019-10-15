@@ -55,15 +55,15 @@ The following code shows how to add extra links to an operator:
             self.log.info("Hello World!")
 
 You can also add a global operator extra link that will be available to
-all the operators through airflow plugin. Learn more about it in the
+all the operators through an airflow plugin. Learn more about it in the
 :ref:`plugin example <plugin-example>`.
 
 
-Add Operator Link to Existing Operators
----------------------------------------
+Add or override Links to Existing Operators
+-------------------------------------------
 
 You can also add (or override) an extra link to an existing operators
-through Airflow plugin.
+through an Airflow plugin.
 
 For example, the following Airflow plugin will add an Operator Link on all
 tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator` operator.
@@ -100,8 +100,9 @@ tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator`
 
 **Overriding Operator Links of Existing Operators**:
 
-For :class:`~airflow.gcp.operators.bigquery.BigQueryOperator` you can create
-the following plugin to override the existing extra operator links:
+It is also possible to replace a built in link on an operator via a Plugin. For example
+:class:`~airflow.gcp.operators.bigquery.BigQueryOperator` includes a link to the GCP
+console, but if we wanted to change that link we could:
 
 .. code-block:: python
 

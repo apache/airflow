@@ -193,8 +193,8 @@ menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
-global_operator_extra_links = []  # type: List[Any]
-operator_extra_links = []  # type: List[Any]
+global_operator_extra_links = []  # type: List[BaseOperatorLink]
+operator_extra_links = []  # type: List[BaseOperatorLink]
 
 stat_name_handlers = []
 for p in plugins:
@@ -219,10 +219,10 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
-    # Only register Operator links if its ``operators`` property is not None
+    # Only register Operator links if its ``operators`` property is not an empty list
     # So that we can only attach this links to a specific Operator
     operator_extra_links.extend([
-        ope for ope in p.operator_extra_links if ope.operators is not None])
+        ope for ope in p.operator_extra_links if ope.operators])
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(

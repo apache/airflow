@@ -26,7 +26,7 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type, Union
 
 import jinja2
 from cached_property import cached_property
@@ -1061,12 +1061,12 @@ class BaseOperatorLink(metaclass=ABCMeta):
     Abstract base class that defines how we get an operator link.
     """
 
-    operators = None   # type: Optional[List[BaseOperator]]
+    operators = []   # type: List[Type[BaseOperator]]
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link
 
-    :return: List of Operator used by task for which you want to create extra link
+    :return: List of Operator classes used by task for which you want to create extra link
     """
 
     @property
