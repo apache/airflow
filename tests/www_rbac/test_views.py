@@ -1734,6 +1734,8 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
+        from airflow.utils.tests import (
+            Dummy2TestOperator, Dummy3TestOperator)
         super(TestExtraLinks, self).setUp()
         self.ENDPOINT = "extra_links"
         self.DEFAULT_DATE = datetime(2017, 1, 1)
@@ -1774,6 +1776,8 @@ class TestExtraLinks(TestBase):
 
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
+        self.task_2 = Dummy2TestOperator(task_id="some_dummy_task_2", dag=self.dag)
+        self.task_3 = Dummy3TestOperator(task_id="some_dummy_task_3", dag=self.dag)
 
     def tearDown(self):
         super(TestExtraLinks, self).tearDown()
@@ -1866,6 +1870,84 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': None,
             'error': 'No URL found for no_response'})
+
+    @mock.patch('airflow.www_rbac.views.dagbag.get_dag')
+    def test_operator_extra_link_override_plugin(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
+        is overriden by Airflow Plugin (AirflowLink2).
+        AirflowLink returns 'https://airflow.apache.org/' link
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        """
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+    @mock.patch('airflow.www_rbac.views.dagbag.get_dag')
+    def test_operator_extra_link_multiple_operators(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink2) defined in
+        Airflow Plugin (AirflowLink2) is attached to all the list of
+        operators defined in the AirflowLink2().operators property
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        GoogleLink returns 'https://www.google.com'
+        """
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+        # Also check that the other Operator Link defined for this operator exists
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=google".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://www.google.com',
+            'error': None
+        })
 
 
 class TestDagRunModelView(TestBase):
