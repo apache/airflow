@@ -83,7 +83,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add licence for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$ # yamllint disable-line rule:line-length
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
