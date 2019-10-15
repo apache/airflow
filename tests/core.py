@@ -85,6 +85,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
 EXAMPLE_DAG_DEFAULT_DATE = days_ago(2)
+TEST_DATA = {'called': False}
 
 
 class OperatorSubclass(BaseOperator):

@@ -20,14 +20,14 @@ from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
-from tests.jobs.test_local_task_job import data
+from tests.core import TEST_DATA
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 
 def check_failure(context):
     context
-    data['called'] = True
+    TEST_DATA['called'] = True
 
 
 args = {
