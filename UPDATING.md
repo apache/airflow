@@ -266,8 +266,8 @@ See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if
 ### Changes to Dataproc related Operators
 The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from 
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
-and `dataproc_jars`respectively.
-Arguments for dataproc_properties dataproc_jars
+and `dataproc_jars`respectively. 
+Arguments for dataproc_properties dataproc_jars 
 
 ## Airflow 1.10.4
 
