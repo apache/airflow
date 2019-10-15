@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class BashOperator(BaseOperator):
@@ -68,7 +69,19 @@ class BashOperator(BaseOperator):
         which will be cleaned afterwards
         """
         bash_command = self.bash_command
-        logging.info("tmp dir root location: \n" + gettempdir())
+
+        self.log.info("Tmp dir root location: \n %s", gettempdir())
+
+        # Prepare env for child process.
+        if self.env is None:
+            self.env = os.environ.copy()
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info("Exporting the following env vars:\n" +
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in
+                                 airflow_context_vars.items()]))
+        self.env.update(airflow_context_vars)
+
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 

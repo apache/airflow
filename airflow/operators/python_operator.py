@@ -14,10 +14,12 @@
 
 from builtins import str
 import logging
+import os
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class PythonOperator(BaseOperator):
@@ -76,6 +78,13 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
 
     def execute(self, context):
+        # Export context to make it available for callables to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info("Exporting the following env vars:\n" +
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in airflow_context_vars.items()]))
+        os.environ.update(airflow_context_vars)
+
         if self.provide_context:
             context.update(self.op_kwargs)
             context['templates_dict'] = self.templates_dict
@@ -105,6 +114,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     ``skipped`` states propagates where all directly upstream tasks are
     ``skipped``.
     """
+
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
         logging.info("Following branch {}".format(branch))
@@ -134,6 +144,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     The condition is determined by the result of `python_callable`.
     """
+
     def execute(self, context):
         condition = super(ShortCircuitOperator, self).execute(context)
         logging.info("Condition result is {}".format(condition))
