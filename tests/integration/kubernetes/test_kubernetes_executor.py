@@ -20,40 +20,28 @@ import os
 import re
 import time
 import unittest
-
 from subprocess import check_call, check_output
-import requests.exceptions
+
 import requests
+import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-import six
-
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
-except Exception as e:
+except Exception as e:  # pylint: disable=broad-except
     if os.environ.get('KUBERNETES_VERSION'):
         raise e
     else:
         raise unittest.SkipTest(
-            "Kubernetes integration tests require a minikube cluster;"
+            "Kubernetes integration tests require a kubernetes cluster;"
             "Skipping tests {}".format(e)
         )
 
-
-def get_minikube_host():
-    if "MINIKUBE_IP" in os.environ:
-        host_ip = os.environ['MINIKUBE_IP']
-    else:
-        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
-        if six.PY3:
-            host_ip = host_ip.decode('UTF-8')
-
-    host = '{}:30809'.format(host_ip.strip())
-    return host
+KUBERNETES_HOST = 'docker:30809'
 
 
-class KubernetesExecutorTest(unittest.TestCase):
+class TestKubernetesExecutor(unittest.TestCase):
     @staticmethod
     def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
@@ -71,11 +59,11 @@ class KubernetesExecutorTest(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=get_minikube_host()),
+            "http://{host}/health".format(host=KUBERNETES_HOST),
             timeout=1,
         )
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
     def setUp(self):
         self.session = self._get_session_with_retries()
@@ -113,7 +101,6 @@ class KubernetesExecutorTest(unittest.TestCase):
                 tries += 1
             except requests.exceptions.ConnectionError as e:
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
-                pass
 
         self.assertEqual(state, expected_final_state)
 
@@ -193,7 +180,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         return result_json
 
     def test_integration_run_dag(self):
-        host = get_minikube_host()
+        host = KUBERNETES_HOST
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
@@ -216,7 +203,7 @@ class KubernetesExecutorTest(unittest.TestCase):
                                        expected_final_state='success', timeout=100)
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        host = get_minikube_host()
+        host = KUBERNETES_HOST
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)

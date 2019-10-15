@@ -45,7 +45,6 @@ export HOST_GROUP_ID
 
 docker-compose \
     -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-kubernetes.yml" \
     -f "${MY_DIR}/docker-compose-local.yml" \
     -f "${MY_DIR}/docker-compose-mysql.yml" \
     -f "${MY_DIR}/docker-compose-postgres.yml" \
