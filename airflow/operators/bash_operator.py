@@ -70,16 +70,16 @@ class BashOperator(BaseOperator):
         """
         bash_command = self.bash_command
 
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        logging.info("Tmp dir root location: \n %s", gettempdir())
 
         # Prepare env for child process.
         if self.env is None:
             self.env = os.environ.copy()
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.info("Exporting the following env vars:\n" +
-                      '\n'.join(["{}={}".format(k, v)
-                                 for k, v in
-                                 airflow_context_vars.items()]))
+        logging.info("Exporting the following env vars:\n" +
+                     '\n'.join(["{}={}".format(k, v)
+                                for k, v in
+                                airflow_context_vars.items()]))
         self.env.update(airflow_context_vars)
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
@@ -118,4 +118,3 @@ class BashOperator(BaseOperator):
     def on_kill(self):
         logging.info('Sending SIGTERM signal to bash process group')
         os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
-
