@@ -798,12 +798,12 @@ class SchedulerJob(BaseJob):
     @provide_session
     def create_cron_dag_run(self, dag, session=None):
         start, end = self.get_recovery_window(session)
-        self.log.info(f"DAG Id: {dag.dag_id} Recovery window - Start: {start} , End: {end}")
+        self.log.info(f"CRON scheduler: DAG Id: {dag.dag_id} Recovery window - Start: {start} , End: {end}")
         next_run_date = dag.following_schedule(start)
-        self.log.info(f"Next run run date: {next_run_date}")
+        self.log.info(f"CRON scheduler: Next run run date: {next_run_date}")
         if next_run_date < end:
             last_scheduled_run = self.get_last_scheduled_run(dag, session)
-            if not last_scheduled_run or start <= last_scheduled_run < next_run_date:
+            if not last_scheduled_run or last_scheduled_run < next_run_date:
                 #  create run
                 next_dag_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
@@ -813,13 +813,13 @@ class SchedulerJob(BaseJob):
                     external_trigger=False,
                     schedule_interval=dag.schedule_interval
                 )
-                self.log.info(f"Next DAG run: {next_dag_run}")
+                self.log.info(f"CRON scheduler: Next DAG run: {next_dag_run}")
                 return next_dag_run
             else:
-                self.log.info(f"Found last scheduled run: {last_scheduled_run} greater than or equal to next run date {next_run_date}, SKIPPING")
+                self.log.info(f"CRON scheduler: Found last scheduled run: {last_scheduled_run} greater than or equal to next run date {next_run_date}, SKIPPING")
                 return
         else:
-            self.log.info(f"Next run is at {next_run_date}, outside Recovery window, SKIPPING")
+            self.log.info(f"CRON scheduler: Next run is at {next_run_date}, outside Recovery window, SKIPPING")
             return
 
 
@@ -1548,6 +1548,7 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Processing %s", dag.dag_id)
 
+            self.log.info(f"""CRON_SCHEDULER: {os.environ.get("CRON_SCHEDULER")}""")
             dag_run = self.create_cron_dag_run(dag) if os.environ.get("CRON_SCHEDULER") else self.create_dag_run(dag)
             if dag_run:
                 self.log.info("Created %s", dag_run)
