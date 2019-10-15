@@ -34,7 +34,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models import DAG  # noqa: F401; # pylint: disable=cyclic-import
-    from airflow.dag.serialization import SerializedDAG  # noqa: F401
+    from airflow.serialization import SerializedDAG  # noqa: F401
 
 
 log = LoggingMixin().log
@@ -72,7 +72,7 @@ class SerializedDagModel(Base):
     )
 
     def __init__(self, dag: 'DAG'):
-        from airflow.dag.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
+        from airflow.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
 
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
@@ -142,7 +142,7 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
-        from airflow.dag.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
+        from airflow.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
 
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any

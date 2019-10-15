@@ -29,11 +29,11 @@ import pendulum
 from dateutil import relativedelta
 
 import airflow
-from airflow.dag.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
 
@@ -148,9 +148,9 @@ class Serialization:
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
             elif isinstance(var, DAG):
-                return airflow.dag.serialization.SerializedDAG.serialize_dag(var)
+                return airflow.serialization.SerializedDAG.serialize_dag(var)
             elif isinstance(var, BaseOperator):
-                return airflow.dag.serialization.SerializedBaseOperator.serialize_operator(var)
+                return airflow.serialization.SerializedBaseOperator.serialize_operator(var)
             elif isinstance(var, cls._datetime_types):
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
@@ -198,9 +198,9 @@ class Serialization:
         if type_ == DAT.DICT:
             return {k: cls._deserialize(v) for k, v in var.items()}
         elif type_ == DAT.DAG:
-            return airflow.dag.serialization.SerializedDAG.deserialize_dag(var)
+            return airflow.serialization.SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
-            return airflow.dag.serialization.SerializedBaseOperator.deserialize_operator(var)
+            return airflow.serialization.SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
         elif type_ == DAT.TIMEDELTA:
@@ -244,7 +244,7 @@ class Serialization:
 
 
 if TYPE_CHECKING:
-    from airflow.dag.serialization.json_schema import Validator
-    from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
-    from airflow.dag.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
+    from airflow.serialization.json_schema import Validator
+    from airflow.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
+    from airflow.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
     from inspect import Parameter

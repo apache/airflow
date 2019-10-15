@@ -20,8 +20,8 @@
 """Operator serialization with JSON."""
 from inspect import signature
 
-from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 from airflow.models import BaseOperator
+from airflow.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 
 
 class SerializedBaseOperator(BaseOperator, Serialization):
@@ -93,7 +93,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
     def deserialize_operator(cls, encoded_op: dict) -> BaseOperator:
         """Deserializes an operator from a JSON object.
         """
-        from airflow.dag.serialization import SerializedDAG
+        from airflow.serialization import SerializedDAG
         from airflow.plugins_manager import operator_extra_links
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])

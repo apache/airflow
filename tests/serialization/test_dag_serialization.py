@@ -29,12 +29,12 @@ from parameterized import parameterized
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
-from airflow.dag.serialization import SerializedBaseOperator, SerializedDAG
 from airflow.gcp import example_dags as gcp_example_dags
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, BaseOperator, Connection, DagBag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.serialization import SerializedBaseOperator, SerializedDAG
 from airflow.utils.tests import CustomBaseOperator, GoogleLink
 
 serialized_simple_dag_ground_truth = {
