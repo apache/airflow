@@ -545,8 +545,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return None
 
         with create_session() as session:
-            # check if we can find the task directly before scanning
-            # every task with the execution_date
             task = (
                 session
                 .query(TaskInstance)
@@ -561,8 +559,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 return (dag_id, task_id, ex_time, try_num)
             else:
                 self.log.warning(
-                    "Unable to find Task in db directly for %s-%s (%s). Scan all tasks",
-                    dag_id, task_id, ex_time
+                    'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
+                    'severe performance regressions. Please see '
+                    'https://kubernetes.io/docs/concepts/overview/working-with-objects'
+                    '/labels/#syntax-and-character-set'
+                    'Given dag_id: %s, task_id: %s', task_id, dag_id
                 )
 
             tasks = (
