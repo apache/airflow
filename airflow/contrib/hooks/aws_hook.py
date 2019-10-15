@@ -160,7 +160,6 @@ class AwsHook(BaseHook):
                     aws_session_token = credentials['SessionToken']
 
                 endpoint_url = extra_config.get('host')
-                # If there is an external session token use this token
 
             except AirflowException:
                 # No connection found: fallback on boto3 credential strategy
