@@ -800,7 +800,7 @@ class SchedulerJob(BaseJob):
         start, end = self.get_recovery_window(session)
         self.log.info(f"DAG Id: {dag.dag_id} Recovery window - Start: {start} , End: {end}")
         next_run_date = dag.following_schedule(start)
-        self.log.info(f"Next run: {next_run_date}")
+        self.log.info(f"Next run run date: {next_run_date}")
         if next_run_date < end:
             last_scheduled_run = self.get_last_scheduled_run(dag, session)
             if not last_scheduled_run or start <= last_scheduled_run < next_run_date:
@@ -816,10 +816,10 @@ class SchedulerJob(BaseJob):
                 self.log.info(f"Next DAG run: {next_dag_run}")
                 return next_dag_run
             else:
-                self.log.info(f"Last scheduled run: {last_scheduled_run} outside the window - skipping")
+                self.log.info(f"Found last scheduled run: {last_scheduled_run} greater than or equal to next run date {next_run_date}, SKIPPING")
                 return
         else:
-            self.log.info(f"Next run is at {next_run_date} - outside Recovery window")
+            self.log.info(f"Next run is at {next_run_date}, outside Recovery window, SKIPPING")
             return
 
 
