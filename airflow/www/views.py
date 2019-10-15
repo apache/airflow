@@ -2305,7 +2305,7 @@ class PoolModelView(AirflowModelView):
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
-    list_columns = ['pool', 'slots', 'used_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -2330,12 +2330,12 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    def fused_slots(attr):
+    def frunning_slots(attr):
         pool_id = attr.get('pool')
-        used_slots = attr.get('used_slots')
-        if pool_id is not None and used_slots is not None:
+        running_slots = attr.get('running_slots')
+        if pool_id is not None and running_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
+            return Markup("<a href='{url}'>{running_slots}</a>").format(url=url, running_slots=running_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2350,7 +2350,7 @@ class PoolModelView(AirflowModelView):
 
     formatters_columns = {
         'pool': pool_link,
-        'used_slots': fused_slots,
+        'running_slots': frunning_slots,
         'queued_slots': fqueued_slots
     }
 

@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from itertools import groupby
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -1117,7 +1117,7 @@ class SchedulerJob(BaseJob):
             Stats.gauge('scheduler.tasks.without_dagrun', tis_changed)
 
     @provide_session
-    def __get_concurrency_maps(self, states, session=None):
+    def __get_concurrency_maps(self, states: frozenset, session=None):
         """
         Get the concurrency maps.
 
@@ -1135,8 +1135,8 @@ class SchedulerJob(BaseJob):
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.dag_id)
         ).all()
-        dag_map = defaultdict(int)
-        task_map = defaultdict(int)
+        dag_map: Dict[str, int] = defaultdict(int)
+        task_map: Dict[Tuple[str, str], int] = defaultdict(int)
         for result in ti_concurrency_query:
             task_id, dag_id, count = result
             dag_map[dag_id] += count
@@ -1176,6 +1176,7 @@ class SchedulerJob(BaseJob):
             .filter(TI.state == State.SCHEDULED)
             .all()
         )
+        Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
         if len(task_instances_to_examine) == 0:
             self.log.debug("No tasks to consider for execution.")
@@ -1199,6 +1200,10 @@ class SchedulerJob(BaseJob):
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session)
+
+        num_tasks_in_executor = 0
+        # Number of tasks that cannot be scheduled because of no open slot in pool
+        num_starving_tasks_total = 0
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
@@ -1224,9 +1229,7 @@ class SchedulerJob(BaseJob):
             priority_sorted_task_instances = sorted(
                 task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
 
-            # Number of tasks that cannot be scheduled because of no open slot in pool
             num_starving_tasks = 0
-            num_tasks_in_executor = 0
             for current_index, task_instance in enumerate(priority_sorted_task_instances):
                 if open_slots <= 0:
                     self.log.info(
@@ -1235,6 +1238,7 @@ class SchedulerJob(BaseJob):
                     )
                     # Can't schedule any more since there are no more open slots.
                     num_starving_tasks = len(priority_sorted_task_instances) - current_index
+                    num_starving_tasks_total += num_starving_tasks
                     break
 
                 # Check to make sure that the task concurrency of the DAG hasn't been
@@ -1282,16 +1286,11 @@ class SchedulerJob(BaseJob):
                 dag_concurrency_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
-            Stats.gauge('pool.starving_tasks.{pool_name}'.format(pool_name=pool_name),
-                        num_starving_tasks)
-            Stats.gauge('pool.open_slots.{pool_name}'.format(pool_name=pool_name),
-                        pools[pool_name].open_slots())
-            Stats.gauge('pool.used_slots.{pool_name}'.format(pool_name=pool_name),
-                        pools[pool_name].occupied_slots())
-            Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
-            Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
-            Stats.gauge('scheduler.tasks.starving', num_starving_tasks)
-            Stats.gauge('scheduler.tasks.executable', len(executable_tis))
+            Stats.gauge(f'pool.starving_tasks.{pool_name}', num_starving_tasks)
+
+        Stats.gauge('scheduler.tasks.starving', num_starving_tasks_total)
+        Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
+        Stats.gauge('scheduler.tasks.executable', len(executable_tis))
 
         task_instance_str = "\n\t".join(
             [repr(x) for x in executable_tis])
@@ -1634,6 +1633,8 @@ class SchedulerJob(BaseJob):
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
+            self._emit_pool_metrics()
+
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
             self.log.debug("Ran scheduling loop in %.2f seconds", loop_duration)
@@ -1684,6 +1685,14 @@ class SchedulerJob(BaseJob):
                                                    State.UP_FOR_RESCHEDULE],
                                                   State.NONE)
         self._execute_task_instances(simple_dag_bag)
+
+    @provide_session
+    def _emit_pool_metrics(self, session=None) -> None:
+        pools = models.Pool.slots_stats(session)
+        for pool_name, slot_stats in pools.items():
+            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])
 
     @provide_session
     def heartbeat_callback(self, session=None):

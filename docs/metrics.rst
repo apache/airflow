@@ -83,6 +83,8 @@ Name                                    Description
 ``scheduler_heartbeat``                 Scheduler heartbeats
 ``dag_processing.processes``            Number of currently running DAG parsing processes
 ``scheduler.tasks.killed_externally``   Number of tasks killed externally
+``scheduler.tasks.running``             Number of tasks running in executor
+``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
 ======================================= ================================================================
 
 Gauges
@@ -101,7 +103,8 @@ Name                                                Description
 ``executor.queued_tasks``                           Number of queued tasks on executor
 ``executor.running_tasks``                          Number of running tasks on executor
 ``pool.open_slots.<pool_name>``                     Number of open slots in the pool
-``pool.used_slots.<pool_name>``                     Number of used slots in the pool
+``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
+``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
 =================================================== ========================================================================
 
