@@ -44,7 +44,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, errors
+from airflow.models import DAG, DagRun, errors, SchedulerHeartbeat
 from airflow.models.dagpickle import DagPickle
 from airflow.models.slamiss import SlaMiss
 from airflow.settings import Stats
@@ -775,10 +775,23 @@ class SchedulerJob(BaseJob):
                 stacktrace=stacktrace))
         session.commit()
 
-    def get_recovery_window(self, session):
-        interval = 60
+    def get_recovery_window(self, dag, session):
         window_end = timezone.utcnow()
-        window_start = window_end - timedelta(seconds=interval)
+
+        max_interval = 30 * 60 # 30 min
+        max_window_start = window_end - timedelta(seconds=max_interval)
+
+        min_interval = 60 # 1 min
+        min_window_start = window_end - timedelta(seconds=min_interval)
+
+        last_heartbeat = SchedulerHeartbeat.get(dag.dag_id)
+        self.log.info(f"Last heartbeat: {last_heartbeat}")
+        window_start = last_heartbeat.last_heartbeat if last_heartbeat else min_window_start
+
+        if  window_start < max_window_start:
+            window_start = max_window_start
+        elif window_start > min_window_start:
+            window_start = min_window_start
 
         return window_start, window_end
 
@@ -797,7 +810,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def create_cron_dag_run(self, dag, session=None):
-        start, end = self.get_recovery_window(session)
+        start, end = self.get_recovery_window(dag, session)
         self.log.info(f"CRON scheduler: DAG Id: {dag.dag_id} Recovery window - Start: {start} , End: {end}")
         next_run_date = dag.following_schedule(start)
         self.log.info(f"CRON scheduler: Next run run date: {next_run_date}")
@@ -1536,6 +1549,9 @@ class SchedulerJob(BaseJob):
         :type tis_out: multiprocessing.Queue[TaskInstance]
         :rtype: None
         """
+
+        cron_scheduler_flag = os.environ.get("CRON_SCHEDULER")
+        self.log.info(f"""CRON_SCHEDULER: {cron_scheduler_flag}""")
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
             if dag.is_paused:
@@ -1548,12 +1564,15 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Processing %s", dag.dag_id)
 
-            self.log.info(f"""CRON_SCHEDULER: {os.environ.get("CRON_SCHEDULER")}""")
-            dag_run = self.create_cron_dag_run(dag) if os.environ.get("CRON_SCHEDULER") else self.create_dag_run(dag)
+            dag_run = self.create_cron_dag_run(dag) if cron_scheduler_flag else self.create_dag_run(dag)
             if dag_run:
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
+            if cron_scheduler_flag:
+                self.log.info(f"""CRON_SCHEDULER: Updating heartbeat""")
+                SchedulerHeartbeat.update_heartbeat(dag.dag_id)
+
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):

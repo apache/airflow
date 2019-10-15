@@ -4653,6 +4653,43 @@ class XCom(Base, LoggingMixin):
         session.commit()
 
 
+class SchedulerHeartbeat(Base, LoggingMixin):
+    """
+    Scheduler Heartbeat model
+    """
+    __tablename__ = "scheduler_heartbeat"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dag_id = Column(String)
+    last_heartbeat = Column(UtcDateTime, default=timezone.utcnow())
+
+    def __repr__(self):
+        return (
+            '<Scheduler Heartbeat {id} @ {last_heartbeat}'
+        ).format(
+            id=self.id,
+            dag_id=self.dag_id,
+            last_heartbeat=self.last_heartbeat)
+
+    @classmethod
+    @provide_session
+    def get(cls, dag_id, session=None):
+        return session.query(SchedulerHeartbeat).filter(SchedulerHeartbeat.dag_id == dag_id).first()
+
+    @classmethod
+    @provide_session
+    def update_heartbeat(cls, dag_id, session=None):
+        last_heartbeat = SchedulerHeartbeat.get(dag_id, session)
+        if last_heartbeat:
+            last_heartbeat.last_heartbeat = timezone.utcnow()
+        else:
+            last_heartbeat = SchedulerHeartbeat()
+            last_heartbeat.dag_id = dag_id
+            session.add(last_heartbeat)
+        session.commit()
+        session.flush()
+
+
 class DagRun(Base, LoggingMixin):
     """
     DagRun describes an instance of a Dag. It can be created
