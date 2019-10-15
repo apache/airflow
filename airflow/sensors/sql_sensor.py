@@ -35,6 +35,7 @@ class SqlSensor(BaseSensorOperator):
     If failure callable is defined and the criteria is met the sensor will raise AirflowException.
     Failure criteria is evaluated before success criteria. A fail_on_empty boolean can also
     be passed to the sensor in which case it will fail if no rows have been returned
+
     :param conn_id: The connection to run the sensor against
     :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
