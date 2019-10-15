@@ -18,10 +18,9 @@
 # under the License.
 from datetime import datetime
 
-from tests.jobs.test_local_task_job import data
-
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
+from tests.jobs.test_local_task_job import data
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
