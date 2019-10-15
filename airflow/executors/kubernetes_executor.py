@@ -213,7 +213,7 @@ class KubeConfig:
     def _get_security_context_val(self, scontext):
         val = conf.get(self.kubernetes_section, scontext)
         if not val:
-            return 0
+            return ""
         else:
             return int(val)
 
