@@ -42,7 +42,7 @@ class TestPodGenerator(unittest.TestCase):
             # This should produce a single secret mounted in env
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
         ]
-        self.resources = Resources('1Gi', 1, '2Gi', 2, 1)
+        self.resources = Resources('1Gi', 1, '2Gi', '2Gi', 2, 1, '4Gi')
         self.k8s_client = ApiClient()
         self.expected = {
             'apiVersion': 'v1',
@@ -92,12 +92,14 @@ class TestPodGenerator(unittest.TestCase):
                     'resources': {
                         'requests': {
                             'memory': '1Gi',
-                            'cpu': 1
+                            'cpu': 1,
+                            'ephemeral-storage': '2Gi'
                         },
                         'limits': {
                             'memory': '2Gi',
                             'cpu': 2,
-                            'nvidia.com/gpu': 1
+                            'nvidia.com/gpu': 1,
+                            'ephemeral-storage': '4Gi'
                         },
                     },
                     'ports': [{'name': 'foo', 'containerPort': 1234}],
