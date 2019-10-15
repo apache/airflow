@@ -63,7 +63,7 @@ spec:
           - "bash"
         args:
           - "-cx"
-          - "./tmp/airflow-test-env-init.sh"
+          - "/tmp/airflow-test-env-init.sh"
 {{INIT_GIT_SYNC}}
       containers:
       - name: webserver
