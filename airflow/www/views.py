@@ -2178,6 +2178,8 @@ class HomeView(AdminIndexView):
 
         # read orm_dags from the db
         query = session.query(DM)
+        # non-mutating list of all dags
+        all_dags = query
 
         if do_filter and owner_mode == 'ldapgroup':
             query = query.filter(
@@ -2245,7 +2247,7 @@ class HomeView(AdminIndexView):
         owner_dict = {}
         if REPO_SYNCS_CONFIG:
             # for finding the sync_repos dag, we only care about DAGs with objects.
-            sync_repos_dags = list(filter(lambda dag: dag.dag_id == REPO_SYNCS_CONFIG.get('DEFAULT', 'DAG_ID'), dags))
+            sync_repos_dags = list(filter(lambda dag: dag.dag_id == REPO_SYNCS_CONFIG.get('DEFAULT', 'DAG_ID'), all_dags))
             assert len(sync_repos_dags) <= 1, 'Duplicated dag_id in DAGs list!'
             if sync_repos_dags:
                 task_id_prefix = REPO_SYNCS_CONFIG.get('DEFAULT', 'SHA_EXPORT_TASK_ID_PREFIX')
