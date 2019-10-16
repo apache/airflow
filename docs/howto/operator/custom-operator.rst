@@ -54,7 +54,7 @@ The above operator can now be used as follows:
 
 .. code:: python
 
-    hello_task = HelloOperator(task_id='', dag=dag, name='foo_bar')
+    hello_task = HelloOperator(task_id='sample-task', dag=dag, name='foo_bar')
 
 Hooks
 ^^^^^
@@ -98,7 +98,7 @@ backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.
 User interface
 ^^^^^^^^^^^^^^^
 Airflow also allows the developer to control how the operator shows up in the DAG UI.
-Override ``ui_color``to change the background color of the operator in UI. 
+Override ``ui_color`` to change the background color of the operator in UI. 
 Override ``ui_fgcolor`` to change the color of the label.
 
 .. code::  python
