@@ -98,6 +98,31 @@ class TestDataFlowHook(unittest.TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
 
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    def test_start_python_dataflow(
+        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+    ):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        self.dataflow_hook.start_python_dataflow(
+            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
+            dataflow=PY_FILE, py_options=PY_OPTIONS)
+        expected_cmd = ["python2", '-m', PY_FILE,
+                        '--region=us-central1',
+                        '--runner=DataflowRunner', '--project=test',
+                        '--labels=foo=bar',
+                        '--staging_location=gs://test/staging',
+                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
+                             sorted(expected_cmd))
+
     @parameterized.expand([
         ('default_to_python2', "python2"),
         ('major_version_2', 'python2'),
@@ -108,8 +133,9 @@ class TestDataFlowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_python_dataflow(self, name, py, mock_conn,
-                                   mock_dataflow, mock_dataflowjob, mock_uuid):
+    def test_start_python_dataflow_with_custom_interpreter(
+        self, name, py_interpreter, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+    ):
         del name  # unused variable
         mock_uuid.return_value = MOCK_UUID
         mock_conn.return_value = None
@@ -120,9 +146,8 @@ class TestDataFlowHook(unittest.TestCase):
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS,
-            py_interpreter=py)
-        expected_interpreter = py if py else DEFAULT_PY_INTERPRETER
-        expected_cmd = [expected_interpreter, '-m', PY_FILE,
+            py_interpreter=py_interpreter)
+        expected_cmd = [py_interpreter, '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
