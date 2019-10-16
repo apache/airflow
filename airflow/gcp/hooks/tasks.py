@@ -22,7 +22,7 @@ This module contains a CloudTasksHook
 which allows you to connect to GCP Cloud Tasks service,
 performing actions to queues or tasks.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2 import CloudTasksClient, enums
@@ -136,7 +136,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> Queue:
         """
         Updates a queue in Cloud Tasks.
 
@@ -197,7 +197,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> Queue:
         """
         Gets a queue from Cloud Tasks.
 
@@ -238,7 +238,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> List[Queue]:
         """
         Lists queues from Cloud Tasks.
 
@@ -287,7 +287,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> None:
         """
         Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
@@ -326,7 +326,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> List[Queue]:
         """
         Purges a queue by deleting all of its tasks from Cloud Tasks.
 
@@ -366,7 +366,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> List[Queue]:
         """
         Pauses a queue in Cloud Tasks.
 
@@ -406,7 +406,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> List[Queue]:
         """
         Resumes a queue in Cloud Tasks.
 
@@ -449,7 +449,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> Task:
         """
         Creates a task in Cloud Tasks.
 
@@ -511,11 +511,11 @@ class CloudTasksHook(GoogleCloudBaseHook):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view=None,
+        response_view: Optional[enums.Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> Task:
         """
         Gets a task from Cloud Tasks.
 
@@ -561,12 +561,12 @@ class CloudTasksHook(GoogleCloudBaseHook):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        response_view=None,
-        page_size=None,
+        response_view: Optional[enums.Task.View] = None,
+        page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> List[Task]:
         """
         Lists the tasks in Cloud Tasks.
 
@@ -618,7 +618,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> None:
         """
         Deletes a task from Cloud Tasks.
 
@@ -661,7 +661,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+    ) -> Task:
         """
         Forces to run a task in Cloud Tasks.
 
