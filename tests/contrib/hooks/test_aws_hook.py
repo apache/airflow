@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import unittest
 
 import boto3
@@ -51,7 +50,6 @@ class TestAwsHook(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
     def test_get_resource_type_returns_a_boto3_resource_of_the_requested_type(self):
-
         hook = AwsHook(aws_conn_id='aws_default')
         resource_from_hook = hook.get_resource_type('dynamodb')
 
@@ -113,9 +111,24 @@ class TestAwsHook(unittest.TestCase):
         self.assertEqual(table.item_count, 0)
 
     @mock.patch.object(AwsHook, 'get_connection')
-    def test_get_credentials_from_login(self, mock_get_connection):
+    def test_get_credentials_from_login_with_token(self, mock_get_connection):
         mock_connection = Connection(login='aws_access_key_id',
-                                     password='aws_secret_access_key')
+                                     password='aws_secret_access_key',
+                                     extra='{"aws_session_token": "test_token"}'
+                                     )
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertEqual(credentials_from_hook.token, 'test_token')
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_login_without_token(self, mock_get_connection):
+        mock_connection = Connection(login='aws_access_key_id',
+                                     password='aws_secret_access_key',
+                                     )
+
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
         credentials_from_hook = hook.get_credentials()
@@ -124,10 +137,24 @@ class TestAwsHook(unittest.TestCase):
         self.assertIsNone(credentials_from_hook.token)
 
     @mock.patch.object(AwsHook, 'get_connection')
-    def test_get_credentials_from_extra(self, mock_get_connection):
+    def test_get_credentials_from_extra_with_token(self, mock_get_connection):
         mock_connection = Connection(
             extra='{"aws_access_key_id": "aws_access_key_id",'
-            '"aws_secret_access_key": "aws_secret_access_key"}'
+                  '"aws_secret_access_key": "aws_secret_access_key",'
+                  ' "aws_session_token": "session_token"}'
+        )
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertEquals(credentials_from_hook.token, 'session_token')
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_extra_without_token(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"aws_access_key_id": "aws_access_key_id",'
+                  '"aws_secret_access_key": "aws_secret_access_key"}'
         )
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()

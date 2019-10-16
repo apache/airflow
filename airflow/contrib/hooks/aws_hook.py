@@ -125,17 +125,21 @@ class AwsHook(BaseHook):
                 external_id = extra_config.get('external_id')
                 aws_account_id = extra_config.get('aws_account_id')
                 aws_iam_role = extra_config.get('aws_iam_role')
+                if 'aws_session_token' in extra_config and aws_session_token is None:
+                    aws_session_token = extra_config['aws_session_token']
 
-                if role_arn is None and aws_account_id is not None and \
-                        aws_iam_role is not None:
+                if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
                     role_arn = "arn:aws:iam::{}:role/{}" \
                         .format(aws_account_id, aws_iam_role)
 
                 if role_arn is not None:
+
                     sts_session = boto3.session.Session(
                         aws_access_key_id=aws_access_key_id,
                         aws_secret_access_key=aws_secret_access_key,
-                        region_name=region_name)
+                        region_name=region_name,
+                        aws_session_token=aws_session_token
+                    )
 
                     sts_client = sts_session.client('sts')
 
