@@ -25,9 +25,10 @@ The extensibility is one of the many reasons which makes Apache Airflow powerful
 
 You can create any operator you want by extending the :class:`airflow.models.baseoperator.BaseOperator`
 
-There are two methods that you need to override in derived class:
+There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
+  Use ``@apply_defaults`` decorator function to fill unspecified arguments with default_args.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the 
   airflow context as a parameter that can be used to read config values.
@@ -36,8 +37,11 @@ Let's implement an example ``HelloOperator``:
 
 .. code::  python
 
+        from airflow.utils.decorators import apply_defaults
+
         class HelloOperator(BaseOperator):
 
+            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -50,7 +54,7 @@ Let's implement an example ``HelloOperator``:
                 print(message)
                 return message
 
-The above operator can now be used as follows:
+You can now use the derived custom operator as follows:
 
 .. code:: python
 
@@ -70,6 +74,7 @@ Let's extend our previous example to fetch name from MySQL:
 
     class HelloDBOperator(BaseOperator):
 
+            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -119,7 +124,8 @@ the operator.
         class HelloOperator(BaseOperator):
             
             template_fields = ['name']
-
+            
+            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -135,7 +141,7 @@ the operator.
         hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_id }}`` with
-task_id_1 .
+task_id_1.
 
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
@@ -152,7 +158,7 @@ will be available on the task page:
 
 .. image:: ../../img/operator_extra_link.png
 
-You should override ``operator_extra_link_dict`` parameter with the links. The following code shows how to add link to the ``HelloOperator``:
+You should override the ``operator_extra_link_dict`` parameter with the links. The following code shows how to add a link to the ``HelloOperator``:
 
 .. code-block:: python
 
@@ -173,5 +179,5 @@ You should override ``operator_extra_link_dict`` parameter with the links. The f
         ...
 
 You can also add a global operator extra link that will be available to
-all the operators through airflow plugin. Learn more about it in the
+all the operators through an airflow plugin. Learn more about it in the
 :ref:`plugin example <plugin-example>`.
