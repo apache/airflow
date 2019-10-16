@@ -66,7 +66,7 @@ class DataflowJobType:
     JOB_TYPE_STREAMING = "JOB_TYPE_STREAMING"
 
 
-class _DataflowJob(LoggingMixin):
+class _DataflowJobsController(LoggingMixin):
     def __init__(
         self,
         dataflow: Any,
@@ -224,7 +224,7 @@ class _DataflowJob(LoggingMixin):
         return self._jobs
 
 
-class _Dataflow(LoggingMixin):
+class _DataflowRunner(LoggingMixin):
     def __init__(self, cmd: Union[List, str]) -> None:
         self.log.info("Running command: %s", ' '.join(cmd))
         self._proc = subprocess.Popen(
@@ -339,10 +339,19 @@ class DataFlowHook(GoogleCloudBaseHook):
     ) -> None:
         variables = self._set_variables(variables)
         cmd = command_prefix + self._build_cmd(variables, label_formatter)
-        job_id = _Dataflow(cmd).wait_for_done()
-        _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'], self.poll_sleep, job_id, self.num_retries, multiple_jobs) \
-            .wait_for_done()
+        runner = _DataflowRunner(cmd)
+        job_id = runner.wait_for_done()
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=variables['project'],
+            name=name,
+            location=variables['region'],
+            poll_sleep=self.poll_sleep,
+            job_id=job_id,
+            num_retries=self.num_retries,
+            multiple_jobs=multiple_jobs
+        )
+        job_controller.wait_for_done()
 
     @staticmethod
     def _set_variables(variables: Dict) -> Dict:
@@ -510,8 +519,14 @@ class DataFlowHook(GoogleCloudBaseHook):
         )
         response = request.execute(num_retries=self.num_retries)
         variables = self._set_variables(variables)
-        _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
-                     self.poll_sleep, num_retries=self.num_retries).wait_for_done()
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=variables['project'],
+            name=name,
+            location=variables['region'],
+            poll_sleep=self.poll_sleep,
+            num_retries=self.num_retries)
+        jobs_controller.wait_for_done()
         return response
 
     def is_job_dataflow_running(self, name: str, variables: Dict) -> bool:
@@ -522,6 +537,11 @@ class DataFlowHook(GoogleCloudBaseHook):
         :rtype: bool
         """
         variables = self._set_variables(variables)
-        job = _DataflowJob(self.get_conn(), variables['project'], name,
-                           variables['region'], self.poll_sleep)
-        return job.is_job_running()
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=variables['project'],
+            name=name,
+            location=variables['region'],
+            poll_sleep=self.poll_sleep
+        )
+        return jobs_controller.is_job_running()

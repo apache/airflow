@@ -24,7 +24,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow.gcp.hooks.dataflow import (
-    DataFlowHook, DataflowJobStatus, DataflowJobType, _Dataflow, _DataflowJob,
+    DataFlowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
 )
 from tests.compat import MagicMock, mock
 
@@ -101,8 +101,8 @@ class TestDataFlowHook(unittest.TestCase):
         self.assertEqual(mock_build.return_value, result)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
-    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
     def test_start_python_dataflow(
         self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
@@ -132,8 +132,8 @@ class TestDataFlowHook(unittest.TestCase):
         ('minor_version', 'python3.6')
     ])
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
-    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
     def test_start_python_dataflow_with_custom_interpreter(
         self, name, py_interpreter, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
@@ -159,8 +159,8 @@ class TestDataFlowHook(unittest.TestCase):
                              sorted(expected_cmd))
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
-    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
     def test_start_java_dataflow(self, mock_conn,
                                  mock_dataflow, mock_dataflowjob, mock_uuid):
@@ -183,8 +183,8 @@ class TestDataFlowHook(unittest.TestCase):
                              sorted(expected_cmd))
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
-    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
     def test_start_java_dataflow_with_job_class(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
         mock_uuid.return_value = MOCK_UUID
@@ -253,7 +253,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
         internal_dataflow_mock.assert_called_once_with(
             mock.ANY, options_with_region, PARAMETERS, TEMPLATE)
 
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
     def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob):
         dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
@@ -295,8 +295,9 @@ class TestDataFlowJob(unittest.TestCase):
         mock_jobs = MagicMock()
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value = mock_jobs
-        _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
-                     TEST_LOCATION, 10, TEST_JOB_ID)
+        _DataflowJobsController(
+            self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
+            TEST_LOCATION, 10, TEST_JOB_ID)
         mock_jobs.get.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
                                               jobId=TEST_JOB_ID)
 
@@ -304,8 +305,9 @@ class TestDataFlowJob(unittest.TestCase):
         mock_jobs = MagicMock()
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value = mock_jobs
-        _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
-                     TEST_LOCATION, 10)
+        _DataflowJobsController(
+            self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
+            TEST_LOCATION, 10)
         mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
                                                location=TEST_LOCATION)
 
@@ -322,7 +324,7 @@ class TestDataFlowJob(unittest.TestCase):
             "jobs": [job, job]
         }
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name=TEST_JOB_NAME,
@@ -356,7 +358,7 @@ class TestDataFlowJob(unittest.TestCase):
             ]
         }
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name="name-",
@@ -383,7 +385,7 @@ class TestDataFlowJob(unittest.TestCase):
             ]
         }
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name="name-",
@@ -410,7 +412,7 @@ class TestDataFlowJob(unittest.TestCase):
             ]
         }
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name="name-",
@@ -441,7 +443,7 @@ class TestDataFlowJob(unittest.TestCase):
             ]
         }
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name="name-",
@@ -461,7 +463,7 @@ class TestDataFlowJob(unittest.TestCase):
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
 
-        dataflow_job = _DataflowJob(
+        dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
             name=TEST_JOB_NAME,
@@ -491,13 +493,13 @@ class TestDataflow(unittest.TestCase):
     def test_data_flow_valid_job_id(self):
         cmd = ['echo', 'additional unit test lines.\n' +
                'Submitted job: {}'.format(TEST_JOB_ID)]
-        self.assertEqual(_Dataflow(cmd).wait_for_done(), TEST_JOB_ID)
+        self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
 
     def test_data_flow_missing_job_id(self):
         cmd = ['echo', 'unit testing']
-        self.assertEqual(_Dataflow(cmd).wait_for_done(), None)
+        self.assertEqual(_DataflowRunner(cmd).wait_for_done(), None)
 
-    @mock.patch('airflow.gcp.hooks.dataflow._Dataflow.log')
+    @mock.patch('airflow.gcp.hooks.dataflow._DataflowRunner.log')
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):
@@ -518,6 +520,6 @@ class TestDataflow(unittest.TestCase):
         mock_proc_poll.side_effect = [None, poll_resp_error]
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
-        dataflow = _Dataflow(['test', 'cmd'])
+        dataflow = _DataflowRunner(['test', 'cmd'])
         mock_logging.info.assert_called_once_with('Running command: %s', 'test cmd')
         self.assertRaises(Exception, dataflow.wait_for_done)
