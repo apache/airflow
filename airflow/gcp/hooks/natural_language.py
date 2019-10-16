@@ -25,7 +25,7 @@ from google.api_core.retry import Retry
 from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
     AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, AnalyzeSyntaxResponse,
-    AnnotateTextResponse, ClassifyTextResponse, Document, Features,
+    AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
 )
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
@@ -201,7 +201,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
     def annotate_text(
         self,
         document: Union[Dict, Document],
-        features: Union[Dict, Features],
+        features: Union[Dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -216,7 +216,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         :type document: dict or google.cloud.language_v1.types.Document
         :param features: The enabled features.
             If a dict is provided, it must be of the same form as the protobuf message Features
-        :type features: dict or google.cloud.language_v1.types.Features
+        :type features: dict or google.cloud.language_v1.types.AnnotateTextRequest.Features
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be

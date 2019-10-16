@@ -27,8 +27,9 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
-    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyTemplate, FieldMask, ImageRedactionConfig,
-    InspectConfig, InspectJobConfig, InspectTemplate, JobTrigger, RiskAnalysisJobConfig, StoredInfoTypeConfig,
+    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyTemplate, FieldMask, InspectConfig,
+    InspectJobConfig, InspectTemplate, JobTrigger, RedactImageRequest, RiskAnalysisJobConfig,
+    StoredInfoTypeConfig,
 )
 
 from airflow.gcp.hooks.dlp import CloudDLPHook
@@ -1656,7 +1657,8 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param image_redaction_configs: (Optional) The configuration for specifying what
         content to redact from images.
-    :type image_redaction_configs: list[dict] or list[google.cloud.dlp_v2.types.ImageRedactionConfig]
+    :type image_redaction_configs: list[dict] or
+        list[google.cloud.dlp_v2.types.RedactImageRequest.ImageRedactionConfig]
     :param include_findings: (Optional) Whether the response should include findings
         along with the redacted image.
     :type include_findings: bool
@@ -1690,7 +1692,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         self,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        image_redaction_configs: Optional[Union[Dict, ImageRedactionConfig]] = None,
+        image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
         include_findings: Optional[bool] = None,
         byte_item: Optional[Union[Dict, ByteContentItem]] = None,
         retry: Optional[Retry] = None,
