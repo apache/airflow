@@ -714,11 +714,12 @@ class TestBigQueryCursor(unittest.TestCase):
 class TestLabelsInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
-        project_id = 12345
+        project_id = '12345'
 
         def run_with_config(config):
             self.assertEqual(
-                config['labels'], {'label1': 'test1', 'label2': 'test2'}
+                config['labels'], {'label1': 'test1', 'label2': 'test2',
+                                   'airflow-version': hook._AIRFLOW_VERSION}
             )
         mocked_rwc.side_effect = run_with_config
 
@@ -726,6 +727,29 @@ class TestLabelsInRunJob(unittest.TestCase):
         bq_hook.run_query(
             sql='select 1',
             destination_dataset_table='my_dataset.my_table',
+            labels={'label1': 'test1', 'label2': 'test2'}
+        )
+
+        assert mocked_rwc.call_count == 1
+
+
+class TestLabelsInRunLoad(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc):
+        project_id = '12345'
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['labels'], {'label1': 'test1', 'label2': 'test2',
+                                   'airflow-version': hook._AIRFLOW_VERSION}
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
             labels={'label1': 'test1', 'label2': 'test2'}
         )
 

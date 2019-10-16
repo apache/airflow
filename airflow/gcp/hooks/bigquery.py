@@ -40,6 +40,9 @@ from airflow import AirflowException
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
+
+_AIRFLOW_VERSION = 'v' + airflow_version.replace('.', '-').replace('+', '-')
 
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
@@ -1084,6 +1087,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  time_partitioning: Optional[Dict] = None,
                  cluster_fields: Optional[List] = None,
                  autodetect: bool = False,
+                 labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None) -> str:
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -1159,6 +1163,8 @@ class BigQueryBaseCursor(LoggingMixin):
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list[str]
+        :param labels: a dictionary containing labels for the job/query, passed to BigQuery
+        :type labels: dict
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
 
@@ -1243,6 +1249,9 @@ class BigQueryBaseCursor(LoggingMixin):
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
 
+        if labels:
+            configuration['labels'] = labels
+
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
                 raise ValueError("schema_update_options is only "
@@ -1323,6 +1332,10 @@ class BigQueryBaseCursor(LoggingMixin):
             https://cloud.google.com/bigquery/docs/reference/v2/jobs for
             details.
         """
+        # Insert current airflow version into labels
+        configuration['labels'] = configuration.get('labels', {})
+        configuration['labels']['airflow-version'] = _AIRFLOW_VERSION
+
         jobs = self.service.jobs()  # type: Any
         job_data = {'configuration': configuration}  # type: Dict[str, Dict]
 

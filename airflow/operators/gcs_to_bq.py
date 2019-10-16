@@ -147,6 +147,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param labels: a dictionary containing labels for the job/query, passed to BigQuery
+    :type labels: dict
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
@@ -187,6 +189,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  cluster_fields=None,
                  autodetect=True,
                  encryption_configuration=None,
+                 labels=None,
                  location=None,
                  *args, **kwargs):
 
@@ -229,6 +232,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
+        self.labels = labels
         self.location = location
 
     def execute(self, context):
@@ -274,6 +278,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 allow_jagged_rows=self.allow_jagged_rows,
                 encoding=self.encoding,
                 src_fmt_configs=self.src_fmt_configs,
+                labels=self.labels,
                 encryption_configuration=self.encryption_configuration
             )
         else:
@@ -297,6 +302,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,
                 cluster_fields=self.cluster_fields,
+                labels=self.labels,
                 encryption_configuration=self.encryption_configuration)
 
         if self.max_id_key:
