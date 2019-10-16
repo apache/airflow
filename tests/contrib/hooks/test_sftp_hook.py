@@ -23,6 +23,7 @@ import unittest
 from unittest import mock
 
 import pysftp
+from parameterized import parameterized
 
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
@@ -196,6 +197,16 @@ class TestSFTPHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
+
+    @parameterized.expand([
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
+        (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
+    ])
+    def test_path_exists(self, path, exists):
+        result = self.hook.path_exists(path)
+        self.assertEqual(result, exists)
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
