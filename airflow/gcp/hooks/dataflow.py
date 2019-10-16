@@ -143,7 +143,6 @@ class _DataflowJobsController(LoggingMixin):
 
         for job in self._jobs:
             if job and 'currentState' in job:
-                self._job_state = job['currentState']
                 self.log.info(
                     'Google Cloud DataFlow job %s is %s',
                     job['name'], job['currentState']
