@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Classes for interacting with Kubernetes API
+Classes for interacting with Kubernetes API.
 """
 
 from abc import ABC, abstractmethod
