@@ -352,6 +352,7 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character=None,
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
+                              encoding="UTF-8",
                               src_fmt_configs=None,
                               labels=None,
                               encryption_configuration=None
@@ -413,6 +414,11 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
+        :param encoding: The character encoding of the data. See:
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+        :type encoding: str
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param labels: a dictionary containing labels for the table, passed to BigQuery
@@ -489,7 +495,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'quote': quote_character,
                                           'allowQuotedNewlines': allow_quoted_newlines,
-                                          'allowJaggedRows': allow_jagged_rows}
+                                          'allowJaggedRows': allow_jagged_rows,
+                                          'encoding': encoding}
 
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
@@ -500,7 +507,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'csvOptions': [
                 'allowJaggedRows', 'allowQuotedNewlines',
                 'fieldDelimiter', 'skipLeadingRows',
-                'quote'
+                'quote', 'encoding'
             ],
             'googleSheetsOptions': ['skipLeadingRows']
         }
@@ -1072,6 +1079,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
+                 encoding="UTF-8",
                  schema_update_options=None,
                  src_fmt_configs=None,
                  time_partitioning=None,
@@ -1135,6 +1143,11 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
+        :param encoding: The character encoding of the data.
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+        :type encoding: str
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the load job.
         :type schema_update_options: Union[list, tuple, set]
@@ -1256,7 +1269,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
                 'fieldDelimiter', 'skipLeadingRows', 'ignoreUnknownValues',
-                'nullMarker', 'quote'
+                'nullMarker', 'quote', 'encoding'
             ],
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
@@ -1272,7 +1285,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'ignoreUnknownValues': ignore_unknown_values,
                                           'quote': quote_character,
-                                          'allowQuotedNewlines': allow_quoted_newlines}
+                                          'allowQuotedNewlines': allow_quoted_newlines,
+                                          'encoding': encoding}
 
         src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
                                                     backward_compatibility_configs)
