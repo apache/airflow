@@ -92,7 +92,7 @@ Let's extend our previous example to fetch name from MySQL:
 
 When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist. 
 The hook retrieves the auth parameters such as username and password from Airflow
-backend and passes the params to the ``get_connection`` method from ``BaseHook``. 
+backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`. 
 
 
 User interface
