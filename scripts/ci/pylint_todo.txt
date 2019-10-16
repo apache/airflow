@@ -189,7 +189,6 @@
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
-./airflow/operators/subdag_operator.py
 ./airflow/plugins_manager.py
 ./airflow/providers/aws/operators/athena.py
 ./airflow/providers/aws/sensors/athena.py
