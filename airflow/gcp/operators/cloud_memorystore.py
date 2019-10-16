@@ -89,13 +89,13 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         instance_id: str,
         instance: Union[Dict, Instance],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance_id = instance_id
@@ -155,13 +155,13 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance
@@ -234,13 +234,13 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance
@@ -313,13 +313,13 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance
@@ -377,13 +377,13 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance
@@ -458,13 +458,13 @@ class CloudMemorystoreImportOperator(BaseOperator):
         instance: str,
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance
@@ -526,13 +526,13 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.page_size = page_size
@@ -620,13 +620,13 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.update_mask = update_mask
         self.instance = instance
@@ -700,13 +700,13 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.memory_size_gb = memory_size_gb
         self.location = location
@@ -800,13 +800,13 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         instance: Union[Dict, Instance],
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance_id = instance_id
@@ -894,13 +894,13 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.instance = instance

@@ -19,7 +19,7 @@
 """
 This module contains Google Spanner operators.
 """
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import CloudSpannerHook
@@ -176,8 +176,8 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  instance_id: int,
-                 database_id,
-                 query,
+                 database_id: str,
+                 query: Union[str, List[str]],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args, **kwargs) -> None:

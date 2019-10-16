@@ -230,7 +230,7 @@ class GKEPodOperator(KubernetesPodOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location

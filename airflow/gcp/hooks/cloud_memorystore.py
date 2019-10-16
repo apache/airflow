@@ -88,7 +88,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         instance_id: str,
         instance: Union[Dict, Instance],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -163,7 +163,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -206,7 +206,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -252,7 +252,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -300,7 +300,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -336,7 +336,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         instance: str,
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -382,7 +382,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -427,7 +427,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):

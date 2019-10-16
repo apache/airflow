@@ -171,7 +171,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_set: Union[dict, ProductSet],
         project_id: Optional[str] = None,
         product_set_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
@@ -208,7 +208,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None, metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> Dict:
         """
@@ -233,7 +233,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dict:
@@ -261,7 +261,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
@@ -283,8 +283,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product: Union[dict, Product],
         project_id: Optional[str] = None,
-        product_id=None,
-        retry: Retry = None,
+        product_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
@@ -321,7 +321,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
@@ -347,7 +347,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_id: Optional[str] = None,
         update_mask: Optional[Dict[str, FieldMask]] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -373,7 +373,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ):
@@ -397,7 +397,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         reference_image: Union[Dict, ReferenceImage],
         reference_image_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
@@ -439,7 +439,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_id: str,
         reference_image_id: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dict:
@@ -469,7 +469,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_id: str,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
@@ -499,7 +499,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         product_id: str,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
@@ -525,7 +525,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def annotate_image(
         self,
         request: Union[dict, AnnotateImageRequest],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ) -> Dict:
         """
@@ -547,7 +547,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def batch_annotate_images(
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ) -> Dict:
         """
@@ -571,7 +571,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         image: Union[Dict, Image],
         max_results: Optional[int] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None
     ) -> Dict:
@@ -601,7 +601,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         image: Union[Dict, Image],
         max_results: Optional[int] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None
     ) -> Dict:
@@ -631,7 +631,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         image: Union[Dict, Image],
         max_results: Optional[int] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None
     ) -> Dict:
@@ -661,10 +661,10 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self,
         image: Union[Dict, Image],
         max_results: Optional[int] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None
-    ):
+    ) -> Dict:
         """
         For the documentation see:
         :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`

@@ -59,7 +59,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         self,
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ):
         """
