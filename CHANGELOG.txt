@@ -54,7 +54,7 @@ Bug Fixes
 - [Airflow 4923] Fix Databricks hook leaks API secret in logs (#5635)
 - [AIRFLOW-5133] Keep original env state in provide_gcp_credential_file (#5747)
 - [AIRFLOW-5497] Update docstring in ``airflow/utils/dag_processing.py`` (#6314)
-- Revert/and then rework "[AIRFLOW-4797] Improve performance and behaviour of zombie detection (#5511)" to improve performance
+- Revert/and then rework "[AIRFLOW-4797] Improve performance and behaviour of zombie detection (#5511)" to improve performance (#5908)
 - [AIRFLOW-5634] Don't allow editing of DagModelView (#6308)
 - [AIRFLOW-4309] Remove Broken Dag error after Dag is deleted (#6102)
 - [AIRFLOW-5387] Fix "show paused" pagination bug (#6100)
