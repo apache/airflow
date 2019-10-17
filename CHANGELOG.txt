@@ -71,7 +71,7 @@ Bug Fixes
 - [AIRFLOW-5581] Cleanly shutdown KubernetesJobWatcher for safe Scheduler shutdown on SIGTERM (#6237)
 - [AIRFLOW-5634] Don't allow disabled fields to be edited in DagModelView (#6307)
 - [AIRFLOW-4833] Allow to set Jinja env options in DAG declaration (#5943)
-- [AIRFLOW-5408] Fix env variable name in Kubernetes template
+- [AIRFLOW-5408] Fix env variable name in Kubernetes template (#6016)
 - [AIRFLOW-5102] Worker jobs should terminate themselves if they can't heartbeat (#6284)
 - [AIRFLOW-5572] Clear task reschedules when clearing task instances (#6217)
 - [AIRFLOW-5608] Gracefully stop executor when SIGTERM is received by SchedulerJob (#6274)
