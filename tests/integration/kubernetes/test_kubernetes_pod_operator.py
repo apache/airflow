@@ -22,7 +22,6 @@ import unittest
 from subprocess import check_call
 from tests.compat import mock
 
-import kubernetes.client.models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
@@ -130,7 +129,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, mock_client, launcher_mock):
+    def test_image_pull_secrets_correctly_set(self, mock_client, mock_launcher):
         from airflow.utils.state import State
 
         fake_pull_secrets = "fakeSecret"
@@ -146,12 +145,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
             in_cluster=False,
             cluster_context='default'
         )
-        launcher_mock.return_value = (State.SUCCESS, None)
+        mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
-        self.assertEqual(
-            launcher_mock.call_args[0][0].spec.image_pull_secrets,
-            [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
-        )
+        self.assertEqual(mock_launcher.call_args[0][0].image_pull_secrets,
+                         fake_pull_secrets)
 
     @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.delete_pod")
@@ -455,7 +452,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            do_xcom_push=True
+            xcom_push=True
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
 
@@ -464,8 +461,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
     def test_envs_from_configmaps(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State
-
-        configmap = 'test-configmap'
+        configmaps = ['test-configmap']
         # WHEN
         k = KubernetesPodOperator(
             namespace='default',
@@ -475,21 +471,16 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            configmaps=[configmap]
+            configmaps=configmaps
         )
         # THEN
         mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
-        self.assertEqual(
-            mock_launcher.call_args[0][0].spec.containers[0].env_from,
-            [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(
-                name=configmap
-            ))]
-        )
+        self.assertEqual(mock_launcher.call_args[0][0].configmaps, configmaps)
 
     @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, launcher_mock):
+    def test_envs_from_secrets(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State
         secret_ref = 'secret_name'
@@ -506,14 +497,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
         )
         # THEN
-        launcher_mock.return_value = (State.SUCCESS, None)
+        mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
-        self.assertEqual(
-            launcher_mock.call_args[0][0].spec.containers[0].env_from,
-            [k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(
-                name=secret_ref
-            ))]
-        )
+        self.assertEqual(mock_launcher.call_args[0][0].secrets, secrets)
 
 
 # pylint: enable=unused-argument
