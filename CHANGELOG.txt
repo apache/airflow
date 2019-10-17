@@ -88,7 +88,7 @@ Bug Fixes
 - [AIRFLOW-5535] Fix name of VERBOSE parameter
 - [AIRFLOW-5519] Fix sql_to_gcs operator missing multi-level default args by adding apply_defaults decorator  (#6146)
 - [AIRFLOW-5210] Make finding template files more efficient (#5815)
-- [AIRFLOW-5447] Scheduler stalls because second watcher thread in default args
+- [AIRFLOW-5447] Scheduler stalls because second watcher thread in default args (#6129)
 
 Doc-only changes
 """"""""""""""""
