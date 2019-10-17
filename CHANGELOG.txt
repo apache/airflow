@@ -27,7 +27,7 @@ Improvement
 - [AIRFLOW-3783] Speed up Redshift to S3 UNload with HEADERs (#6309)
 - [AIRFLOW-3388] Add support to Array Jobs for AWS Batch Operator (#6153)
 - [AIRFLOW-4574] add option to provide private_key in SSHHook (#6104)
-- [AIRFLOW-5530] Fiix typo in AWS SQS sensors (#6012)
+- [AIRFLOW-5530] Fix typo in AWS SQS sensors (#6012)
 - [AIRFLOW-5445] Reduce the required resources for the Kubernetes's sidecar (#6062)
 - [AIRFLOW-5443] Use alpine image in Kubernetes's sidecar (#6059)
 - [AIRFLOW-5344] Add --proxy-user parameter to SparkSubmitOperator (#5948)
