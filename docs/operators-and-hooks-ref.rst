@@ -1094,6 +1094,12 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.operators.sqlite_operator`
      -
 
+   * - `Airflow <https://airflow.apache.org/>`__
+     -
+     -
+     - :mod:`airflow.contrib.operators.clear_task_operator`
+     -
+
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
