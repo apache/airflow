@@ -304,7 +304,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # And is automatically reinstalled from the scratch every month
 RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install --no-use-pep517 \
+        pip install \
         "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         && pip uninstall --yes apache-airflow; \
     fi
