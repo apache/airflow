@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
+
 from tests.gcp.utils.gcp_authenticator import GCP_DATAFLOW_KEY
-from tests.test_utils.gcp_system_decorator import GCP_DAG_FOLDER, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
 @skip_gcp_system(GCP_DATAFLOW_KEY, require_local_executor=True)
 class CloudDataflowExampleDagsSystemTest(SystemTest):
-    @provide_gcp_credentials(GCP_DATAFLOW_KEY)
+    @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_dag_function(self):
         self.run_dag('example_gcp_dataflow', GCP_DAG_FOLDER)

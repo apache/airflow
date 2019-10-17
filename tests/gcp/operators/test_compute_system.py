@@ -17,28 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
+
 from tests.gcp.operators.test_compute_system_helper import GCPComputeTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_COMPUTE_KEY
-from tests.test_utils.gcp_system_decorator import GCP_DAG_FOLDER, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
 @skip_gcp_system(GCP_COMPUTE_KEY, require_local_executor=True)
 class GcpComputeExampleDagsSystemTest(SystemTest):
     helper = GCPComputeTestHelper()
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
         self.helper.delete_instance()
         self.helper.create_instance()
 
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
         self.helper.delete_instance()
         super().tearDown()
 
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute(self):
         self.run_dag('example_gcp_compute', GCP_DAG_FOLDER)
 
@@ -47,17 +47,17 @@ class GcpComputeExampleDagsSystemTest(SystemTest):
 class GcpComputeIgmExampleDagsSystemTest(SystemTest):
     helper = GCPComputeTestHelper()
 
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
         self.helper.delete_instance_group_and_template(silent=True)
         self.helper.create_instance_group_and_template()
 
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
         self.helper.delete_instance_group_and_template()
         super().tearDown()
 
-    @provide_gcp_credentials(GCP_COMPUTE_KEY)
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute_igm(self):
         self.run_dag('example_gcp_compute_igm', GCP_DAG_FOLDER)

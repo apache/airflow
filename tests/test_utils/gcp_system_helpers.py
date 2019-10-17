@@ -19,7 +19,9 @@
 import os
 import subprocess
 import unittest
+from typing import Optional, Sequence
 
+from airflow.gcp.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.contrib.utils.run_once_decorator import run_once
 from tests.gcp.utils.gcp_authenticator import GcpAuthenticator
 
@@ -115,9 +117,7 @@ RetrieveVariables.retrieve_variables()
 
 
 def skip_gcp_system(
-    service_key: str,
-    long_lasting: bool = False,
-    require_local_executor: bool = False,
+    service_key: str, long_lasting: bool = False, require_local_executor: bool = False
 ):
     """
     Decorator for skipping GCP system tests.
@@ -141,3 +141,44 @@ def skip_gcp_system(
         return unittest.skip(LOCAL_EXECUTOR_WARNING.format(POSTGRES_LOCAL_EXECUTOR))
 
     return lambda cls: cls
+
+
+def resolve_full_gcp_key_path(key: str) -> str:
+    """
+    Returns path full path to provided GCP key.
+
+    :param key: Name of the GCP key, for example "my_service.json"
+    :type key: str
+    :returns: Full path to the key
+    """
+    if "/" not in key:
+        path = os.environ.get("GCP_CONFIG_DIR", "/config")
+        key = os.path.join(path, "keys", key)
+    return key
+
+
+def provide_gcp_context(
+    key_file_path: Optional[str] = None,
+    scopes: Optional[Sequence] = None,
+    project_id: Optional[str] = None,
+):
+    """
+    Context manager that provides both:
+    - GCP credentials for application supporting `Application Default Credentials (ADC)
+    strategy <https://cloud.google.com/docs/authentication/production>`__.
+    - temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT connection
+
+    Moreover it resolves full path to service keys so user can pass 'myservice.json`
+    as `key_file_path`.
+
+    :param key_file_path: Path to file with GCP credentials .json file.
+    :type key_file_path: str
+    :param scopes: OAuth scopes for the connection
+    :type scopes: Sequence
+    :param project_id: The id of GCP project for the connection.
+    :type project_id: str
+    """
+    key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
+    return provide_gcp_conn_and_credentials(
+        key_file_path=key_file_path, scopes=scopes, project_id=project_id
+    )

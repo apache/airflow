@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
+
 from tests.gcp.operators.test_cloud_memorystore_system_helper import GCPCloudMemorystoreTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
-from tests.test_utils.gcp_system_decorator import GCP_DAG_FOLDER, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -33,16 +33,16 @@ class CloudBuildExampleDagsSystemTest(SystemTest):
     """
     helper = GCPCloudMemorystoreTestHelper()
 
-    @provide_gcp_credentials(GCP_MEMORYSTORE)
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def setUp(self):
         super().setUp()
         self.helper.create_bucket()
 
-    @provide_gcp_credentials(GCP_MEMORYSTORE)
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag(self):
         self.run_dag('gcp_cloud_memorystore', GCP_DAG_FOLDER)
 
-    @provide_gcp_credentials(GCP_MEMORYSTORE)
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):
         self.helper.delete_bucket()
         super().tearDown()

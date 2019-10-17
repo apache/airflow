@@ -23,10 +23,9 @@ import time
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
 from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_decorator import GCP_DAG_FOLDER, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
@@ -36,7 +35,7 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 @skip_gcp_system(GCP_CLOUDSQL_KEY)
 class CloudSqlProxySystemTest(SystemTest):
-    @provide_gcp_credentials(GCP_CLOUDSQL_KEY)
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
@@ -71,7 +70,7 @@ class CloudSqlProxySystemTest(SystemTest):
             runner.stop_proxy()
         self.assertIsNone(runner.sql_proxy_process)
 
-    @provide_gcp_credentials(GCP_CLOUDSQL_KEY)
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_start_proxy_with_all_instances_generated_credential_file(self):
         runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
                                      project_id=GCP_PROJECT_ID,
@@ -99,12 +98,12 @@ class CloudSqlProxySystemTest(SystemTest):
 
 @skip_gcp_system(GCP_CLOUDSQL_KEY)
 class CloudSqlQueryExampleDagsSystemTest(SystemTest):
-    @provide_gcp_credentials(GCP_CLOUDSQL_KEY)
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
         SQL_QUERY_TEST_HELPER.setup_instances(instance_suffix="_QUERY")
 
-    @provide_gcp_credentials(GCP_CLOUDSQL_KEY)
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql_query(self):
         self.run_dag('example_gcp_sql_query', GCP_DAG_FOLDER)

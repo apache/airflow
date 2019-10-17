@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
+
 from tests.gcp.utils.gcp_authenticator import GCP_PUBSUB_KEY
-from tests.test_utils.gcp_system_decorator import skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
 @skip_gcp_system(GCP_PUBSUB_KEY, require_local_executor=True)
 class PubSubSystemTest(SystemTest):
-    @provide_gcp_credentials(GCP_PUBSUB_KEY)
+    @provide_gcp_context(GCP_PUBSUB_KEY)
     def test_run_example_dag(self):
-        self.run_dag(dag_id="example_gcp_pubsub", dag_folder="airflow/gcp/example_dags")
+        self.run_dag(dag_id="example_gcp_pubsub", dag_folder=GCP_DAG_FOLDER)

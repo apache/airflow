@@ -31,35 +31,7 @@ from google.auth.environment_vars import CREDENTIALS
 
 from airflow.exceptions import AirflowException
 
-_AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-
-
-def assert_not_legacy_key(key_path: str) -> None:
-    """
-    Validates if provided key is supported.
-
-    :param key_path: path to the key
-    :type key_path: str
-    """
-    if key_path.endswith(".p12"):
-        raise AirflowException(
-            "Legacy P12 key file are not supported, use a JSON key file."
-        )
-
-
-def restore_env_variable(value: Optional[str], env_var_name: str = CREDENTIALS) -> None:
-    """
-    Restores environment variable to provided value.
-
-    :param value: The value to be restored. If None the variable will be unset.
-    :type value: Optional[str]
-    :param env_var_name: The name of the environment variable to restore
-    :type env_var_name: str
-    """
-    if value is None and env_var_name in os.environ:
-        del os.environ[env_var_name]
-    elif value:
-        os.environ[env_var_name] = value
+AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
 
 
 def build_gcp_conn(
@@ -95,25 +67,34 @@ def build_gcp_conn(
     return conn.format(query)
 
 
-def resolve_full_gcp_key_path(key: str) -> str:
+@contextmanager
+def temporary_environment_variable(variable_name: str, value: str):
     """
-    Returns path full path to provided GCP key.
+    Context manager that set up temporary value for a given environment
+    variable and the restore initail state.
 
-    :param key: Name of the GCP key, for example "my_service.json"
-    :type key: str
-    :returns: Full path to the key
+    :param variable_name: Name of the environment variable
+    :type variable_name: str
+    :param value: The temporary value
+    :type value: str
     """
-    path = os.environ.get("GCP_CONFIG_DIR", "/config")
-    key_path = os.path.join(path, "keys", key)
-    return key_path
+    # Save initial value
+    init_value = os.environ.get(variable_name)
+    try:
+        # set temporary value
+        os.environ[variable_name] = value
+        yield
+    finally:
+        # Restore initial state (remove or restore)
+        if variable_name in os.environ:
+            del os.environ[variable_name]
+        if init_value:
+            os.environ[variable_name] = init_value
 
 
 @contextmanager
 def provide_gcp_credentials(
-    key_file_path: Optional[str] = None,
-    key_file_dict: Optional[Dict] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None
 ):
     """
     Context manager that provides a GCP credentials for application supporting `Application
@@ -122,43 +103,83 @@ def provide_gcp_credentials(
     It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
 
-    :param key_file_path: Path to service key.
-    :type key_file_path: Optional[str]
-    :param key_file_dict: Dictionary used to create temporary key file
-    :type key_file_dict: Optional[Dict]
-    :param scopes: Required OAuth scopes.
-    :type scopes: Optional[List[str]]
-    :param project_id: The GCP project id to be used for the connection.
-    :type project_id: Optional[str]
+    :param key_file_path: Path to file with GCP credentials .json file.
+    :type key_file_path: str
+    :param key_file_dict: Dictionary with credentials.
+    :type key_file_dict: Dict
     """
-    # Store initial state
-    initial_gcp_credentials = os.environ.get(CREDENTIALS)
-    initial_gcp_conn = os.environ.get(_AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT)
+    msg = "Please provide `key_file_path` or `key_file_dict`."
+    assert key_file_path or key_file_dict, msg
 
-    try:
+    if key_file_path and key_file_path.endswith(".p12"):
+        raise AirflowException(
+            "Legacy P12 key file are not supported, use a JSON key file."
+        )
+
+    with tempfile.NamedTemporaryFile(mode="w+t") as conf_file:
+        if not key_file_path and key_file_dict:
+            conf_file.write(json.dumps(key_file_dict))
+            conf_file.flush()
+            key_file_path = conf_file.name
         if key_file_path:
-            assert_not_legacy_key(key_file_path)
-            if "/" not in key_file_path:
-                # Here we handle case when user passes only "my_service.json"
-                key_file_path = resolve_full_gcp_key_path(key_file_path)
-
-        with tempfile.NamedTemporaryFile(mode="w+t") as conf_file:
-            if not key_file_path and key_file_dict:
-                conf_file.write(json.dumps(key_file_dict))
-                conf_file.flush()
-                key_file_path = conf_file.name
-
-            if key_file_path:
-                # Set new temporary values
-                os.environ[CREDENTIALS] = key_file_path
-                os.environ[_AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] = build_gcp_conn(
-                    scopes=scopes, key_file_path=key_file_path, project_id=project_id
-                )
-            else:
-                # We will use the default service account credentials.
-                pass
+            with temporary_environment_variable(CREDENTIALS, key_file_path):
+                yield
+        else:
+            # We will use the default service account credentials.
             yield
-    finally:
-        # Restore initial values
-        restore_env_variable(initial_gcp_credentials, CREDENTIALS)
-        restore_env_variable(initial_gcp_conn, _AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT)
+
+
+@contextmanager
+def provide_gcp_connection(
+    key_file_path: Optional[str] = None,
+    scopes: Optional[Sequence] = None,
+    project_id: Optional[str] = None,
+):
+    """
+    Context manager that provides a temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+    connection. It build a new connection that includes path to provided service json,
+    required scopes and project id.
+
+    :param key_file_path: Path to file with GCP credentials .json file.
+    :type key_file_path: str
+    :param scopes: OAuth scopes for the connection
+    :type scopes: Sequence
+    :param project_id: The id of GCP project for the connection.
+    :type project_id: str
+    """
+    if key_file_path and key_file_path.endswith(".p12"):
+        raise AirflowException(
+            "Legacy P12 key file are not supported, use a JSON key file."
+        )
+
+    conn = build_gcp_conn(
+        scopes=scopes, key_file_path=key_file_path, project_id=project_id
+    )
+
+    with temporary_environment_variable(AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, conn):
+        yield
+
+
+@contextmanager
+def provide_gcp_conn_and_credentials(
+    key_file_path: Optional[str] = None,
+    scopes: Optional[Sequence] = None,
+    project_id: Optional[str] = None,
+):
+    """
+    Context manager that provides both:
+    - GCP credentials for application supporting `Application Default Credentials (ADC)
+    strategy <https://cloud.google.com/docs/authentication/production>`__.
+    - temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT connection
+
+    :param key_file_path: Path to file with GCP credentials .json file.
+    :type key_file_path: str
+    :param scopes: OAuth scopes for the connection
+    :type scopes: Sequence
+    :param project_id: The id of GCP project for the connection.
+    :type project_id: str
+    """
+    with provide_gcp_credentials(key_file_path), provide_gcp_connection(
+        key_file_path, scopes, project_id
+    ):
+        yield

@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
+
 from tests.gcp.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_decorator import GCP_DAG_FOLDER, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -33,16 +33,16 @@ class BigQueryExampleDagsSystemTest(SystemTest):
     """
     helper = GCPBigQueryTestHelper()
 
-    @provide_gcp_credentials(GCP_BIGQUERY_KEY)
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def setUp(self):
         super().setUp()
         self.helper.create_repository_and_bucket()
 
-    @provide_gcp_credentials(GCP_BIGQUERY_KEY)
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag(self):
         self.run_dag('example_bigquery', GCP_DAG_FOLDER)
 
-    @provide_gcp_credentials(GCP_BIGQUERY_KEY)
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
         self.helper.delete_bucket()
         super().tearDown()

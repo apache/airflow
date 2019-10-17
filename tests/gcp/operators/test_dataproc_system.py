@@ -18,10 +18,9 @@
 # under the License.
 import os
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_credentials
 from tests.contrib.operators.test_dataproc_operator_system_helper import DataprocTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
-from tests.test_utils.gcp_system_decorator import skip_gcp_system
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
@@ -33,17 +32,17 @@ PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 class DataprocExampleDagsTest(SystemTest):
     helper = DataprocTestHelper()
 
-    @provide_gcp_credentials(GCP_DATAPROC_KEY)
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def setUp(self):
         super().setUp()
         self.helper.create_test_bucket(BUCKET)
         self.helper.upload_test_file(PYSPARK_URI, PYSPARK_MAIN)
 
-    @provide_gcp_credentials(GCP_DATAPROC_KEY)
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):
         self.helper.delete_gcs_bucket_elements(BUCKET)
         super().tearDown()
 
-    @provide_gcp_credentials(GCP_DATAPROC_KEY)
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def test_run_example_dag(self):
-        self.run_dag(dag_id="example_gcp_dataproc", dag_folder="airflow/gcp/example_dags")
+        self.run_dag(dag_id="example_gcp_dataproc", dag_folder=GCP_DAG_FOLDER)
