@@ -1251,19 +1251,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        # if following fields are not specified in src_fmt_configs,
-        # honor the top-level params for backward-compatibility
-        if 'skipLeadingRows' not in src_fmt_configs:
-            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
-        if 'fieldDelimiter' not in src_fmt_configs:
-            src_fmt_configs['fieldDelimiter'] = field_delimiter
-        if 'ignoreUnknownValues' not in src_fmt_configs:
-            src_fmt_configs['ignoreUnknownValues'] = ignore_unknown_values
-        if quote_character is not None:
-            src_fmt_configs['quote'] = quote_character
-        if allow_quoted_newlines:
-            src_fmt_configs['allowQuotedNewlines'] = allow_quoted_newlines
-
         src_fmt_to_configs_mapping = {
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',

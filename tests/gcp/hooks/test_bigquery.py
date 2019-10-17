@@ -24,6 +24,7 @@ from unittest import mock
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
+from parameterized import parameterized
 
 from airflow.gcp.hooks import bigquery as hook
 from airflow.gcp.hooks.bigquery import (
@@ -406,6 +407,23 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         assert "compatibility_val" in src_fmt_configs, \
             "_validate_src_fmt_configs should add backward_compatibility config"
+
+    @parameterized.expand(
+        [("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",)]
+    )
+    def test_run_load_with_non_csv_as_src_fmt(self, fmt):
+        with mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration'):
+            bq_hook = hook.BigQueryBaseCursor(mock.Mock(), 12345)
+
+            try:
+                bq_hook.run_load(
+                    destination_project_dataset_table='my_dataset.my_table',
+                    source_uris=[],
+                    source_format=fmt,
+                    autodetect=True
+                )
+            except ValueError:
+                self.fail("run_load() raised ValueError unexpectedly!")
 
 
 class TestTableDataOperations(unittest.TestCase):
