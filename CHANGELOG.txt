@@ -50,7 +50,7 @@ Improvements
 
 Bug Fixes
 """""""""
-- [AIRFLOW-5459] Use a dynamic tmp location in Dataflow operator
+- [AIRFLOW-5459] Use a dynamic tmp location in Dataflow operator (#6078)
 - [Airflow 4923] Fix Databricks hook leaks API secret in logs (#5635)
 - [AIRFLOW-5133] Keep original env state in provide_gcp_credential_file (#5747)
 - [AIRFLOW-5497] Update docstring in ``airflow/utils/dag_processing.py`` (#6314)
