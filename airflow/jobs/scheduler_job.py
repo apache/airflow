@@ -1353,17 +1353,11 @@ class SchedulerJob(BaseJob):
                                                      async_mode)
 
         try:
-            self.log.debug("Starting executor=%s", self.executor)
-            self.executor.start()
             self._execute_helper()
         except Exception:
             self.log.exception("Exception when executing execute_helper")
         finally:
-            self.log.debug("Calling executor.end()...")
-            self.executor.end()
             self.processor_agent.end()
-            self.log.debug("Calling settings.Session.remove()...")
-            settings.Session.remove()
             self.log.info("Exited execute loop")
 
     def _execute_helper(self):
@@ -1383,6 +1377,8 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
+        self.executor.start()
+
         self.log.info("Resetting orphaned tasks for active dag runs")
         self.reset_state_for_orphaned_tasks()
 
@@ -1496,6 +1492,10 @@ class SchedulerJob(BaseJob):
                 execute_start_time.isoformat()
             )
             models.DAG.deactivate_stale_dags(execute_start_time)
+
+        self.executor.end()
+
+        settings.Session.remove()
 
     @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):
