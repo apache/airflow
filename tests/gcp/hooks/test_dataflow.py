@@ -23,7 +23,9 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.gcp.hooks.dataflow import DataFlowHook, DataflowJobStatus, _Dataflow, _DataflowJob
+from airflow.gcp.hooks.dataflow import (
+    DataFlowHook, DataflowJobStatus, DataflowJobType, _Dataflow, _DataflowJob,
+)
 from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
@@ -310,10 +312,15 @@ class TestDataFlowJob(unittest.TestCase):
     def test_dataflow_job_wait_for_multiple_jobs(self):
         job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
-        self.mock_dataflow.projects.return_value.locations.return_value. \
-            jobs.return_value.list.return_value.execute.return_value = {
-                "jobs": [job, job]
-            }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list.return_value.
+            execute.return_value
+        ) = {
+            "jobs": [job, job]
+        }
 
         dataflow_job = _DataflowJob(
             dataflow=self.mock_dataflow,
@@ -334,6 +341,119 @@ class TestDataFlowJob(unittest.TestCase):
             jobs.return_value.list.return_value.execute.assert_called_once_with(num_retries=20)
 
         self.assertEqual(dataflow_job.get(), [job, job])
+
+    def test_dataflow_job_wait_for_multiple_jobs_and_one_failed(self):
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list.return_value.
+            execute.return_value
+        ) = {
+            "jobs": [
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_FAILED}
+            ]
+        }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 has failed\\.'):
+            dataflow_job.wait_for_done()
+
+    def test_dataflow_job_wait_for_multiple_jobs_and_one_cancelled(self):
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list.return_value.
+            execute.return_value
+        ) = {
+            "jobs": [
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
+            ]
+        }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was cancelled\\.'):
+            dataflow_job.wait_for_done()
+
+    def test_dataflow_job_wait_for_multiple_jobs_and_one_unknown(self):
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list.return_value.
+            execute.return_value
+        ) = {
+            "jobs": [
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-2", "name": "name-2", "currentState": "unknown"}
+            ]
+        }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        with self.assertRaisesRegex(Exception, 'Google Cloud Dataflow job name-2 was unknown state: unknown'):
+            dataflow_job.wait_for_done()
+
+    def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
+        mock_jobs_list = (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list
+        )
+        mock_jobs_list.return_value.execute.return_value = {
+            "jobs": [
+                {
+                    "id": "id-2",
+                    "name": "name-2",
+                    "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                    "type": DataflowJobType.JOB_TYPE_STREAMING
+                }
+            ]
+        }
+
+        dataflow_job = _DataflowJob(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True
+        )
+        dataflow_job.wait_for_done()
+
+        self.assertEqual(1, mock_jobs_list.call_count)
 
     def test_dataflow_job_wait_for_single_jobs(self):
         job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}

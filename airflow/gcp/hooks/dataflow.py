@@ -49,13 +49,21 @@ class DataflowJobStatus:
     """
     JOB_STATE_DONE = "JOB_STATE_DONE"
     JOB_STATE_RUNNING = "JOB_STATE_RUNNING"
-    JOB_TYPE_STREAMING = "JOB_TYPE_STREAMING"
     JOB_STATE_FAILED = "JOB_STATE_FAILED"
     JOB_STATE_CANCELLED = "JOB_STATE_CANCELLED"
     JOB_STATE_PENDING = "JOB_STATE_PENDING"
     FAILED_END_STATES = {JOB_STATE_FAILED, JOB_STATE_CANCELLED}
     SUCCEEDED_END_STATES = {JOB_STATE_DONE}
     END_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
+
+
+class DataflowJobType:
+    """
+    Helper class with Dataflow job types.
+    """
+    JOB_TYPE_UNKNOWN = "JOB_TYPE_UNKNOWN"
+    JOB_TYPE_BATCH = "JOB_TYPE_BATCH"
+    JOB_TYPE_STREAMING = "JOB_TYPE_STREAMING"
 
 
 class _DataflowJob(LoggingMixin):
@@ -178,7 +186,7 @@ class _DataflowJob(LoggingMixin):
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                 job['name']))
         elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
-                DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+                DataflowJobType.JOB_TYPE_STREAMING == job['type']:
             return True
         elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
                                      DataflowJobStatus.JOB_STATE_PENDING}:
