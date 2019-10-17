@@ -114,7 +114,6 @@ Doc-only changes
 - [AIRFLOW-XXX] Add information about default pool to docs (#6019)
 - [AIRFLOW-XXX] Make Breeze The default integration test environment (#6001)
 
-
 Misc/Internal
 """""""""""""
 - [AIRFLOW-5533] Fixed failing CRON build (#6167)
