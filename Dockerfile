@@ -337,7 +337,7 @@ COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
@@ -355,7 +355,7 @@ COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
 WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
