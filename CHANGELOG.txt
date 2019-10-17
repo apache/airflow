@@ -117,7 +117,7 @@ Doc-only changes
 
 Misc/Internal
 """""""""""""
-- [AIRFLOW-5533] Fixed failing CRON build
+- [AIRFLOW-5533] Fixed failing CRON build (#6167)
 - [AIRFLOW-5130] Use GOOGLE_APPLICATION_CREDENTIALS constant from library (#5744)
 - [AIRFLOW-5369] Adds interactivity to pre-commits (#5976)
 - [AIRFLOW-5531] Replace deprecated log.warn() with log.warning() (#6165)
