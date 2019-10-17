@@ -1,8 +1,8 @@
 Airflow 1.10.6, 2019-10-21
 --------------------------
 
-New Feature
-"""""""""""
+New Features
+""""""""""""
 - [AIRFLOW-4908] Implement BigQuery Hooks/Operators for update_dataset, patch_dataset and get_dataset (#5546)
 - [AIRFLOW-4741] Optionally report task errors to Sentry (#5407)
 - [AIRFLOW-4939] Add default_task_retries config (#5570)
@@ -10,8 +10,8 @@ New Feature
 - [AIRFLOW-4222] Add cli autocomplete for bash & zsh (#5789)
 - [AIRFLOW-3871] Operators template fields can now render fields inside objects (#4743)
 
-Improvement
-"""""""""""
+Improvements
+""""""""""""
 - [AIRFLOW-5127] Gzip support for CassandraToGoogleCloudStorageOperator (#5738)
 - [AIRFLOW-5125] Add gzip support for AdlsToGoogleCloudStorageOperator (#5737)
 - [AIRFLOW-5124] Add gzip support for S3ToGoogleCloudStorageOperator (#5736)
@@ -21,7 +21,7 @@ Improvement
 - [AIRFLOW-5657] Update the upper bound for dill dependency (#6334)
 - [AIRFLOW-5292] Allow ECSOperator to tag tasks (#5891)
 - [AIRFLOW-4939] Simplify Code for Default Task Retries (#6233)
-- [AIRFLOW-5126] Read aws_session_token in extra_config of the aws hook (#6303)
+- [AIRFLOW-5126] Read ``aws_session_token`` in extra_config of the aws hook (#6303)
 - [AIRFLOW-5636] Allow adding or overriding existing Operator Links (#6302)
 - [AIRFLOW-4965] Handle quote exceptions in GCP AI operators (v1.10) (#6304)
 - [AIRFLOW-3783] Speed up Redshift to S3 UNload with HEADERs (#6309)
@@ -37,8 +37,8 @@ Improvement
 - [AIRFLOW-4443] Document LatestOnly behavior for external trigger (#5214)
 - [AIRFLOW-2891] Make DockerOperator container_name be templateable (#5696)
 - [AIRFLOW-2891] allow configurable docker_operator container name (#5689)
-- [AIRFLOW-4285] Update task dependency context defination and usage (#5079)
-- [AIRFLOW-5142] Fixed flaky cassandra test (#5758)
+- [AIRFLOW-4285] Update task dependency context definition and usage (#5079)
+- [AIRFLOW-5142] Fixed flaky Cassandra test (#5758)
 - [AIRFLOW-5218] Less polling of AWS Batch job status (#5825)
 - [AIRFLOW-4956] Fix LocalTaskJob heartbeat log spamming (#5589)
 - [AIRFLOW-3160] Load latest_dagruns asynchronously on home page (#5339)
@@ -53,7 +53,7 @@ Bug Fixes
 - [AIRFLOW-5459] Use a dynamic tmp location in Dataflow operator
 - [Airflow 4923] Fix Databricks hook leaks API secret in logs (#5635)
 - [AIRFLOW-5133] Keep original env state in provide_gcp_credential_file (#5747)
-- [AIRFLOW-5497] Update docstring in airflow/utils/dag_processing.py (#6314)
+- [AIRFLOW-5497] Update docstring in ``airflow/utils/dag_processing.py`` (#6314)
 - Revert/and then rework "[AIRFLOW-4797] Improve performance and behaviour of zombie detection (#5511)" to improve performance
 - [AIRFLOW-5634] Don't allow editing of DagModelView (#6308)
 - [AIRFLOW-4309] Remove Broken Dag error after Dag is deleted (#6102)
@@ -63,7 +63,7 @@ Bug Fixes
 - [AIRFLOW-5492] added missing docstrings (#6107)
 - [AIRFLOW-5503] Fix tree view layout on HDPI screen (#6125)
 - [AIRFLOW-5481] Allow Deleting Renamed DAGs (#6101)
-- [AIRFLOW-3857] spark_submit_hook cannot kill driver pod in kubernetes (#4678)
+- [AIRFLOW-3857] spark_submit_hook cannot kill driver pod in Kubernetes (#4678)
 - [AIRFLOW-4391] Fix tooltip for None-State Tasks in 'Recent Tasks' (#5909)
 - [AIRFLOW-5554] Require statsd 3.3.0 minimum (#6185)
 - [AIRFLOW-5306] Fix the display of links when they contain special characters (#5904)
@@ -82,7 +82,7 @@ Bug Fixes
 - [AIRFLOW-5556] Add separate config for timeout from scheduler dag processing (#6186)
 - [AIRFLOW-4858] Deprecate "Historical convenience functions" in airflow.configuration (#5495) (#6144)
 - [AIRFLOW-774] Fix long-broken DAG parsing Statsd metrics (#6157)
-- [AIRFLOW-5419] Use `sudo` to kill cleared tasks when running with impersonation (#6026) (#6176)
+- [AIRFLOW-5419] Use ``sudo`` to kill cleared tasks when running with impersonation (#6026) (#6176)
 - [AIRFLOW-5537] Yamllint is not needed as dependency on host
 - [AIRFLOW-5536] Better handling of temporary output files
 - [AIRFLOW-5535] Fix name of VERBOSE parameter
