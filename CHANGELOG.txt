@@ -78,7 +78,7 @@ Bug Fixes
 - [AIRFLOW-5543] Fix tooltip disappears in tree and graph view (RBAC UI) (#6174)
 - [AIRFLOW-5444] Fix action_logging so that request.form for POST is logged (#6064)
 - [AIRFLOW-5484] fix PigCliHook has incorrect named parameter (#6112)
-- [AIRFLOW-5342] Fix MSSQL breaking task_instance db migration
+- [AIRFLOW-5342] Fix MSSQL breaking task_instance db migration (#6014)
 - [AIRFLOW-5556] Add separate config for timeout from scheduler dag processing (#6186)
 - [AIRFLOW-4858] Deprecate "Historical convenience functions" in airflow.configuration (#5495) (#6144)
 - [AIRFLOW-774] Fix long-broken DAG parsing Statsd metrics (#6157)
