@@ -122,7 +122,7 @@ class _DataflowJobsController(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
-        self._jobs = self._get_jobs()
+        self._jobs = None  # type: Optional[List[Dict]]
 
     def is_job_running(self) -> bool:
         """
@@ -131,13 +131,16 @@ class _DataflowJobsController(LoggingMixin):
         :return: True if job is running.
         :rtype: bool
         """
+        self._refresh_jobs()
+        assert self._jobs is not None
+
         for job in self._jobs:
             if job['currentState'] not in DataflowJobStatus.END_STATES:
                 return True
         return False
 
     # pylint: disable=too-many-nested-blocks
-    def _get_dataflow_jobs(self) -> List[Dict]:
+    def _get_current_jobs(self) -> List[Dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
@@ -145,60 +148,56 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
-            return [
-                self._dataflow.projects().locations().jobs().get(
-                    projectId=self._project_number,
-                    location=self._job_location,
-                    jobId=self._job_id
-                ).execute(num_retries=self._num_retries)
-            ]
+            return [self._fetch_job_by_id(self._job_id)]
         elif self._job_name:
-            jobs = self._dataflow.projects().locations().jobs().list(
-                projectId=self._project_number,
-                location=self._job_location
-            ).execute(num_retries=self._num_retries)
-            dataflow_jobs = []
-            if jobs:
-                for job in jobs['jobs']:
-                    if job['name'].startswith(self._job_name.lower()):
-                        dataflow_jobs.append(job)
-            if len(dataflow_jobs) == 1:
-                self._job_id = dataflow_jobs[0]['id']
-            return dataflow_jobs
+            jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
+            if len(jobs) == 1:
+                self._job_id = jobs[0]['id']
+            return jobs
         else:
             raise Exception('Missing both dataflow job ID and name.')
 
-    def _get_jobs(self) -> List:
+    def _fetch_job_by_id(self, job_id: str) -> Dict:
+        return self._dataflow.projects().locations().jobs().get(
+            projectId=self._project_number,
+            location=self._job_location,
+            jobId=job_id
+        ).execute(num_retries=self._num_retries)
+
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
+        jobs = self._dataflow.projects().locations().jobs().list(
+            projectId=self._project_number,
+            location=self._job_location
+        ).execute(num_retries=self._num_retries)
+        jobs = [
+            job
+            for job in jobs['jobs']
+            if job['name'].startswith(prefix_name)
+        ]
+        return jobs
+
+    def _refresh_jobs(self) -> None:
         """
         Helper method to get all jobs by name
 
         :return: jobs
         :rtype: list
         """
-        self._jobs = self._get_dataflow_jobs()
+        self._jobs = self._get_current_jobs()
 
-        for job in self._jobs:
-            if job and 'currentState' in job:
+        if self._jobs:
+            for job in self._jobs:
                 self.log.info(
-                    'Google Cloud DataFlow job %s is %s',
-                    job['name'], job['currentState']
+                    'Google Cloud DataFlow job %s is state: %s', job['name'], job['currentState']
                 )
-            elif job:
-                self.log.info(
-                    'Google Cloud DataFlow with job_id %s has name %s',
-                    self._job_id, job['name']
-                )
-            else:
-                self.log.info(
-                    'Google Cloud DataFlow job not available yet..'
-                )
+        else:
+            self.log.info(
+                'Google Cloud DataFlow job not available yet..'
+            )
 
-        return self._jobs
-
-    # pylint: disable=too-many-nested-blocks
-    def check_dataflow_job_state(self, job) -> bool:
+    def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of all jobs in dataflow for this task
+        Helper method to check the state of one job in dataflow for this task
         if job failed raise exception
 
         :return: True if job is done.
@@ -206,14 +205,7 @@ class _DataflowJobsController(LoggingMixin):
         :raise: Exception
         """
         if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
-            # check all jobs are done
-            count_not_done = 0
-            for inner_jobs in self._jobs:
-                if inner_jobs and 'currentState' in job:
-                    if not DataflowJobStatus.JOB_STATE_DONE == inner_jobs['currentState']:
-                        count_not_done += 1
-            if count_not_done == 0:
-                return True
+            return True
         elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} has failed.".format(
                 job['name']))
@@ -225,37 +217,32 @@ class _DataflowJobsController(LoggingMixin):
             return True
         elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
                                      DataflowJobStatus.JOB_STATE_PENDING}:
-            time.sleep(self._poll_sleep)
-        else:
-            self.log.debug("Current job: %s", str(job))
-            raise Exception(
-                "Google Cloud Dataflow job {} was unknown state: {}".format(
-                    job['name'], job['currentState']))
-        return False
+            return False
+        self.log.debug("Current job: %s", str(job))
+        raise Exception(
+            "Google Cloud Dataflow job {} was unknown state: {}".format(job['name'], job['currentState'])
+        )
 
-    def wait_for_done(self) -> bool:
+    def wait_for_done(self) -> None:
         """
         Helper method to wait for result of submitted job.
-
-        :return: True if job is done.
-        :rtype: bool
-        :raise: Exception
         """
-        while True:
-            for job in self._jobs:
-                if job and 'currentState' in job:
-                    if self.check_dataflow_job_state(job):
-                        return True
-                else:
-                    time.sleep(self._poll_sleep)
-            self._jobs = self._get_jobs()
+        self._refresh_jobs()
+        while self._jobs and not all(self._check_dataflow_job_state(job) for job in self._jobs):
+            time.sleep(self._poll_sleep)
+            self._refresh_jobs()
 
-    def get(self):
+    def get_jobs(self) -> List[Dict]:
         """
-        Returns Dataflow job.
+        Returns Dataflow jobs.
+
         :return: list of jobs
         :rtype: list
         """
+        if not self._jobs:
+            self._refresh_jobs()
+        assert self._jobs is not None
+
         return self._jobs
 
 

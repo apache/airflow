@@ -359,7 +359,7 @@ class TestDataFlowJob(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJobsController(
             self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
-            TEST_LOCATION, 10, TEST_JOB_ID)
+            TEST_LOCATION, 10, TEST_JOB_ID).get_jobs()
         mock_jobs.get.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
                                               jobId=TEST_JOB_ID)
 
@@ -369,7 +369,7 @@ class TestDataFlowJob(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJobsController(
             self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
-            TEST_LOCATION, 10)
+            TEST_LOCATION, 10).get_jobs()
         mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
                                                location=TEST_LOCATION)
 
@@ -404,7 +404,7 @@ class TestDataFlowJob(unittest.TestCase):
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.list.return_value.execute.assert_called_once_with(num_retries=20)
 
-        self.assertEqual(dataflow_job.get(), [job, job])
+        self.assertEqual(dataflow_job.get_jobs(), [job, job])
 
     def test_dataflow_job_wait_for_multiple_jobs_and_one_failed(self):
         (
@@ -547,7 +547,7 @@ class TestDataFlowJob(unittest.TestCase):
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.assert_called_once_with(num_retries=20)
 
-        self.assertEqual(dataflow_job.get(), [job])
+        self.assertEqual(dataflow_job.get_jobs(), [job])
 
 
 class TestDataflow(unittest.TestCase):
