@@ -121,10 +121,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 sleep(self.poke_interval)
-
         self.log.info("Success criteria met. Exiting.")
-
-
 
     def _do_skip_downstream_tasks(self, context: Dict) -> None:
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)

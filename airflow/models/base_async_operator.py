@@ -16,37 +16,68 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """
 Base Asynchronous Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
-from abc import abstractmethod
-from typing import Dict, List, Union, Optional
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.exceptions import AirflowException
-from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
+from abc import abstractmethod
+from typing import Dict, List, Optional, Union
+
 from airflow.models import SkipMixin, TaskReschedule
+from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
-PLACEHOLDER_RESOURCE_ID = 'RESOURCE_ID_NOT_APPLICABLE'
 
 class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     """
     AsyncOperators are derived from this class and inherit these attributes.
+    AsyncOperators should be used for long running operations where the task
+    can tolerate a longer poke interval. They use the task rescheduling
+    mechanism similar to sensors to avoid occupying a worker slot between
+    pokes.
+
+    Developing concrete operators that provide parameterized flexibility
+    for synchronous or asynchronous poking depending on the invocation is
+    possible by programing against this `BaseAsyncOperator` interface,
+    and overriding the execute method as demonstrated below.
+
+    ```python3
+    class DummyFlexiblePokingOperator(BaseAsyncOperator):
+      def __init__(self, async=False, *args, **kwargs):
+        self.async = async
+        super().__init(*args, **kwargs)
+
+      def execute(self, context: Dict) -> None:
+        if self.async:
+          # use the BaseAsyncOperator's execute
+          super().execute(context)
+        else:
+          self.submit_request(context)
+          while not self.poke():
+            time.sleep(self.poke_interval)
+          self.process_results(context)
+
+      def sumbit_request(self, context: Dict) -> Optional[str]:
+        return None
+
+      def poke(self, context: Dict) -> bool:
+        return bool(random.getrandbits(1))
+    ```
 
     AsyncOperators must override the following methods:
-        :meth:`submit_request`: fire a request for a long running operation
-        :meth:`poke`: a method to check if the long running operation is
-            complete it should return True when a success criteria is met.
+    :py:meth:`submit_request`: fire a request for a long running operation
+    :py:meth:`poke`: a method to check if the long running operation is
+    complete it should return True when a success criteria is met.
+
     Optionally, AsyncOperators can override:
-        :meth: `process_result` to perform any operations after the success
-            criteria is met in :meth: `poke`
-    :meth: `poke` is executed at a time interval and succeed when a
-    criteria is met and fail if and when they time out. They are effctively
-    an opinionated way use combine an Operator and a Sensor in order to kick
-    off a long running process and poll for completion without tying up a
-    worker slot while waiting between pokes leveraging reschedule mode.
+    :py:meth: `process_result` to perform any operations after the success
+    criteria is met in :py:meth: `poke`
+
+    :py:meth: `poke` is executed at a time interval and succeed when a
+    criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :type soft_fail: bool
@@ -55,6 +86,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     :type poke_interval: int
     :param timeout: Time, in seconds before the task times out and fails.
     :type timeout: int
+
     """
     ui_color = '#9933ff'  # type: str
 
@@ -65,7 +97,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         super().__init__(mode='reschedule', *args, **kwargs)
 
     @abstractmethod
-    def submit_request(self, context) -> Optional[Union[str, List, Dict]]:
+    def submit_request(self, context: Dict) -> Optional[Union[str, List, Dict]]:
         """
         This method should kick off a long running operation.
         This method should return the ID for the long running operation if
@@ -79,7 +111,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         """
         raise NotImplementedError
 
-    def process_result(self, context):
+    def process_result(self, context: Dict):
         """
         This method can optionally be overriden to process the result of a long running operation.
         Context is the same dictionary used as when rendering jinja templates.
@@ -89,31 +121,22 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         self.log.info('Using default process_result. Got result of %s. Done.',
                       self.get_external_resource_id(context))
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         # On the first execute call submit_request and set the
         # external resource id.
+
+        # pylint: disable=no-value-for-parameter
         task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
         if not task_reschedules:
             resource_id = self.submit_request(context)
-            if not resource_id:
-                resource_id = PLACEHOLDER_RESOURCE_ID
             self.set_external_resource_id(context, resource_id)
 
-        super().execute(self, context)
+        super().execute(context)
 
-        # The above should raise AirflowRescheduleException if we are
-        # rescheduling a poke, and thus never reach this code below.
-        try:
-            resource_id = self.get_external_resource_id(context)
-            if resource_id == PLACEHOLDER_RESOURCE_ID:
-                self.log.info("Calling process_result for %s.", resource_id)
-            else:
-                self.log.info("Calling process_result.")
-            self.process_result(context)
-        finally:
-            #TODO(mik-laj) is there a way to clear this key?
-            # Clear the resource id for this task.
-            self.set_external_resource_id(context, None)
+        resource_id = self.get_external_resource_id(context)
+        self.log.info("Calling process_result for %s.", resource_id)
+        self.process_result(context)
+        self.set_external_resource_id(context, None)
 
     @staticmethod
     def set_external_resource_id(context, value):
