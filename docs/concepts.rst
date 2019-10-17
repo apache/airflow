@@ -1235,8 +1235,8 @@ For example, you can prepare a ``.airflowignore`` file with contents
     tenant_[\d]
 
 
-Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
-"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 
