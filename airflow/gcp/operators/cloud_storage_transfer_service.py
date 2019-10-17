@@ -728,10 +728,10 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
             project_id='my-gcp-project',
             dag=my_dag)
 
-    :param source_bucket: The source Google cloud storage bucket where the
+    :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
-    :param destination_bucket: The destination Google cloud storage bucket
+    :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
     :param project_id: The ID of the Google Cloud Platform Console project that
