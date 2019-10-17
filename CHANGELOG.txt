@@ -74,7 +74,6 @@ Bug Fixes
 - [AIRFLOW-5408] Fix env variable name in Kubernetes template (#6016)
 - [AIRFLOW-5102] Worker jobs should terminate themselves if they can't heartbeat (#6284)
 - [AIRFLOW-5572] Clear task reschedules when clearing task instances (#6217)
-- [AIRFLOW-5608] Gracefully stop executor when SIGTERM is received by SchedulerJob (#6274)
 - [AIRFLOW-5543] Fix tooltip disappears in tree and graph view (RBAC UI) (#6174)
 - [AIRFLOW-5444] Fix action_logging so that request.form for POST is logged (#6064)
 - [AIRFLOW-5484] fix PigCliHook has incorrect named parameter (#6112)
