@@ -25,13 +25,7 @@ BUCKET = "gs://test-display-video-bucket"
 
 class GcpDisplayVideoSystemTestHelper(LoggingCommandExecutor):
     def create_bucket(self):
-        self.execute_cmd(
-            [
-                "gsutil",
-                "mb",
-                "gs://{bucket}".format(bucket=BUCKET),
-            ]
-        )
+        self.execute_cmd(["gsutil", "mb", "gs://{bucket}".format(bucket=BUCKET)])
 
     def delete_bucket(self):
         self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET)])

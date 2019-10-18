@@ -21,11 +21,13 @@ Example Airflow DAG that shows how to use DisplayVideo.
 """
 
 from airflow import models
-from airflow.gcp.operators.display_video import (
+from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
 )
-from airflow.gcp.sensors.display_video import GoogleDisplayVideo360ReportSensor
+from airflow.providers.google.marketing_platform.sensors.display_video import (
+    GoogleDisplayVideo360ReportSensor,
+)
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]

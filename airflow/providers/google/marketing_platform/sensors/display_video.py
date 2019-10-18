@@ -20,7 +20,7 @@ Sensor for detecting the completion of DV360 reports.
 """
 from typing import Dict, Optional
 
-from airflow.gcp.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 

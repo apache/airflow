@@ -18,7 +18,7 @@
 # under the License.
 from unittest import TestCase, mock
 
-from airflow.gcp.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1"
@@ -33,19 +33,26 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         ):
             self.hook = GoogleDisplayVideo360Hook(gcp_conn_id=GCP_CONN_ID)
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook._authorize")
-    @mock.patch("airflow.gcp.hooks.display_video.build")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook._authorize"
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.hooks."
+                "display_video.build")
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'doubleclickbidmanager',
+            "doubleclickbidmanager",
             API_VERSION,
             http=mock_authorize.return_value,
-            cache_discovery=False
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
     def test_create_query(self, get_conn_mock):
         body = {"body": "test"}
 
@@ -62,7 +69,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
     def test_delete_query(self, get_conn_mock):
         query_id = "QUERY_ID"
 
@@ -77,7 +87,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
             queryId=query_id
         )
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
     def test_get_query(self, get_conn_mock):
         query_id = "QUERY_ID"
 
@@ -94,10 +107,13 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         self.assertEqual(return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
     def test_list_queries(self, get_conn_mock):
-        queries = ['test']
-        return_value = {'queries': queries}
+        queries = ["test"]
+        return_value = {"queries": queries}
         get_conn_mock.return_value.queries.return_value.listqueries.return_value.execute.return_value = (
             return_value
         )
@@ -108,7 +124,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         self.assertEqual(queries, result)
 
-    @mock.patch("airflow.gcp.hooks.display_video.GoogleDisplayVideo360Hook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
     def test_run_query(self, get_conn_mock):
         query_id = "QUERY_ID"
         params = {"params": "test"}

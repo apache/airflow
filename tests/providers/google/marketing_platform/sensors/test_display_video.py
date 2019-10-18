@@ -19,15 +19,23 @@
 
 from unittest import TestCase, mock
 
-from airflow.gcp.sensors.display_video import GoogleDisplayVideo360ReportSensor
+from airflow.providers.google.marketing_platform.sensors.display_video import (
+    GoogleDisplayVideo360ReportSensor,
+)
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleDisplayVideo360ReportSensor(TestCase):
-    @mock.patch("airflow.gcp.sensors.display_video.GoogleDisplayVideo360Hook")
-    @mock.patch("airflow.gcp.sensors.display_video.BaseSensorOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.sensors."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.sensors."
+        "display_video.BaseSensorOperator"
+    )
     def test_poke(self, mock_base_op, hook_mock):
         report_id = "REPORT_ID"
         op = GoogleDisplayVideo360ReportSensor(

@@ -19,7 +19,7 @@
 
 from unittest import TestCase, mock
 
-from airflow.gcp.operators.display_video import (
+from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
 )
@@ -30,10 +30,17 @@ GCP_CONN_ID = "google_cloud_default"
 
 class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
     @mock.patch(
-        "airflow.gcp.operators.display_video.GoogleDisplayVideo360CreateReportOperator.xcom_push"
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360CreateReportOperator.xcom_push"
     )
-    @mock.patch("airflow.gcp.operators.display_video.GoogleDisplayVideo360Hook")
-    @mock.patch("airflow.gcp.operators.display_video.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock, xcom_mock):
         body = {"body": "test"}
         query_id = "TEST"
@@ -50,8 +57,14 @@ class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
 
 
 class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.display_video.GoogleDisplayVideo360Hook")
-    @mock.patch("airflow.gcp.operators.display_video.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         query_id = "QUERY_ID"
         op = GoogleDisplayVideo360DeleteReportOperator(
@@ -65,15 +78,34 @@ class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):
 
 
 class TestGoogleDisplayVideo360GetReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.display_video.shutil")
-    @mock.patch("airflow.gcp.operators.display_video.urllib.request")
-    @mock.patch("airflow.gcp.operators.display_video.tempfile")
     @mock.patch(
-        "airflow.gcp.operators.display_video.GoogleDisplayVideo360DownloadReportOperator.xcom_push"
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.shutil"
     )
-    @mock.patch("airflow.gcp.operators.display_video.GoogleCloudStorageHook")
-    @mock.patch("airflow.gcp.operators.display_video.GoogleDisplayVideo360Hook")
-    @mock.patch("airflow.gcp.operators.display_video.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.urllib.request"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.tempfile"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360DownloadReportOperator.xcom_push"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleCloudStorageHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.BaseOperator"
+    )
     def test_execute(
         self,
         mock_base_op,
@@ -124,8 +156,14 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
 
 
 class TestGoogleDisplayVideo360RunReportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.display_video.GoogleDisplayVideo360Hook")
-    @mock.patch("airflow.gcp.operators.display_video.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         report_id = "QUERY_ID"
         params = {"param": "test"}
