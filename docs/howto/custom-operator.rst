@@ -151,19 +151,37 @@ the operator.
                 print(message)
                 return message
 
-You can use the templates as follows:
+You can use the template as follows:
 
 .. code:: python
+
         with dag:
             hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_id }}`` with
-``task_id_1``. Templating substitutes the 
+``task_id_1``.
+
 
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
 the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
-with actual value.
+with actual value.Note that Jinja substitutes the operator attributes and not the args. 
+
+.. code:: python
+
+        class HelloOperator(BaseOperator):
+            
+            template_fields = ['guest_name']
+            
+            @apply_defaults
+            def __init__(
+                    self,
+                    name: str,
+                    *args, **kwargs) -> None:
+                super().__init__(*args, **kwargs)
+                self.guest_name = name
+
+In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``
 
 
 Define an operator extra link
