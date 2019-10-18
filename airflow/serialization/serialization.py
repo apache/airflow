@@ -128,8 +128,9 @@ class Serialization:
         """Helper function of depth first search for serialization.
 
         The serialization protocol is:
+
         (1) keeping JSON supported types: primitives, dict, list;
-        (2) encoding other types as {TYPE: 'foo', VAR: 'bar'}, the deserialization
+        (2) encoding other types as ``{TYPE: 'foo', VAR: 'bar'}``, the deserialization
             step decode VAR according to TYPE;
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.
