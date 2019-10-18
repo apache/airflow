@@ -52,7 +52,6 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
                 self.name = name
 
             def execute(self, context):
-<<<<<<< HEAD
                 message = "Hello {}".format(self.name)
                 print(message)
                 return message
@@ -64,12 +63,6 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
     in the Airflow home to ``PYTHONPATH`` by default. e.g., In our example, 
     the file is placed in the ``custom_operator`` directory.
 
-=======
-                message = "Hello {}".format(name)
-                print(message)
-                return message
-
->>>>>>> removing extra link section
 You can now use the derived custom operator as follows:
 
 .. code:: python
@@ -79,15 +72,6 @@ You can now use the derived custom operator as follows:
     with dag:
         hello_task = HelloOperator(task_id='sample-task', name='foo_bar')
 
-<<<<<<< HEAD
-=======
-**Note**: For imports to work, you should place the file in a directory that
-is present in the ``PATH`` env. Airflow adds ``dags``, ``plugins``, and ``config`` directories
-in the Airflow home to ``PATH`` by default. e.g., In our example, 
-the file is placed in the ``custom_operator`` directory.
-
-
->>>>>>> removing extra link section
 Hooks
 ^^^^^
 Hooks act as an interface to communicate with the external shared resources in a DAG.
@@ -106,11 +90,7 @@ Let's extend our previous example to fetch name from MySQL:
             def __init__(
                     self,
                     name: str,
-<<<<<<< HEAD
                     mysql_conn_id: str,
-=======
-                    conn_id: str,
->>>>>>> removing extra link section
                     database: str,
                     *args, **kwargs) -> None:
                 super().__init__(*args, **kwargs)
@@ -130,13 +110,10 @@ Let's extend our previous example to fetch name from MySQL:
 When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist. 
 The hook retrieves the auth parameters such as username and password from Airflow
 backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`. 
-<<<<<<< HEAD
+
 You should create hook only in the ``execute`` method or any method which is called from ``execute``.
 The constructor gets called whenever Airflow parses a DAG which happens frequently.
 The ``execute`` gets called only during a DAG run.
-=======
-
->>>>>>> removing extra link section
 
 User interface
 ^^^^^^^^^^^^^^^
@@ -176,21 +153,16 @@ the operator.
                 print(message)
                 return message
 
-<<<<<<< HEAD
-You can use the template as follows:
+
+You can use the templates as follows:
 
 .. code:: python
-
         with dag:
             hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
-=======
-        hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
->>>>>>> removing extra link section
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_id }}`` with
-``task_id_1``.
+``task_id_1``. Templating substitutes the 
 
-<<<<<<< HEAD
 
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
@@ -212,12 +184,6 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
                 self.guest_name = name
 
 In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``
-=======
-The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
-the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
-the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
-with actual value.
->>>>>>> removing extra link section
 
 
 Define an operator extra link
