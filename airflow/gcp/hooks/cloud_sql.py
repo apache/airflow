@@ -243,7 +243,8 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self,
         instance: str,
         database: str,
-        body: Dict, project_id: Optional[str] = None
+        body: Dict,
+        project_id: Optional[str] = None
     ) -> None:
         """
         Updates a database resource inside a Cloud SQL instance.
@@ -934,7 +935,7 @@ class CloudSqlDatabaseHook(BaseHook):
         return instance_specification
 
     @provide_session
-    def create_connection(self, session: Session = None) -> None:
+    def create_connection(self, session: Optional[Session] = None) -> None:
         """
         Create connection in the Connection table, according to whether it uses
         proxy, TCP, UNIX sockets, SSL. Connection ID will be randomly generated.
@@ -951,7 +952,7 @@ class CloudSqlDatabaseHook(BaseHook):
         session.commit()
 
     @provide_session
-    def retrieve_connection(self, session: Session = None) -> Optional[Connection]:
+    def retrieve_connection(self, session: Optional[Session] = None) -> Optional[Connection]:
         """
         Retrieves the dynamically created connection from the Connection table.
 
@@ -967,7 +968,7 @@ class CloudSqlDatabaseHook(BaseHook):
         return None
 
     @provide_session
-    def delete_connection(self, session: Session = None) -> None:
+    def delete_connection(self, session: Optional[Session] = None) -> None:
         """
         Delete the dynamically created connection from the Connection table.
 
