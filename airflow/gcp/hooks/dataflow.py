@@ -582,6 +582,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             dataflow=self.get_conn(),
             project_number=project_id,
             name=name,
+            job_id=response['job']['id'],
             location=variables['region'],
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries)

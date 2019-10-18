@@ -315,9 +315,10 @@ class TestDataFlowTemplateHook(unittest.TestCase):
             DATAFLOW_OPTIONS_JAVA['project']
         )
 
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob):
+    def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mocck_uuid):
         dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
         options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
         options_with_runtime_env.update(dataflow_options_template)
@@ -330,6 +331,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
                   .templates.return_value
                   .launch)
 
+        method.return_value.execute.return_value = {'job': {'id': TEST_JOB_ID}}
         self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables=options_with_runtime_env,
@@ -345,6 +347,15 @@ class TestDataFlowTemplateHook(unittest.TestCase):
             location='us-central1',
             gcsPath=TEMPLATE,
             body=body,
+        )
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            job_id=TEST_JOB_ID,
+            location='us-central1',
+            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            num_retries=5,
+            poll_sleep=10,
+            project_number='test'
         )
 
 
