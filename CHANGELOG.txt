@@ -26,7 +26,7 @@ Improvements
 - [AIRFLOW-4965] Handle quote exceptions in GCP AI operators (v1.10) (#6304)
 - [AIRFLOW-3783] Speed up Redshift to S3 UNload with HEADERs (#6309)
 - [AIRFLOW-3388] Add support to Array Jobs for AWS Batch Operator (#6153)
-- [AIRFLOW-4574] add option to provide private_key in SSHHook (#6104)
+- [AIRFLOW-4574] add option to provide private_key in SSHHook (#6104) (#6163)
 - [AIRFLOW-5530] Fix typo in AWS SQS sensors (#6012)
 - [AIRFLOW-5445] Reduce the required resources for the Kubernetes's sidecar (#6062)
 - [AIRFLOW-5443] Use alpine image in Kubernetes's sidecar (#6059)
@@ -91,6 +91,7 @@ Bug Fixes
 
 Doc-only changes
 """"""""""""""""
+- [AIRFLOW-5574] Fix Google Analytics script loading (#6218)
 - [AIRFLOW-5588] Add Celery's architecture diagram (#6247)
 - [AIRFLOW-5521] Fix link to GCP documentation (#6150)
 - [AIRFLOW-5398] Update contrib example DAGs to context manager (#5998)
@@ -115,6 +116,7 @@ Doc-only changes
 
 Misc/Internal
 """""""""""""
+- [AIRFLOW-5687] Upgrade pip to 19.0.2 in CI build pipeline (#6358) (#6361)
 - [AIRFLOW-5533] Fixed failing CRON build (#6167)
 - [AIRFLOW-5130] Use GOOGLE_APPLICATION_CREDENTIALS constant from library (#5744)
 - [AIRFLOW-5369] Adds interactivity to pre-commits (#5976)
