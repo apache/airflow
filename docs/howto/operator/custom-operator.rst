@@ -28,7 +28,8 @@ You can create any operator you want by extending the :class:`airflow.models.bas
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  Use ``@apply_defaults`` decorator function to fill unspecified arguments with default_args.
+  Use ``@apply_defaults`` decorator function to fill unspecified arguments with ``default_args``. You can specify the ``default_args``
+  in the dag file. See :ref:`Default args <default-args>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the 
   airflow context as a parameter that can be used to read config values.
@@ -36,9 +37,10 @@ There are two methods that you need to override in a derived class:
 Let's implement an example ``HelloOperator``:
 
 .. code::  python
-
+        
+        from airflow.models.baseoperator import BaseOperator
         from airflow.utils.decorators import apply_defaults
-
+        
         class HelloOperator(BaseOperator):
 
             @apply_defaults
