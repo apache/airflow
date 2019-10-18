@@ -17,7 +17,7 @@
 
 
 Creating a custom Operator
-=======================
+==========================
 
 
 Airflow allows you to create new operators to suit the requirements of you or your team. 
@@ -34,7 +34,7 @@ There are two methods that you need to override in a derived class:
 * Execute - The code to execute when the runner calls the operator. The method contains the 
   airflow context as a parameter that can be used to read config values.
 
-Let's implement an example ``HelloOperator``:
+Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
 
 .. code::  python
         
@@ -60,8 +60,16 @@ You can now use the derived custom operator as follows:
 
 .. code:: python
 
+    from custom_operator.hello_operator import HelloOperator
+
     with dag:
         hello_task = HelloOperator(task_id='sample-task', name='foo_bar')
+
+**Note**: For imports to work, you should place the file in a directory that
+is present in the ``PATH`` env. Airflow adds ``dags``, ``plugins``, and ``config`` directories
+in the Airflow home to ``PATH`` by default. e.g., In our example, 
+the file is placed in the ``custom_operator`` directory.
+
 
 Hooks
 ^^^^^
@@ -69,7 +77,7 @@ Hooks act as an interface to communicate with the external shared resources in a
 For example, multiple tasks in a DAG can require access to a MySQL database. Instead of
 creating a connection per task, you can retrieve a connection from the hook and utilize it.
 Hook also helps to avoid storing connection auth parameters in a DAG. 
-See :doc:`../connection/index` for how to create and manage connections.
+See :doc:`connection/index` for how to create and manage connections.
 
 Let's extend our previous example to fetch name from MySQL:
 
@@ -155,32 +163,6 @@ with actual value.
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For your operator, you can define extra links that can
-redirect users to external systems. The extra link buttons
-will be available on the task page:
-
-.. image:: ../../img/operator_extra_link.png
-
-You should override the ``operator_extra_link_dict`` parameter with the links. The following code shows how to add a link to the ``HelloOperator``:
-
-.. code-block:: python
-
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-    from airflow.utils.decorators import apply_defaults
-
-
-    class GoogleLink(BaseOperatorLink):
-
-        def get_link(self, operator, dttm):
-            return "https://www.google.com"
-
-    class HelloOperator(BaseOperator):
-
-        operator_extra_link_dict = {
-            "Google": GoogleLink(),
-        }
-        ...
-
-You can also add a global operator extra link that will be available to
-all the operators through an airflow plugin. Learn more about it in the
-:ref:`plugin example <plugin-example>`.
+For your operator, you can :doc:`Define an extra link <define_extra_link>` that can
+redirect users to external systems. For example, you can add a link that redirects
+the user to the operator's manual.

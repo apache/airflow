@@ -36,4 +36,3 @@ information.
     kubernetes
     papermill
     python
-    custom-operator

@@ -80,6 +80,8 @@ Sometimes this can be put to good use. For example, a common pattern with
 ``SubDagOperator`` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
+.. _default-args:
+
 Default Arguments
 -----------------
 
@@ -96,8 +98,6 @@ any of its operators. This makes it easy to apply a common parameter to many ope
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
     print(op.owner) # Airflow
-
-.. _default-args:
 
 Context Manager
 ---------------
