@@ -23,6 +23,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from past.builtins import basestring
+try:
+    from collections.abc import Iterable as CollectionIterable
+except ImportError:
+    from collections import Iterable as CollectionIterable
 
 import importlib
 import os
@@ -32,6 +36,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.utils import formatdate
+from typing import Iterable, List, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -128,13 +133,22 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
         s.quit()
 
 
-def get_email_address_list(address_string):
-    if isinstance(address_string, basestring):
-        if ',' in address_string:
-            address_string = [address.strip() for address in address_string.split(',')]
-        elif ';' in address_string:
-            address_string = [address.strip() for address in address_string.split(';')]
-        else:
-            address_string = [address_string]
+def get_email_address_list(addresses):  # type: (Union[str, Iterable[str]]) -> List[str]
+    if isinstance(addresses, basestring):
+        return _get_email_list_from_str(addresses)
 
-    return address_string
+    elif isinstance(addresses, CollectionIterable):
+        if not all(isinstance(item, basestring) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+
+    received_type = type(addresses).__name__
+    raise TypeError("Unexpected argument type: Received '{}'.".format(received_type))
+
+
+def _get_email_list_from_str(addresses):  # type: (str) -> List[str]
+    delimiters = [",", ";"]
+    for delimiter in delimiters:
+        if delimiter in addresses:
+            return [address.strip() for address in addresses.split(delimiter)]
+    return [addresses]
