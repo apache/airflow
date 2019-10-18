@@ -109,7 +109,9 @@ Let's extend our previous example to fetch name from MySQL:
 When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist. 
 The hook retrieves the auth parameters such as username and password from Airflow
 backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`. 
-
+You should create hook only in the ``execute`` method or any method which is called from ``execute``.
+The constructor gets called whenever Airflow parses a DAG which happens frequently.
+The ``execute`` gets called only during a DAG run.
 
 User interface
 ^^^^^^^^^^^^^^^
@@ -149,10 +151,14 @@ the operator.
                 print(message)
                 return message
 
-        hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
+You can use the templates as follows:
+
+.. code:: python
+        with dag:
+            hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_id }}`` with
-``task_id_1``.
+``task_id_1``. Templating substitutes the 
 
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
