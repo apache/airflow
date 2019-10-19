@@ -1917,6 +1917,8 @@ class Airflow(AirflowBaseView):
 
 
 class VersionView(AirflowBaseView):
+    default_view = 'version'
+
     @expose('/version')
     @has_access
     def version(self):
@@ -1945,6 +1947,8 @@ class VersionView(AirflowBaseView):
 
 
 class ConfigurationView(AirflowBaseView):
+    default_view = 'conf'
+
     @expose('/configuration')
     @has_access
     def conf(self):
