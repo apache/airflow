@@ -129,6 +129,7 @@ class SFTPHook(SSHHook):
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
+
         :param path: full path to the remote directory
         :type path: str
         """
@@ -147,6 +148,7 @@ class SFTPHook(SSHHook):
     def list_directory(self, path):
         """
         Returns a list of files on the remote system.
+
         :param path: full path to the remote directory to list
         :type path: str
         """
@@ -157,6 +159,7 @@ class SFTPHook(SSHHook):
     def create_directory(self, path, mode=777):
         """
         Creates a directory on the remote system.
+
         :param path: full path to the remote directory to create
         :type path: str
         :param mode: int representation of octal mode for directory
@@ -167,6 +170,7 @@ class SFTPHook(SSHHook):
     def delete_directory(self, path):
         """
         Deletes a directory on the remote system.
+
         :param path: full path to the remote directory to delete
         :type path: str
         """
@@ -178,6 +182,7 @@ class SFTPHook(SSHHook):
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
         at that location
+
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path: full path to the local file
@@ -193,6 +198,7 @@ class SFTPHook(SSHHook):
         Transfers a local file to the remote location.
         If local_full_path_or_buffer is a string path, the file will be read
         from that location
+
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path: full path to the local file
@@ -204,6 +210,7 @@ class SFTPHook(SSHHook):
     def delete_file(self, path):
         """
         Removes a file on the FTP Server
+
         :param path: full path to the remote file
         :type path: str
         """

@@ -588,6 +588,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def get_cluster_state(service, project_id, region, cluster_name):
         """
         Get the state of a cluster if it has one, otherwise None
+
         :param service:
         :param project_id:
         :param region:
@@ -604,6 +605,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def find_cluster(service, project_id, region, cluster_name):
         """
         Retrieve a cluster from the project/region if it exists, otherwise None
+
         :param service:
         :param project_id:
         :param region:
@@ -620,6 +622,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def get_cluster_list_for_project(service, project_id, region):
         """
         List all clusters for a given project/region, an empty list if none exist
+
         :param service:
         :param project_id:
         :param region:
@@ -636,6 +639,7 @@ class DataProcHook(GoogleCloudBaseHook):
         """
         Execute the diagonse command against a given cluster, useful to get debugging
         information if something has gone wrong or cluster creation failed.
+
         :param service:
         :param project_id:
         :param region:
@@ -655,6 +659,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def execute_delete(service, project_id, region, cluster_name):
         """
         Delete a specified cluster
+
         :param service:
         :param project_id:
         :param region:
@@ -673,6 +678,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def wait_for_operation_done(service, operation_name):
         """
         Poll for the completion of a specific GCP operation
+
         :param service:
         :param operation_name:
         :return: The response code of the completed operation
@@ -691,6 +697,7 @@ class DataProcHook(GoogleCloudBaseHook):
         """
         Block until the specified operation is done. Throws an AirflowException if
         the operation completed but had an error
+
         :param service:
         :param operation_name:
         :return:

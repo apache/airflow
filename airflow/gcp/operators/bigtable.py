@@ -326,7 +326,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
     :param project_id: Optional, the ID of the GCP project. If set to None or missing,
             the default project_id from the GCP connection is used.
     :type app_profile_id: str
-    :parm app_profile_id: Application profile.
+    :param app_profile_id: Application profile.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """

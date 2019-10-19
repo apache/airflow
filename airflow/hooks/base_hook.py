@@ -80,7 +80,7 @@ class BaseHook(LoggingMixin):
         """
         Get random connection selected from all connections configured with this connection id.
 
-        :param conn_id connection id
+        :param conn_id: connection id
         :return connection
         """
         conn = random.choice(list(cls.get_connections(conn_id)))
@@ -93,6 +93,7 @@ class BaseHook(LoggingMixin):
     def get_hook(cls, conn_id: str) -> "BaseHook":
         """
         Returns default hook for this connection id.
+
         :param conn_id: connection id
         :return: default hook for this connection
         """
