@@ -32,7 +32,7 @@ def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...
     :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
+        or all runs if the state is not specified
     """
     check_and_get_dag(dag_id=dag_id)
 

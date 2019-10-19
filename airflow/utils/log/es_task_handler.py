@@ -48,10 +48,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     which is a unique integer indicates log message's order.
     Timestamp here are unreliable because multiple log messages
     might have the same timestamp.
-
-    :param base_log_folder: base folder to store logs locally
-    :param log_id_template: log id template
-    :param host: Elasticsearch host name
     """
 
     PAGE = 0
@@ -62,6 +58,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                  write_stdout, json_format, json_fields,
                  host='localhost:9200',
                  es_kwargs=conf.getsection("elasticsearch_configs") or {}):
+        """
+        :param base_log_folder: base folder to store logs locally
+        :param log_id_template: log id template
+        :param host: Elasticsearch host name
+        """
         super().__init__(
             base_log_folder, filename_template)
         self.closed = False

@@ -65,8 +65,8 @@ class BaseHook(LoggingMixin):
         """
         Get all connections as an iterable.
 
-        :param conn_id connection id
-        :return array of connections
+        :param conn_id: connection id
+        :return: array of connections
         """
         conn = cls._get_connection_from_env(conn_id)
         if conn:
@@ -81,7 +81,7 @@ class BaseHook(LoggingMixin):
         Get random connection selected from all connections configured with this connection id.
 
         :param conn_id: connection id
-        :return connection
+        :return: connection
         """
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
