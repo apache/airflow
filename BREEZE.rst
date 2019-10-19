@@ -758,10 +758,6 @@ These are the current flags of the `./breeze <./breeze>`_ script
             Backend to use for tests - it determines which database is used.
             One of [ sqlite mysql postgres ]. Default: sqlite
 
-    -K, --kubernetes-version <KUBERNETES_VERSION>
-            Kubernetes version - only used in case of 'kubernetes' environment.
-            One of [ v1.13.0 ]. Default: v1.13.0
-
     -M, --kubernetes-mode <KUBERNETES_MODE>
             Kubernetes mode - only used in case of 'kubernetes' environment.
             One of [ persistent_mode git_mode ]. Default: git_mode
@@ -998,13 +994,12 @@ Running kubernetes tests:
 
 .. code-block::
 
-  KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
+  KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
     ./scripts/ci/local_ci_run_airflow_testing.sh
 
 * PYTHON_VERSION might be one of 3.5/3.6/3.7
 * BACKEND might be one of postgres/sqlite/mysql
 * ENV might be one of docker/kubernetes/bare
-* KUBERNETES_VERSION - required for Kubernetes tests - currently KUBERNETES_VERSION=v1.13.0.
 * KUBERNETES_MODE - mode of kubernetes, one of persistent_mode, git_mode
 
 The available environments are described in ``

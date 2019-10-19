@@ -194,7 +194,6 @@ EOF
         if [[ ${ENV} == "kubernetes" ]]; then
             cat <<EOF
 
-                               Kubernetes version: ${KUBERNETES_VERSION}
                                Kubernetes mode:    ${KUBERNETES_MODE}
 
 
@@ -214,7 +213,6 @@ EOF
 EOF
         if [[ ${ENV} == "kubernetes" ]]; then
             cat <<EOF
-   Kubernetes version: ${KUBERNETES_VERSION}
    Kubernetes mode:    ${KUBERNETES_MODE}
 
 
@@ -237,7 +235,6 @@ export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_VERSION="${PYTHON_VERSION}"
 export BACKEND="${BACKEND}"
 export ENV="${ENV}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export KUBERNETES_MODE="${KUBERNETES_MODE}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
@@ -253,7 +250,6 @@ EOF
 
 _BREEZE_DEFAULT_ENV="docker"
 _BREEZE_DEFAULT_BACKEND="sqlite"
-_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.13.0"
 _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
 
 usage() {
@@ -371,10 +367,6 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         Backend to use for tests - it determines which database is used.
         One of [${_BREEZE_ALLOWED_BACKENDS:=}]. Default: ${_BREEZE_DEFAULT_BACKEND:=}
 
--K, --kubernetes-version <KUBERNETES_VERSION>
-        Kubernetes version - only used in case of 'kubernetes' environment.
-        One of [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
-
 -M, --kubernetes-mode <KUBERNETES_MODE>
         Kubernetes mode - only used in case of 'kubernetes' environment.
         One of [${_BREEZE_ALLOWED_KUBERNETES_MODES:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
@@ -470,12 +462,6 @@ do
       export BACKEND="${2}";
       echo
       echo "Backend: ${BACKEND}"
-      echo
-      shift 2 ;;
-    -K|--kubernetes-version)
-      export KUBERNETES_VERSION="${2}";
-      echo
-      echo "Kubernetes version: ${KUBERNETES_VERSION}"
       echo
       shift 2 ;;
     -M|--kubernetes-mode)
@@ -685,7 +671,6 @@ cleanup_last_force_answer
 
 export ENV="${ENV:=$(read_from_file ENV)}"
 export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
 export KUBERNETES_MODE="${KUBERNETES_MODE:=$(read_from_file KUBERNETES_MODE)}"
 
 # Here you read DockerHub user/account that you use
@@ -706,8 +691,6 @@ export ENV=${ENV:-${_BREEZE_DEFAULT_ENV}}
 # Default backend for tests
 export BACKEND=${BACKEND:-${_BREEZE_DEFAULT_BACKEND}}
 
-# Default version of Kubernetes to use
-export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 # Default mode of Kubernetes to use
 export KUBERNETES_MODE=${KUBERNETES_MODE:=${_BREEZE_DEFAULT_KUBERNETES_MODE}}
 
@@ -738,15 +721,6 @@ if [[ ${_BREEZE_ALLOWED_BACKENDS:=} != *" ${BACKEND} "* ]]; then
 fi
 
 #################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} != *" ${KUBERNETES_VERSION} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed kubernetes versions" \
-         "are [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}]. Used: '${KUBERNETES_VERSION}'"
-    echo >&2
-    exit 1
-fi
-
-#################### Check environments ##########################################
 if [[ ${_BREEZE_ALLOWED_KUBERNETES_MODES} != *" ${KUBERNETES_MODE} "* ]]; then
     echo >&2
     echo >&2 "ERROR:  Allowed kubernetes modes" \
@@ -765,7 +739,6 @@ touch "${MY_DIR}/.inputrc"
 
 save_to_file BACKEND
 save_to_file ENV
-save_to_file KUBERNETES_VERSION
 save_to_file KUBERNETES_MODE
 save_to_file PYTHON_VERSION
 save_to_file DOCKERHUB_USER

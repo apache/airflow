@@ -134,10 +134,6 @@ ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
 ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
 ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
-ARG KUBERNETES_VERSION="v1.15.0"
-ENV KUBERNETES_VERSION=${KUBERNETES_VERSION}
-ARG KIND_VERSION="v0.5.0"
-ENV KIND_VERSION=${KIND_VERSION}
 
 RUN echo "${APT_DEPS_IMAGE}"
 
@@ -174,38 +170,7 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
         ;\
     fi
 
-# TODO: We should think about removing those and moving them into docker-compose dependencies.
 COPY scripts/ci/docker_build/ci_build_install_deps.sh /tmp/ci_build_install_deps.sh
-
-# Kubernetes dependencies
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
-    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
-    && apt-get update \
-    && apt-get -y install --no-install-recommends docker-ce \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    ;\
-fi
-
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -Lo kubectl \
-    "https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl" \
-    && chmod +x kubectl \
-    && mv kubectl /usr/local/bin/kubectl \
-    ;\
-fi
-
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -Lo kind \
-    "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-    && chmod +x kind \
-    && mv kind /usr/local/bin/kind \
-    ;\
-fi
 
 ENV HADOOP_DISTRO=cdh \
     HADOOP_MAJOR=5 \

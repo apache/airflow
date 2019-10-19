@@ -102,8 +102,8 @@ services:
       - AIRFLOW_CI_VERBOSE
       - AIRFLOW_CI_SILENT
       - AIRFLOW_CONTAINER_DOCKER_IMAGE
-      - KUBERNETES_VERSION
       - KUBERNETES_MODE
+      - RUN_KUBERNETES_TESTS
     depends_on:
       - postgres
       - mysql

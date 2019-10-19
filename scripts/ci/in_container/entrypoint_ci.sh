@@ -38,8 +38,8 @@ AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 ENV=${ENV:=docker}
 BACKEND=${BACKEND:=sqlite}
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
+RUN_KUBERNETES_TESTS=${RUN_KUBERNETES_TESTS:="false"}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -243,11 +243,9 @@ else
 fi
 set -u
 
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-
-if [[ -z "${KUBERNETES_VERSION}" ]]; then
+if [[ "${RUN_KUBERNETES_TESTS}" == "false" ]]; then
     echo
-    echo "Running CI tests with ${ARGS[*]}"
+    echo "Running CI tests without Kubernetes with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
@@ -256,7 +254,7 @@ else
     "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
 
     echo
-    echo "Running CI tests with ${ARGS[*]}"
+    echo "Running CI tests for Kubernetes with ${ARGS[*]}"
     echo
     "${MY_DIR}/run_ci_tests.sh" tests.integration.kubernetes "${ARGS[@]}"
 fi

@@ -73,6 +73,7 @@ export HOST_GROUP_ID
 
 set +u
 if [[ "${ENV}" == "docker" ]]; then
+  export RUN_KUBERNETES_TESTS="false"
   docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
@@ -82,6 +83,7 @@ elif [[ "${ENV}" == "kubernetes" ]]; then
   echo
   echo "Running kubernetes tests in ${KUBERNETES_MODE}"
   echo
+  export RUN_KUBERNETES_TESTS="true"
   docker-compose --log-level ERROR \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
@@ -91,6 +93,7 @@ elif [[ "${ENV}" == "kubernetes" ]]; then
   echo "Finished Running kubernetes tests in ${KUBERNETES_MODE}"
   echo
 elif [[ "${ENV}" == "bare" ]]; then
+  export RUN_KUBERNETES_TESTS="false"
   docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \

@@ -19,7 +19,7 @@
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euxo pipefail
 
-# TODO: We should think about removing those and moving them into docker-compose dependencies.
+# TODO: We should think about removing those and moving them into docker-compose dependencies if possible.
 # TODO: We might come up with just one airflow CI image not the SLIM/CI versions. That would simplify a lot.
 # TODO: We could likely get rid of the multi-staging approach. It introduces a number of limitations
 # TODO: As long as we decrease the size of the CI image, we should be fine with using single CI image for
@@ -36,6 +36,8 @@ export HIVE_HOME="${HIVE_HOME:="/tmp/hive"}"
 export MINICLUSTER_BASE="${MINICLUSTER_BASE:="https://github.com/bolkedebruin/minicluster/releases/download/"}"
 export MINICLUSTER_HOME="${MINICLUSTER_HOME:="/tmp/minicluster"}"
 export MINICLUSTER_VER="${MINICLUSTER_VER:="1.1"}"
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.0"}
+export KIND_VERSION=${KIND_VERSION:="v0.5.0"}
 
 mkdir -pv "${HADOOP_HOME}"
 mkdir -pv "${HIVE_HOME}"
@@ -44,6 +46,7 @@ mkdir -pv "/user/hive/warehouse"
 chmod -R 777 "${HIVE_HOME}"
 chmod -R 777 "/user/"
 
+# Install Hadoop
 export HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz"
 export HADOOP_TMP_FILE="/tmp/hadoop.tar.gz"
 
@@ -53,6 +56,7 @@ tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_
 
 rm "${HADOOP_TMP_FILE}"
 
+# Install Hive
 export HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz"
 export HIVE_TMP_FILE="/tmp/hive.tar.gz"
 
@@ -60,9 +64,30 @@ curl -sL "${HIVE_URL}" >"${HIVE_TMP_FILE}"
 tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}"
 rm "${HIVE_TMP_FILE}"
 
+# Install minicluster
 MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip"
 MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
 
 curl -sL "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}"
 unzip "${MINICLUSTER_TMP_FILE}" -d "/tmp"
 rm "${MINICLUSTER_TMP_FILE}"
+
+# Install docker-ce
+curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable"
+apt-get update
+apt-get -y install --no-install-recommends docker-ce
+apt-get autoremove -yqq --purge
+apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install kubectl
+curl -Lo kubectl \
+  "https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
+chmod +x kubectl
+mv kubectl /usr/local/bin/kubectl
+
+# Install kind
+curl -Lo kind \
+   "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+chmod +x kind
+mv kind /usr/local/bin/kind
