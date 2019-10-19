@@ -103,4 +103,4 @@ services:
   - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
-script: "./scripts/ci/ci_run_airflow_testing.sh"
+script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
