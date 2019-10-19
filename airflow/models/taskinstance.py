@@ -473,18 +473,6 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-    @provide_session
-    def clear_xcom_data(self, session=None):
-        """
-        Clears all XCom data from the database for the task instance
-        """
-        session.query(XCom).filter(
-            XCom.dag_id == self.dag_id,
-            XCom.task_id == self.task_id,
-            XCom.execution_date == self.execution_date
-        ).delete()
-        session.commit()
-
     @property
     def key(self):
         """
@@ -908,9 +896,6 @@ class TaskInstance(Base, LoggingMixin):
                     task_copy.on_kill()
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
-
-                # Don't clear Xcom until the task is certain to execute
-                self.clear_xcom_data()
 
                 start_time = time.time()
 
