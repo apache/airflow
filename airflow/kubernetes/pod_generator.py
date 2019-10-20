@@ -22,39 +22,10 @@ is supported and no serialization need be written.
 """
 
 import copy
-import uuid
 
 import kubernetes.client.models as k8s
 
 from airflow.executors import Executors
-
-
-class PodDefaults:
-    """
-    Static defaults for the PodGenerator
-    """
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(
-        name='xcom',
-        mount_path=XCOM_MOUNT_PATH
-    )
-    VOLUME = k8s.V1Volume(
-        name='xcom',
-        empty_dir=k8s.V1EmptyDirVolumeSource()
-    )
-    SIDECAR_CONTAINER = k8s.V1Container(
-        name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
-        volume_mounts=[VOLUME_MOUNT],
-        resources=k8s.V1ResourceRequirements(
-            requests={
-                "cpu": "1m",
-            }
-        ),
-    )
 
 
 class PodGenerator:
@@ -121,7 +92,6 @@ class PodGenerator:
         configmaps=None,
         dnspolicy=None,
         pod=None,
-        extract_xcom=False,
     ):
         self.ud_pod = pod
         self.pod = k8s.V1Pod()
@@ -131,7 +101,7 @@ class PodGenerator:
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
         self.metadata.labels = labels
-        self.metadata.name = name + "-" + str(uuid.uuid4())[:8] if name else None
+        self.metadata.name = name
         self.metadata.namespace = namespace
         self.metadata.annotations = annotations
 
@@ -187,9 +157,6 @@ class PodGenerator:
                     name=image_pull_secret
                 ))
 
-        # Attach sidecar
-        self.extract_xcom = extract_xcom
-
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod"""
         result = self.ud_pod
@@ -200,21 +167,7 @@ class PodGenerator:
             result.metadata = self.metadata
             result.spec.containers = [self.container]
 
-        if self.extract_xcom:
-            result = self.add_sidecar(result)
-
         return result
-
-    @staticmethod
-    def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar"""
-        pod_cp = copy.deepcopy(pod)
-
-        pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
-
-        return pod_cp
 
     @staticmethod
     def from_obj(obj) -> k8s.V1Pod:
@@ -287,7 +240,6 @@ class PodGenerator:
             configmaps=namespaced.get('configmaps'),
             dnspolicy=namespaced.get('dnspolicy'),
             pod=namespaced.get('pod'),
-            extract_xcom=namespaced.get('extract_xcom'),
         )
 
         return pod_spec_generator.gen_pod()

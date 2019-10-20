@@ -28,8 +28,7 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.settings import pod_mutation_hook
+from airflow.kubernetes.pod_refiner import XcomSidecarConfig
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -67,8 +66,6 @@ class PodLauncher(LoggingMixin):
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
         """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
-
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -125,7 +122,7 @@ class PodLauncher(LoggingMixin):
                 self.log.info(line)
         result = None
         if self.extract_xcom:
-            while self.base_container_is_running(pod):
+            while self.containers_is_running(pod):
                 self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
                 time.sleep(2)
             result = self._extract_xcom(pod)
@@ -153,14 +150,13 @@ class PodLauncher(LoggingMixin):
         state = self._task_status(self.read_pod(pod))
         return state not in (State.SUCCESS, State.FAILED)
 
-    def base_container_is_running(self, pod: V1Pod):
-        """Tests if base container is running"""
-        event = self.read_pod(pod)
-        status = next(iter(filter(lambda s: s.name == 'base',
-                                  event.status.container_statuses)), None)
-        if not status:
+    def containers_is_running(self, pod: V1Pod):
+        """Tests if container is running"""
+        fresh_pod = self.read_pod(pod)
+        statuses = [s for s in fresh_pod.status.container_statuses if s.name != XcomSidecarConfig.CONTAINER]
+        if not statuses:
             return False
-        return status.state.running is not None
+        return all(s.state.running is not None for s in statuses)
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -200,13 +196,13 @@ class PodLauncher(LoggingMixin):
     def _extract_xcom(self, pod: V1Pod):
         resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,
                                  pod.metadata.name, pod.metadata.namespace,
-                                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
+                                 container=XcomSidecarConfig.SIDECAR_CONTAINER_NAME,
                                  command=['/bin/sh'], stdin=True, stdout=True,
                                  stderr=True, tty=False,
                                  _preload_content=False)
         try:
             result = self._exec_pod_command(
-                resp, 'cat {}/return.json'.format(PodDefaults.XCOM_MOUNT_PATH))
+                resp, 'cat {}/return.json'.format(XcomSidecarConfig.MOUNT_PATH))
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         finally:
             resp.close()

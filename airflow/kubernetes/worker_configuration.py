@@ -21,6 +21,7 @@ from typing import Dict, List
 import kubernetes.client.models as k8s
 
 from airflow.configuration import conf
+from airflow.kubernetes import pod_refiner
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -393,4 +394,8 @@ class WorkerConfiguration(LoggingMixin):
         pod.spec.containers[0].env_from.extend(self._get_env_from())
         pod.spec.security_context = self._get_security_context()
 
-        return append_to_pod(pod, self._get_secrets())
+        pod = append_to_pod(pod, self._get_secrets())
+
+        pod = pod_refiner.refine_pod(pod)
+
+        return pod

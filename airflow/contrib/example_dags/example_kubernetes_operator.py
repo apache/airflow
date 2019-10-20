@@ -20,15 +20,51 @@
 This is an example dag for using the KubernetesPodOperator.
 """
 from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
+BUSYBOX_SLEEP_YAML = """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: example-yaml-2
+  name: example-yaml-2
+spec:
+  containers:
+  - args:
+    - sh
+    - -c
+    - echo 123; sleep 10
+    image: busybox
+    name: example-yaml-2
+  restartPolicy: Never
+"""
+
+ALPHINE_XCOM_YAML = """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-yaml-xcom
+spec:
+  containers:
+  - args:
+    - sh
+    - -c
+    - mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json
+    image: alpine
+    name: example-yaml-xcom
+  restartPolicy: Never
+"""
+
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
     # pip install 'apache-airflow[kubernetes]'
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator, \
+        KubernetesPodYamlOperator
 
     default_args = {
         'owner': 'Airflow',
@@ -62,6 +98,24 @@ try:
             is_delete_operator_pod=False,
             tolerations=tolerations
         )
+
+        start_pod = KubernetesPodYamlOperator(
+            task_id="start_pod",
+            yaml=BUSYBOX_SLEEP_YAML
+        )
+
+        start_pod_xcom = KubernetesPodYamlOperator(
+            task_id="start_pod_xcom",
+            yaml=ALPHINE_XCOM_YAML,
+            do_xcom_push=True
+        )
+
+        pod_task_xcom_result = BashOperator(
+            bash_command="echo \"{{ task_instance.xcom_pull('start_pod_xcom')[0] }}\"",
+            task_id="start_pod_xcom_result",
+        )
+
+        start_pod_xcom >> pod_task_xcom_result
 
 except ImportError as e:
     log.warning("Could not import KubernetesPodOperator: " + str(e))

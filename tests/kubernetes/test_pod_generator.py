@@ -23,7 +23,7 @@ from kubernetes.client import ApiClient
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 
 
@@ -48,7 +48,7 @@ class TestPodGenerator(unittest.TestCase):
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
-                'name': 'myapp-pod-0',
+                'name': 'myapp-pod',
                 'labels': {'app': 'myapp'},
                 'namespace': 'default'
             },
@@ -156,52 +156,6 @@ class TestPodGenerator(unittest.TestCase):
         self.assertDictEqual(result_dict, self.expected)
 
     @mock.patch('uuid.uuid4')
-    def test_gen_pod_extract_xcom(self, mock_uuid):
-        mock_uuid.return_value = '0'
-        pod_generator = PodGenerator(
-            labels={'app': 'myapp'},
-            name='myapp-pod',
-            image_pull_secrets='pull_secret_a,pull_secret_b',
-            image='busybox',
-            envs=self.envs,
-            cmds=['sh', '-c', 'echo Hello Kubernetes!'],
-            namespace='default',
-            security_context=k8s.V1PodSecurityContext(
-                run_as_user=1000,
-                fs_group=2000,
-            ),
-            ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
-            configmaps=['configmap_a', 'configmap_b']
-        )
-        pod_generator.extract_xcom = True
-        result = pod_generator.gen_pod()
-        result = append_to_pod(result, self.secrets)
-        result = self.resources.attach_to_pod(result)
-        result_dict = self.k8s_client.sanitize_for_serialization(result)
-        container_two = {
-            'name': 'airflow-xcom-sidecar',
-            'image': "alpine",
-            'command': ['sh', '-c', PodDefaults.XCOM_CMD],
-            'volumeMounts': [
-                {
-                    'name': 'xcom',
-                    'mountPath': '/airflow/xcom'
-                }
-            ],
-            'resources': {'requests': {'cpu': '1m'}},
-        }
-        self.expected['spec']['containers'].append(container_two)
-        self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {
-            'name': 'xcom',
-            'mountPath': '/airflow/xcom'
-        })
-        self.expected['spec']['volumes'].insert(0, {
-            'name': 'xcom', 'emptyDir': {}
-        })
-        result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
-        self.assertEqual(result_dict, self.expected)
-
-    @mock.patch('uuid.uuid4')
     def test_from_obj(self, mock_uuid):
         mock_uuid.return_value = '0'
         result = PodGenerator.from_obj({
@@ -292,7 +246,7 @@ class TestPodGenerator(unittest.TestCase):
             self.assertEqual(result, {
                 'apiVersion': 'v1',
                 'kind': 'Pod',
-                'metadata': {'name': 'name2-0'},
+                'metadata': {'name': 'name2'},
                 'spec': {
                     'containers': [{
                         'args': [],

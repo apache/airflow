@@ -30,8 +30,8 @@ from kubernetes.client.rest import ApiException
 from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.kubernetes.pod import Port
-from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod_refiner import XcomSidecarConfig, _AIRFLOW_VERSION
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -61,7 +61,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 'namespace': 'default',
                 'name': ANY,
                 'annotations': {},
-                'labels': {'foo': 'bar'}
+                'labels': {'foo': 'bar', 'airflow-version': _AIRFLOW_VERSION}
             },
             'spec': {
                 'affinity': {},
@@ -521,9 +521,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        volume = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME)
-        volume_mount = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
-        container = self.api_client.sanitize_for_serialization(PodDefaults.SIDECAR_CONTAINER)
+        volume = self.api_client.sanitize_for_serialization(XcomSidecarConfig.VOLUME)
+        volume_mount = self.api_client.sanitize_for_serialization(XcomSidecarConfig.VOLUME_MOUNT)
+        container = self.api_client.sanitize_for_serialization(XcomSidecarConfig.CONTAINER)
         self.expected_pod['spec']['containers'][0]['args'] = args
         self.expected_pod['spec']['containers'][0]['volumeMounts'].insert(0, volume_mount)
         self.expected_pod['spec']['volumes'].insert(0, volume)

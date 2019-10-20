@@ -15,8 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
+from typing import Optional
+
+import kubernetes.client.models as k8s
+import yaml as yaml_deserializer
+
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes import k8s_deserializer, kube_client, pod_generator, pod_launcher, pod_refiner
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -126,7 +131,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 labels=self.labels,
                 name=self.name,
                 envs=self.env_vars,
-                extract_xcom=self.do_xcom_push,
                 image_pull_policy=self.image_pull_policy,
                 node_selectors=self.node_selectors,
                 annotations=self.annotations,
@@ -147,6 +151,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod = append_to_pod(pod, self.volumes)
             pod = append_to_pod(pod, self.volume_mounts)
             pod = append_to_pod(pod, self.secrets)
+
+            pod = pod_refiner.refine_pod(pod, extract_xcom=self.do_xcom_push)
 
             self.pod = pod
 
@@ -245,3 +251,104 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
         self.full_pod_spec = full_pod_spec
+
+
+class KubernetesPodYamlOperator(BaseOperator):
+    """
+    Execute a pod using yaml definition in the Kubernetes cluster.
+
+    :param pod_file: Path to yaml file.
+    :type str: str
+    :param do_xcom_push: If True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :type do_xcom_push: bool
+    :param is_delete_operator_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted.
+        If False (default): do nothing, If True: delete the pod
+    :type is_delete_operator_pod: bool
+    :param in_cluster: run kubernetes client with in_cluster configuration
+    :type in_cluster: bool
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used.
+    :type cluster_context: str
+    :param is_delete_operator_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted.
+        If False (default): do nothing, If True: delete the pod
+    :type is_delete_operator_pod: bool
+    :param get_logs: get the stdout of the container as logs of the tasks
+    :type get_logs: bool
+    :param startup_timeout_seconds: timeout in seconds to startup the pod
+    :type startup_timeout_seconds: int
+    """
+    template_fields = ('yaml', 'config_file')
+    template_ext = ['yaml', 'yml']
+
+    @apply_defaults
+    def __init__(self,
+                 yaml: Optional[str] = None,
+                 do_xcom_push: bool = False,
+                 config_file: Optional[str] = None,
+                 in_cluster: bool = False,
+                 cluster_context: Optional[str] = None,
+                 is_delete_operator_pod: bool = False,
+                 get_logs: bool = False,
+                 startup_timeout_seconds: int = 120,
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.yaml = yaml
+        self.do_xcom_push = do_xcom_push
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
+        self.is_delete_operator_pod = is_delete_operator_pod
+        self.get_logs = get_logs
+        self.startup_timeout_seconds = startup_timeout_seconds
+
+        self.pod = None
+
+    def execute(self, context):
+        try:
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context,
+                                                 config_file=self.config_file)
+
+            yaml_document_all = list(yaml_deserializer.safe_load_all(self.yaml))
+
+            if not yaml_document_all:
+                raise AirflowException(
+                    "You must specify Pod resource definitions."
+                )
+
+            if len(yaml_document_all) > 1:
+                raise AirflowException(
+                    "You can only run one Pod at a time. Please delete the other resource definitions "
+                    "from the YAML file"
+                )
+
+            pod_dict = yaml_document_all[0]
+            pod = k8s_deserializer.deserialize(pod_dict, k8s.V1Pod)
+
+            pod = pod_refiner.refine_pod(pod, extract_xcom=self.do_xcom_push)
+            launcher = pod_launcher.PodLauncher(kube_client=client,
+                                                extract_xcom=self.do_xcom_push)
+
+            try:
+                final_state, result = launcher.run_pod(
+                    pod=pod,
+                    startup_timeout=self.startup_timeout_seconds,
+                    get_logs=self.get_logs)
+            finally:
+                if self.is_delete_operator_pod:
+                    launcher.delete_pod(pod)
+
+            if final_state != State.SUCCESS:
+                raise AirflowException(
+                    'Pod returned a failure: {state}'.format(state=final_state)
+                )
+
+            return result
+        except AirflowException as ex:
+            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))

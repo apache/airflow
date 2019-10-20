@@ -51,7 +51,7 @@ class TestPod(unittest.TestCase):
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'base-0'},
+            'metadata': {'name': 'base'},
             'spec': {
                 'containers': [{
                     'args': [],
