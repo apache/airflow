@@ -2446,6 +2446,7 @@ class FakeSnakeBiteClient(object):
     def ls(self, path, include_toplevel=False):
         """
         the fake snakebite client
+
         :param path: the array of path to test
         :param include_toplevel: to return the toplevel directory info
         :return: a list for path for the matching queries

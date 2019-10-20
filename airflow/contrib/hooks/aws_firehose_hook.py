@@ -25,6 +25,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 class AwsFirehoseHook(AwsHook):
     """
     Interact with AWS Kinesis Firehose.
+
     :param delivery_stream: Name of the delivery stream
     :type delivery_stream: str
     :param region_name: AWS region name (example: us-east-1)

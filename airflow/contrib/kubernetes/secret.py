@@ -21,8 +21,10 @@ class Secret(object):
     """Defines Kubernetes Secret Volume"""
 
     def __init__(self, deploy_type, deploy_target, secret, key=None):
-        """Initialize a Kubernetes Secret Object. Used to track requested secrets from
+        """
+        Initialize a Kubernetes Secret Object. Used to track requested secrets from
         the user.
+
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`
         :type deploy_type: str
