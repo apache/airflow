@@ -32,13 +32,15 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowDagCycleException
+from airflow.exceptions import AirflowDagCycleException, PoolNotFound
+from airflow.models.pool import Pool
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
@@ -166,7 +168,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         )) or enforce_from_file:
             # Reprocess source file
             found_dags = self.process_file(
-                filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False)
+                filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False,
+                check_pools=conf.getboolean("core", "CHECK_TASK_POOLS"))
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
@@ -175,7 +178,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 del self.dags[dag_id]
         return self.dags.get(dag_id)
 
-    def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+    def process_file(self, filepath, only_if_updated=True, safe_mode=True, check_pools=False, pools=None):
         """
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
@@ -286,7 +289,9 @@ class DagBag(BaseDagBag, LoggingMixin):
                             dag.fileloc = filepath
                     try:
                         dag.is_subdag = False
-                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        self.bag_dag(
+                            dag, parent_dag=dag, root_dag=dag,
+                            check_pools=check_pools, pools=pools)
                         if isinstance(dag._schedule_interval, str):
                             croniter(dag._schedule_interval)
                         found_dags.append(dag)
@@ -299,22 +304,24 @@ class DagBag(BaseDagBag, LoggingMixin):
                             "Invalid Cron expression: " + str(cron_e)
                         self.file_last_changed[dag.full_filepath] = \
                             file_last_changed_on_disk
-                    except AirflowDagCycleException as cycle_exception:
+                    except (AirflowDagCycleException, PoolNotFound) as exception:
                         self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                        self.import_errors[dag.full_filepath] = str(cycle_exception)
+                        self.import_errors[dag.full_filepath] = str(exception)
                         self.file_last_changed[dag.full_filepath] = \
                             file_last_changed_on_disk
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    def bag_dag(self, dag, parent_dag, root_dag):
+    def bag_dag(self, dag, parent_dag, root_dag, check_pools=False, pools=None):
         """
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
         test_cycle(dag)  # throws if a task cycle is found
+        if check_pools:
+            test_pools(dag, pools)
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -329,7 +336,9 @@ class DagBag(BaseDagBag, LoggingMixin):
                 subdag.full_filepath = dag.full_filepath
                 subdag.parent_dag = dag
                 subdag.is_subdag = True
-                self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
+                self.bag_dag(
+                    subdag, parent_dag=dag, root_dag=root_dag,
+                    check_pools=check_pools, pools=pools)
 
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
@@ -344,12 +353,15 @@ class DagBag(BaseDagBag, LoggingMixin):
                         del self.dags[subdag.dag_id]
             raise cycle_exception
 
+    @provide_session
     def collect_dags(
             self,
             dag_folder=None,
             only_if_updated=True,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+            check_pools=conf.getboolean('core', 'CHECK_TASK_POOLS'),
+            session=None):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -373,13 +385,20 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
         dag_folder = correct_maybe_zipped(dag_folder)
+
+        pools = (
+            {pool for pool, in session.query(Pool.pool)}
+            if check_pools
+            else None
+        )
+
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
                     filepath, only_if_updated=only_if_updated,
-                    safe_mode=safe_mode)
+                    safe_mode=safe_mode, check_pools=check_pools, pools=pools)
                 dag_ids = [dag.dag_id for dag in found_dags]
                 dag_id_names = str(dag_ids)
 
@@ -457,3 +476,15 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
         SerializedDagModel.bulk_sync_to_db(self.dags.values())
+
+
+@provide_session
+def test_pools(dag, available_pools=None, session=None):
+    requested_pools = {task.pool for task in dag.task_dict.values() if task.pool}
+    if available_pools is None:
+        available_pools = {
+            pool for pool, in session.query(Pool.pool).filter(Pool.pool.in_(requested_pools))
+        }
+    missing_pools = requested_pools.difference(available_pools)
+    if len(missing_pools) > 0:
+        raise PoolNotFound("Unknown pool(s): {}".format(", ".join(missing_pools)))

@@ -364,6 +364,13 @@
       type: string
       example: ~
       default: "True"
+    - name: check_task_pools
+      description: |
+        Raise an exception on tasks with a pool that doesn't exist
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: "False"
 
 - name: logging
   description: ~

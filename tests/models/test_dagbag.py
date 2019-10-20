@@ -175,7 +175,9 @@ class TestDagBag(unittest.TestCase):
         class _TestDagBag(models.DagBag):
             process_file_calls = 0
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+            def process_file(
+                    self, filepath, only_if_updated=True, safe_mode=True,
+                    check_pools=False, pools=None):
                 if os.path.basename(filepath) == 'example_bash_operator.py':
                     _TestDagBag.process_file_calls += 1
                 super().process_file(filepath, only_if_updated, safe_mode)
@@ -228,7 +230,9 @@ class TestDagBag(unittest.TestCase):
         class _TestDagBag(DagBag):
             process_file_calls = 0
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+            def process_file(
+                    self, filepath, only_if_updated=True, safe_mode=True,
+                    check_pools=False, pools=None):
                 if filepath == fileloc:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
@@ -260,7 +264,9 @@ class TestDagBag(unittest.TestCase):
         class _TestDagBag(DagBag):
             process_file_calls = 0
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+            def process_file(
+                    self, filepath, only_if_updated=True, safe_mode=True,
+                    check_pools=False, pools=None):
                 if filepath in fileloc:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
@@ -273,7 +279,7 @@ class TestDagBag(unittest.TestCase):
         self.assertEqual(dag_id, dag.dag_id)
         self.assertEqual(2, dagbag.process_file_calls)
 
-    def process_dag(self, create_dag):
+    def process_dag(self, create_dag, **kwargs):
         """
         Helper method to process a file generated from the input create_dag function.
         """
@@ -285,7 +291,7 @@ class TestDagBag(unittest.TestCase):
         f.flush()
 
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
-        found_dags = dagbag.process_file(f.name)
+        found_dags = dagbag.process_file(f.name, **kwargs)
         return dagbag, found_dags, f.name
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag,
@@ -455,6 +461,35 @@ class TestDagBag(unittest.TestCase):
         # Validate correctness
         # all dags from test_dag should be listed
         self.validate_dags(test_dag, found_dags, dagbag)
+
+    def test_missing_pools(self):
+        def dag_with_pool():
+            from airflow.models import DAG
+            from airflow.operators.dummy_operator import DummyOperator
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+            dag_name = 'pool_dag'
+            default_args = {
+                'owner': 'owner1',
+                'start_date': datetime.datetime(2016, 1, 1)
+            }
+            dag = DAG(
+                dag_name,
+                default_args=default_args)
+
+            with dag:
+                DummyOperator(task_id='A', pool="test_pool")
+
+            return dag
+
+        test_dag = dag_with_pool()
+
+        dagbag, found_dags, file_path = self.process_dag(dag_with_pool, check_pools=True, pools={})
+        self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
+        self.assertIn(file_path, dagbag.import_errors)
+
+        dagbag, found_dags, file_path = self.process_dag(dag_with_pool, check_pools=True, pools={"test_pool"})
+        self.validate_dags(test_dag, found_dags, dagbag, should_be_found=True)
+        self.assertNotIn(file_path, dagbag.import_errors)
 
     def test_skip_cycle_dags(self):
         """
