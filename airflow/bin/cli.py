@@ -227,6 +227,7 @@ def backfill(args, dag=None):
 def trigger_dag(args):
     """
     Creates a dag run for the specified dag
+
     :param args:
     :return:
     """
@@ -246,6 +247,7 @@ def trigger_dag(args):
 def delete_dag(args):
     """
     Deletes all DB records related to the specified dag
+
     :param args:
     :return:
     """

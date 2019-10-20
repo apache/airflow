@@ -55,15 +55,14 @@ class SimpleDag(BaseDag):
     """
     A simplified representation of a DAG that contains all attributes
     required for instantiating and scheduling its associated tasks.
+
+    :param dag: the DAG
+    :type dag: airflow.models.DAG
+    :param pickle_id: ID associated with the pickled version of this DAG.
+    :type pickle_id: unicode
     """
 
     def __init__(self, dag, pickle_id=None):
-        """
-        :param dag: the DAG
-        :type dag: airflow.models.DAG
-        :param pickle_id: ID associated with the pickled version of this DAG.
-        :type pickle_id: unicode
-        """
         self._dag_id = dag.dag_id
         self._task_ids = [task.task_id for task in dag.tasks]
         self._full_filepath = dag.full_filepath
@@ -704,8 +703,23 @@ class DagFileProcessorManager(LoggingMixin):
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
 
-    :type _file_path_queue: list[unicode]
-    :type _processors: dict[unicode, AbstractDagFileProcessor]
+    :param dag_directory: Directory where DAG definitions are kept. All
+        files in file_paths should be under this directory
+    :type dag_directory: unicode
+    :param file_paths: list of file paths that contain DAG definitions
+    :type file_paths: list[unicode]
+    :param max_runs: The number of times to parse and schedule each file. -1
+        for unlimited.
+    :type max_runs: int
+    :param processor_factory: function that creates processors for DAG
+        definition files. Arguments are (dag_definition_path)
+    :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+    :param processor_timeout: How long to wait before timing out a DAG file processor
+    :type processor_timeout: timedelta
+    :param signal_conn: connection to communicate signal with processor agent.
+    :type signal_conn: airflow.models.connection.Connection
+    :param async_mode: whether to start the manager in async mode
+    :type async_mode: bool
     """
 
     def __init__(self,
@@ -716,25 +730,6 @@ class DagFileProcessorManager(LoggingMixin):
                  processor_timeout,
                  signal_conn,
                  async_mode=True):
-        """
-        :param dag_directory: Directory where DAG definitions are kept. All
-            files in file_paths should be under this directory
-        :type dag_directory: unicode
-        :param file_paths: list of file paths that contain DAG definitions
-        :type file_paths: list[unicode]
-        :param max_runs: The number of times to parse and schedule each file. -1
-            for unlimited.
-        :type max_runs: int
-        :param processor_factory: function that creates processors for DAG
-            definition files. Arguments are (dag_definition_path)
-        :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
-        :param processor_timeout: How long to wait before timing out a DAG file processor
-        :type processor_timeout: timedelta
-        :param signal_conn: connection to communicate signal with processor agent.
-        :type signal_conn: airflow.models.connection.Connection
-        :param async_mode: whether to start the manager in async mode
-        :type async_mode: bool
-        """
         self._file_paths = file_paths
         self._file_path_queue = []
         self._dag_directory = dag_directory

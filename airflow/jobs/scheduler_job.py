@@ -114,10 +114,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type dag_id_white_list: list[unicode]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
-        :return: the process that was launched
-        :rtype: multiprocessing.Process
         :param zombies: zombie task instances to kill
         :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
+        :return: the process that was launched
+        :rtype: multiprocessing.Process
         """
         # This helper runs in the newly created process
         log = logging.getLogger("airflow.processor")

@@ -220,6 +220,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
+
         :param application: command to append to the spark-submit command
         :type application: str
         :return: full command to be executed

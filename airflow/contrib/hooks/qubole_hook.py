@@ -155,6 +155,7 @@ class QuboleHook(BaseHook):
     def kill(self, ti):
         """
         Kill (cancel) a Qubole command
+
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: response from Qubole
         """
@@ -172,6 +173,7 @@ class QuboleHook(BaseHook):
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file
+
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :param fp: Optional file pointer, will create one and return if None passed
         :param inline: True to download actual results, False to get s3 locations only
@@ -200,6 +202,7 @@ class QuboleHook(BaseHook):
     def get_log(self, ti):
         """
         Get Logs of a command from Qubole
+
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: command log as text
         """
@@ -210,6 +213,7 @@ class QuboleHook(BaseHook):
     def get_jobs_id(self, ti):
         """
         Get jobs associated with a Qubole commands
+
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: Job information associated with command
         """

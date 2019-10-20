@@ -493,6 +493,7 @@ def parameterized_config(template):
     """
     Generates a configuration from the provided template + variables defined in
     current scope
+
     :param template: a config content templated with {{variables}}
     """
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}

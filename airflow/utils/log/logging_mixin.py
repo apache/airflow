@@ -58,11 +58,11 @@ class LoggingMixin:
 
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
-    encoding = False
-
     """
     Allows to redirect stdout and stderr to logger
     """
+    encoding = False
+
     def __init__(self, logger, level):
         """
         :param log: The log level method to write to, ie. log.debug, log.warning
@@ -91,6 +91,7 @@ class StreamLogWriter:
     def write(self, message):
         """
         Do whatever it takes to actually log the specified logging record
+
         :param message: message to log
         """
         if not message.endswith("\n"):
@@ -165,6 +166,7 @@ def redirect_stderr(logger, level):
 def set_context(logger, value):
     """
     Walks the tree of loggers and tries to set the context for each handler
+
     :param logger: logger
     :param value: value to set
     """

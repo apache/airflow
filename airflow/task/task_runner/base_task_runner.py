@@ -33,14 +33,13 @@ class BaseTaskRunner(LoggingMixin):
     """
     Runs Airflow task instances by invoking the `airflow run` command with raw
     mode enabled in a subprocess.
+
+    :param local_task_job: The local task job associated with running the
+        associated task instance.
+    :type local_task_job: airflow.jobs.LocalTaskJob
     """
 
     def __init__(self, local_task_job):
-        """
-        :param local_task_job: The local task job associated with running the
-        associated task instance.
-        :type local_task_job: airflow.jobs.LocalTaskJob
-        """
         # Pass task instance context into log handlers to setup the logger.
         super().__init__(local_task_job.task_instance)
         self._task_instance = local_task_job.task_instance

@@ -460,11 +460,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
-        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
-        :param random_uuid: a uuid
+        :param safe_uuid: a uuid
         :return: ``str`` valid Pod name of appropriate length
         """
         safe_key = safe_dag_id + safe_task_id
@@ -521,6 +521,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
         not "_" let's
         replace ":" with "_"
+
         :param datetime_obj: datetime.datetime object
         :return: ISO-like string representing the datetime
         """

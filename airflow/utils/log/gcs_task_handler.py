@@ -96,6 +96,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -123,6 +124,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def gcs_read(self, remote_log_location):
         """
         Returns the log found at the remote_log_location.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         """
@@ -133,6 +135,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage

@@ -84,6 +84,7 @@ class SlackWebhookHook(HttpHook):
     def _get_token(self, token, http_conn_id):
         """
         Given either a manually set token or a conn_id, return the webhook_token to use
+
         :param token: The manually provided token
         :type token: str
         :param http_conn_id: The conn_id provided

@@ -106,6 +106,7 @@ class DagRun(Base, LoggingMixin):
     def refresh_from_db(self, session=None):
         """
         Reloads the current dagrun from the database
+
         :param session: database session
         """
         DR = DagRun
