@@ -225,7 +225,8 @@ class SFTPHook(SSHHook):
     def path_exists(self, path):
         """
         Returns True if a remote entity exists
-        :param path: full path to the remote file or directory
+
+                :param path: full path to the remote file or directory
         :type path: str
         """
         conn = self.get_conn()
