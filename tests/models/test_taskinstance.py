@@ -900,9 +900,6 @@ class TestTaskInstance(unittest.TestCase):
         # execute, even if dependencies are ignored
         ti.run(ignore_all_deps=True, mark_success=True)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
-        # Xcom IS finally cleared once task has executed
-        ti.run(ignore_all_deps=True)
-        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), None)
 
     def test_xcom_pull_different_execution_date(self):
         """
