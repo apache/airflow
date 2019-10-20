@@ -59,6 +59,7 @@ class SlackWebhookHook(HttpHook):
     :param proxy: Proxy to use to make the Slack webhook call
     :type proxy: str
     """
+
     def __init__(self,
                  http_conn_id=None,
                  webhook_token=None,
@@ -94,7 +95,8 @@ class SlackWebhookHook(HttpHook):
         :type token: str
         :param http_conn_id: The conn_id provided
         :type http_conn_id: str
-        :return: webhook_token (str) to use
+        :return: webhook_token to use
+        :rtype: str
         """
         if token:
             return token
@@ -109,8 +111,10 @@ class SlackWebhookHook(HttpHook):
     def _build_slack_message(self):
         """
         Construct the Slack message. All relevant parameters are combined here to a valid
-        Slack json message
-        :return: Slack message (str) to send
+        Slack json message.
+
+        :return: Slack message to send
+        :rtype: str
         """
         cmd = {}
 
