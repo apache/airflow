@@ -33,9 +33,6 @@ from airflow.configuration import conf
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
-    PAGE = 0
-    MAX_LINE_PER_PAGE = 1000
-
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -51,6 +48,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     Timestamp here are unreliable because multiple log messages
     might have the same timestamp.
     """
+
+    PAGE = 0
+    MAX_LINE_PER_PAGE = 1000
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
@@ -99,6 +99,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         Clean up an execution date so that it is safe to query in elasticsearch
         by removing reserved characters.
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
+
         :param execution_date: execution date of the dag run.
         """
         return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
@@ -106,6 +107,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Endpoint for streaming log.
+
         :param ti: task instance object
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
@@ -158,6 +160,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Returns the logs matching log_id in Elasticsearch and next offset.
         Returns '' if no log is found or there was an error.
+
         :param log_id: the log_id of the log to read.
         :type log_id: str
         :param offset: the offset start to read log from.
@@ -193,6 +196,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, ti):
         """
         Provide task_instance context to airflow task handler.
+
         :param ti: task instance object
         """
         super(ElasticsearchTaskHandler, self).set_context(ti)

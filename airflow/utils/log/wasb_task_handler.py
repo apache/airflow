@@ -98,6 +98,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -123,6 +124,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     def wasb_log_exists(self, remote_log_location):
         """
         Check if remote_log_location exists in remote storage
+
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
         """
@@ -136,6 +138,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         :param return_error: if True, returns a string error message if an
@@ -155,6 +158,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage

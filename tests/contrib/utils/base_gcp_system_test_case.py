@@ -143,6 +143,7 @@ class DagGcpSystemTestCase(BaseGcpSystemTestCase):
         """
         Returns all file names (note - file names not paths)
         that have the same base name as the .py dag file (for example dag_name.sql etc.)
+
         :param path: path to the dag file.
         :return: list of files matching the base name
         """

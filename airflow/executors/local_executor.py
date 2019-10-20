@@ -74,6 +74,7 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
     def execute_work(self, key, command):
         """
         Executes command received and stores result state in queue.
+
         :param key: the key to identify the TI
         :type key: tuple(dag_id, task_id, execution_date)
         :param command: the command to execute

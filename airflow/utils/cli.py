@@ -60,8 +60,9 @@ def action_logging(f):
         """
         An wrapper for cli functions. It assumes to have Namespace instance
         at 1st positional argument
+
         :param args: Positional argument. It assumes to have Namespace instance
-        at 1st positional argument
+            at 1st positional argument
         :param kwargs: A passthrough keyword argument
         """
         assert args
