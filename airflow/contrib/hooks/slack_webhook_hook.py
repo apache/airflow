@@ -40,10 +40,10 @@ class SlackWebhookHook(HttpHook):
     :param message: The message you want to send on Slack
     :type message: str
     :param attachments: The attachments to send on Slack. Should be a list of
-                        dictionaries representing Slack attachments.
+        dictionaries representing Slack attachments.
     :type attachments: list
     :param blocks: The blocks to send on Slack. Should be a list of
-                   dictionaries representing Slack blocks.
+        dictionaries representing Slack blocks.
     :type blocks: list
     :param channel: The channel the message should be posted to
     :type channel: str
@@ -54,7 +54,7 @@ class SlackWebhookHook(HttpHook):
     :param icon_url: The icon image URL string to use in place of the default icon.
     :type icon_url: str
     :param link_names: Whether or not to find and link channel and usernames in your
-                       message
+        message
     :type link_names: bool
     :param proxy: Proxy to use to make the Slack webhook call
     :type proxy: str
