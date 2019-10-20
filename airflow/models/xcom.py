@@ -97,6 +97,7 @@ class XCom(Base, LoggingMixin):
 
         :return: None
         """
+        session.expunge_all()
         value = XCom.serialize_value(value)
 
         # insert new XCom
