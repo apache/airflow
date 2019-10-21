@@ -19,6 +19,7 @@
 
 import datetime
 import stat
+from typing import Dict, List
 
 import pysftp
 
@@ -45,7 +46,7 @@ class SFTPHook(SSHHook):
     Errors that may occur throughout but should be handled downstream.
     """
 
-    def __init__(self, ftp_conn_id='sftp_default', *args, **kwargs):
+    def __init__(self, ftp_conn_id: str = 'sftp_default', *args, **kwargs) -> None:
         kwargs['ssh_conn_id'] = ftp_conn_id
         super().__init__(*args, **kwargs)
 
@@ -91,7 +92,7 @@ class SFTPHook(SSHHook):
                     )
                     self.key_file = extra_options.get('private_key')
 
-    def get_conn(self):
+    def get_conn(self) -> pysftp.Connection:
         """
         Returns an SFTP connection object
         """
@@ -116,16 +117,16 @@ class SFTPHook(SSHHook):
             self.conn = pysftp.Connection(**conn_params)
         return self.conn
 
-    def close_conn(self):
+    def close_conn(self) -> None:
         """
         Closes the connection. An error will occur if the
         connection wasnt ever opened.
         """
         conn = self.conn
-        conn.close()
+        conn.close()  # type: ignore
         self.conn = None
 
-    def describe_directory(self, path):
+    def describe_directory(self, path: str) -> Dict[str, Dict[str, str]]:
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
@@ -145,7 +146,7 @@ class SFTPHook(SSHHook):
                 'modify': modify}
         return files
 
-    def list_directory(self, path):
+    def list_directory(self, path: str) -> List[str]:
         """
         Returns a list of files on the remote system.
 
@@ -156,7 +157,7 @@ class SFTPHook(SSHHook):
         files = conn.listdir(path)
         return files
 
-    def create_directory(self, path, mode=777):
+    def create_directory(self, path: str, mode: int = 777) -> None:
         """
         Creates a directory on the remote system.
 
@@ -167,7 +168,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.makedirs(path, mode)
 
-    def delete_directory(self, path):
+    def delete_directory(self, path: str) -> None:
         """
         Deletes a directory on the remote system.
 
@@ -177,7 +178,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path, local_full_path):
+    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
@@ -193,7 +194,7 @@ class SFTPHook(SSHHook):
         conn.get(remote_full_path, local_full_path)
         self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
-    def store_file(self, remote_full_path, local_full_path):
+    def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers a local file to the remote location.
         If local_full_path_or_buffer is a string path, the file will be read
@@ -207,7 +208,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.put(local_full_path, remote_full_path)
 
-    def delete_file(self, path):
+    def delete_file(self, path: str) -> None:
         """
         Removes a file on the FTP Server
 
@@ -217,7 +218,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.remove(path)
 
-    def get_mod_time(self, path):
+    def get_mod_time(self, path: str) -> str:
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
