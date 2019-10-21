@@ -32,7 +32,7 @@ warnings.warn(
 class GceHook(ComputeEngineHook):
     """
     This class is deprecated.
-    Please use `airflow.gcp.hooks.compute`.
+    Please use ``airflow.gcp.hooks.compute.ComputeEngineHook``.
     """
 
     def __init__(self, *args, **kwargs):
