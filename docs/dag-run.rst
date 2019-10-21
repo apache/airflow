@@ -48,15 +48,17 @@ use one of these cron "presets":
 Your DAG will be instantiated for each schedule along with a corresponding 
 DAG Run entry in backend.
 
-**Note**: If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01 
-will be triggered soon after 2020-01-01T23:59. In other words, the job instance is 
-started once the period it covers has ended.  The execution_date passed in the dag 
-will also be 2020-01-01.
+.. note::
 
-The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 
-Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
-sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily the first run 
-will be created on 2020-01-02 i.e. after your start date has passed.
+    If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01 
+    will be triggered soon after 2020-01-01T23:59. In other words, the job instance is 
+    started once the period it covers has ended.  The execution_date passed in the dag 
+    will also be 2020-01-01.
+
+    The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 
+    Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
+    sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily the first run 
+    will be created on 2020-01-02 i.e. after your start date has passed.
 
 Re-run DAG
 ''''''''''

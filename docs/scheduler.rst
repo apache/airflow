@@ -37,3 +37,5 @@ To start a scheduler, simply run the command:
 .. code:: bash
 
     airflow scheduler
+
+You can refer :doc:`dag-run` for details on scheduling a DAG.
