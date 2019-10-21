@@ -44,28 +44,28 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     possible by programing against this `BaseAsyncOperator` interface,
     and overriding the execute method as demonstrated below.
 
-    ```python3
-    class DummyFlexiblePokingOperator(BaseAsyncOperator):
-      def __init__(self, async=False, *args, **kwargs):
-        self.async = async
-        super().__init(*args, **kwargs)
+    .. code-block:: python
 
-      def execute(self, context: Dict) -> None:
-        if self.async:
-          # use the BaseAsyncOperator's execute
-          super().execute(context)
-        else:
-          self.submit_request(context)
-          while not self.poke():
-            time.sleep(self.poke_interval)
-          self.process_results(context)
+        class DummyFlexiblePokingOperator(BaseAsyncOperator):
+          def __init__(self, async=False, *args, **kwargs):
+            self.async = async
+            super().__init(*args, **kwargs)
 
-      def sumbit_request(self, context: Dict) -> Optional[str]:
-        return None
+          def execute(self, context: Dict) -> None:
+            if self.async:
+              # use the BaseAsyncOperator's execute
+              super().execute(context)
+            else:
+              self.submit_request(context)
+              while not self.poke():
+                time.sleep(self.poke_interval)
+              self.process_results(context)
 
-      def poke(self, context: Dict) -> bool:
-        return bool(random.getrandbits(1))
-    ```
+          def sumbit_request(self, context: Dict) -> Optional[str]:
+            return None
+
+          def poke(self, context: Dict) -> bool:
+            return bool(random.getrandbits(1))
 
     AsyncOperators must override the following methods:
     :py:meth:`submit_request`: fire a request for a long running operation
@@ -73,10 +73,10 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
     complete it should return True when a success criteria is met.
 
     Optionally, AsyncOperators can override:
-    :py:meth: `process_result` to perform any operations after the success
+    :py:meth:`process_result` to perform any operations after the success
     criteria is met in :py:meth: `poke`
 
-    :py:meth: `poke` is executed at a time interval and succeed when a
+    :py:meth:`poke` is executed at a time interval and succeed when a
     criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
