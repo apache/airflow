@@ -499,8 +499,10 @@ class SchedulerJob(BaseJob):
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
+
+            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
             emails = set()
-            for task in dag.tasks:
+            for task in tasks_missed_sla:
                 if task.email:
                     if isinstance(task.email, str):
                         emails |= set(get_email_address_list(task.email))
