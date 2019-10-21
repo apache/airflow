@@ -32,8 +32,8 @@ BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sftp")
 OBJECT_SRC_1 = "parent-1.bin"
 OBJECT_SRC_2 = "parent-2.bin"
 OBJECT_SRC_3 = "subdir-1/*"
-SFTP_PATH_1 = "/tmp/single-file/"
-SFTP_PATH_2 = "/tmp/dirs/"
+DESTINATION_PATH_1 = "/tmp/single-file/"
+DESTINATION_PATH_2 = "/tmp/dirs/"
 
 
 with models.DAG(
@@ -43,14 +43,14 @@ with models.DAG(
         task_id="file-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_1,
-        sftp_path=SFTP_PATH_1,
+        destination_path=DESTINATION_PATH_1,
     )
 
     move_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="file-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_2,
-        sftp_path=SFTP_PATH_1,
+        destination_path=DESTINATION_PATH_1,
         move_object=True,
     )
 
@@ -58,12 +58,12 @@ with models.DAG(
         task_id="dir-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
-        sftp_path=SFTP_PATH_2,
+        destination_path=DESTINATION_PATH_2,
     )
 
     move_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="dir-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
-        sftp_path=SFTP_PATH_2,
+        destination_path=DESTINATION_PATH_2,
     )

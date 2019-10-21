@@ -46,9 +46,9 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
         end of the object name. Appending a wildcard to the bucket name is
         unsupported.
     :type source_object: str
-    :param sftp_path: The sftp remote path. This is the specified directory path for
+    :param destination_path: The sftp remote path. This is the specified directory path for
         uploading to the SFTP server.
-    :type sftp_path: str
+    :type destination_path: str
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -64,7 +64,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
     :type delegate_to: str
     """
 
-    template_fields = ("source_bucket", "source_object", "sftp_path")
+    template_fields = ("source_bucket", "source_object", "destination_path")
     ui_color = "#f0eee4"
 
     # pylint: disable=too-many-arguments
@@ -73,7 +73,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
         self,
         source_bucket: str,
         source_object: str,
-        sftp_path: str,
+        destination_path: str,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
@@ -85,7 +85,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
 
         self.source_bucket = source_bucket
         self.source_object = source_object
-        self.sftp_path = sftp_path
+        self.destination_path = destination_path
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
@@ -113,16 +113,16 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
             )
 
             for source_object in objects:
-                destination_path = os.path.join(self.sftp_path, source_object)
+                destination_path = os.path.join(self.destination_path, source_object)
                 self._copy_single_object(
                     gcs_hook, sftp_hook, source_object, destination_path
                 )
 
             self.log.info(
-                "Done. Uploaded '%d' files to %s", len(objects), self.sftp_path
+                "Done. Uploaded '%d' files to %s", len(objects), self.destination_path
             )
         else:
-            destination_path = os.path.join(self.sftp_path, self.source_object)
+            destination_path = os.path.join(self.destination_path, self.source_object)
             self._copy_single_object(
                 gcs_hook, sftp_hook, self.source_object, destination_path
             )

@@ -27,7 +27,7 @@ from tests.operators.test_gcs_to_sftp_system_helper import GcsToSFTPTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class GcsToGcsExampleDagsSystemTest(TestDagGcpSystem):
+class GcsToSftpExampleDagsSystemTest(TestDagGcpSystem):
     """
     System tests for Google Cloud Storage to SFTP transfer operator
 

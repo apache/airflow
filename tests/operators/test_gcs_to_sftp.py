@@ -41,7 +41,7 @@ SOURCE_FILES_LIST = [
     "test_object/file3.json",
 ]
 
-DESTINATION_SFTP = "sftp_path"
+DESTINATION_SFTP = "destination_path"
 
 
 # pylint: disable=unused-argument
@@ -53,7 +53,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
-            sftp_path=DESTINATION_SFTP,
+            destination_path=DESTINATION_SFTP,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
@@ -83,7 +83,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
-            sftp_path=DESTINATION_SFTP,
+            destination_path=DESTINATION_SFTP,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
@@ -116,7 +116,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
-            sftp_path=DESTINATION_SFTP,
+            destination_path=DESTINATION_SFTP,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
@@ -143,7 +143,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
-            sftp_path=DESTINATION_SFTP,
+            destination_path=DESTINATION_SFTP,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
@@ -167,7 +167,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_MULTIPLE_WILDCARDS,
-            sftp_path=DESTINATION_SFTP,
+            destination_path=DESTINATION_SFTP,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
