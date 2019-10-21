@@ -185,6 +185,36 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(400, response.status_code)
 
+    def test_trigger_dag_for_date_with_replace_microseconds_false(self):
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'example_bash_operator'
+        execution_date = utcnow() + timedelta(hours=1)
+        datetime_string = execution_date.isoformat()
+
+        # Test Correct execution
+        response = self.client.post(
+            url_template.format(dag_id),
+            data=json.dumps({'execution_date': datetime_string, 'replace_microseconds': 'false'}),
+            content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(datetime_string, json.loads(response.data.decode('utf-8'))['execution_date'])
+
+        dagbag = DagBag()
+        dag = dagbag.get_dag(dag_id)
+        dag_run = dag.get_dagrun(execution_date)
+        self.assertTrue(dag_run,
+                        'Dag Run not found for execution date {}'
+                        .format(execution_date))
+
+        # Test error for non boolean value
+        response = self.client.post(
+            url_template.format(dag_id),
+            data=json.dumps({'execution_date': datetime_string, 'replace_microseconds': 'non-boolean'}),
+            content_type="application/json"
+        )
+        self.assertEqual(400, response.status_code)
+
     def test_task_instance_info(self):
         url_template = '/api/experimental/dags/{}/dag_runs/{}/tasks/{}'
         dag_id = 'example_bash_operator'
