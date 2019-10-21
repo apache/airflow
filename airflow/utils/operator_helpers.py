@@ -49,11 +49,19 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         name_format = 'default'
     task = context.get('task')
     if task and task.email:
-        params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_EMAIL'][
-            name_format]] = task.email
+        if isinstance(task.email, str):
+            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_EMAIL'][
+                name_format]] = task.email
+        elif isinstance(task.email, list):
+            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_EMAIL'][
+                name_format]] = ','.join(task.email)
     if task and task.owner:
-        params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_OWNER'][
-            name_format]] = task.owner
+        if isinstance(task.owner, str):
+            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_OWNER'][
+                name_format]] = task.owner
+        elif isinstance(task.owner, list):
+            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_OWNER'][
+                name_format]] = ','.join(task.owner)
     task_instance = context.get('task_instance')
     if task_instance and task_instance.dag_id:
         params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID'][
