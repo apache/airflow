@@ -22,6 +22,7 @@ import io
 import json
 import logging.config
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -40,11 +41,13 @@ from werkzeug.wrappers import BaseResponse
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs import BaseJob
 from airflow.models import BaseOperator, Connection, DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
+from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -626,6 +629,66 @@ class TestAirflowBaseViews(TestBase):
         )
         resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
+
+    @mock.patch('airflow.executors.get_default_executor')
+    def test_run_with_runnable_states(self, get_default_executor_function):
+        executor = CeleryExecutor()
+        executor.heartbeat = lambda: True
+        get_default_executor_function.return_value = executor
+
+        task_id = 'runme_0'
+
+        for state in RUNNABLE_STATES:
+            self.session.query(models.TaskInstance) \
+                .filter(models.TaskInstance.task_id == task_id) \
+                .update({'state': state, 'end_date': timezone.utcnow()})
+            self.session.commit()
+
+            form = dict(
+                task_id=task_id,
+                dag_id="example_bash_operator",
+                ignore_all_deps="false",
+                ignore_ti_state="false",
+                execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+                origin='/home'
+            )
+            resp = self.client.post('run', data=form, follow_redirects=True)
+
+            self.check_content_in_response('', resp, resp_code=200)
+
+            msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
+                  .format(state) + "The task must be cleared in order to be run"
+            self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
+
+    @mock.patch('airflow.executors.get_default_executor')
+    def test_run_with_not_runnable_states(self, get_default_executor_function):
+        get_default_executor_function.return_value = CeleryExecutor()
+
+        task_id = 'runme_0'
+
+        for state in QUEUEABLE_STATES:
+            self.assertFalse(state in RUNNABLE_STATES)
+
+            self.session.query(models.TaskInstance) \
+                .filter(models.TaskInstance.task_id == task_id) \
+                .update({'state': state, 'end_date': timezone.utcnow()})
+            self.session.commit()
+
+            form = dict(
+                task_id=task_id,
+                dag_id="example_bash_operator",
+                ignore_all_deps="false",
+                ignore_ti_state="false",
+                execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+                origin='/home'
+            )
+            resp = self.client.post('run', data=form, follow_redirects=True)
+
+            self.check_content_in_response('', resp, resp_code=200)
+
+            msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
+                  .format(state) + "The task must be cleared in order to be run"
+            self.assertTrue(re.search(msg, resp.get_data(as_text=True)))
 
     def test_refresh(self):
         resp = self.client.post('refresh?dag_id=example_bash_operator')
