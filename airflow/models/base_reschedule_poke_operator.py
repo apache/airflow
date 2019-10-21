@@ -18,42 +18,48 @@
 # under the License.
 
 """
-Base Asynchronous Operator for kicking off a long running
+Base Operator for kicking off a long running
 operations and polling for completion with reschedule mode.
 """
 
-from abc import abstractmethod
-from typing import Dict, List, Optional, Union
+from abc import ABC, abstractmethod
+from typing import Dict, List, Iterable, Optional, Union
+from time import sleep
+from datetime import timedelta
 
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
+    AirflowSkipException, AirflowRescheduleException
 from airflow.models import SkipMixin, TaskReschedule
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 
 
-class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
+class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
     """
-    AsyncOperators are derived from this class and inherit these attributes.
-    AsyncOperators should be used for long running operations where the task
+    ReschedulePokeOperators are derived from this class and inherit these attributes.
+    ReschedulePokeOperators should be used for long running operations where the task
     can tolerate a longer poke interval. They use the task rescheduling
     mechanism similar to sensors to avoid occupying a worker slot between
     pokes.
 
     Developing concrete operators that provide parameterized flexibility
     for synchronous or asynchronous poking depending on the invocation is
-    possible by programing against this `BaseAsyncOperator` interface,
+    possible by programing against this `BaseReschedulePokeOperator` interface,
     and overriding the execute method as demonstrated below.
 
     .. code-block:: python
 
-        class DummyFlexiblePokingOperator(BaseAsyncOperator):
+        class DummyFlexiblePokingOperator(BaseReschedulePokeOperator):
           def __init__(self, async=False, *args, **kwargs):
             self.async = async
             super().__init(*args, **kwargs)
 
           def execute(self, context: Dict) -> None:
             if self.async:
-              # use the BaseAsyncOperator's execute
+              # use the BaseReschedulePokeOperator's execute
               super().execute(context)
             else:
               self.submit_request(context)
@@ -67,12 +73,12 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
           def poke(self, context: Dict) -> bool:
             return bool(random.getrandbits(1))
 
-    AsyncOperators must override the following methods:
+    ReschedulePokeOperators must override the following methods:
     :py:meth:`submit_request`: fire a request for a long running operation
     :py:meth:`poke`: a method to check if the long running operation is
     complete it should return True when a success criteria is met.
 
-    Optionally, AsyncOperators can override:
+    Optionally, ReschedulePokeOperators can override:
     :py:meth:`process_result` to perform any operations after the success
     criteria is met in :py:meth: `poke`
 
@@ -111,6 +117,15 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def poke(self, context: Dict) -> bool:
+        """
+        Function that the sensors defined while deriving this class should
+        override.
+        """
+        raise NotImplementedError
+
+
     def process_result(self, context: Dict):
         """
         This method can optionally be overriden to process the result of a long running operation.
@@ -131,8 +146,7 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
             resource_id = self.submit_request(context)
             self.set_external_resource_id(context, resource_id)
 
-        super().execute(context)
-
+        self.handle_reschedule(context)
         resource_id = self.get_external_resource_id(context)
         self.log.info("Calling process_result for %s.", resource_id)
         self.process_result(context)
@@ -159,3 +173,46 @@ class BaseAsyncOperator(BaseSensorOperator, SkipMixin):
         """
         return context['ti'].xcom_pull(task_ids=context['task'].task_id,
                                        key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
+
+    def handle_reschedule(self, context: Dict) -> None:
+        started_at = timezone.utcnow()
+        if self.reschedule:
+            # If reschedule, use first start date of current try
+            task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
+            if task_reschedules:
+                started_at = task_reschedules[0].start_date
+        while not self.poke(context):
+            if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
+                # If sensor is in soft fail mode but will be retried then
+                # give it a chance and fail with timeout.
+                # This gives the ability to set up non-blocking AND soft-fail sensors.
+                if self.soft_fail and not context['ti'].is_eligible_to_retry():
+                    self._do_skip_downstream_tasks(context)
+                    raise AirflowSkipException('Snap. Time is OUT.')
+                else:
+                    raise AirflowSensorTimeout('Snap. Time is OUT.')
+            if self.reschedule:
+                reschedule_date = timezone.utcnow() + timedelta(
+                    seconds=self.poke_interval)
+                raise AirflowRescheduleException(reschedule_date)
+            else:
+                sleep(self.poke_interval)
+        self.log.info("Success criteria met. Exiting.")
+
+    def _do_skip_downstream_tasks(self, context: Dict) -> None:
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+
+    @property
+    def reschedule(self):
+        return self.mode == 'reschedule'
+
+    @property
+    def deps(self):
+        """
+        Adds one additional dependency for all sensor operators that
+        checks if a sensor task instance can be rescheduled.
+        """
+        return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}

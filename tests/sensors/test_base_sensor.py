@@ -25,7 +25,7 @@ from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
                                 AirflowRescheduleException)
 from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base_sensor import BaseSensor
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -40,7 +40,7 @@ DUMMY_OP = 'dummy_op'
 SENSOR_OP = 'sensor_op'
 
 
-class DummySensor(BaseSensorOperator):
+class DummySensor(BaseSensor):
     def __init__(self, return_value=False, **kwargs):
         super().__init__(**kwargs)
         self.return_value = return_value

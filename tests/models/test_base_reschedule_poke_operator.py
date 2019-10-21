@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-""" Tests for BaseAsyncOperator"""
+""" Tests for BaseReschedulePokeOperator"""
 
 import random
 import unittest
@@ -31,7 +31,7 @@ from parameterized import parameterized
 from airflow import DAG, settings
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagRun, TaskInstance, TaskReschedule
-from airflow.models.base_async_operator import BaseAsyncOperator
+from airflow.models.base_reschedule_poke_operator import BaseReschedulePokeOperator
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -58,9 +58,9 @@ ALL_ID_TYPES = [
 ]
 
 
-class DummyAsyncOperator(BaseAsyncOperator):
+class DummyAsyncOperator(BaseReschedulePokeOperator):
     """
-    Test subclass of BaseAsyncOperator
+    Test subclass of BaseReschedulePokeOperator
     """
     def __init__(self, return_value=False,
                  **kwargs):
@@ -80,8 +80,8 @@ class DummyAsyncOperator(BaseAsyncOperator):
         return self.get_external_resource_id(context)
 
 
-class TestBaseAsyncOperator(unittest.TestCase):
-    """Test cases for BaseAsyncOperator."""
+class TestBaseReschedulePokeOperator(unittest.TestCase):
+    """Test cases for BaseReschedulePokeOperator."""
     def setUp(self):
         args = {
             'owner': 'airflow',
