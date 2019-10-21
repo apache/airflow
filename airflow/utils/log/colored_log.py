@@ -30,7 +30,7 @@ from termcolor import colored
 ARGS = {"attrs": ["bold"]}
 
 DEFAULT_COLORS = {
-    "DEBUG": "green",
+    "DEBUG": "red",
     "INFO": "",
     "WARNING": "yellow",
     "ERROR": "red",
