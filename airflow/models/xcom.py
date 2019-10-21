@@ -97,17 +97,22 @@ class XCom(Base, LoggingMixin):
 
         :return: None
         """
-        session.expunge_all()
         value = XCom.serialize_value(value)
 
+        # remove any duplicate XComs
+        session.query(cls).filter(
+            cls.key == key,
+            cls.execution_date == execution_date,
+            cls.task_id == task_id,
+            cls.dag_id == dag_id).delete()
+
         # insert new XCom
-        session.merge(XCom(
-            dag_id=dag_id,
-            task_id=task_id,
-            execution_date=execution_date,
+        session.add(XCom(
             key=key,
-            value=value
-        ))
+            value=value,
+            execution_date=execution_date,
+            task_id=task_id,
+            dag_id=dag_id))
 
         session.commit()
 
