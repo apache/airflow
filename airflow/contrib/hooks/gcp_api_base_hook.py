@@ -20,7 +20,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.base import GoogleCloudBaseHook  # noqa
+from airflow.gcp.hooks.base import CloudBaseHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.base`.",

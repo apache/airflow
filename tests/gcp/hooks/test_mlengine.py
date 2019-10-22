@@ -693,7 +693,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             self.hook = hook.MLEngineHook()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -735,7 +735,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -770,7 +770,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -813,7 +813,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -859,7 +859,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -888,7 +888,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -915,7 +915,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -940,7 +940,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -998,7 +998,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook = hook.MLEngineHook()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1015,7 +1015,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1031,7 +1031,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1044,7 +1044,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.list_versions(model_name=model_name)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1057,7 +1057,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.delete_version(model_name=model_name, version_name=version_name)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1072,7 +1072,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.create_model(model=model)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1083,7 +1083,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.get_model(model_name=model_name)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1095,7 +1095,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.delete_model(model_name=model_name)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

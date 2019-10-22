@@ -44,7 +44,7 @@ from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException, LoggingMixin
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook
@@ -70,7 +70,7 @@ class CloudSqlOperationStatus:
 
 
 # noinspection PyAbstractClass
-class CloudSqlHook(GoogleCloudBaseHook):
+class CloudSqlHook(CloudBaseHook):
     """
     Hook for Google Cloud SQL APIs.
 
@@ -100,7 +100,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_instance(self, instance: str, project_id: Optional[str] = None) -> Dict:
         """
         Retrieves a resource containing information about a Cloud SQL instance.
@@ -119,7 +119,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance
         ).execute(num_retries=self.num_retries)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_instance(self, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new Cloud SQL instance.
@@ -141,7 +141,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def patch_instance(self, body: Dict, instance: str, project_id: Optional[str] = None) -> None:
         """
         Updates settings of a Cloud SQL instance.
@@ -169,7 +169,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance: str, project_id: Optional[str] = None) -> None:
         """
         Deletes a Cloud SQL instance.
@@ -190,7 +190,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_database(self, instance: str, database: str, project_id: Optional[str] = None) -> Dict:
         """
         Retrieves a database resource from a Cloud SQL instance.
@@ -213,7 +213,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             database=database
         ).execute(num_retries=self.num_retries)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_database(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new database inside a Cloud SQL instance.
@@ -238,7 +238,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def patch_database(
         self,
         instance: str,
@@ -275,7 +275,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_database(self, instance: str, database: str, project_id: Optional[str] = None) -> None:
         """
         Deletes a database from a Cloud SQL instance.
@@ -299,7 +299,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def export_instance(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
@@ -331,7 +331,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 'Exporting instance {} failed: {}'.format(instance, ex.content)
             )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Imports data into a Cloud SQL instance from a SQL dump or CSV file in

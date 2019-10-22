@@ -24,10 +24,10 @@ from typing import Any, Dict, List, Optional
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GoogleCampaignManagerHook(GoogleCloudBaseHook):
+class GoogleCampaignManagerHook(CloudBaseHook):
     """
     Hook for Google Campaign Manager.
     """

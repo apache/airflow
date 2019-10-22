@@ -27,10 +27,10 @@ from google.cloud.texttospeech_v1.types import (
     AudioConfig, SynthesisInput, SynthesizeSpeechResponse, VoiceSelectionParams,
 )
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudTextToSpeechHook(GoogleCloudBaseHook):
+class CloudTextToSpeechHook(CloudBaseHook):
     """
     Hook for Google Cloud Text to Speech API.
 
@@ -64,7 +64,7 @@ class CloudTextToSpeechHook(GoogleCloudBaseHook):
 
         return self._client
 
-    @GoogleCloudBaseHook.quota_retry()
+    @CloudBaseHook.quota_retry()
     def synthesize_speech(
         self,
         input_data: Union[Dict, SynthesisInput],

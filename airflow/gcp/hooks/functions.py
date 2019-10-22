@@ -26,14 +26,14 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # noinspection PyAbstractClass
-class CloudFunctionsHook(GoogleCloudBaseHook):
+class CloudFunctionsHook(CloudBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
 
@@ -90,7 +90,7 @@ class CloudFunctionsHook(GoogleCloudBaseHook):
         return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
@@ -132,7 +132,7 @@ class CloudFunctionsHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
         """
         Uploads zip file with sources.
@@ -181,7 +181,7 @@ class CloudFunctionsHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def call_function(
             self,
             function_id: str,

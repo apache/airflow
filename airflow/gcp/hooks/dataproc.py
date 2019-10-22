@@ -29,7 +29,7 @@ from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version
 
@@ -427,7 +427,7 @@ class _DataProcOperation(LoggingMixin):
                         (self.operation_name, self.operation['error']['message']))
 
 
-class DataprocHook(GoogleCloudBaseHook):
+class DataprocHook(CloudBaseHook):
     """
     Hook for Google Cloud Dataproc APIs.
 

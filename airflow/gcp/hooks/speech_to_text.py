@@ -25,10 +25,10 @@ from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudSpeechToTextHook(GoogleCloudBaseHook):
+class CloudSpeechToTextHook(CloudBaseHook):
     """
     Hook for Google Cloud Speech API.
 
@@ -55,7 +55,7 @@ class CloudSpeechToTextHook(GoogleCloudBaseHook):
             self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
-    @GoogleCloudBaseHook.quota_retry()
+    @CloudBaseHook.quota_retry()
     def recognize_speech(
         self,
         config: Union[Dict, RecognitionConfig],

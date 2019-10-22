@@ -37,7 +37,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         self.patcher_get_connections.stop()
 
     @mock.patch(
-        "airflow.gcp.hooks.base.GoogleCloudBaseHook._authorize", return_value="AUTHORIZE"
+        "airflow.gcp.hooks.base.CloudBaseHook._authorize", return_value="AUTHORIZE"
     )
     @mock.patch("airflow.contrib.hooks.gdrive_hook.build")
     def test_get_conn(self, mock_discovery_build, mock_authorize):

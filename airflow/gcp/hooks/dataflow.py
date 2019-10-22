@@ -32,7 +32,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
@@ -325,7 +325,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(GoogleCloudBaseHook):
+class DataFlowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 
@@ -350,7 +350,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook.provide_gcp_credential_file
+    @CloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,

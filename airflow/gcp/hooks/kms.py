@@ -28,7 +28,7 @@ from typing import Optional, Sequence, Tuple
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
 def _b64encode(s: bytes) -> str:
@@ -42,7 +42,7 @@ def _b64decode(s: str) -> bytes:
 
 
 # noinspection PyAbstractClass
-class GoogleCloudKMSHook(GoogleCloudBaseHook):
+class GoogleCloudKMSHook(CloudBaseHook):
     """
     Hook for Google Cloud Key Management service.
 

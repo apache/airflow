@@ -23,10 +23,10 @@ from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GoogleSearchAdsHook(GoogleCloudBaseHook):
+class GoogleSearchAdsHook(CloudBaseHook):
     """
     Hook for Google Search Ads 360.
     """
