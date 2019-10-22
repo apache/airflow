@@ -18,7 +18,7 @@
 # under the License.
 
 """
-This module contains a CloudDLPHook
+This module contains a CloudDlpHook
 which allows you to connect to GCP Cloud DLP service.
 """
 
@@ -44,7 +44,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # pylint: disable=R0904, C0302
-class CloudDLPHook(GoogleCloudBaseHook):
+class CloudDlpHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Data Loss Prevention (DLP) APIs.
     Cloud DLP allows clients to detect the presence of Personally Identifiable

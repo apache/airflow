@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.dlp import CloudDLPHook, DlpJob  # noqa
+from airflow.gcp.hooks.dlp import CloudDlpHook, DlpJob  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dlp`.",
