@@ -102,7 +102,6 @@ class SerializedDagModel(Base):
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
         """
-        log.debug("Writing DAG: %s to the DB", dag)
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
@@ -112,6 +111,7 @@ class SerializedDagModel(Base):
                      (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
             ).scalar():
                 return
+        log.debug("Writing DAG: %s to the DB", dag)
         session.merge(cls(dag))
         log.debug("DAG: %s written to the DB", dag)
 
