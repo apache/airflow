@@ -27,7 +27,7 @@ from googleapiclient.errors import HttpError
 from json_merge_patch import merge
 
 from airflow import AirflowException
-from airflow.gcp.hooks.compute import GceHook
+from airflow.gcp.hooks.compute import ComputeEngineHook
 from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
@@ -109,7 +109,7 @@ class GceInstanceStartOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         return hook.start_instance(zone=self.zone,
                                    resource_id=self.resource_id,
                                    project_id=self.project_id)
@@ -157,7 +157,7 @@ class GceInstanceStopOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         hook.stop_instance(zone=self.zone,
                            resource_id=self.resource_id,
                            project_id=self.project_id)
@@ -226,7 +226,7 @@ class GceSetMachineTypeOperator(GceBaseOperator):
             self._field_validator.validate(self.body)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
         return hook.set_machine_type(zone=self.zone,
                                      resource_id=self.resource_id,
@@ -355,7 +355,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             self._field_validator.validate(self.body_patch)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new template
@@ -466,7 +466,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             self._change_performed = True
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         old_instance_group_manager = hook.get_instance_group_manager(
             zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
         patch_body = {}
