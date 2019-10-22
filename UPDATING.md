@@ -49,8 +49,9 @@ in case they are called using positional parameters.
 
 Hooks involved:
 
-  * PubSubHook
+  * DataFlowHook
   * MLEngineHook
+  * PubSubHook
 
 Other GCP hooks are unaffected.
 
