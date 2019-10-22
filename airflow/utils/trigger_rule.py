@@ -29,7 +29,6 @@ class TriggerRule:
     NONE_FAILED = 'none_failed'
     NONE_SKIPPED = 'none_skipped'
     DUMMY = 'dummy'
-    NONE_FAILED = 'none_failed'
 
     _ALL_TRIGGER_RULES = set()  # type: Set[str]
 
