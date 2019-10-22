@@ -43,7 +43,7 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
     :return: newly created and existing dag runs for the execution dates supplied
     """
     # find out if we need to create any dag runs
-    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates)
+    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates).all()
     dates_to_create = list(set(execution_dates) - {dag_run.execution_date for dag_run in dag_runs})
 
     for date in dates_to_create:

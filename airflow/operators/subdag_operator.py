@@ -112,11 +112,10 @@ class SubDagOperator(BaseSensorOperator):
                     )
 
     def _get_dagrun(self, execution_date):
-        dag_runs = DagRun.find(
+        return DagRun.find(
             dag_id=self.subdag.dag_id,
             execution_date=execution_date,
-        )
-        return dag_runs[0] if dag_runs else None
+        ).one_or_none()
 
     def _reset_dag_run_and_task_instances(self, dag_run, execution_date):
         """

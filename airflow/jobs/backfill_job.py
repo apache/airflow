@@ -284,14 +284,10 @@ class BackfillJob(BaseJob):
         # we could find a "scheduled" run instead of a "backfill"
         run = DagRun.find(dag_id=dag.dag_id,
                           execution_date=run_date,
-                          session=session)
+                          session=session).one_or_none()
 
-        if run is not None and len(run) > 0:
-            run = run[0]
-            if run.state == State.RUNNING:
-                respect_dag_max_active_limit = False
-        else:
-            run = None
+        if run and run.state == State.RUNNING:
+            respect_dag_max_active_limit = False
 
         # enforce max_active_runs limit for dag, special cases already
         # handled by respect_dag_max_active_limit

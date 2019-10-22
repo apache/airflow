@@ -37,10 +37,11 @@ class DagrunRunningDep(BaseTIDep):
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
                 external_trigger=False,
+                limit=dag.max_active_runs + 1,
                 session=session
-            )
+            ).count()
 
-            if len(running_dagruns) >= dag.max_active_runs:
+            if running_dagruns >= dag.max_active_runs:
                 reason = ("The maximum number of active dag runs ({0}) for this task "
                           "instance's DAG '{1}' has been reached.".format(
                               dag.max_active_runs,

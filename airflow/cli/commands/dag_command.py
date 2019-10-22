@@ -210,11 +210,11 @@ def dag_state(args):
         dag = get_dag(args.subdir, args.dag_id)
     else:
         dag = get_dag_by_file_location(args.dag_id)
-    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    out = dr[0].state if dr else None
+    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date).one_or_none()
+    out = dr.state if dr else None
     confout = ''
-    if out and dr[0].conf:
-        confout = ', ' + json.dumps(dr[0].conf)
+    if out and dr.conf:
+        confout = ', ' + json.dumps(dr.conf)
     print(str(out) + confout)
 
 
@@ -308,7 +308,7 @@ def dag_list_dag_runs(args, dag=None):
         dag_id=args.dag_id,
         state=state,
         no_backfills=args.no_backfill
-    )
+    ).all()
 
     if not dag_runs:
         print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))

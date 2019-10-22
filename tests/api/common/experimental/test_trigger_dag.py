@@ -29,36 +29,33 @@ from airflow.utils import timezone
 
 class TestTriggerDag(unittest.TestCase):
 
-    @mock.patch('airflow.models.DagRun')
     @mock.patch('airflow.models.DagBag')
-    def test_trigger_dag_dag_not_found(self, dag_bag_mock, dag_run_mock):
+    def test_trigger_dag_dag_not_found(self, dag_bag_mock):
         dag_bag_mock.dags = []
         self.assertRaises(
             AirflowException,
             _trigger_dag,
             'dag_not_found',
             dag_bag_mock,
-            dag_run_mock,
             run_id=None,
             conf=None,
             execution_date=None,
             replace_microseconds=True,
         )
 
-    @mock.patch('airflow.models.DagRun')
+    @mock.patch('airflow.api.common.experimental.trigger_dag.DagRun')
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
         dag = DAG(dag_id)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
-        dag_run_mock.find.return_value = DagRun()
+        dag_run_mock.find.one_or_none.return_value = DagRun()
         self.assertRaises(
             AirflowException,
             _trigger_dag,
             dag_id,
             dag_bag_mock,
-            dag_run_mock,
             run_id=None,
             conf=None,
             execution_date=None,
@@ -72,7 +69,7 @@ class TestTriggerDag(unittest.TestCase):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag_mock
-        dag_run_mock.find.return_value = None
+        dag_run_mock.find.one_or_none.return_value = None
         dag1 = mock.MagicMock()
         dag1.subdags = []
         dag2 = mock.MagicMock()
@@ -82,7 +79,6 @@ class TestTriggerDag(unittest.TestCase):
         triggers = _trigger_dag(
             dag_id,
             dag_bag_mock,
-            dag_run_mock,
             run_id=None,
             conf=None,
             execution_date=None,
@@ -97,11 +93,9 @@ class TestTriggerDag(unittest.TestCase):
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         conf = "{\"foo\": \"bar\"}"
-        dag_run = DagRun()
         triggers = _trigger_dag(
             dag_id,
             dag_bag_mock,
-            dag_run,
             run_id=None,
             conf=conf,
             execution_date=None,
@@ -115,14 +109,12 @@ class TestTriggerDag(unittest.TestCase):
         dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
-        dag_run = DagRun()
 
         self.assertRaises(
             ValueError,
             _trigger_dag,
             dag_id,
             dag_bag_mock,
-            dag_run,
             run_id=None,
             conf=None,
             execution_date=timezone.datetime(2015, 7, 5, 10, 10, 0),
@@ -135,12 +127,10 @@ class TestTriggerDag(unittest.TestCase):
         dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
-        dag_run = DagRun()
 
         triggers = _trigger_dag(
             dag_id,
             dag_bag_mock,
-            dag_run,
             run_id=None,
             conf=None,
             execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0),
@@ -156,11 +146,9 @@ class TestTriggerDag(unittest.TestCase):
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         conf = dict(foo="bar")
-        dag_run = DagRun()
         triggers = _trigger_dag(
             dag_id,
             dag_bag_mock,
-            dag_run,
             run_id=None,
             conf=conf,
             execution_date=None,

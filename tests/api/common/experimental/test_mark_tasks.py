@@ -328,8 +328,7 @@ class TestMarkDAGRun(unittest.TestCase):
         )
 
     def _verify_dag_run_state(self, dag, date, state):
-        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
-        dr = drs[0]
+        dr = models.DagRun.find(dag_id=dag.dag_id, execution_date=date).one()
 
         self.assertEqual(dr.get_state(), state)
 
@@ -337,10 +336,10 @@ class TestMarkDAGRun(unittest.TestCase):
     def _verify_dag_run_dates(self, dag, date, state, middle_time, session=None):
         # When target state is RUNNING, we should set start_date,
         # otherwise we should set end_date.
-        DR = DagRun
-        dr = session.query(DR).filter(
-            DR.dag_id == dag.dag_id,
-            DR.execution_date == date
+        dr = DagRun.find(
+            dag_id=dag.dag_id,
+            execution_date=date,
+            session=session
         ).one()
         if state == State.RUNNING:
             # Since the DAG is running, the start_date must be updated after creation
@@ -540,11 +539,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        models.DagRun.find(dag_id=self.dag2.dag_id,
-                           execution_date=self.execution_dates[0])
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        models.DagRun.find(dag_id=self.dag2.dag_id,
-                           execution_date=self.execution_dates[2])
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):

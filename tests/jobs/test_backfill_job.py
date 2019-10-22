@@ -137,12 +137,12 @@ class TestBackfillJob(unittest.TestCase):
         target_dag.sync_to_db()
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
-        task_instances_list = Mock()
-        dag_file_processor._process_task_instances(
-            target_dag,
-            task_instances_list=task_instances_list
-        )
-        self.assertFalse(task_instances_list.append.called)
+        with create_session() as session:
+            task_instances_list = dag_file_processor._process_task_instances(
+                target_dag,
+                session
+            )
+        self.assertEqual(0, len(task_instances_list))
 
         job = BackfillJob(
             dag=dag,
@@ -152,12 +152,21 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
 
-        dag_file_processor._process_task_instances(
-            target_dag,
-            task_instances_list=task_instances_list
-        )
+        with create_session() as session:
+            task_instances_list = dag_file_processor._process_task_instances(
+                target_dag,
+                session
+            )
 
-        self.assertTrue(task_instances_list.append.called)
+            # The two tasks created have the same timestamp (which is "now")
+            date = task_instances_list[0].execution_date
+            self.assertEqual(
+                set(map(lambda ti: ti.key, task_instances_list)),
+                {
+                    (target_dag.dag_id, 'bash_task', date, 1),
+                    (target_dag.dag_id, 'run_this', date, 1),
+                }
+            )
 
     @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
@@ -289,9 +298,9 @@ class TestBackfillJob(unittest.TestCase):
                           conf=conf_)
         job.run()
 
-        dr = DagRun.find(dag_id='test_backfill_conf')
+        dr = DagRun.find(dag_id='test_backfill_conf').first()
 
-        self.assertEqual(conf_, dr[0].conf)
+        self.assertEqual(conf_, dr.conf)
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_task_concurrency_limit(self, mock_log):
@@ -899,7 +908,7 @@ class TestBackfillJob(unittest.TestCase):
                           donot_pickle=True)
         job.run()
 
-        dagruns = DagRun.find(dag_id=dag.dag_id)
+        dagruns = DagRun.find(dag_id=dag.dag_id).all()
         self.assertEqual(2, len(dagruns))
         self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
 
@@ -951,9 +960,7 @@ class TestBackfillJob(unittest.TestCase):
                 # at this point backfill can't run since the max_active_runs has been
                 # reached, so it is waiting
                 dag_run_created_cond.wait(timeout=1.5)
-                dagruns = DagRun.find(dag_id=dag_id)
-                dr = dagruns[0]
-                self.assertEqual(1, len(dagruns))
+                dr = DagRun.find(dag_id=dag_id).one()
                 self.assertEqual(dr.run_id, run_id)
 
                 # allow the backfill to execute
@@ -965,7 +972,7 @@ class TestBackfillJob(unittest.TestCase):
 
                 backfill_job_thread.join()
 
-                dagruns = DagRun.find(dag_id=dag_id)
+                dagruns = DagRun.find(dag_id=dag_id).all()
                 self.assertEqual(3, len(dagruns))  # 2 from backfill + 1 existing
                 self.assertEqual(dagruns[-1].run_id, dr.run_id)
             finally:
@@ -993,11 +1000,11 @@ class TestBackfillJob(unittest.TestCase):
 
         # BackfillJob will run since the existing DagRun does not count for the max
         # active limit since it's within the backfill date range.
-        dagruns = DagRun.find(dag_id=dag.dag_id)
+
         # will only be able to run 1 (the existing one) since there's just
         # one dag run slot left given the max_active_runs limit
-        self.assertEqual(1, len(dagruns))
-        self.assertEqual(State.SUCCESS, dagruns[0].state)
+        dr = DagRun.find(dag_id=dag.dag_id).one()
+        self.assertEqual(State.SUCCESS, dr.state)
 
     def test_backfill_max_limit_check_complete_loop(self):
         dag = self._get_dag_test_max_active_limits(
@@ -1016,8 +1023,8 @@ class TestBackfillJob(unittest.TestCase):
                           donot_pickle=True)
         job.run()
 
-        success_dagruns = len(DagRun.find(dag_id=dag.dag_id, state=State.SUCCESS))
-        running_dagruns = len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING))
+        success_dagruns = DagRun.find(dag_id=dag.dag_id, state=State.SUCCESS).count()
+        running_dagruns = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING).count()
         self.assertEqual(success_expected, success_dagruns)
         self.assertEqual(0, running_dagruns)  # no dag_runs in running state are left
 
@@ -1057,8 +1064,8 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
         # the run_id should have changed, so a refresh won't work
-        drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
-        dr = drs[0]
+        dr = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE).one()
+        dr.dag = dag
 
         self.assertEqual(BackfillJob.ID_FORMAT_PREFIX.format(DEFAULT_DATE.isoformat()),
                          dr.run_id)
@@ -1121,8 +1128,8 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
         # the run_id should have changed, so a refresh won't work
-        drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
-        dr = drs[0]
+        dr = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE).one()
+        dr.dag = dag
 
         self.assertEqual(dr.state, State.FAILED)
 

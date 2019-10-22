@@ -31,7 +31,7 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, bindparam, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
@@ -56,7 +56,7 @@ from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import BAKED_QUERIES, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
@@ -403,16 +403,16 @@ class TaskInstance(Base, LoggingMixin):
         we use and looking up the state becomes part of the session, otherwise
         a new session is used.
         """
-        ti = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.execution_date == self.execution_date,
-        ).all()
-        if ti:
-            state = ti[0].state
-        else:
-            state = None
-        return state
+        query = BAKED_QUERIES(lambda session: session.query(TaskInstance.state).filter(
+            TaskInstance.dag_id == bindparam('dag_id'),
+            TaskInstance.task_id == bindparam('task_id'),
+            TaskInstance.execution_date == bindparam('execution_date'),
+        ))
+        return query(session).params(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+        ).scalar()
 
     @provide_session
     def error(self, session=None):
@@ -436,40 +436,46 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.execution_date == self.execution_date)
+        qry = BAKED_QUERIES(lambda session: session.query(TaskInstance).filter(
+            TaskInstance.dag_id == bindparam('dag_id'),
+            TaskInstance.task_id == bindparam('task_id'),
+            TaskInstance.execution_date == bindparam('execution_date'),
+        ))
 
         if lock_for_update:
-            ti = qry.with_for_update().first()
-        else:
-            ti = qry.first()
-        if ti:
-            # Fields ordered per model definition
-            self.start_date = ti.start_date
-            self.end_date = ti.end_date
-            self.duration = ti.duration
-            self.state = ti.state
-            # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number
-            self.max_tries = ti.max_tries
-            self.hostname = ti.hostname
-            self.unixname = ti.unixname
-            self.job_id = ti.job_id
-            self.pool = ti.pool
-            self.pool_slots = ti.pool_slots
-            self.queue = ti.queue
-            self.priority_weight = ti.priority_weight
-            self.operator = ti.operator
-            self.queued_dttm = ti.queued_dttm
-            self.pid = ti.pid
-            if refresh_executor_config:
-                self.executor_config = ti.executor_config
-        else:
+            qry += lambda q: q.with_for_update()
+
+        ti = qry(session).params(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+        ).one_or_none()
+
+        if not ti:
             self.state = None
+            return
+
+        # Fields ordered per model definition
+        self.start_date = ti.start_date
+        self.end_date = ti.end_date
+        self.duration = ti.duration
+        self.state = ti.state
+        # Get the raw value of try_number column, don't read through the
+        # accessor here otherwise it will be incremented by one already.
+        self.try_number = ti._try_number
+        self.max_tries = ti.max_tries
+        self.hostname = ti.hostname
+        self.unixname = ti.unixname
+        self.job_id = ti.job_id
+        self.pool = ti.pool
+        self.pool_slots = ti.pool_slots
+        self.queue = ti.queue
+        self.priority_weight = ti.priority_weight
+        self.operator = ti.operator
+        self.queued_dttm = ti.queued_dttm
+        self.pid = ti.pid
+        if refresh_executor_config:
+            self.executor_config = ti.executor_config
 
     @provide_session
     def clear_xcom_data(self, session=None):
@@ -727,12 +733,10 @@ class TaskInstance(Base, LoggingMixin):
         :return: DagRun
         """
         from airflow.models.dagrun import DagRun  # Avoid circular import
-        dr = session.query(DagRun).filter(
+        return session.query(DagRun).filter(
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date == self.execution_date
-        ).first()
-
-        return dr
+        ).one_or_none()
 
     @provide_session
     def _check_and_change_state_before_execution(

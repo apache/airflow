@@ -121,13 +121,13 @@ class TestDagRun(unittest.TestCase):
         session.commit()
 
         self.assertEqual(1,
-                         len(models.DagRun.find(dag_id=dag_id1, external_trigger=True)))
+                         models.DagRun.find(dag_id=dag_id1, external_trigger=True).count())
         self.assertEqual(0,
-                         len(models.DagRun.find(dag_id=dag_id1, external_trigger=False)))
+                         models.DagRun.find(dag_id=dag_id1, external_trigger=False).count())
         self.assertEqual(0,
-                         len(models.DagRun.find(dag_id=dag_id2, external_trigger=True)))
+                         models.DagRun.find(dag_id=dag_id2, external_trigger=True).count())
         self.assertEqual(1,
-                         len(models.DagRun.find(dag_id=dag_id2, external_trigger=False)))
+                         models.DagRun.find(dag_id=dag_id2, external_trigger=False).count())
 
     def test_dagrun_success_when_all_skipped(self):
         """
@@ -159,8 +159,9 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        ready_tis = dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
+        self.assertEqual([], ready_tis)
 
     def test_dagrun_success_conditions(self):
         session = settings.Session()
@@ -205,8 +206,9 @@ class TestDagRun(unittest.TestCase):
         ti_op2.set_state(state=State.FAILED, session=session)
         ti_op3.set_state(state=State.SUCCESS, session=session)
         ti_op4.set_state(state=State.SUCCESS, session=session)
-        dr.update_state()
+        ready_tis = dr.update_state()
         self.assertEqual(State.SUCCESS, dr.state)
+        self.assertEqual([], ready_tis)
 
     def test_dagrun_deadlock(self):
         session = settings.Session()
@@ -321,8 +323,9 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        ready_tis = dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
+        self.assertEqual([], ready_tis)
 
     def test_dagrun_failure_callback(self):
         def on_failure_callable(context):
@@ -352,8 +355,9 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        ready_tis = dag_run.update_state()
         self.assertEqual(State.FAILED, dag_run.state)
+        self.assertEqual([], ready_tis)
 
     def test_dagrun_set_state_end_date(self):
         session = settings.Session()
