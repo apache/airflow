@@ -2027,7 +2027,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertIn(email1, send_email_to)
         self.assertNotIn(email2, send_email_to)
 
-    @mock.patch("airflow.jobs.schedule_job.send_email")
+    @mock.patch("airflow.utils.email.send_email")
     def test_scheduler_sla_miss_email_exception(self, mock_send_email):
         """
         Test that the scheduler gracefully logs an exception if there is a problem
