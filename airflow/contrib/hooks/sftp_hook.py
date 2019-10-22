@@ -19,7 +19,7 @@
 
 import datetime
 import stat
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pysftp
 
@@ -223,7 +223,7 @@ class SFTPHook(SSHHook):
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
 
-    def path_exists(self, path):
+    def path_exists(self, path: str) -> bool:
         """
         Returns True if a remote entity exists
 
@@ -232,3 +232,58 @@ class SFTPHook(SSHHook):
         """
         conn = self.get_conn()
         return conn.exists(path)
+
+    @staticmethod
+    def _is_path_match(path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None) -> bool:
+        """
+        Return True if given path starts with prefix (if set) and ends with delimiter (if set).
+
+        :param path: path to be checked
+        :type path: str
+        :param prefix: if set path will be checked is starting with prefix
+        :type prefix: str
+        :param delimiter: if set path will be checked is ending with suffix
+        :type delimiter: str
+        :return: bool
+        """
+        if prefix is not None and not path.startswith(prefix):
+            return False
+        if delimiter is not None and not path.endswith(delimiter):
+            return False
+        return True
+
+    def get_tree_map(
+        self, path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None
+    ) -> Dict[str, List[str]]:
+        """
+        Return dictionary with recursive lists of files, directories and unknown paths from given path.
+        It is possible to filter results by giving prefix and/or delimiter parameters.
+
+        :param path: path from which tree will be built
+        :type path: str
+        :param prefix: if set paths will be added if start with prefix
+        :type prefix: str
+        :param delimiter: if set paths will be added if end with delimiter
+        :type delimiter: str
+        :return: dictionary ``{"files": List[str], "dirs": List[str], "unknowns": List[str]}``
+        :rtype: Dict[str, List[str]]
+        """
+        conn = self.get_conn()
+        files, dirs, unknowns = [], [], []
+
+        conn.walktree(
+            remotepath=path,
+            fcallback=lambda x: files.append(x)  # type: ignore
+            if self._is_path_match(x, prefix, delimiter)
+            else None,
+            dcallback=lambda x: dirs.append(x)  # type: ignore
+            if self._is_path_match(x, prefix, delimiter)
+            else None,
+            ucallback=lambda x: unknowns.append(x)  # type: ignore
+            if self._is_path_match(x, prefix, delimiter)
+            else None,
+            recurse=True,
+        )
+
+        result = {"files": files, "dirs": dirs, "unknowns": unknowns}
+        return result
