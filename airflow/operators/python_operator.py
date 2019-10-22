@@ -342,7 +342,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 self.log.info("%s", line)
 
         returncode = self._sp.wait()
-        if returncode:
+        if returncode != 0:
             raise subprocess.CalledProcessError(returncode, cmd)
 
     def _write_string_args(self, filename):
