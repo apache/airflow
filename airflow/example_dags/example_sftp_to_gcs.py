@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer operators.
+Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
 
 import os
