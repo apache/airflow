@@ -37,7 +37,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook",
     ),
     (
-        "airflow.gcp.hooks.dataproc.DataProcHook",
+        "airflow.gcp.hooks.dataproc.DataprocHook",
         "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
     ),
     (

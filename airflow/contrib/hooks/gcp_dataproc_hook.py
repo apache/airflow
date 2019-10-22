@@ -27,3 +27,17 @@ warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dataproc`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class DataProcHook(DataprocHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.dataproc.DataprocHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.dataproc.DataprocHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+
+        super().__init__(*args, **kwargs)
