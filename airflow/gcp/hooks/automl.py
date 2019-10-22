@@ -88,7 +88,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         project_id: Optional[str] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
     ) -> Operation:
         """
         Creates a model_id. Returns a Model in the `response` field when it
@@ -132,7 +132,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         location: str,
         project_id: Optional[str] = None,
         params: Optional[Dict[str, str]] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
@@ -193,7 +193,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         location: str,
         project_id: Optional[str] = None,
         params: Optional[Dict[str, str]] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> PredictResponse:
@@ -245,7 +245,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         dataset: Union[dict, Dataset],
         location: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dataset:
@@ -291,7 +291,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         location: str,
         input_config: Union[dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
@@ -344,7 +344,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         filter_: Optional[str] = None,
         page_size: Optional[int] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> ColumnSpec:
@@ -408,7 +408,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Model:
@@ -448,7 +448,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Model:
@@ -488,7 +488,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         dataset: Union[dict, Dataset],
         update_mask: Union[dict, FieldMask] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dataset:
@@ -536,7 +536,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         image_detection_metadata: Union[
             ImageObjectDetectionModelDeploymentMetadata, dict
         ] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
@@ -589,7 +589,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         project_id: Optional[str] = None,
         filter_: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[TableSpec]:
@@ -646,7 +646,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         self,
         location: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Dataset:
@@ -687,7 +687,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         dataset_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:

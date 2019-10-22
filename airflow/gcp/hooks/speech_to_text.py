@@ -55,11 +55,12 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
             self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def recognize_speech(
         self,
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ):
         """

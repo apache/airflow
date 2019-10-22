@@ -23,10 +23,11 @@ import unittest
 from io import StringIO
 
 import google.auth
+import tenacity
 from google.api_core.exceptions import AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
-from google.cloud.exceptions import MovedPermanently
+from google.cloud.exceptions import Forbidden, MovedPermanently
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
@@ -44,6 +45,64 @@ except GoogleAuthError:
     default_creds_available = False
 
 MODULE_NAME = "airflow.gcp.hooks.base"
+
+
+class NoForbiddenAfterCount:
+    """Holds counter state for invoking a method several times in a row."""
+
+    def __init__(self, count, **kwargs):
+        self.counter = 0
+        self.count = count
+        self.kwargs = kwargs
+
+    def __call__(self):
+        """
+        Raise an Forbidden until after count threshold has been crossed.
+        Then return True.
+        """
+        if self.counter < self.count:
+            self.counter += 1
+            raise Forbidden(**self.kwargs)
+        return True
+
+
+@hook.GoogleCloudBaseHook.quota_retry(wait=tenacity.wait_none())
+def _retryable_test_with_temporary_quota_retry(thing):
+    return thing()
+
+
+class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
+    def test_do_nothing_on_non_error(self):
+        result = _retryable_test_with_temporary_quota_retry(lambda: 42)
+        self.assertTrue(result, 42)
+
+    def test_retry_on_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"
+        errors = [
+            {
+                'message': 'User Rate Limit Exceeded',
+                'domain': 'usageLimits',
+                'reason': 'userRateLimitExceeded',
+            }
+        ]
+        custom_fn = NoForbiddenAfterCount(
+            count=5,
+            message=message,
+            errors=errors
+        )
+        _retryable_test_with_temporary_quota_retry(custom_fn)
+        self.assertEqual(5, custom_fn.counter)
+
+    def test_raise_exception_on_non_quota_exception(self):
+        with self.assertRaisesRegex(Forbidden, "Daily Limit Exceeded"):
+            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+            errors = [
+                {'message': 'Daily Limit Exceeded', 'domain': 'usageLimits', 'reason': 'dailyLimitExceeded'}
+            ]
+
+            _retryable_test_with_temporary_quota_retry(
+                NoForbiddenAfterCount(5, message=message, errors=errors)
+            )
 
 
 class TestCatchHttpException(unittest.TestCase):

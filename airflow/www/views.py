@@ -52,7 +52,7 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
-from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
+from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import create_session, provide_session
@@ -827,9 +827,9 @@ class Airflow(AirflowBaseView):
         ti = models.TaskInstance(task=task, execution_date=execution_date)
         ti.refresh_from_db()
 
-        # Make sure the task instance can be queued
+        # Make sure the task instance can be run
         dep_context = DepContext(
-            deps=SCHEDULER_QUEUED_DEPS,
+            deps=RUNNING_DEPS,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state)

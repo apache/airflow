@@ -241,7 +241,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             return resource.target_link
         except AlreadyExists as error:
             self.log.info('Assuming Success: %s', error.message)
-            return self.get_cluster(name=cluster.name).self_link
+            return self.get_cluster(name=cluster.name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_cluster(

@@ -86,7 +86,7 @@ class CloudTranslateTextOperator(BaseOperator):
         format_: str,
         source_language: str,
         model: str,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ) -> None:

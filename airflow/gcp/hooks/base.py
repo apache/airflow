@@ -23,6 +23,7 @@ This module contains a Google Cloud API base hook.
 
 import functools
 import json
+import logging
 import os
 import tempfile
 from contextlib import contextmanager
@@ -32,16 +33,68 @@ import google.auth
 import google.oauth2.service_account
 import google_auth_httplib2
 import httplib2
-from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, RetryError
+import tenacity
+from google.api_core.exceptions import (
+    AlreadyExists, Forbidden, GoogleAPICallError, ResourceExhausted, RetryError,
+)
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 
-from airflow import version
+from airflow import LoggingMixin, version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
+logger = LoggingMixin().log
+
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
+
+# Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
+INVALID_KEYS = [
+    'DefaultRequestsPerMinutePerProject',
+    'DefaultRequestsPerMinutePerUser',
+    'RequestsPerMinutePerProject',
+    "Resource has been exhausted (e.g. check quota).",
+]
+INVALID_REASONS = [
+    'userRateLimitExceeded',
+]
+
+
+def is_soft_quota_exception(exception: Exception):
+    """
+    API for Google services does not have a standardized way to report quota violation errors.
+    The function has been adapted by trial and error to the following services:
+
+    * Google Translate
+    * Google Vision
+    * Google Text-to-Speech
+    * Google Speech-to-Text
+    * Google Natural Language
+    * Google Video Intelligence
+    """
+    if isinstance(exception, Forbidden):
+        return any(
+            reason in error["reason"]
+            for reason in INVALID_REASONS
+            for error in exception.errors
+        )
+
+    if isinstance(exception, ResourceExhausted):
+        return any(
+            key in error.details()
+            for key in INVALID_KEYS
+            for error in exception.errors
+        )
+
+    return False
+
+
+class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super().__init__(is_soft_quota_exception)
 
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -220,6 +273,25 @@ class GoogleCloudBaseHook(BaseHook):
 
         return [s.strip() for s in scope_value.split(',')] \
             if scope_value else _DEFAULT_SCOPES
+
+    @staticmethod
+    def quota_retry(*args, **kwargs) -> Callable:
+        """
+        A decorator who provides a mechanism to repeat requests in response to exceeding a temporary quote
+        limit.
+        """
+        def decorator(fun: Callable):
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=1, max=100),
+                'retry': retry_if_temporary_quota(),
+                'before': tenacity.before_log(logger, logging.DEBUG),
+                'after': tenacity.after_log(logger, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return tenacity.retry(
+                *args, **default_kwargs
+            )(fun)
+        return decorator
 
     @staticmethod
     def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:

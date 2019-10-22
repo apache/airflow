@@ -61,6 +61,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_video(
         self,
         input_uri: Optional[str] = None,
@@ -69,7 +70,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
         video_context: Union[Dict, VideoContext] = None,
         output_uri: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:

@@ -112,7 +112,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
         source_language: str,
         model: str,
         project_id: Optional[str] = None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ) -> None:

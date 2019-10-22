@@ -342,7 +342,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         return operations
 
     @GoogleCloudBaseHook.catch_http_exception
-    def pause_transfer_operation(self, operation_name: str):
+    def pause_transfer_operation(self, operation_name: str) -> None:
         """
         Pauses an transfer operation in Google Storage Transfer Service.
 
@@ -354,7 +354,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             name=operation_name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.catch_http_exception
-    def resume_transfer_operation(self, operation_name: str):
+    def resume_transfer_operation(self, operation_name: str) -> None:
         """
         Resumes an transfer operation in Google Storage Transfer Service.
 

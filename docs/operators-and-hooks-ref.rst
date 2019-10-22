@@ -771,6 +771,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.contrib.operators.gcs_to_gdrive_operator`
 
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - SFTP
+     -
+     - :mod:`airflow.operators.gcs_to_sftp`
+
 
 .. _integration:GCP-Discovery:
 
@@ -855,11 +860,23 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
      - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
 
+   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
+     - :doc:`How to use <howto/operator/gcp/display_video>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.operators.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.display_video`
+
    * - `Google Drive <https://www.google.com/drive/>`__
      -
      - :mod:`airflow.contrib.hooks.gdrive_hook`
      -
      -
+
+   * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
+     - :doc:`How to use <howto/operator/gcp/search_ads>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      -
