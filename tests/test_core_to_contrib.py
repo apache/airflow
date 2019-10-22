@@ -41,7 +41,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
     ),
     (
-        "airflow.gcp.hooks.dlp.CloudDLPHook",
+        "airflow.gcp.hooks.dlp.CloudDlpHook",
         "airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook",
     ),
     (
