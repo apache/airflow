@@ -757,6 +757,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :doc:`How to use <howto/operator/gcp/gcs_to_sftp>`
      - :mod:`airflow.operators.gcs_to_sftp`
 
+   * - SFTP
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/sftp_to_gcs>`
+     - :mod:`airflow.operators.sftp_to_gcs`
+
    * - Local
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
