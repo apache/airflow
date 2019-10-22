@@ -54,17 +54,25 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_dag_id = trigger_dag_id
         self.conf = conf
 
-        if isinstance(execution_date, str):
-            self.execution_date = timezone.parse(execution_date)
-        else:
+        if execution_date is None or isinstance(execution_date, (str, datetime.datetime)):
             self.execution_date = execution_date
+        else:
+            raise TypeError(
+                "Expected str or datetime.datetime type for execution_date. "
+                "Got {}".format(type(execution_date))
+            )
 
     def execute(self, context: Dict):
-        if self.execution_date is None:
-            self.execution_date = timezone.utcnow()
-        run_id = "trig__{}".format(self.execution_date.isoformat())
+        if isinstance(self.execution_date, datetime.datetime):
+            run_id = "trig__{}".format(self.execution_date.isoformat())
+        elif isinstance(self.execution_date, str):
+            run_id = "trig__{}".format(self.execution_date)
+            self.execution_date = timezone.parse(self.execution_date)  # trigger_dag() expects datetime
+        else:
+            run_id = "trig__{}".format(timezone.utcnow().isoformat())
 
-        trigger_dag(
+        # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
+        trigger_dag(  # type: ignore
             dag_id=self.trigger_dag_id,
             run_id=run_id,
             conf=self.conf,
