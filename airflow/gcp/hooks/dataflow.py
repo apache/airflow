@@ -383,7 +383,7 @@ class DataFlowHook(CloudBaseHook):
         return variables
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_java_dataflow(
         self,
         job_name: str,
@@ -426,7 +426,7 @@ class DataFlowHook(CloudBaseHook):
         self._start_dataflow(variables, name, command_prefix, label_formatter, project_id, multiple_jobs)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
         job_name: str,
@@ -460,7 +460,7 @@ class DataFlowHook(CloudBaseHook):
             name, variables, parameters, dataflow_template, project_id)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_python_dataflow(
         self,
         job_name: str,
@@ -577,7 +577,7 @@ class DataFlowHook(CloudBaseHook):
         return response
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def is_job_dataflow_running(self, name: str, variables: Dict, project_id: Optional[str] = None) -> bool:
         """
         Helper method to check if jos is still running in dataflow
