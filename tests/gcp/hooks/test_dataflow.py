@@ -26,7 +26,7 @@ from parameterized import parameterized
 from airflow import AirflowException
 from airflow.gcp.hooks.dataflow import (
     DataFlowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
-    _fallback_to_project_id_from_variables
+    _fallback_to_project_id_from_variables,
 )
 from tests.compat import MagicMock, mock
 
