@@ -337,7 +337,7 @@ def do_setup():
         packages=find_packages(exclude=['tests*']),
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version"],
-            'airflow.dag.serialization': ["*.json"],
+            'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
         zip_safe=False,

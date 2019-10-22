@@ -19,8 +19,8 @@
 
 """DAG serialization."""
 # pylint: disable=cyclic-import
-from airflow.dag.serialization.serialized_dag import SerializedDAG
+from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
 # pylint: disable=cyclic-import
-from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator
+from airflow.serialization.serialized_dag import SerializedDAG
 
 __ALL__ = [SerializedDAG, SerializedBaseOperator]

@@ -24,7 +24,7 @@ try:
 except ImportError:
     from funcsigs import signature  # type: ignore
 
-from airflow.dag.serialization.serialization import Serialization  # pylint: disable=cyclic-import
+from airflow.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 from airflow.models import BaseOperator
 
 
@@ -100,7 +100,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         # type: (dict) -> BaseOperator
         """Deserializes an operator from a JSON object.
         """
-        from airflow.dag.serialization import SerializedDAG
+        from airflow.serialization import SerializedDAG
         from airflow.plugins_manager import operator_extra_links
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
