@@ -54,7 +54,7 @@ class TestAwsSnsHook(unittest.TestCase):
         hook = AwsSnsHook(aws_conn_id='aws_default')
 
         message = "Hello world"
-        topic_name = "test-topic-without-subject"
+        topic_name = "test-topic"
         target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
 
         response = hook.publish_to_target(target, message)
