@@ -147,7 +147,7 @@ def resolve_full_gcp_key_path(key: str) -> str:
     """
     Returns path full path to provided GCP key.
 
-    :param key: Name of the GCP key, for example "my_service.json"
+    :param key: Name of the GCP key, for example ``my_service.json``
     :type key: str
     :returns: Full path to the key
     """
@@ -164,12 +164,13 @@ def provide_gcp_context(
 ):
     """
     Context manager that provides both:
+
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
-    - temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT connection
+    - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
 
-    Moreover it resolves full path to service keys so user can pass 'myservice.json`
-    as `key_file_path`.
+    Moreover it resolves full path to service keys so user can pass ``myservice.json``
+    as ``key_file_path``.
 
     :param key_file_path: Path to file with GCP credentials .json file.
     :type key_file_path: str

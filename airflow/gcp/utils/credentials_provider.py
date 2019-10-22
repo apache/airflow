@@ -40,7 +40,7 @@ def build_gcp_conn(
     project_id: Optional[str] = None,
 ) -> str:
     """
-    Builds a variable that can be used as `AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` with provided service key,
+    Builds a variable that can be used as ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` with provided service key,
     scopes and project id.
 
     :param key_file_path: Path to service key.
@@ -71,7 +71,7 @@ def build_gcp_conn(
 def temporary_environment_variable(variable_name: str, value: str):
     """
     Context manager that set up temporary value for a given environment
-    variable and the restore initail state.
+    variable and the restore initial state.
 
     :param variable_name: Name of the environment variable
     :type variable_name: str
@@ -168,9 +168,10 @@ def provide_gcp_conn_and_credentials(
 ):
     """
     Context manager that provides both:
+
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
-    - temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT connection
+    - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
 
     :param key_file_path: Path to file with GCP credentials .json file.
     :type key_file_path: str
