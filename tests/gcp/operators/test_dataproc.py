@@ -90,7 +90,7 @@ LABELS = {
     'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')
 }
 
-HOOK = 'airflow.gcp.operators.dataproc.DataProcHook'
+HOOK = 'airflow.gcp.operators.dataproc.DataprocHook'
 DATAPROC_JOB_ID = 'dataproc_job_id'
 DATAPROC_JOB_TO_SUBMIT = {
     'job': {
@@ -798,7 +798,7 @@ class TestDataProcJobBaseOperator(unittest.TestCase):
 
     def test_dataproc_job_base(self):
         with patch(
-            'airflow.gcp.operators.dataproc.DataProcHook.project_id',
+            'airflow.gcp.operators.dataproc.DataprocHook.project_id',
                 new_callable=PropertyMock) as mock_project_id:
             mock_project_id.return_value = GCP_PROJECT_ID
             task = DataProcJobBaseOperator(
@@ -829,7 +829,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataprocHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -914,7 +914,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataprocHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -999,7 +999,7 @@ class TestDataProcPigOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataprocHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -1089,7 +1089,7 @@ class TestDataProcPySparkOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataprocHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
@@ -1177,7 +1177,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
             schedule_interval='@daily')
 
     @mock.patch(
-        'airflow.gcp.hooks.dataproc.DataProcHook.project_id',
+        'airflow.gcp.hooks.dataproc.DataprocHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID
     )
