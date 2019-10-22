@@ -22,14 +22,13 @@
 This module contains a sqoop 1.x hook
 """
 import subprocess
+from copy import deepcopy
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
-from copy import deepcopy
 
 
-class SqoopHook(BaseHook, LoggingMixin):
+class SqoopHook(BaseHook):
     """
     This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
@@ -196,7 +195,7 @@ class SqoopHook(BaseHook, LoggingMixin):
             for key, value in extra_import_options.items():
                 cmd += ['--{}'.format(key)]
                 if value:
-                    cmd += [value]
+                    cmd += [str(value)]
 
         return cmd
 
@@ -305,7 +304,7 @@ class SqoopHook(BaseHook, LoggingMixin):
             for key, value in extra_export_options.items():
                 cmd += ['--{}'.format(key)]
                 if value:
-                    cmd += [value]
+                    cmd += [str(value)]
 
         # The required option
         cmd += ["--table", table]

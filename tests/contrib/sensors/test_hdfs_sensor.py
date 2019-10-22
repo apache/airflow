@@ -17,16 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-import unittest
-
 import re
+import unittest
 from datetime import timedelta
 
 from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
 
 
-class HdfsSensorFolderTests(unittest.TestCase):
+class TestHdfsSensorFolder(unittest.TestCase):
     def setUp(self):
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
@@ -122,7 +121,7 @@ class HdfsSensorFolderTests(unittest.TestCase):
             task.execute(None)
 
 
-class HdfsSensorRegexTests(unittest.TestCase):
+class TestHdfsSensorRegex(unittest.TestCase):
     def setUp(self):
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
@@ -236,7 +235,7 @@ class HdfsSensorRegexTests(unittest.TestCase):
         self.log.debug('#' * 10)
         self.log.debug('Running %s', self._testMethodName)
         self.log.debug('#' * 10)
-        compiled_regex = re.compile("copying_file_\d+.txt")
+        compiled_regex = re.compile(r"copying_file_\d+.txt")
         task = HdfsSensorRegex(task_id='Should_match_the_regex_but_filesize',
                                filepath='/datadirectory/regex_dir',
                                regex=compiled_regex,

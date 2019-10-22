@@ -24,9 +24,8 @@ Create Date: 2016-09-11 13:39:18.592072
 
 """
 
-from alembic import op
+from alembic import context, op
 from sqlalchemy.dialects import mysql
-from alembic import context
 
 # revision identifiers, used by Alembic.
 revision = '4addfa1236f1'
@@ -62,11 +61,6 @@ def upgrade():
         op.alter_column(table_name='job', column_name='end_date',
                         type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='job', column_name='latest_heartbeat',
-                        type_=mysql.DATETIME(fsp=6))
-
-        op.alter_column(table_name='known_event', column_name='start_date',
-                        type_=mysql.DATETIME(fsp=6))
-        op.alter_column(table_name='known_event', column_name='end_date',
                         type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(table_name='log', column_name='dttm',
@@ -130,11 +124,6 @@ def downgrade():
         op.alter_column(table_name='job', column_name='end_date',
                         type_=mysql.DATETIME())
         op.alter_column(table_name='job', column_name='latest_heartbeat',
-                        type_=mysql.DATETIME())
-
-        op.alter_column(table_name='known_event', column_name='start_date',
-                        type_=mysql.DATETIME())
-        op.alter_column(table_name='known_event', column_name='end_date',
                         type_=mysql.DATETIME())
 
         op.alter_column(table_name='log', column_name='dttm',

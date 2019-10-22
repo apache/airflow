@@ -17,8 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+
+"""
+This module contains the AWS DynamoDB hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
 
 
 class AwsDynamoDBHook(AwsHook):
@@ -41,7 +45,8 @@ class AwsDynamoDBHook(AwsHook):
         self.table_keys = table_keys
         self.table_name = table_name
         self.region_name = region_name
-        super(AwsDynamoDBHook, self).__init__(*args, **kwargs)
+        self.conn = None
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_resource_type('dynamodb', self.region_name)
@@ -49,7 +54,7 @@ class AwsDynamoDBHook(AwsHook):
 
     def write_batch_data(self, items):
         """
-        Write batch items to dynamodb table with provisioned throughout capacity.
+        Write batch items to DynamoDB table with provisioned throughout capacity.
         """
 
         dynamodb_conn = self.get_conn()

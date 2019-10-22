@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
@@ -26,10 +27,11 @@ class MySqlOperator(BaseOperator):
     """
     Executes sql code in a specific MySQL database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
+    :param sql: the sql code to be executed. Can receive a str representing a
+        sql statement, a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+        (templated)
+    :type sql: str or list[str]
     :param mysql_conn_id: reference to a specific mysql database
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
@@ -47,9 +49,14 @@ class MySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, mysql_conn_id='mysql_default', parameters=None,
-            autocommit=False, database=None, *args, **kwargs):
-        super(MySqlOperator, self).__init__(*args, **kwargs)
+            self,
+            sql: str,
+            mysql_conn_id: str = 'mysql_default',
+            parameters: Optional[Union[Mapping, Iterable]] = None,
+            autocommit: bool = False,
+            database: Optional[str] = None,
+            *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
         self.autocommit = autocommit

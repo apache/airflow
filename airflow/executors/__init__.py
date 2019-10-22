@@ -18,14 +18,16 @@
 # under the License.
 
 import sys
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow import configuration
+from typing import Optional
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor # noqa
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-DEFAULT_EXECUTOR = None
+DEFAULT_EXECUTOR = None  # type: Optional[BaseExecutor]
 
 
 def _integrate_plugins():
@@ -36,14 +38,14 @@ def _integrate_plugins():
         globals()[executors_module._name] = executors_module
 
 
-def GetDefaultExecutor():
+def get_default_executor():
     """Creates a new instance of the configured executor if none exists and returns it"""
     global DEFAULT_EXECUTOR
 
     if DEFAULT_EXECUTOR is not None:
         return DEFAULT_EXECUTOR
 
-    executor_name = configuration.conf.get('core', 'EXECUTOR')
+    executor_name = conf.get('core', 'EXECUTOR')
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 
@@ -58,7 +60,6 @@ class Executors:
     SequentialExecutor = "SequentialExecutor"
     CeleryExecutor = "CeleryExecutor"
     DaskExecutor = "DaskExecutor"
-    MesosExecutor = "MesosExecutor"
     KubernetesExecutor = "KubernetesExecutor"
 
 
@@ -78,11 +79,8 @@ def _get_executor(executor_name):
     elif executor_name == Executors.DaskExecutor:
         from airflow.executors.dask_executor import DaskExecutor
         return DaskExecutor()
-    elif executor_name == Executors.MesosExecutor:
-        from airflow.contrib.executors.mesos_executor import MesosExecutor
-        return MesosExecutor()
     elif executor_name == Executors.KubernetesExecutor:
-        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        from airflow.executors.kubernetes_executor import KubernetesExecutor
         return KubernetesExecutor()
     else:
         # Loading plugins

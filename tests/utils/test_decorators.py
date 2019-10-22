@@ -18,31 +18,32 @@
 # under the License.
 
 import unittest
-from airflow.utils.decorators import apply_defaults
+
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 # Essentially similar to airflow.models.BaseOperator
-class DummyClass(object):
+class DummyClass:
     @apply_defaults
-    def __init__(self, test_param, params=None, default_args=None):
+    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
         self.test_param = test_param
 
 
 class DummySubClass(DummyClass):
     @apply_defaults
     def __init__(self, test_sub_param, *args, **kwargs):
-        super(DummySubClass, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.test_sub_param = test_sub_param
 
 
-class ApplyDefaultTest(unittest.TestCase):
+class TestApplyDefault(unittest.TestCase):
 
     def test_apply(self):
         dc = DummyClass(test_param=True)
         self.assertTrue(dc.test_param)
 
-        with self.assertRaisesRegexp(AirflowException, 'Argument.*test_param.*required'):
+        with self.assertRaisesRegex(AirflowException, 'Argument.*test_param.*required'):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
@@ -60,8 +61,8 @@ class ApplyDefaultTest(unittest.TestCase):
         self.assertTrue(dc.test_param)
         self.assertTrue(dsc.test_sub_param)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     'Argument.*test_sub_param.*required'):
+        with self.assertRaisesRegex(AirflowException,
+                                    'Argument.*test_sub_param.*required'):
             DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
@@ -70,5 +71,5 @@ class ApplyDefaultTest(unittest.TestCase):
         self.assertTrue(dc.test_param)
 
         default_args = {'random_params': True}
-        with self.assertRaisesRegexp(AirflowException, 'Argument.*test_param.*required'):
+        with self.assertRaisesRegex(AirflowException, 'Argument.*test_param.*required'):
             DummyClass(default_args=default_args)

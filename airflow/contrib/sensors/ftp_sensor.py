@@ -27,6 +27,14 @@ from airflow.utils.decorators import apply_defaults
 class FTPSensor(BaseSensorOperator):
     """
     Waits for a file or directory to be present on FTP.
+
+    :param path: Remote file or directory path
+    :type path: str
+    :param fail_on_transient_errors: Fail on all errors,
+        including 4xx transient errors. Default True.
+    :type fail_on_transient_errors: bool
+    :param ftp_conn_id: The connection to run the sensor against
+    :type ftp_conn_id: str
     """
 
     template_fields = ('path',)
@@ -34,7 +42,7 @@ class FTPSensor(BaseSensorOperator):
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
 
-    error_code_pattern = re.compile("([\d]+)")
+    error_code_pattern = re.compile(r"([\d]+)")
 
     @apply_defaults
     def __init__(
@@ -44,19 +52,7 @@ class FTPSensor(BaseSensorOperator):
             fail_on_transient_errors=True,
             *args,
             **kwargs):
-        """
-        Create a new FTP sensor
-
-        :param path: Remote file or directory path
-        :type path: str
-        :param fail_on_transient_errors: Fail on all errors,
-            including 4xx transient errors. Default True.
-        :type fail_on_transient_errors: bool
-        :param ftp_conn_id: The connection to run the sensor against
-        :type ftp_conn_id: str
-        """
-
-        super(FTPSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.path = path
         self.ftp_conn_id = ftp_conn_id

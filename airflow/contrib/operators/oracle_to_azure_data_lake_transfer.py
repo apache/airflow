@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.oracle_hook import OracleHook
+import os
+
+import unicodecsv as csv
+
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-
-import unicodecsv as csv
-import os
 
 
 class OracleToAzureDataLakeTransfer(BaseOperator):
@@ -47,7 +48,7 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
     :type sql_params: str
     :param delimiter: field delimiter in the file.
     :type delimiter: str
-    :param encoding: enconding type for the file.
+    :param encoding: encoding type for the file.
     :type encoding: str
     :param quotechar: Character to use in quoting.
     :type quotechar: str
@@ -72,7 +73,7 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
             *args, **kwargs):
-        super(OracleToAzureDataLakeTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if sql_params is None:
             sql_params = {}
         self.filename = filename

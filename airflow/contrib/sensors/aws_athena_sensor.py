@@ -18,10 +18,10 @@
 # under the License.
 
 
-from airflow.exceptions import AirflowException
-from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
+from airflow.exceptions import AirflowException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class AthenaSensor(BaseSensorOperator):
@@ -56,7 +56,7 @@ class AthenaSensor(BaseSensorOperator):
                  aws_conn_id='aws_default',
                  sleep_time=10,
                  *args, **kwargs):
-        super(BaseSensorOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.hook = None

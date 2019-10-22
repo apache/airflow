@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from wtforms.validators import EqualTo
-from wtforms.validators import ValidationError
+from wtforms.validators import EqualTo, ValidationError
 
 
 class GreaterEqualThan(EqualTo):
@@ -45,11 +44,8 @@ class GreaterEqualThan(EqualTo):
 
         if field.data < other.data:
             d = {
-                'other_label': (
-                    hasattr(other, 'label') and
-                    other.label.text or
-                    self.fieldname
-                ),
+                'other_label':
+                    hasattr(other, 'label') and other.label.text or self.fieldname,
                 'other_name': self.fieldname,
             }
             message = self.message

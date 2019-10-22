@@ -17,21 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import chr
 from collections import OrderedDict
-import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks.hive_hooks import HiveCliHook
+import unicodecsv as csv
+
 from airflow.contrib.hooks.vertica_hook import VerticaHook
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class VerticaToHiveTransfer(BaseOperator):
     """
-    Moves data from Vertia to Hive. The operator runs
-    your query against Vertia, stores the file locally
+    Moves data from Vertica to Hive. The operator runs
+    your query against Vertica, stores the file locally
     before loading it into a Hive table. If the ``create`` or
     ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
@@ -43,7 +43,7 @@ class VerticaToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param sql: SQL query to execute against the Vertia database. (templated)
+    :param sql: SQL query to execute against the Vertica database. (templated)
     :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
@@ -80,7 +80,7 @@ class VerticaToHiveTransfer(BaseOperator):
             vertica_conn_id='vertica_default',
             hive_cli_conn_id='hive_cli_default',
             *args, **kwargs):
-        super(VerticaToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

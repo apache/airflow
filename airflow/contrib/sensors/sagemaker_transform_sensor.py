@@ -29,7 +29,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     containing the failure reason.
 
     :param job_name: job_name of the transform job instance to check the state of
-    :type job_name: string
+    :type job_name: str
     """
 
     template_fields = ['job_name']
@@ -40,7 +40,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
                  job_name,
                  *args,
                  **kwargs):
-        super(SageMakerTransformSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
 
     def non_terminal_states(self):

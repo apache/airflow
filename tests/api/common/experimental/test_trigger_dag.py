@@ -17,16 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
-import unittest
 import json
+import unittest
+from unittest import mock
 
+from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
-from airflow.api.common.experimental.trigger_dag import _trigger_dag
 
 
-class TriggerDagTests(unittest.TestCase):
+class TestTriggerDag(unittest.TestCase):
 
     @mock.patch('airflow.models.DagRun')
     @mock.patch('airflow.models.DagBag')
@@ -106,7 +106,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, json.loads(conf))
+        self.assertEqual(triggers[0].conf, json.loads(conf))
 
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_with_dict_conf(self, dag_bag_mock):
@@ -125,7 +125,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, conf)
+        self.assertEqual(triggers[0].conf, conf)
 
 
 if __name__ == '__main__':

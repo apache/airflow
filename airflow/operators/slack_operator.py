@@ -18,11 +18,12 @@
 # under the License.
 
 import json
+from typing import Dict, List, Optional
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.slack_hook import SlackHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.slack_hook import SlackHook
-from airflow.exceptions import AirflowException
 
 
 class SlackAPIOperator(BaseOperator):
@@ -43,12 +44,12 @@ class SlackAPIOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 slack_conn_id=None,
-                 token=None,
-                 method=None,
-                 api_params=None,
-                 *args, **kwargs):
-        super(SlackAPIOperator, self).__init__(*args, **kwargs)
+                 slack_conn_id: Optional[str] = None,
+                 token: Optional[str] = None,
+                 method: Optional[str] = None,
+                 api_params: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
         if token is None and slack_conn_id is None:
             raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
@@ -56,8 +57,8 @@ class SlackAPIOperator(BaseOperator):
             raise AirflowException('Cannot determine Slack credential '
                                    'when both token and slack_conn_id are supplied.')
 
-        self.token = token
-        self.slack_conn_id = slack_conn_id
+        self.token = token  # type: Optional[str]
+        self.slack_conn_id = slack_conn_id  # type: Optional[str]
 
         self.method = method
         self.api_params = api_params
@@ -73,8 +74,6 @@ class SlackAPIOperator(BaseOperator):
         which sets self.api_call_params with a dict of
         API call parameters (https://api.slack.com/methods)
         """
-
-        pass
 
     def execute(self, **kwargs):
         """
@@ -102,7 +101,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type icon_url: str
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
-    :type attachments: array of hashes
+    :type attachments: list of hashes
     """
 
     template_fields = ('username', 'text', 'attachments', 'channel')
@@ -110,14 +109,14 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     @apply_defaults
     def __init__(self,
-                 channel='#general',
-                 username='Airflow',
-                 text='No message has been set.\n'
-                      'Here is a cat video instead\n'
-                      'https://www.youtube.com/watch?v=J---aiyznGQ',
-                 icon_url='https://raw.githubusercontent.com/apache/'
-                          'airflow/master/airflow/www/static/pin_100.jpg',
-                 attachments=None,
+                 channel: str = '#general',
+                 username: str = 'Airflow',
+                 text: str = 'No message has been set.\n'
+                             'Here is a cat video instead\n'
+                             'https://www.youtube.com/watch?v=J---aiyznGQ',
+                 icon_url: str = 'https://raw.githubusercontent.com/apache/'
+                                 'airflow/master/airflow/www/static/pin_100.png',
+                 attachments: Optional[List] = None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel
@@ -125,8 +124,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments
-        super(SlackAPIPostOperator, self).__init__(method=self.method,
-                                                   *args, **kwargs)
+        super().__init__(method=self.method,
+                         *args, **kwargs)
 
     def construct_api_call_params(self):
         self.api_params = {

@@ -18,27 +18,25 @@
 # under the License.
 
 import os
-try:
-    import unittest2 as unittest  # PY27
-except ImportError:
-    import unittest
+import unittest
 from argparse import Namespace
-from airflow import configuration
-from airflow.security.kerberos import renew_from_kt
+
 from airflow import LoggingMixin
+from airflow.configuration import conf
+from airflow.security.kerberos import renew_from_kt
+from tests.test_utils.config import conf_vars
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
-class KerberosTest(unittest.TestCase):
+class TestKerberos(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
 
-        if not configuration.conf.has_section("kerberos"):
-            configuration.conf.add_section("kerberos")
-        configuration.conf.set("kerberos", "keytab",
-                               os.environ['KRB5_KTNAME'])
-        keytab_from_cfg = configuration.conf.get("kerberos", "keytab")
+        if not conf.has_section("kerberos"):
+            conf.add_section("kerberos")
+        conf.set("kerberos", "keytab",
+                 os.environ['KRB5_KTNAME'])
+        keytab_from_cfg = conf.get("kerberos", "keytab")
         self.args = Namespace(keytab=keytab_from_cfg, principal=None, pid=None,
                               daemon=None, stdout=None, stderr=None, log_file=None)
 
@@ -53,17 +51,17 @@ class KerberosTest(unittest.TestCase):
         """
         We expect no result, but a run with sys.exit(1) because keytab not exist.
         """
-        configuration.conf.set("kerberos", "keytab", "")
         self.args.keytab = "test_keytab"
 
-        with self.assertRaises(SystemExit) as se:
-            renew_from_kt(principal=self.args.principal,
-                          keytab=self.args.keytab)
+        with conf_vars({('kerberos', 'keytab'): ''}):
+            with self.assertRaises(SystemExit) as se:
+                renew_from_kt(principal=self.args.principal,
+                              keytab=self.args.keytab)
 
-            with self.assertLogs(LoggingMixin().log) as log:
-                self.assertIn(
-                    'kinit: krb5_init_creds_set_keytab: Failed to find '
-                    'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
-                    '(unknown enctype)'.format(self.args.keytab), log.output)
+                with self.assertLogs(LoggingMixin().log) as log:
+                    self.assertIn(
+                        'kinit: krb5_init_creds_set_keytab: Failed to find '
+                        'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
+                        '(unknown enctype)'.format(self.args.keytab), log.output)
 
-        self.assertEqual(se.exception.code, 1)
+                self.assertEqual(se.exception.code, 1)

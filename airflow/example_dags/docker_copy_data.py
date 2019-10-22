@@ -26,19 +26,18 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-# from __future__ import print_function
 #
 # from airflow import DAG
 # import airflow
-# from datetime import datetime, timedelta
+# from datetime import timedelta
 # from airflow.operators import BashOperator
 # from airflow.operators import ShortCircuitOperator
 # from airflow.operators.docker_operator import DockerOperator
 #
 # default_args = {
-#     'owner': 'airflow',
+#     'owner': 'Airflow',
 #     'depends_on_past': False,
-#     'start_date': datetime.utcnow(),
+#     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],
 #     'email_on_failure': False,
 #     'email_on_retry': False,
@@ -58,7 +57,7 @@ TODO: Review the workflow, change it accordingly to
 # t_view = BashOperator(
 #         task_id='view_file',
 #         bash_command=locate_file_cmd,
-#         xcom_push=True,
+#         do_xcom_push=True,
 #         params={'source_location': '/your/input_dir/path'},
 #         dag=dag)
 #
@@ -71,7 +70,6 @@ TODO: Review the workflow, change it accordingly to
 #
 # t_is_data_available = ShortCircuitOperator(
 #         task_id='check_if_data_available',
-#         provide_context=True,
 #         python_callable=is_data_available,
 #         dag=dag)
 #
@@ -82,9 +80,15 @@ TODO: Review the workflow, change it accordingly to
 #         network_mode='bridge',
 #         volumes=['/your/host/input_dir/path:/your/input_dir/path',
 #                  '/your/host/output_dir/path:/your/output_dir/path'],
-#         command='./entrypoint.sh',
+#         command=[
+#             "/bin/bash",
+#             "-c",
+#             "/bin/sleep 30; "
+#             "/bin/mv {{params.source_location}}/{{ ti.xcom_pull('view_file') }} {{params.target_location}};"
+#             "/bin/echo '{{params.target_location}}/{{ ti.xcom_pull('view_file') }}';"
+#         ],
 #         task_id='move_data',
-#         xcom_push=True,
+#         do_xcom_push=True,
 #         params={'source_location': '/your/input_dir/path',
 #                 'target_location': '/your/output_dir/path'},
 #         dag=dag)

@@ -17,9 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains integration with Azure Data Lake.
+
+AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
+Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
+(see connection `azure_data_lake_default` for an example).
+"""
+from azure.datalake.store import core, lib, multithread
 
 from airflow.hooks.base_hook import BaseHook
-from azure.datalake.store import core, lib, multithread
 
 
 class AzureDataLakeHook(BaseHook):
@@ -77,7 +85,7 @@ class AzureDataLakeHook(BaseHook):
             are not supported.
         :type local_path: str
         :param remote_path: Remote path to upload to; if multiple files, this is the
-            dircetory root to write within.
+            directory root to write within.
         :type remote_path: str
         :param nthreads: Number of threads to use. If None, uses the number of cores.
         :type nthreads: int

@@ -18,7 +18,9 @@
 # under the License.
 
 import time
-from zdesk import Zendesk, RateLimitError, ZendeskError
+
+from zdesk import RateLimitError, Zendesk, ZendeskError
+
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -33,7 +35,8 @@ class ZendeskHook(BaseHook):
     def get_conn(self):
         conn = self.get_connection(self.__zendesk_conn_id)
         self.__url = "https://" + conn.host
-        return Zendesk(self.__url, conn.login, conn.password, True)
+        return Zendesk(zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password,
+                       zdesk_token=True)
 
     def __handle_rate_limit_exception(self, rate_limit_exception):
         """

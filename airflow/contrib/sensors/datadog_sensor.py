@@ -16,11 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.contrib.hooks.datadog_hook import DatadogHook
-from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
 from datadog import api
+
+from airflow.contrib.hooks.datadog_hook import DatadogHook
+from airflow.exceptions import AirflowException
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class DatadogSensor(BaseSensorOperator):
@@ -48,7 +49,7 @@ class DatadogSensor(BaseSensorOperator):
             response_check=None,
             *args,
             **kwargs):
-        super(DatadogSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.datadog_conn_id = datadog_conn_id
         self.from_seconds_ago = from_seconds_ago
         self.up_to_seconds_from_now = up_to_seconds_from_now

@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from datetime import timedelta, time
+from datetime import time, timedelta
 
-from airflow import DAG, configuration, settings
-from airflow import exceptions
-from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import TaskInstance, DagBag
+from airflow import DAG, exceptions, settings
+from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -30,18 +29,15 @@ from airflow.sensors.time_sensor import TimeSensor
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-configuration.load_test_config()
-
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 TEST_TASK_ID = 'time_sensor_check'
 DEV_NULL = '/dev/null'
 
 
-class ExternalTaskSensorTests(unittest.TestCase):
+class TestExternalTaskSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.dagbag = DagBag(
             dag_folder=DEV_NULL,
             include_examples=True
@@ -269,4 +265,55 @@ exit 0
                 execution_date_fn=lambda dt: dt,
                 allowed_states=['success'],
                 dag=self.dag
+            )
+
+    def test_catch_invalid_allowed_states(self):
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
+
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=None,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
+
+    def test_external_task_sensor_waits_for_task_check_existence(self):
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id="example_bash_operator",
+            external_task_id="non-existing-task",
+            check_existence=True,
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
+            )
+
+    def test_external_task_sensor_waits_for_dag_check_existence(self):
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id="non-existing-dag",
+            external_task_id=None,
+            check_existence=True,
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
             )

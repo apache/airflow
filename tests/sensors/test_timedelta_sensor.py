@@ -17,24 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta
 
-from airflow import configuration
-from airflow import models, DAG
+from airflow import DAG, models
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from airflow.utils.timezone import datetime
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = '/dev/null'
 TEST_DAG_ID = 'unit_tests'
 
 
-class TimedeltaSensorTest(unittest.TestCase):
+class TestTimedeltaSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}

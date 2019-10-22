@@ -30,7 +30,7 @@ class FSHook(BaseHook):
     example:
     Conn Id: fs_test
     Conn Type: File (path)
-    Host, Shchema, Login, Password, Port: empty
+    Host, Schema, Login, Password, Port: empty
     Extra: {"path": "/tmp"}
     """
 

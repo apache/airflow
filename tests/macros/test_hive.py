@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
 from airflow.macros import hive
 
 
-class Hive(unittest.TestCase):
+class TestHive(unittest.TestCase):
     def test_closest_ds_partition(self):
         d1 = datetime.strptime('2017-04-24', '%Y-%m-%d')
         d2 = datetime.strptime('2017-04-25', '%Y-%m-%d')
@@ -33,13 +33,13 @@ class Hive(unittest.TestCase):
         target_dt = datetime.strptime('2017-04-27', '%Y-%m-%d')
         date_list = [d1, d2, d3, d4, d5]
 
-        self.assertEquals("2017-04-26", str(hive._closest_date(target_dt, date_list, True)))
-        self.assertEquals("2017-04-28", str(hive._closest_date(target_dt, date_list, False)))
+        self.assertEqual("2017-04-26", str(hive._closest_date(target_dt, date_list, True)))
+        self.assertEqual("2017-04-28", str(hive._closest_date(target_dt, date_list, False)))
 
         # when before is not set, the closest date should be returned
-        self.assertEquals("2017-04-26", str(hive._closest_date(target_dt, [d1, d2, d3, d5], None)))
-        self.assertEquals("2017-04-28", str(hive._closest_date(target_dt, [d1, d2, d4, d5])))
-        self.assertEquals("2017-04-26", str(hive._closest_date(target_dt, date_list)))
+        self.assertEqual("2017-04-26", str(hive._closest_date(target_dt, [d1, d2, d3, d5], None)))
+        self.assertEqual("2017-04-28", str(hive._closest_date(target_dt, [d1, d2, d4, d5])))
+        self.assertEqual("2017-04-26", str(hive._closest_date(target_dt, date_list)))
 
 
 if __name__ == '__main__':

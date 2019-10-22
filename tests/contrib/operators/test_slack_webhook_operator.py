@@ -20,8 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
-
+from airflow import DAG
 from airflow.contrib.operators.slack_webhook_operator import SlackWebhookOperator
 from airflow.utils import timezone
 
@@ -33,15 +32,16 @@ class TestSlackWebhookOperator(unittest.TestCase):
         'http_conn_id': 'slack-webhook-default',
         'webhook_token': 'manual_token',
         'message': 'your message here',
+        'attachments': [{'fallback': 'Required plain-text summary'}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey',
+        'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -59,11 +59,24 @@ class TestSlackWebhookOperator(unittest.TestCase):
         self.assertEqual(self._config['http_conn_id'], operator.http_conn_id)
         self.assertEqual(self._config['webhook_token'], operator.webhook_token)
         self.assertEqual(self._config['message'], operator.message)
+        self.assertEqual(self._config['attachments'], operator.attachments)
         self.assertEqual(self._config['channel'], operator.channel)
         self.assertEqual(self._config['username'], operator.username)
         self.assertEqual(self._config['icon_emoji'], operator.icon_emoji)
+        self.assertEqual(self._config['icon_url'], operator.icon_url)
         self.assertEqual(self._config['link_names'], operator.link_names)
         self.assertEqual(self._config['proxy'], operator.proxy)
+
+    def test_assert_templated_fields(self):
+        operator = SlackWebhookOperator(
+            task_id='slack_webhook_job',
+            dag=self.dag,
+            **self._config
+        )
+
+        template_fields = ['webhook_token', 'message', 'attachments', 'channel', 'username', 'proxy']
+
+        self.assertEqual(operator.template_fields, template_fields)
 
 
 if __name__ == '__main__':

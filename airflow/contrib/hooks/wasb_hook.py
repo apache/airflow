@@ -17,16 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains integration with Azure Blob Storage.
+
+It communicate via the Window Azure Storage Blob protocol. Make sure that a
+Airflow connection of type `wasb` exists. Authorization can be done by supplying a
+login (=Storage account name) and password (=KEY), or login and SAS token in the extra
+field (see connection `wasb_default` for an example).
+"""
+from azure.storage.blob import BlockBlobService
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
-from azure.storage.blob import BlockBlobService
-
 
 class WasbHook(BaseHook):
     """
-    Interacts with Azure Blob Storage through the wasb:// protocol.
+    Interacts with Azure Blob Storage through the ``wasb://`` protocol.
 
     Additional options passed in the 'extra' field of the connection will be
     passed to the `BlockBlockService()` constructor. For example, authenticate
@@ -162,7 +169,7 @@ class WasbHook(BaseHook):
         :param is_prefix: If blob_name is a prefix, delete all matching files
         :type is_prefix: bool
         :param ignore_if_missing: if True, then return success even if the
-        blob does not exist.
+            blob does not exist.
         :type ignore_if_missing: bool
         :param kwargs: Optional keyword arguments that
             `BlockBlobService.create_blob_from_path()` takes.
