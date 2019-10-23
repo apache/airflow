@@ -33,7 +33,7 @@ from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
 
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -217,7 +217,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return {self.schema_filename: tmp_schema_file_handle}
 
     def _upload_to_gcs(self, files_to_upload):
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():

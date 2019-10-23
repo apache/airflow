@@ -32,7 +32,7 @@ from typing import Dict, List, Optional, Set
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.dataproc import DataProcHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -1105,7 +1105,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
 
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
-        GoogleCloudStorageHook(
+        GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         ).upload(
             bucket_name=bucket,

@@ -61,7 +61,7 @@ class TestSearchAdsGetfileReportOperator(TestCase):
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GoogleCloudStorageHook"
+        "operators.search_ads.GcsHook"
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform."

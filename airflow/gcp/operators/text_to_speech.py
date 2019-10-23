@@ -27,7 +27,7 @@ from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -129,7 +129,7 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
         )
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
-            cloud_storage_hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.gcp_conn_id)
+            cloud_storage_hook = GcsHook(google_cloud_storage_conn_id=self.gcp_conn_id)
             cloud_storage_hook.upload(
                 bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name
             )

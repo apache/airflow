@@ -28,7 +28,7 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.gcp.hooks.gcs import GcsHook, _parse_gcs_url
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
@@ -734,7 +734,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
             gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
 
-            gcs_hook = GoogleCloudStorageHook(
+            gcs_hook = GcsHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
             schema_fields = json.loads(gcs_hook.download(
@@ -903,7 +903,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                                location=self.location)
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
-            gcs_hook = GoogleCloudStorageHook(
+            gcs_hook = GcsHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
             schema_fields = json.loads(gcs_hook.download(

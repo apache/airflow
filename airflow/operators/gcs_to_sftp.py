@@ -25,7 +25,7 @@ from typing import Optional
 
 from airflow import AirflowException
 from airflow.contrib.hooks.sftp_hook import SFTPHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -93,7 +93,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
         self.sftp_dirs = None
 
     def execute(self, context):
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GcsHook(
             gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 
@@ -132,7 +132,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
 
     def _copy_single_object(
         self,
-        gcs_hook: GoogleCloudStorageHook,
+        gcs_hook: GcsHook,
         sftp_hook: SFTPHook,
         source_object: str,
         destination_path: str,

@@ -26,7 +26,7 @@ from tempfile import NamedTemporaryFile
 from typing import Dict, Iterable, List, Optional, Union
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
@@ -130,7 +130,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -211,7 +211,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
 
     def execute(self, context):
 
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -300,7 +300,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing download: %s, %s, %s', self.bucket,
                       self.object, self.filename)
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -373,7 +373,7 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -448,7 +448,7 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
@@ -519,7 +519,7 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_object_acl(bucket_name=self.bucket,
@@ -580,7 +580,7 @@ class GcsFileTransformOperator(BaseOperator):
         self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context: Dict):
-        hook = GoogleCloudStorageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = GcsHook(gcp_conn_id=self.gcp_conn_id)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
             self.log.info("Downloading file from %s", self.source_bucket)

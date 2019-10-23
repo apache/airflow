@@ -22,7 +22,7 @@ This module is deprecated. Please use `airflow.gcp.hooks.gcs`.
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url  # noqa
+from airflow.gcp.hooks.gcs import GcsHook, _parse_gcs_url  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.gcs`.",

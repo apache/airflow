@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import Callable, List, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -66,7 +66,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.exists(self.bucket, self.object)
@@ -123,7 +123,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.is_updated_after(self.bucket, self.object, self.ts_func(context))
@@ -170,7 +170,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     def poke(self, context):
         self.log.info('Sensor checks existence of objects: %s, %s',
                       self.bucket, self.prefix)
-        hook = GoogleCloudStorageHook(
+        hook = GcsHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         self._matches = hook.list(self.bucket, prefix=self.prefix)
@@ -315,5 +315,5 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        hook = GoogleCloudStorageHook()
+        hook = GcsHook()
         return self.is_bucket_updated(len(hook.list(self.bucket, prefix=self.prefix)))

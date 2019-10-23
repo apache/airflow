@@ -69,7 +69,7 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
-        "campaign_manager.GoogleCloudStorageHook"
+        "campaign_manager.GcsHook"
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."

@@ -21,7 +21,7 @@ This module contains Google Cloud Storage to S3 operator.
 """
 import warnings
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GcsHook
 from airflow.gcp.operators.gcs import GoogleCloudStorageListOperator
 from airflow.hooks.S3_hook import S3Hook
 from airflow.utils.decorators import apply_defaults
@@ -133,7 +133,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
             files = list(set(files) - set(existing_files))
 
         if files:
-            hook = GoogleCloudStorageHook(
+            hook = GcsHook(
                 google_cloud_storage_conn_id=self.gcp_conn_id,
                 delegate_to=self.delegate_to
             )
