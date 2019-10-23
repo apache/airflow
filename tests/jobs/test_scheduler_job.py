@@ -1986,6 +1986,47 @@ class TestSchedulerJob(unittest.TestCase):
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
+    @mock.patch('airflow.jobs.scheduler_job.send_email')
+    def test_scheduler_only_collect_emails_from_sla_missed_tasks(self, mock_send_email):
+        session = settings.Session()
+
+        test_start_date = days_ago(2)
+        dag = DAG(dag_id='test_sla_miss',
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta(days=1)})
+
+        email1 = 'test1@test.com'
+        task = DummyOperator(task_id='sla_missed',
+                             dag=dag,
+                             owner='airflow',
+                             email=email1,
+                             sla=datetime.timedelta(hours=1))
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='Success'))
+
+        email2 = 'test2@test.com'
+        DummyOperator(task_id='sla_not_missed',
+                      dag=dag,
+                      owner='airflow',
+                      email=email2)
+
+        session.merge(SlaMiss(task_id='sla_missed',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+
+        scheduler.manage_slas(dag=dag, session=session)
+
+        self.assertTrue(1, len(mock_send_email.call_args_list))
+
+        send_email_to = mock_send_email.call_args_list[0][0][0]
+        self.assertIn(email1, send_email_to)
+        self.assertNotIn(email2, send_email_to)
+
     @mock.patch("airflow.utils.email.send_email")
     def test_scheduler_sla_miss_email_exception(self, mock_send_email):
         """

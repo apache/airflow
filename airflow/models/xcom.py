@@ -20,7 +20,7 @@
 import json
 import pickle
 
-from sqlalchemy import Column, Index, Integer, LargeBinary, String, and_
+from sqlalchemy import Column, Index, LargeBinary, String, and_
 from sqlalchemy.orm import reconstructor
 
 from airflow.configuration import conf
@@ -43,16 +43,14 @@ class XCom(Base, LoggingMixin):
     """
     __tablename__ = "xcom"
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(512))
+    key = Column(String(512), primary_key=True, nullable=False)
     value = Column(LargeBinary)
-    timestamp = Column(
-        UtcDateTime, default=timezone.utcnow, nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    execution_date = Column(UtcDateTime, primary_key=True, nullable=False)
 
     # source information
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
 
     __table_args__ = (
         Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
@@ -99,8 +97,6 @@ class XCom(Base, LoggingMixin):
 
         :return: None
         """
-        session.expunge_all()
-
         value = XCom.serialize_value(value)
 
         # remove any duplicate XComs
@@ -109,8 +105,6 @@ class XCom(Base, LoggingMixin):
             cls.execution_date == execution_date,
             cls.task_id == task_id,
             cls.dag_id == dag_id).delete()
-
-        session.commit()
 
         # insert new XCom
         session.add(XCom(

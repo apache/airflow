@@ -455,6 +455,23 @@ class TestCore(unittest.TestCase):
                  '(task_id: test_illegal_args).'),
                 w[0].message.args[0])
 
+    def test_illegal_args_forbidden(self):
+        """
+        Tests that operators raise exceptions on illegal arguments when
+        illegal arguments are not allowed.
+        """
+        with conf_vars({('operators', 'allow_illegal_arguments'): 'False'}):
+            with self.assertRaises(AirflowException) as ctx:
+                BashOperator(
+                    task_id='test_illegal_args',
+                    bash_command='echo success',
+                    dag=self.dag,
+                    illegal_argument_1234='hello?')
+            self.assertIn(
+                ('Invalid arguments were passed to BashOperator '
+                 '(task_id: test_illegal_args).'),
+                str(ctx.exception))
+
     def test_bash_operator(self):
         t = BashOperator(
             task_id='test_bash_operator',
