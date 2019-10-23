@@ -23,7 +23,7 @@ import hashlib
 from datetime import timedelta
 from typing import Any, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, Index, Integer, String, and_, JSON
+from sqlalchemy import JSON, Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import Base, ID_LEN
@@ -114,8 +114,10 @@ class SerializedDagModel(Base):
                      (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
             ).scalar():
                 return
+
+        log.debug("Writing DAG: %s to the DB", dag.dag_id)
         session.merge(cls(dag))
-        log.debug("DAG: %s written to the DB", dag)
+        log.debug("DAG: %s written to the DB", dag.dag_id)
 
     @classmethod
     @db.provide_session
