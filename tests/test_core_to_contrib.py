@@ -61,7 +61,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook",
     ),
     (
-        "airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook",
+        "airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook",
         "airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook",
     ),
     (
