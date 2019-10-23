@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.kms import GoogleCloudKMSHook  # noqa
+from airflow.gcp.hooks.kms import CloudKmsHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.kms`.",

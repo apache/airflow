@@ -42,7 +42,7 @@ def _b64decode(s: str) -> bytes:
 
 
 # noinspection PyAbstractClass
-class GoogleCloudKMSHook(GoogleCloudBaseHook):
+class CloudKmsHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Key Management service.
 
