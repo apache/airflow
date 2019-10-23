@@ -38,7 +38,6 @@ configuring an Airflow environment.
     run-behind-proxy
     run-with-systemd
     run-with-upstart
-    enable-dag-serialization
     use-test-config
     check-health
     define_extra_link

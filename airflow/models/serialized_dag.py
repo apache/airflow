@@ -23,7 +23,6 @@ import hashlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-# from sqlalchemy import Column, Index, Integer, String, Text, JSON, and_, exc
 from sqlalchemy import JSON, Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
@@ -111,9 +110,9 @@ class SerializedDagModel(Base):
                      (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
             ).scalar():
                 return
-        log.debug("Writing DAG: %s to the DB", dag)
+        log.debug("Writing DAG: %s to the DB", dag.dag_id)
         session.merge(cls(dag))
-        log.debug("DAG: %s written to the DB", dag)
+        log.debug("DAG: %s written to the DB", dag.dag_id)
 
     @classmethod
     @db.provide_session
