@@ -34,7 +34,8 @@ from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
-EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
+EXECDATE_ISO = EXECDATE.isoformat()
+EXECDATE_NOFRACTIONS_ISO = EXECDATE_NOFRACTIONS.isoformat()
 
 
 class TestLocalClient(unittest.TestCase):
@@ -65,17 +66,17 @@ class TestLocalClient(unittest.TestCase):
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
             self.client.trigger_dag(dag_id=test_dag_id)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_NOFRACTIONS_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
                                          external_trigger=True)
             mock.reset_mock()
 
-            # execution date with microseconds cutoff
+            # execution date with microseconds included
             self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
-                                         execution_date=EXECDATE_NOFRACTIONS,
+                                         execution_date=EXECDATE,
                                          state=State.RUNNING,
                                          conf=None,
                                          external_trigger=True)
@@ -94,7 +95,7 @@ class TestLocalClient(unittest.TestCase):
             # test conf
             conf = '{"name": "John"}'
             self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_NOFRACTIONS_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=json.loads(conf),

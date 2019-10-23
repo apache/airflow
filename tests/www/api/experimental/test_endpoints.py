@@ -146,11 +146,7 @@ class TestApiExperimental(TestBase):
     def test_trigger_dag_for_date(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
-        hour_from_now = utcnow() + timedelta(hours=1)
-        execution_date = datetime(hour_from_now.year,
-                                  hour_from_now.month,
-                                  hour_from_now.day,
-                                  hour_from_now.hour)
+        execution_date = utcnow() + timedelta(hours=1)
         datetime_string = execution_date.isoformat()
 
         # Test Correct execution
@@ -181,36 +177,6 @@ class TestApiExperimental(TestBase):
         response = self.client.post(
             url_template.format(dag_id),
             data=json.dumps({'execution_date': 'not_a_datetime'}),
-            content_type="application/json"
-        )
-        self.assertEqual(400, response.status_code)
-
-    def test_trigger_dag_for_date_with_replace_microseconds_false(self):
-        url_template = '/api/experimental/dags/{}/dag_runs'
-        dag_id = 'example_bash_operator'
-        execution_date = utcnow() + timedelta(hours=1)
-        datetime_string = execution_date.isoformat()
-
-        # Test Correct execution
-        response = self.client.post(
-            url_template.format(dag_id),
-            data=json.dumps({'execution_date': datetime_string, 'replace_microseconds': 'false'}),
-            content_type="application/json"
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(datetime_string, json.loads(response.data.decode('utf-8'))['execution_date'])
-
-        dagbag = DagBag()
-        dag = dagbag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date)
-        self.assertTrue(dag_run,
-                        'Dag Run not found for execution date {}'
-                        .format(execution_date))
-
-        # Test error for non boolean value
-        response = self.client.post(
-            url_template.format(dag_id),
-            data=json.dumps({'execution_date': datetime_string, 'replace_microseconds': 'non-boolean'}),
             content_type="application/json"
         )
         self.assertEqual(400, response.status_code)

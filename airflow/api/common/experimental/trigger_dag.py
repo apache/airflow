@@ -44,7 +44,7 @@ def _trigger_dag(
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param execution_date: date of execution
-    :param replace_microseconds: whether microseconds should be zeroed
+    :param replace_microseconds: whether microseconds should be zeroed (ignored if execution_date is given)
     :return: list of triggered dags
     """
     if dag_id not in dag_bag.dags:
@@ -52,12 +52,12 @@ def _trigger_dag(
 
     dag = dag_bag.get_dag(dag_id)
 
-    execution_date = execution_date if execution_date else timezone.utcnow()
+    if execution_date is None:
+        execution_date = timezone.utcnow()
+        if replace_microseconds:
+            execution_date = execution_date.replace(microsecond=0)
 
     assert timezone.is_localized(execution_date)
-
-    if replace_microseconds:
-        execution_date = execution_date.replace(microsecond=0)
 
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())
@@ -107,7 +107,7 @@ def trigger_dag(
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param execution_date: date of execution
-    :param replace_microseconds: whether microseconds should be zeroed
+    :param replace_microseconds: whether microseconds should be zeroed (ignored if execution_date is given)
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
     dag_model = DagModel.get_current(dag_id)
