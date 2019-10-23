@@ -28,7 +28,7 @@ from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, Voic
 
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -119,7 +119,7 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
     def execute(self, context):
-        hook = GCPTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.synthesize_speech(
             input_data=self.input_data,
             voice=self.voice,

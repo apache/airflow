@@ -23,7 +23,7 @@ This module is deprecated. Please use `airflow.gcp.hooks.text_to_speech`.
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook  # noqa
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.text_to_speech`",
