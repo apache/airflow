@@ -22,9 +22,11 @@ This module contains a Google Cloud Speech Hook.
 from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
-from google.protobuf.json_format import MessageToDict
 from google.cloud.speech_v1 import SpeechClient
-from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
+from google.cloud.speech_v1.types import (
+    RecognitionAudio, RecognitionConfig, RecognizeResponse
+)
+from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
@@ -62,7 +64,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         audio: Union[Dict, RecognitionAudio],
         retry: Retry = None,
         timeout: Optional[float] = None
-    ):
+    ) -> RecognizeResponse:
         """
         Recognizes audio input
 
@@ -78,12 +80,12 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
             Note that if retry is specified, the timeout applies to each individual attempt.
         :type timeout: float
+        :rtype: google.cloud.speech_v1.types.RecognizeResponse
         """
         client = self.get_conn()
         response = client.recognize(config=config, audio=audio, retry=retry, timeout=timeout)
         self.log.info("Recognised speech: %s" % response)
         return response
-
 
     @GoogleCloudBaseHook.catch_http_exception
     def long_running_recognize_speech(
@@ -91,9 +93,8 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
         retry: Retry = None,
-        timeout: Optional[float] = None,
-        wait_until_finished: bool = True
-    ):
+        timeout: Optional[float] = None
+    ) -> Dict:
         """
         Recognizes long audio input
 
@@ -109,15 +110,10 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
             Note that if retry is specified, the timeout applies to each individual attempt.
         :param timeout: (Optional) The amount of time, in seconds, to wait for the operation to complete.
         :type timeout: float
-        :param wait_until_finished: (Optional) If true, it will wait until the operation to complete.
-        :type wait_until_finished: bool
+        :rtype dict
         """
         client = self.get_conn()
         operation = client.long_running_recognize(config=config, audio=audio, retry=retry)
-
-        if not wait_until_finished:
-            return operation
-
         # Waiting for operation to complete...
         response = operation.result(timeout=timeout)
 

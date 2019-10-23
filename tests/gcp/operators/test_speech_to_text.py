@@ -21,8 +21,7 @@ import unittest
 
 from airflow import AirflowException
 from airflow.gcp.operators.speech_to_text import (
-    GcpSpeechToTextRecognizeSpeechOperator,
-    GcpSpeechToTextLongRunningRecognizeSpeechOperator
+    GcpSpeechToTextLongRunningRecognizeSpeechOperator, GcpSpeechToTextRecognizeSpeechOperator
 )
 from tests.compat import Mock, patch
 
@@ -84,7 +83,7 @@ class TestGcpSpeechToTextLongRunningRecognizeSpeechOperator(unittest.TestCase):
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.long_running_recognize_speech.assert_called_once_with(
-            config=CONFIG, audio=AUDIO, retry=None, timeout=None, wait_until_finished=True
+            config=CONFIG, audio=AUDIO, retry=None, timeout=None
         )
 
     @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")

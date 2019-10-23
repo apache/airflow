@@ -29,8 +29,7 @@ import os
 
 from airflow import models
 from airflow.gcp.operators.speech_to_text import (
-    GcpSpeechToTextRecognizeSpeechOperator,
-    GcpSpeechToTextLongRunningRecognizeSpeechOperator
+    GcpSpeechToTextLongRunningRecognizeSpeechOperator, GcpSpeechToTextRecognizeSpeechOperator
 )
 from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator

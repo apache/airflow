@@ -123,8 +123,6 @@ class GcpSpeechToTextLongRunningRecognizeSpeechOperator(BaseOperator):
     :param timeout: (Optional) The amount of time, in seconds, to wait for the operation to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
-    :param wait_until_finished: (Optional) If true, it will wait until the operation to complete.
-    :type wait_until_finished: bool
     """
     # [START gcp_speech_to_text_long_running_synthesize_template_fields]
     template_fields = ("audio", "config", "project_id", "gcp_conn_id", "timeout")
@@ -139,7 +137,6 @@ class GcpSpeechToTextLongRunningRecognizeSpeechOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        wait_until_finished: bool = True,
         *args,
         **kwargs
     ) -> None:
@@ -149,7 +146,6 @@ class GcpSpeechToTextLongRunningRecognizeSpeechOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.retry = retry
         self.timeout = timeout
-        self.wait_until_finished = wait_until_finished
         self._validate_inputs()
         super().__init__(*args, **kwargs)
 
@@ -161,11 +157,9 @@ class GcpSpeechToTextLongRunningRecognizeSpeechOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-
         return hook.long_running_recognize_speech(
             config=self.config,
             audio=self.audio,
             retry=self.retry,
-            timeout=self.timeout,
-            wait_until_finished=self.wait_until_finished
+            timeout=self.timeout
         )
