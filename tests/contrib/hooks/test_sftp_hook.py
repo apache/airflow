@@ -231,11 +231,11 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_get_tree_map(self):
         tree_map = self.hook.get_tree_map(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertEqual(tree_map["unknowns"], [])
-        self.assertEqual(tree_map["dirs"], [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)])
-        self.assertEqual(
-            tree_map["files"], [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
-        )
+        files, dirs, unknowns = tree_map
+
+        self.assertEqual(files, [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)])
+        self.assertEqual(dirs, [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)])
+        self.assertEqual(unknowns, [])
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))

@@ -19,7 +19,7 @@
 
 import datetime
 import stat
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pysftp
 
@@ -254,9 +254,9 @@ class SFTPHook(SSHHook):
 
     def get_tree_map(
         self, path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None
-    ) -> Dict[str, List[str]]:
+    ) -> Tuple[List[str], List[str], List[str]]:
         """
-        Return dictionary with recursive lists of files, directories and unknown paths from given path.
+        Return tuple with recursive lists of files, directories and unknown paths from given path.
         It is possible to filter results by giving prefix and/or delimiter parameters.
 
         :param path: path from which tree will be built
@@ -265,25 +265,25 @@ class SFTPHook(SSHHook):
         :type prefix: str
         :param delimiter: if set paths will be added if end with delimiter
         :type delimiter: str
-        :return: dictionary ``{"files": List[str], "dirs": List[str], "unknowns": List[str]}``
-        :rtype: Dict[str, List[str]]
+        :return: tuple with list of files, dirs and unknown items
+        :rtype: Tuple[List[str], List[str], List[str]]
         """
         conn = self.get_conn()
-        files, dirs, unknowns = [], [], []
+        files, dirs, unknowns = [], [], []  # type: List[str], List[str], List[str]
+
+        def append_matching_path_callback(list_):
+            return (
+                lambda item: list_.append(item)
+                if self._is_path_match(item, prefix, delimiter)
+                else None
+            )
 
         conn.walktree(
             remotepath=path,
-            fcallback=lambda x: files.append(x)  # type: ignore
-            if self._is_path_match(x, prefix, delimiter)
-            else None,
-            dcallback=lambda x: dirs.append(x)  # type: ignore
-            if self._is_path_match(x, prefix, delimiter)
-            else None,
-            ucallback=lambda x: unknowns.append(x)  # type: ignore
-            if self._is_path_match(x, prefix, delimiter)
-            else None,
+            fcallback=append_matching_path_callback(files),
+            dcallback=append_matching_path_callback(dirs),
+            ucallback=append_matching_path_callback(unknowns),
             recurse=True,
         )
 
-        result = {"files": files, "dirs": dirs, "unknowns": unknowns}
-        return result
+        return files, dirs, unknowns
