@@ -29,3 +29,17 @@ warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.speech_to_text`",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GCPSpeechToTextHook(CloudSpeechToTextHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+
+        super().__init__(*args, **kwargs)
