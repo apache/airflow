@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Client for kubernetes communication"""
 from airflow.configuration import conf
 
 try:
     from kubernetes import config, client
-    from kubernetes.client.rest import ApiException
+    from kubernetes.client.rest import ApiException  # pylint: disable=unused-import
     has_kubernetes = True
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
@@ -41,6 +42,18 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
 def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster'),
                     cluster_context=None,
                     config_file=None):
+    """
+    Retrieves Kubernetes client
+
+    :param in_cluster: whether we are in cluster
+    :type in_cluster: bool
+    :param cluster_context: context of the cluster
+    :type cluster_context: str
+    :param config_file: configuration file
+    :type config_file: str
+    :return kubernetes client
+    :rtype client.CoreV1Api
+    """
     if not in_cluster:
         if cluster_context is None:
             cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)

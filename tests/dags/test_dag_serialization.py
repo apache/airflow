@@ -22,15 +22,15 @@
 import json
 import multiprocessing
 import unittest
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
 from airflow.dag.serialization import Serialization, SerializedBaseOperator, SerializedDAG
 from airflow.dag.serialization.enum import Encoding
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator, Connection, DAG, DagBag
+from airflow.models import DAG, BaseOperator, Connection, DagBag
 from airflow.operators.bash_operator import BashOperator
 
 # airflow/example_dags/
@@ -158,7 +158,7 @@ def make_example_dags(module, dag_ids):
 def make_simple_dag():
     """Make very simple DAG to verify serialization result."""
     dag = DAG(dag_id='simple_dag')
-    _ = BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+    BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
     return {'simple_dag': dag}
 
 
@@ -186,7 +186,7 @@ def make_user_defined_macro_filter_dag():
         },
         catchup=False
     )
-    _ = BashOperator(
+    BashOperator(
         task_id='echo',
         bash_command='echo "{{ next_execution_date(dag, execution_date) }}"',
         dag=dag,

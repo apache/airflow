@@ -20,17 +20,16 @@
 import json
 import pickle
 
-from sqlalchemy import Column, Integer, String, Index, LargeBinary, and_
+from sqlalchemy import Column, Index, LargeBinary, String, and_
 from sqlalchemy.orm import reconstructor
 
-from airflow import configuration
-from airflow.models.base import Base, ID_LEN
+from airflow.configuration import conf
+from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import as_tuple
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
-
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
@@ -44,16 +43,14 @@ class XCom(Base, LoggingMixin):
     """
     __tablename__ = "xcom"
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(512))
+    key = Column(String(512), primary_key=True, nullable=False)
     value = Column(LargeBinary)
-    timestamp = Column(
-        UtcDateTime, default=timezone.utcnow, nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    execution_date = Column(UtcDateTime, primary_key=True, nullable=False)
 
     # source information
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
 
     __table_args__ = (
         Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
@@ -65,7 +62,7 @@ class XCom(Base, LoggingMixin):
     """
     @reconstructor
     def init_on_load(self):
-        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
+        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
             self.value = pickle.loads(self.value)
         else:
@@ -100,8 +97,6 @@ class XCom(Base, LoggingMixin):
 
         :return: None
         """
-        session.expunge_all()
-
         value = XCom.serialize_value(value)
 
         # remove any duplicate XComs
@@ -110,8 +105,6 @@ class XCom(Base, LoggingMixin):
             cls.execution_date == execution_date,
             cls.task_id == task_id,
             cls.dag_id == dag_id).delete()
-
-        session.commit()
 
         # insert new XCom
         session.add(XCom(
@@ -157,7 +150,7 @@ class XCom(Base, LoggingMixin):
 
         result = query.first()
         if result:
-            enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
+            enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
             if enable_pickling:
                 return pickle.loads(result.value)
             else:
@@ -222,7 +215,7 @@ class XCom(Base, LoggingMixin):
     def serialize_value(value):
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
-        if configuration.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
 
         try:

@@ -25,8 +25,8 @@ Create Date: 2015-08-18 16:35:00.883495
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
@@ -224,7 +224,6 @@ def upgrade():
     if 'xcom' not in tables:
         op.create_table(
             'xcom',
-            sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('key', sa.String(length=512), nullable=True),
             sa.Column('value', sa.PickleType(), nullable=True),
             sa.Column(
@@ -235,7 +234,7 @@ def upgrade():
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date', 'key')
         )
 
 

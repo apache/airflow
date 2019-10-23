@@ -22,7 +22,7 @@
 import datetime
 import json
 import logging
-from typing import Dict, Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import dateutil.parser
 import jsonschema
@@ -31,11 +31,10 @@ import pendulum
 import airflow
 from airflow.dag.serialization.enum import DagAttributeTypes as DAT, Encoding
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, DAG
+from airflow.models import DAG, BaseOperator
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
-
 
 if TYPE_CHECKING:
     from airflow.dag.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import

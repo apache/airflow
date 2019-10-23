@@ -18,9 +18,8 @@
 # under the License.
 #
 
-import unittest
-
 import datetime
+import unittest
 
 from airflow import DAG
 from airflow.contrib.sensors.bash_sensor import BashSensor

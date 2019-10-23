@@ -22,14 +22,15 @@ import io
 import json
 import logging.config
 import os
+import re
 import shutil
 import sys
 import tempfile
 import unittest
-from unittest import mock
 import urllib
-from urllib.parse import quote_plus
 from datetime import timedelta
+from unittest import mock
+from urllib.parse import quote_plus
 
 import jinja2
 from flask import Markup, url_for
@@ -37,14 +38,16 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.configuration import conf
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs import BaseJob
-from airflow.models import BaseOperator, Connection, DAG, DagRun, TaskInstance
+from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
+from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -446,15 +449,6 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
-    def test_edit_dagrun_page(self):
-        resp = self.client.get('dagmodel/edit/example_bash_operator', follow_redirects=False)
-        self.assertEqual(resp.status_code, 200)
-
-    def test_edit_dagrun_url(self):
-        with self.app.test_request_context():
-            url = url_for('DagModelView.edit', pk='example_bash_operator')
-            self.assertEqual(url, '/dagmodel/edit/example_bash_operator')
-
     def test_rendered(self):
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
@@ -588,6 +582,66 @@ class TestAirflowBaseViews(TestBase):
         )
         resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
+
+    @mock.patch('airflow.executors.get_default_executor')
+    def test_run_with_runnable_states(self, get_default_executor_function):
+        executor = CeleryExecutor()
+        executor.heartbeat = lambda: True
+        get_default_executor_function.return_value = executor
+
+        task_id = 'runme_0'
+
+        for state in RUNNABLE_STATES:
+            self.session.query(models.TaskInstance) \
+                .filter(models.TaskInstance.task_id == task_id) \
+                .update({'state': state, 'end_date': timezone.utcnow()})
+            self.session.commit()
+
+            form = dict(
+                task_id=task_id,
+                dag_id="example_bash_operator",
+                ignore_all_deps="false",
+                ignore_ti_state="false",
+                execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+                origin='/home'
+            )
+            resp = self.client.post('run', data=form, follow_redirects=True)
+
+            self.check_content_in_response('', resp, resp_code=200)
+
+            msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
+                  .format(state) + "The task must be cleared in order to be run"
+            self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
+
+    @mock.patch('airflow.executors.get_default_executor')
+    def test_run_with_not_runnable_states(self, get_default_executor_function):
+        get_default_executor_function.return_value = CeleryExecutor()
+
+        task_id = 'runme_0'
+
+        for state in QUEUEABLE_STATES:
+            self.assertFalse(state in RUNNABLE_STATES)
+
+            self.session.query(models.TaskInstance) \
+                .filter(models.TaskInstance.task_id == task_id) \
+                .update({'state': state, 'end_date': timezone.utcnow()})
+            self.session.commit()
+
+            form = dict(
+                task_id=task_id,
+                dag_id="example_bash_operator",
+                ignore_all_deps="false",
+                ignore_ti_state="false",
+                execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+                origin='/home'
+            )
+            resp = self.client.post('run', data=form, follow_redirects=True)
+
+            self.check_content_in_response('', resp, resp_code=200)
+
+            msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
+                  .format(state) + "The task must be cleared in order to be run"
+            self.assertTrue(re.search(msg, resp.get_data(as_text=True)))
 
     def test_refresh(self):
         resp = self.client.post('refresh?dag_id=example_bash_operator')
@@ -1702,7 +1756,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
     def test_trigger_dag_button(self):
 
@@ -1721,6 +1775,8 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
+        from airflow.utils.tests import (
+            Dummy2TestOperator, Dummy3TestOperator)
         super().setUp()
         self.ENDPOINT = "extra_links"
         self.DEFAULT_DATE = datetime(2017, 1, 1)
@@ -1761,6 +1817,8 @@ class TestExtraLinks(TestBase):
 
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
+        self.task_2 = Dummy2TestOperator(task_id="some_dummy_task_2", dag=self.dag)
+        self.task_3 = Dummy3TestOperator(task_id="some_dummy_task_3", dag=self.dag)
 
     def tearDown(self):
         super().tearDown()
@@ -1854,6 +1912,86 @@ class TestExtraLinks(TestBase):
             'url': None,
             'error': 'No URL found for no_response'})
 
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_operator_extra_link_override_plugin(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
+        is overriden by Airflow Plugin (AirflowLink2).
+
+        AirflowLink returns 'https://airflow.apache.org/' link
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        """
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_operator_extra_link_multiple_operators(self, get_dag_function):
+        """
+        This tests checks if Operator Link (AirflowLink2) defined in
+        Airflow Plugin (AirflowLink2) is attached to all the list of
+        operators defined in the AirflowLink2().operators property
+
+        AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
+        GoogleLink returns 'https://www.google.com'
+        """
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org/1.10.5/',
+            'error': None
+        })
+
+        # Also check that the other Operator Link defined for this operator exists
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=google".format(
+                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://www.google.com',
+            'error': None
+        })
+
 
 class TestDagRunModelView(TestBase):
     @classmethod
@@ -1880,6 +2018,101 @@ class TestDagRunModelView(TestBase):
         dr = self.session.query(models.DagRun).one()
 
         self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
+
+
+class TestDecorators(TestBase):
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+    def setUp(self):
+        super().setUp()
+        self.logout()
+        self.login()
+        self.cleanup_dagruns()
+        self.prepare_dagruns()
+
+    def cleanup_dagruns(self):
+        DR = models.DagRun
+        dag_ids = ['example_bash_operator',
+                   'example_subdag_operator',
+                   'example_xcom']
+        (self.session
+             .query(DR)
+             .filter(DR.dag_id.in_(dag_ids))
+             .filter(DR.run_id == self.run_id)
+             .delete(synchronize_session='fetch'))
+        self.session.commit()
+
+    def prepare_dagruns(self):
+        dagbag = models.DagBag(include_examples=True)
+        self.bash_dag = dagbag.dags['example_bash_operator']
+        self.sub_dag = dagbag.dags['example_subdag_operator']
+        self.xcom_dag = dagbag.dags['example_xcom']
+
+        self.bash_dagrun = self.bash_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        self.sub_dagrun = self.sub_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        self.xcom_dagrun = self.xcom_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+    def check_last_log(self, dag_id, event, execution_date=None):
+        from airflow.models import Log
+        qry = self.session.query(Log.dag_id, Log.task_id, Log.event, Log.execution_date,
+                                 Log.owner, Log.extra)
+        qry = qry.filter(Log.dag_id == dag_id, Log.event == event)
+        if execution_date:
+            qry = qry.filter(Log.execution_date == execution_date)
+        logs = qry.order_by(Log.dttm.desc()).limit(5).all()
+        self.assertGreaterEqual(len(logs), 1)
+        self.assertTrue(logs[0].extra)
+
+    def test_action_logging_get(self):
+        url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
+            self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('runme_1', resp)
+
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="graph",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+    def test_action_logging_post(self):
+        form = dict(
+            task_id="runme_1",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            only_failed="false",
+        )
+        resp = self.client.post("clear", data=form)
+        self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="clear",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
 
 
 if __name__ == '__main__':

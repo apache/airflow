@@ -18,29 +18,29 @@
 # under the License.
 
 import errno
-
-import psutil
-
+import os
+import re
+import signal
+import subprocess
 from datetime import datetime
 from functools import reduce
+
+import psutil
+from jinja2 import Template
+
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Iterable
 except ImportError:
     # Preserve Python < 3.3 compatibility
     from collections import Iterable
-import os
-import re
-import signal
-
-from jinja2 import Template
-
-from airflow import configuration
-from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
@@ -90,18 +90,6 @@ def ask_yesno(question):
             return False
         else:
             print("Please respond by yes or no.")
-
-
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
 
 
 def is_container(obj):
@@ -317,13 +305,17 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
+        # If operation not permitted error is thrown due to run_as_user,
+        # use sudo -n(--non-interactive) to kill the process
+        if err.errno == errno.EPERM:
+            subprocess.check_call(["sudo", "-n", "kill", "-" + str(sig), str(os.getpgid(pid))])
         raise
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
 
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)

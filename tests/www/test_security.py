@@ -17,21 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import unittest
 from unittest import mock
-import logging
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
+from flask_appbuilder import SQLA, AppBuilder, Model, expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.views import ModelView, BaseView
-
-from sqlalchemy import Column, Integer, String, Date, Float
+from flask_appbuilder.views import BaseView, ModelView
+from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.www.security import AirflowSecurityManager
-
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
 logging.getLogger().setLevel(logging.DEBUG)

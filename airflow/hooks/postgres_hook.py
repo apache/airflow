@@ -18,9 +18,10 @@
 # under the License.
 
 import os
+from contextlib import closing
+
 import psycopg2
 import psycopg2.extensions
-from contextlib import closing
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -53,7 +54,8 @@ class PostgresHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):
-        conn = self.get_connection(self.postgres_conn_id)
+        conn_id = getattr(self, self.conn_name_attr)
+        conn = self.get_connection(conn_id)
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):

@@ -19,6 +19,7 @@
 #
 
 import unittest
+
 from airflow import DAG, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay
@@ -34,7 +35,7 @@ TEST_DAG_ID = 'weekday_sensor_dag'
 DEV_NULL = '/dev/null'
 
 
-class DayOfWeekSensorTests(unittest.TestCase):
+class TestDayOfWeekSensor(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag(

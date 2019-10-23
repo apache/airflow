@@ -19,10 +19,11 @@
 #
 
 import unittest
+
 import boto3
 
-from airflow.contrib.hooks.redshift_hook import RedshiftHook
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.contrib.hooks.redshift_hook import RedshiftHook
 
 try:
     from moto import mock_redshift

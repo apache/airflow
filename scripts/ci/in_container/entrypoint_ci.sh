@@ -1,38 +1,39 @@
 #!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
-#  distributed with this work for additional information
-#  regarding copyright ownership.  The ASF licenses this file
-#  to you under the Apache License, Version 2.0 (the
-#  "License"); you may not use this file except in compliance
-#  with the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing,
-#  software distributed under the License is distributed on an
-#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#  KIND, either express or implied.  See the License for the
-#  specific language governing permissions and limitations
-#  under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
+#
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
+
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
 if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=./_in_container_utils.sh
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/_in_container_utils.sh"
 
 in_container_basic_sanity_check
 
 in_container_script_start
 
-AIRFLOW_ROOT="${MY_DIR}/../../.."
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 ENV=${ENV:=docker}
@@ -54,6 +55,29 @@ echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
 echo
+
+CLEAN_FILES=${CLEAN_FILES:=false}
+
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" && "${CLEAN_FILES}" == "false" ]]; then
+    echo
+    echo "Installing NPM modules as they are not yet installed (sources are mounted from the host)"
+    echo
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    npm ci
+    echo
+    popd
+fi
+if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" && ${CLEAN_FILES} == "false" ]]; then
+    pushd "${AIRFLOW_SOURCES}/airflow/www/"
+    echo
+    echo "Building production version of javascript files (sources are mounted from the host)"
+    echo
+    echo
+    npm run prod
+    echo
+    echo
+    popd
+fi
 
 ARGS=( "$@" )
 
@@ -80,9 +104,12 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
     popd &>/dev/null || exit 1
 fi
 
+export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
-    echo "Using ${HADOOP_DISTRO:=} distribution of Hadoop from ${HADOOP_HOME:=}"
+    echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
 fi
 
@@ -95,18 +122,15 @@ export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
-export HADOOP_DISTRO
+
+# Make sure all AWS API calls default to the us-east-1 region
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
 if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo mkdir -p /home/travis/build/apache
-  sudo ln -s "${AIRFLOW_ROOT}" /home/travis/build/apache/airflow
-fi
-
-# Fix file permissions
-if [[ -d "${HOME}/.minikube" ]]; then
-    sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.kube" "${HOME}/.minikube"
+  sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
 # Cleanup the logs, tmp when entering the environment
@@ -118,11 +142,11 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
     java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
-        >"${AIRFLOW_HOME}"/logs/minicluster.log 2>&1 &
+        >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
     echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa \
-        >"${AIRFLOW_HOME}"/logs/ssh-keygen.log 2>&1
+        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
     ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
@@ -167,7 +191,7 @@ if [[ "${ENV}" == "docker" ]]; then
 
     if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
         echo
-        echo "ERROR! There was a problem communicating with kerberos"
+        echo "ERROR:  There was a problem communicating with kerberos"
         echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
         echo
         echo "Action! Please restart the environment!"
@@ -227,19 +251,14 @@ if [[ -z "${KUBERNETES_VERSION}" ]]; then
     echo
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
-    export KUBERNETES_VERSION
-    export MINIKUBE_IP
-    # This script runs inside a container, the path of the kubernetes certificate
-    # is /home/travis/.minikube/client.crt but the user in the container is `root`
-    # TODO: Check this. This should be made travis-independent :D
-    if [[ ! -d /home/travis ]]; then
-        sudo mkdir -p /home/travis
-    fi
-    sudo ln -s /root/.minikube /home/travis/.minikube
+    echo "Set up Kubernetes cluster for tests"
+    "${MY_DIR}/../kubernetes/setup_kubernetes.sh"
+    "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
+
     echo
     echo "Running CI tests with ${ARGS[*]}"
     echo
-    "${MY_DIR}/run_ci_tests.sh" tests.minikube "${ARGS[@]}"
+    "${MY_DIR}/run_ci_tests.sh" tests.integration.kubernetes "${ARGS[@]}"
 fi
 
 in_container_script_end

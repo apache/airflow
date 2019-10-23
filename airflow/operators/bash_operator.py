@@ -20,9 +20,9 @@
 
 import os
 import signal
-from subprocess import Popen, STDOUT, PIPE
-from tempfile import gettempdir, NamedTemporaryFile
-from typing import Dict
+from subprocess import PIPE, STDOUT, Popen
+from tempfile import NamedTemporaryFile, gettempdir
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -72,7 +72,7 @@ class BashOperator(BaseOperator):
     def __init__(
             self,
             bash_command: str,
-            env: Dict[str, str] = None,
+            env: Optional[Dict[str, str]] = None,
             output_encoding: str = 'utf-8',
             *args, **kwargs) -> None:
 

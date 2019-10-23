@@ -18,10 +18,10 @@
 # under the License.
 
 import errno
+import logging
 import os
 import subprocess
 import unittest
-import logging
 
 from airflow import jobs, models
 from airflow.utils.db import add_default_pool_if_not_exists
@@ -38,7 +38,7 @@ TEST_USER = 'airflow_test_user'
 logger = logging.getLogger(__name__)
 
 
-class ImpersonationTest(unittest.TestCase):
+class TestImpersonation(unittest.TestCase):
 
     @staticmethod
     def grant_permissions():

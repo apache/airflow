@@ -19,8 +19,8 @@
 #
 import subprocess
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class SparkSqlHook(BaseHook):
@@ -146,7 +146,7 @@ class SparkSqlHook(BaseHook):
                                     stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        for line in iter(self._sp.stdout.readline, ''):
+        for line in iter(self._sp.stdout):
             self.log.info(line)
 
         returncode = self._sp.wait()

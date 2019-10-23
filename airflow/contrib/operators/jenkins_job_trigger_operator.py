@@ -17,18 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import time
-import socket
 import json
+import socket
+import time
 from urllib.error import HTTPError, URLError
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
+
+from airflow.contrib.hooks.jenkins_hook import JenkinsHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 def jenkins_request_with_headers(jenkins_server, req):

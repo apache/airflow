@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Delete DAGs APIs."""
-import os
 
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.models import TaskFail, DagModel
+from airflow.exceptions import DagNotFound
+from airflow.models import DagModel, TaskFail
 from airflow.utils.db import provide_session
-from airflow.exceptions import DagFileExists, DagNotFound
 
 
 @provide_session
@@ -41,10 +40,6 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    if dag.fileloc and os.path.exists(dag.fileloc):
-        raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
-
     count = 0
 
     # noinspection PyUnresolvedReferences,PyProtectedMember
@@ -59,5 +54,11 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
         for model in models.DagRun, TaskFail, models.TaskInstance:
             count += session.query(model).filter(model.dag_id == parent_dag_id,
                                                  model.task_id == task_id).delete()
+
+    # Delete entries in Import Errors table for a deleted DAG
+    # This handles the case when the dag_id is changed in the file
+    session.query(models.ImportError).filter(
+        models.ImportError.filename == dag.fileloc
+    ).delete(synchronize_session='fetch')
 
     return count

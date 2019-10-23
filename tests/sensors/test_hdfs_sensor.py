@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta
 
 from airflow.exceptions import AirflowSensorTimeout
@@ -29,7 +28,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HdfsSensorTests(unittest.TestCase):
+class TestHdfsSensor(unittest.TestCase):
 
     def setUp(self):
         self.hook = FakeHDFSHook

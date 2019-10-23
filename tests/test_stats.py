@@ -18,9 +18,9 @@
 # under the License.
 
 import unittest
-
-from airflow.stats import SafeStatsdLogger
 from unittest.mock import Mock
+
+from airflow.stats import AllowListValidator, SafeStatsdLogger
 
 
 class TestStats(unittest.TestCase):
@@ -43,4 +43,23 @@ class TestStats(unittest.TestCase):
 
     def test_stat_name_must_only_include_whitelisted_characters(self):
         self.stats.incr('test/$tats')
+        self.statsd_client.assert_not_called()
+
+
+class TestStatsWithAllowList(unittest.TestCase):
+
+    def setUp(self):
+        self.statsd_client = Mock()
+        self.stats = SafeStatsdLogger(self.statsd_client, AllowListValidator("stats_one, stats_two"))
+
+    def test_increment_counter_with_allowed_key(self):
+        self.stats.incr('stats_one')
+        self.statsd_client.incr.assert_called_once_with('stats_one', 1, 1)
+
+    def test_increment_counter_with_allowed_prefix(self):
+        self.stats.incr('stats_two.bla')
+        self.statsd_client.incr.assert_called_once_with('stats_two.bla', 1, 1)
+
+    def test_not_increment_counter_if_not_allowed(self):
+        self.stats.incr('stats_three')
         self.statsd_client.assert_not_called()

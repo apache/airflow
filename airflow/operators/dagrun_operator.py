@@ -18,14 +18,13 @@
 # under the License.
 
 import datetime
-from typing import Callable, Union, Optional, Dict
+import json
+from typing import Callable, Dict, Optional, Union
 
+from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-
-import json
 
 
 class DagRunOrder:
@@ -60,7 +59,7 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id: str,
-            python_callable: Callable[[Dict, DagRunOrder], DagRunOrder] = None,
+            python_callable: Optional[Callable[[Dict, DagRunOrder], DagRunOrder]] = None,
             execution_date: Optional[Union[str, datetime.datetime]] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

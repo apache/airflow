@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Plugins
 =======
@@ -115,6 +117,11 @@ looks like:
         global_operator_extra_links = []
 
 
+        # A list of operator extra links to override or add operator links
+        # to existing Airflow Operators.
+        # These extra links will be available on the task page in form of
+        # buttons.
+        operator_extra_links = []
 
 You can derive it by inheritance (please refer to the example below).
 Please note ``name`` inside this class must be specified.
@@ -158,6 +165,7 @@ definitions in Airflow.
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.executors.base_executor import BaseExecutor
 
@@ -214,8 +222,19 @@ definitions in Airflow.
 
     # A global operator extra link that redirect you to
     # task logs stored in S3
+    class GoogleLink(BaseOperatorLink):
+        name = "Google"
+
+        def get_link(self, operator, dttm):
+            return "https://www.google.com"
+
+    # A list of operator extra links to override or add operator links
+    # to existing Airflow Operators.
+    # These extra links will be available on the task page in form of
+    # buttons.
     class S3LogLink(BaseOperatorLink):
         name = 'S3'
+        operators = [GoogleCloudStorageToS3Operator]
 
         def get_link(self, operator, dttm):
             return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
@@ -237,15 +256,16 @@ definitions in Airflow.
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
         stat_name_handler = staticmethod(stat_name_dummy_handler)
-        global_operator_extra_links = [S3LogLink(),]
+        global_operator_extra_links = [GoogleLink(),]
+        operator_extra_links = [S3LogLink(), ]
 
 
 Note on role based views
 ------------------------
 
 Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
-rbac = True. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
-the fields appbuilder_views and appbuilder_menu_items were added to the AirflowTestPlugin class.
+``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
+the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
 
 
 Plugins as Python packages
@@ -256,11 +276,11 @@ your plugin using an entrypoint in your package. If the package is installed, ai
 will automatically load the registered plugins from the entrypoint list.
 
 .. note::
-    Neither the entrypoint name (eg, `my_plugin`) nor the name of the
+    Neither the entrypoint name (eg, ``my_plugin``) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
     itself. The structure is determined by
-    `airflow.plugins_manager.AirflowPlugin.name` and the class name of the plugin
-    component with the pattern `airflow.{component}.{name}.{component_class_name}`.
+    ``airflow.plugins_manager.AirflowPlugin.name`` and the class name of the plugin
+    component with the pattern ``airflow.{component}.{name}.{component_class_name}``.
 
 .. code-block:: python
 
@@ -297,5 +317,5 @@ will automatically load the registered plugins from the entrypoint list.
 
 
 This will create a hook, and an operator accessible at:
- - `airflow.hooks.my_namespace.MyHook`
- - `airflow.operators.my_namespace.MyOperator`
+ - ``airflow.hooks.my_namespace.MyHook``
+ - ``airflow.operators.my_namespace.MyOperator``

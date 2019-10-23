@@ -30,44 +30,41 @@ from collections import defaultdict
 from datetime import timedelta
 from urllib.parse import quote
 
+import lazy_object_proxy
 import markdown
 import pendulum
 import sqlalchemy as sqla
-from flask import (
-    redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, url_for)
+from flask import Markup, Response, flash, jsonify, make_response, redirect, render_template, request, url_for
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-import lazy_object_proxy
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import or_, desc, and_, union_all
+from sqlalchemy import and_, desc, or_, union_all
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import configuration as conf
-from airflow import models, jobs
-from airflow import settings
-from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
-                                                        set_dag_run_state_to_failed)
-from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
+from airflow import jobs, models, settings
+from airflow._vendor import nvd3
+from airflow.api.common.experimental.mark_tasks import (
+    set_dag_run_state_to_failed, set_dag_run_state_to_success,
+)
+from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
-from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
-from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
-                               DateTimeWithNumRunsWithDagRunsForm,
-                               DagRunForm, ConnectionForm)
+from airflow.www.forms import (
+    ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
+)
 from airflow.www.widgets import AirflowModelListWidget
-
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
@@ -167,8 +164,7 @@ class AirflowBaseView(BaseView):
 
 class Airflow(AirflowBaseView):
     @expose('/health')
-    @provide_session
-    def health(self, session=None):
+    def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
@@ -727,7 +723,7 @@ class Airflow(AirflowBaseView):
                 "(e.g. cleared in the UI)<br/>" if ti.state == State.NONE else ""))]
 
         # Use the scheduler's context to figure out which dependencies are not met
-        dep_context = DepContext(SCHEDULER_DEPS)
+        dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
         failed_dep_reasons = [(dep.dep_name, dep.reason) for dep in
                               ti.get_failed_dep_statuses(
                                   dep_context=dep_context)]
@@ -831,9 +827,9 @@ class Airflow(AirflowBaseView):
         ti = models.TaskInstance(task=task, execution_date=execution_date)
         ti.refresh_from_db()
 
-        # Make sure the task instance can be queued
+        # Make sure the task instance can be run
         dep_context = DepContext(
-            deps=QUEUE_DEPS,
+            deps=RUNNING_DEPS,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state)
@@ -1267,14 +1263,14 @@ class Airflow(AirflowBaseView):
         # expand/collapse functionality. After 5,000 nodes we stop and fall
         # back on a quick DFS search for performance. See PR #320.
         node_count = [0]
-        node_limit = 5000 / max(1, len(dag.roots))
+        node_limit = 5000 / max(1, len(dag.leaves))
 
         def recurse_nodes(task, visited):
             visited.add(task)
             node_count[0] += 1
 
             children = [
-                recurse_nodes(t, visited) for t in task.upstream_list
+                recurse_nodes(t, visited) for t in task.downstream_list
                 if node_count[0] < node_limit or t not in visited]
 
             # D3 tree uses children vs _children to define what is
@@ -1302,7 +1298,7 @@ class Airflow(AirflowBaseView):
                     }
                     for d in dates],
                 children_key: children,
-                'num_dep': len(task.upstream_list),
+                'num_dep': len(task.downstream_list),
                 'operator': task.task_type,
                 'retries': task.retries,
                 'owner': task.owner,
@@ -1371,18 +1367,18 @@ class Airflow(AirflowBaseView):
                 }
             })
 
-        def get_upstream(task):
-            for t in task.upstream_list:
+        def get_downstream(task):
+            for t in task.downstream_list:
                 edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
+                    'source_id': task.task_id,
+                    'target_id': t.task_id,
                 }
                 if edge not in edges:
                     edges.append(edge)
-                    get_upstream(t)
+                    get_downstream(t)
 
         for t in dag.roots:
-            get_upstream(t)
+            get_downstream(t)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
@@ -1954,10 +1950,10 @@ class ConfigurationView(AirflowBaseView):
     def conf(self):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = conf.AIRFLOW_CONFIG
+        subtitle = AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as file:
+            with open(AIRFLOW_CONFIG, 'r') as file:
                 config = file.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
@@ -2198,7 +2194,7 @@ class VariableModelView(AirflowModelView):
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val', 'is_encrypted']
+    add_columns = ['key', 'val']
     edit_columns = ['key', 'val']
     search_columns = ['key', 'val']
 
@@ -2246,6 +2242,7 @@ class VariableModelView(AirflowModelView):
 
         response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response
 
     @expose('/varimport', methods=["POST"])
@@ -2558,7 +2555,7 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)
 
-    base_permissions = ['can_list', 'can_show', 'can_edit']
+    base_permissions = ['can_list', 'can_show']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']

@@ -20,6 +20,9 @@
 import re
 import unittest
 
+from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperatorLink
+
 
 def skipUnlessImported(module, obj):
     import importlib
@@ -37,3 +40,64 @@ def assertEqualIgnoreMultipleSpaces(case, first, second, msg=None):
     def _trim(s):
         return re.sub(r"\s+", " ", s.strip())
     return case.assertEqual(_trim(first), _trim(second), msg)
+
+
+# Custom Operator and extra Operator Links used for Tests in tests_views.py
+class AirflowLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website
+    """
+    name = 'airflow'
+
+    def get_link(self, operator, dttm):
+        return 'should_be_overridden'
+
+
+class Dummy2TestOperator(BaseOperator):
+    """
+    Example of an Operator that has an extra operator link
+    and will be overriden by the one defined in tests/plugins/test_plugin.py
+    """
+    operator_extra_links = (
+        AirflowLink(),
+    )
+
+
+class Dummy3TestOperator(BaseOperator):
+    """
+    Example of an operator that has no extra Operator link.
+    An operator link would be added to this operator via Airflow plugin
+    """
+    operator_extra_links = ()
+
+
+class GoogleLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website for Google
+    """
+    name = 'google'
+    operators = [Dummy3TestOperator]
+
+    def get_link(self, operator, dttm):
+        return 'https://www.google.com'
+
+
+class AirflowLink2(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Website for 1.10.5
+    """
+    name = 'airflow'
+    operators = [Dummy2TestOperator, Dummy3TestOperator]
+
+    def get_link(self, operator, dttm):
+        return 'https://airflow.apache.org/1.10.5/'
+
+
+class GithubLink(BaseOperatorLink):
+    """
+    Operator Link for Apache Airflow Github
+    """
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'

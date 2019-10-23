@@ -43,7 +43,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SSHOperatorTest(unittest.TestCase):
+class TestSSHOperator(unittest.TestCase):
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')
@@ -51,7 +51,6 @@ class SSHOperatorTest(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'

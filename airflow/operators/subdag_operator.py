@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy.orm.session import Session
 from typing import Optional
+
+from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -27,9 +28,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.state import State
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.db import create_session, provide_session
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.state import State
 
 
 class SubDagOperator(BaseSensorOperator):

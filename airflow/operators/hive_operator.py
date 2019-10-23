@@ -18,10 +18,10 @@
 # under the License.
 
 import re
-from typing import Dict
+from typing import Dict, Optional
 
+from airflow.configuration import conf
 from airflow.hooks.hive_hooks import HiveCliHook
-from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -73,13 +73,13 @@ class HiveOperator(BaseOperator):
             hql: str,
             hive_cli_conn_id: str = 'hive_cli_default',
             schema: str = 'default',
-            hiveconfs: Dict = None,
+            hiveconfs: Optional[Dict] = None,
             hiveconf_jinja_translate: bool = False,
-            script_begin_tag: str = None,
+            script_begin_tag: Optional[str] = None,
             run_as_owner: bool = False,
-            mapred_queue: str = None,
-            mapred_queue_priority: str = None,
-            mapred_job_name: str = None,
+            mapred_queue: Optional[str] = None,
+            mapred_queue_priority: Optional[str] = None,
+            mapred_job_name: Optional[str] = None,
             *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -95,8 +95,8 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
-        self.mapred_job_name_template = configuration.get('hive',
-                                                          'mapred_job_name_template')
+        self.mapred_job_name_template = conf.get('hive',
+                                                 'mapred_job_name_template')
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.

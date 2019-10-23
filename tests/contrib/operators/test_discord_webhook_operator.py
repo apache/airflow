@@ -20,7 +20,6 @@
 import unittest
 
 from airflow import DAG
-
 from airflow.contrib.operators.discord_webhook_operator import DiscordWebhookOperator
 from airflow.utils import timezone
 
