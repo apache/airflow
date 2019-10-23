@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.spanner import CloudSpannerHook  # noqa
+from airflow.gcp.hooks.spanner import SpannerHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.spanner`.",
