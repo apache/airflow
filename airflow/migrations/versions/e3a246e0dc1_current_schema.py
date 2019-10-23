@@ -234,7 +234,7 @@ def upgrade():
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date', 'key')
+            sa.UniqueKeyConstraint('dag_id', 'task_id', 'execution_date', 'key')
         )
 
 
