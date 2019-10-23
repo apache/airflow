@@ -27,3 +27,17 @@ warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.kms`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudKMSHook(CloudKmsHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.kms.CloudKmsHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.kms.CloudKmsHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+
+        super().__init__(*args, **kwargs)
