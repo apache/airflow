@@ -62,6 +62,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.version import version
 from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'
@@ -1794,6 +1795,12 @@ class TestCli(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
         os.remove('variables3.json')
+
+    def test_cli_version(self):
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.version(self.parser.parse_args(['version']))
+            stdout = mock_stdout.getvalue()
+        self.assertIn(version, stdout)
 
     def _wait_pidfile(self, pidfile):
         while True:
