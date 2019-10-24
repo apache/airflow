@@ -21,8 +21,9 @@ import os
 import unittest
 
 import requests_mock
-from airflow.operators.http_operator import SimpleHttpOperator
+
 from airflow.exceptions import AirflowException
+from airflow.operators.http_operator import SimpleHttpOperator
 from tests.compat import mock
 
 

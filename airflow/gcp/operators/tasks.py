@@ -22,10 +22,17 @@ This module contains various GCP Cloud Tasks operators
 which allow you to perform basic operations using
 Cloud Tasks queues/tasks.
 """
+from typing import Dict, Optional, Sequence, Tuple, Union
+
+from google.api_core.retry import Retry
+from google.cloud.tasks_v2 import enums
+from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+
+MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudTasksQueueCreateOperator(BaseOperator):
@@ -69,17 +76,17 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        task_queue,
-        project_id=None,
-        queue_name=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        task_queue: Queue,
+        project_id: Optional[str] = None,
+        queue_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.task_queue = task_queue
@@ -150,18 +157,18 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        task_queue,
-        project_id=None,
-        location=None,
-        queue_name=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        task_queue: Queue,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        queue_name: Optional[str] = None,
+        update_mask: Union[Dict, FieldMask] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.task_queue = task_queue
         self.project_id = project_id
@@ -217,16 +224,16 @@ class CloudTasksQueueGetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -282,17 +289,17 @@ class CloudTasksQueuesListOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        project_id=None,
-        results_filter=None,
-        page_size=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        project_id: Optional[str] = None,
+        results_filter: Optional[str] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
@@ -345,16 +352,16 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -406,16 +413,16 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -467,16 +474,16 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -528,16 +535,16 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -578,7 +585,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :type task_name: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
-    :type response_view: google.cloud.tasks_v2.types.Task.View
+    :type response_view: google.cloud.tasks_v2.enums.Task.View
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -603,21 +610,21 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
-        location,
-        queue_name,
-        task,
-        project_id=None,
-        task_name=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        task: Union[Dict, Task],
+        project_id: Optional[str] = None,
+        task_name: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):  # pylint: disable=too-many-arguments
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -660,7 +667,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
-    :type response_view: google.cloud.tasks_v2.types.Task.View
+    :type response_view: google.cloud.tasks_v2.enums.Task.View
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -686,18 +693,18 @@ class CloudTasksTaskGetOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -736,7 +743,7 @@ class CloudTasksTasksListOperator(BaseOperator):
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
-    :type response_view: google.cloud.tasks_v2.types.Task.View
+    :type response_view: google.cloud.tasks_v2.enums.Task.View
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
     :type page_size: int
@@ -759,18 +766,18 @@ class CloudTasksTasksListOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        response_view=None,
-        page_size=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -833,17 +840,17 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name
@@ -882,7 +889,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
-    :type response_view: google.cloud.tasks_v2.types.Task.View
+    :type response_view: google.cloud.tasks_v2.enums.Task.View
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -908,18 +915,18 @@ class CloudTasksTaskRunOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.queue_name = queue_name

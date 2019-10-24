@@ -28,10 +28,11 @@ import sqlalchemy
 from parameterized import parameterized
 
 from airflow import AirflowException, settings
-from airflow import configuration
 from airflow.bin import cli
-from airflow.exceptions import AirflowTaskTimeout
-from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached
+from airflow.configuration import conf
+from airflow.exceptions import (
+    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+)
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -41,8 +42,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.compat import Mock, patch
 from tests.executors.test_executor import TestExecutor
-from tests.test_utils.db import clear_db_pools, \
-    clear_db_runs, set_default_pool_slots
+from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertEqual(State.SUCCESS, dag_run.state)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
@@ -155,7 +155,7 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertTrue(task_instances_list.append.called)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
@@ -209,7 +209,7 @@ class TestBackfillJob(unittest.TestCase):
         session.close()
 
     @unittest.skipIf(
-        "sqlite" in configuration.conf.get("core", "sql_alchemy_conn"),
+        "sqlite" in conf.get("core", "sql_alchemy_conn"),
         "concurrent access not supported in sqlite",
     )
     @parameterized.expand(

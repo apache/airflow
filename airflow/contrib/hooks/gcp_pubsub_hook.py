@@ -21,9 +21,9 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.pubsub import PubSubHook, PubSubException  # noqa
+from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.pubsub`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

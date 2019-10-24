@@ -17,21 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-from typing import Dict, Union
-
-from airflow.utils.file import TemporaryDirectory
-import gzip
 import bz2
-import tempfile
+import gzip
 import os
+import tempfile
+from tempfile import NamedTemporaryFile
+from typing import Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
 from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.compression import uncompress_file
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.file import TemporaryDirectory
 
 
 class S3ToHiveTransfer(BaseOperator):
@@ -113,16 +112,16 @@ class S3ToHiveTransfer(BaseOperator):
             delimiter: str = ',',
             create: bool = True,
             recreate: bool = False,
-            partition: Dict = None,
+            partition: Optional[Dict] = None,
             headers: bool = False,
             check_headers: bool = False,
             wildcard_match: bool = False,
             aws_conn_id: str = 'aws_default',
-            verify: Union[bool, str] = None,
+            verify: Optional[Union[bool, str]] = None,
             hive_cli_conn_id: str = 'hive_cli_default',
             input_compressed: bool = False,
-            tblproperties: Dict = None,
-            select_expression: str = None,
+            tblproperties: Optional[Dict] = None,
+            select_expression: Optional[str] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_key = s3_key

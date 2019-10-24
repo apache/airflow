@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS"""
-from hdfs import InsecureClient, HdfsError
+from hdfs import HdfsError, InsecureClient
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_kerberos_security_mode = configuration.conf.get("core", "security") == "kerberos"
+_kerberos_security_mode = conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient  # pylint: disable=ungrouped-imports

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HDFS operations"""
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
@@ -64,7 +64,7 @@ class HDFSHook(BaseHook):
         # take the first.
         effective_user = self.proxy_user
         autoconfig = self.autoconfig
-        use_sasl = configuration.conf.get('core', 'security') == 'kerberos'
+        use_sasl = conf.get('core', 'security') == 'kerberos'
 
         try:
             connections = self.get_connections(self.hdfs_conn_id)

@@ -18,12 +18,19 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.email import get_email_address_list
 
 EMAILS = ['test1@example.com', 'test2@example.com']
 
 
 class TestEmail(unittest.TestCase):
+
+    def test_get_email_address_single_email(self):
+        emails_string = 'test1@example.com'
+
+        self.assertEqual(
+            get_email_address_list(emails_string), [emails_string])
 
     def test_get_email_address_comma_sep_string(self):
         emails_string = 'test1@example.com, test2@example.com'
@@ -42,3 +49,21 @@ class TestEmail(unittest.TestCase):
 
         self.assertEqual(
             get_email_address_list(emails_list), EMAILS)
+
+    def test_get_email_address_tuple(self):
+        emails_tuple = ('test1@example.com', 'test2@example.com')
+
+        self.assertEqual(
+            get_email_address_list(emails_tuple), EMAILS)
+
+    def test_get_email_address_invalid_type(self):
+        emails_string = 1
+
+        self.assertRaises(
+            TypeError, get_email_address_list, emails_string)
+
+    def test_get_email_address_invalid_type_in_iterable(self):
+        emails_list = ['test1@example.com', 2]
+
+        self.assertRaises(
+            TypeError, get_email_address_list, emails_list)

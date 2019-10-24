@@ -20,16 +20,16 @@
 import unittest
 
 import google
-
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
-from tests.compat import mock
-
 from airflow import AirflowException
 from airflow.gcp.hooks.bigtable import BigtableHook
+from tests.compat import PropertyMock, mock
+from tests.gcp.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 CBT_INSTANCE = 'instance'
 CBT_CLUSTER = 'cluster'
@@ -40,12 +40,31 @@ CBT_TABLE = 'table'
 class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.bigtable.BigtableHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.bigtable.BigtableHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.bigtable.Client")
+    def test_bigtable_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.bigtable_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        mock_client.assert_called_once_with(
+            project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value,
+            admin=True
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.bigtable_hook_no_default_project_id._client, result)
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_get_instance_missing_project_id(self, get_client):
+    def test_get_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -69,8 +88,13 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         get_client.assert_called_once_with(project_id='example-project')
         self.assertIsNotNone(res)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_delete_instance_missing_project_id(self, get_client):
+    def test_delete_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         delete_method = instance_method.return_value.delete
@@ -97,9 +121,14 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         get_client.assert_called_once_with(project_id='example-project')
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('google.cloud.bigtable.instance.Instance.create')
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_create_instance_missing_project_id(self, get_client, instance_create):
+    def test_create_instance_missing_project_id(self, get_client, instance_create, mock_project_id):
         operation = mock.Mock()
         operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
         instance_create.return_value = operation
@@ -128,8 +157,13 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         instance_create.assert_called_once_with(clusters=mock.ANY)
         self.assertEqual(res.instance_id, 'instance')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_delete_table_missing_project_id(self, get_client):
+    def test_delete_table_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         table_delete_method = instance_method.return_value.table.return_value.delete
@@ -162,12 +196,31 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
 class TestBigtableHookDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id='test')
 
+    @mock.patch("airflow.gcp.hooks.bigtable.BigtableHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.bigtable.BigtableHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.bigtable.Client")
+    def test_bigtable_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.bigtable_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        mock_client.assert_called_once_with(
+            project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value,
+            admin=True
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.bigtable_hook_default_project_id._client, result)
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_get_instance(self, get_client):
+    def test_get_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -191,8 +244,13 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         get_client.assert_called_once_with(project_id='new-project')
         self.assertIsNotNone(res)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_get_instance_no_instance(self, get_client):
+    def test_get_instance_no_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = False
@@ -203,8 +261,13 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         get_client.assert_called_once_with(project_id='example-project')
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_delete_instance(self, get_client):
+    def test_delete_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -231,8 +294,13 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         get_client.assert_called_once_with(project_id='new-project')
         self.assertIsNone(res)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_delete_instance_no_instance(self, get_client):
+    def test_delete_instance_no_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = False
@@ -244,9 +312,14 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         delete_method.assert_not_called()
         get_client.assert_called_once_with(project_id='example-project')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('google.cloud.bigtable.instance.Instance.create')
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_create_instance(self, get_client, instance_create):
+    def test_create_instance(self, get_client, instance_create, mock_project_id):
         operation = mock.Mock()
         operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
         instance_create.return_value = operation
@@ -273,8 +346,13 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         instance_create.assert_called_once_with(clusters=mock.ANY)
         self.assertEqual(res.instance_id, 'instance')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
     @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
-    def test_delete_table(self, get_client):
+    def test_delete_table(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         table_delete_method = instance_method.return_value.table.return_value.delete

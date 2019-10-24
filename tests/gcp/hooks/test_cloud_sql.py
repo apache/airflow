@@ -23,21 +23,22 @@ import json
 import unittest
 
 from googleapiclient.errors import HttpError
-
 from parameterized import parameterized
 
-from airflow.gcp.hooks.cloud_sql import CloudSqlHook, CloudSqlDatabaseHook
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
-    mock_base_gcp_hook_no_default_project_id
-from tests.compat import mock
+from tests.compat import PropertyMock, mock
+from tests.gcp.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id, mock_base_gcp_hook_no_default_project_id,
+)
 
 
 class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.cloudsql_hook = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
@@ -420,13 +421,20 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
 
 class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.cloudsql_hook_no_default_project_id = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_import_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_import_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -441,9 +449,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_import_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_import_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -458,9 +473,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_export_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_export_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -475,9 +497,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_export_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_export_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -492,9 +521,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_get_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "instance"}
@@ -508,9 +544,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_get_instance_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "instance"}
@@ -524,9 +567,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -541,9 +591,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_instance_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -557,9 +614,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -575,9 +639,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_instance_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -592,9 +663,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -609,9 +687,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_instance_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_instance_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -625,9 +710,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_get_database_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "database"}
@@ -644,9 +736,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_get_database_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "database"}
@@ -661,9 +760,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_database_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -679,9 +785,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_database_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -696,9 +809,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_database_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -718,9 +838,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_database_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -736,9 +863,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_database_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -756,9 +890,16 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             operation_name='operation_id', project_id='example-project'
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_database_missing_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_database_missing_project_id(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -1002,3 +1143,305 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
             self.assertIsNotNone(db_hook)
         finally:
             hook.delete_connection()
+
+
+class TestCloudSqlDatabaseHook(unittest.TestCase):
+
+    @staticmethod
+    def _setup_connections(get_connections, uri):
+        gcp_connection = mock.MagicMock()
+        gcp_connection.extra_dejson = mock.MagicMock()
+        gcp_connection.extra_dejson.get.return_value = 'empty_project'
+        cloudsql_connection = Connection()
+        cloudsql_connection.parse_from_uri(uri)
+        cloudsql_connection2 = Connection()
+        cloudsql_connection2.parse_from_uri(uri)
+        get_connections.side_effect = [[gcp_connection], [cloudsql_connection],
+                                       [cloudsql_connection2]]
+
+    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook.get_connection')
+    def setUp(self, m):
+        super().setUp()
+
+        self.sql_connection = Connection(
+            conn_id='my_gcp_sql_connection',
+            conn_type='gcpcloudsql',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
+            extra='{"database_type":"postgres", "location":"my_location", '
+                  '"instance":"my_instance", "use_proxy": true, '
+                  '"project_id":"my_project"}'
+        )
+        self.connection = Connection(
+            conn_id='my_gcp_connection',
+            conn_type='google_cloud_platform',
+        )
+        scopes = [
+            "https://www.googleapis.com/auth/pubsub",
+            "https://www.googleapis.com/auth/datastore",
+            "https://www.googleapis.com/auth/bigquery",
+            "https://www.googleapis.com/auth/devstorage.read_write",
+            "https://www.googleapis.com/auth/logging.write",
+            "https://www.googleapis.com/auth/cloud-platform",
+        ]
+        conn_extra = {
+            "extra__google_cloud_platform__scope": ",".join(scopes),
+            "extra__google_cloud_platform__project": "your-gcp-project",
+            "extra__google_cloud_platform__key_path":
+                '/var/local/google_cloud_default.json'
+        }
+        conn_extra_json = json.dumps(conn_extra)
+        self.connection.set_extra(conn_extra_json)
+
+        m.side_effect = [self.sql_connection, self.connection]
+        self.db_hook = CloudSqlDatabaseHook(
+            gcp_cloudsql_conn_id='my_gcp_sql_connection',
+            gcp_conn_id='my_gcp_connection'
+        )
+
+    def test_get_sqlproxy_runner(self):
+        self.db_hook._generate_connection_uri()
+        sqlproxy_runner = self.db_hook.get_sqlproxy_runner()
+        self.assertEqual(sqlproxy_runner.gcp_conn_id, self.connection.conn_id)
+        project = self.sql_connection.extra_dejson['project_id']
+        location = self.sql_connection.extra_dejson['location']
+        instance = self.sql_connection.extra_dejson['instance']
+        instance_spec = "{project}:{location}:{instance}".format(
+            project=project, location=location, instance=instance
+        )
+        self.assertEqual(sqlproxy_runner.instance_specification, instance_spec)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_not_too_long_unix_socket_path(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&" \
+              "instance=" \
+              "test_db_with_longname_but_with_limit_of_UNIX_socket&" \
+              "use_proxy=True&sql_proxy_use_tcp=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_postgres(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_postgres_ssl(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
+              "sslkey=/bin/bash&sslrootcert=/bin/bash"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslkey'])
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslcert'])
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslrootcert'])
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_postgres_proxy_socket(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=True&sql_proxy_use_tcp=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertIn('/tmp', conn.host)
+        self.assertIn('example-project:europe-west1:testdb', conn.host)
+        self.assertIsNone(conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_project_id_missing(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
+              "location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_postgres_proxy_tcp(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=True&sql_proxy_use_tcp=True"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertNotEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_mysql(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_mysql_ssl(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
+              "sslkey=/bin/bash&sslrootcert=/bin/bash"
+        self._setup_connections(get_connections, uri)
+
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['cert'])
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['key'])
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['ca'])
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_mysql_proxy_socket(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=True&sql_proxy_use_tcp=False"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('localhost', conn.host)
+        self.assertIn('/tmp', conn.extra_dejson['unix_socket'])
+        self.assertIn('example-project:europe-west1:testdb',
+                      conn.extra_dejson['unix_socket'])
+        self.assertIsNone(conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_hook_with_correct_parameters_mysql_tcp(self, get_connections):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=True&sql_proxy_use_tcp=True"
+        self._setup_connections(get_connections, uri)
+        gcp_conn_id = 'google_cloud_default'
+        hook = CloudSqlDatabaseHook(
+            default_gcp_project_id=BaseHook.get_connection(gcp_conn_id).extra_dejson.get(
+                'extra__google_cloud_platform__project')
+        )
+        hook.create_connection()
+        try:
+            db_hook = hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
+        finally:
+            hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertNotEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)

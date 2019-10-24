@@ -17,28 +17,35 @@
 # under the License.
 set -euo pipefail
 
-if [[ "${ASSUME_YES_TO_ALL_QUESTIONS:=false}" == "true" ]]; then
-    exit 0
+if [[ "${FORCE_ANSWER_TO_QUESTIONS:=""}" != "" ]]; then
+    RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
+    echo
+    echo "Forcing response '${FORCE_ANSWER_TO_QUESTIONS}' to ${1}."
+    case "${RESPONSE}" in
+        [yY][eE][sS]|[yY])
+            exit 0 ;;
+        [qQ][uU][iI][tT]|[qQ])
+            exit 2 ;;
+        *)
+            exit 1 ;;
+    esac
+else
+    echo
+    echo "Please confirm ${1} images. Are you sure? [y/N/q]"
+    read -r RESPONSE
 fi
 
-if [[ "${ASSUME_NO_TO_ALL_QUESTIONS:=false}" == "true" ]]; then
-    exit 1
-fi
-
-if [[ "${ASSUME_QUIT_TO_ALL_QUESTIONS:=false}" == "true" ]]; then
-    exit 2
-fi
-
-
-read -r -p "${1}. Are you sure? [y/N/q] " response
-case "$response" in
+case "${RESPONSE}" in
     [yY][eE][sS]|[yY])
+        echo "The answer is 'yes'. Attempting to ${1} images. This can take some time !"
         exit 0
         ;;
-    [qQ][uU][iI|[tT]|[qQ])
+    [qQ][uU][iI][tT]|[qQ])
+        echo "The answer is 'quit'. Quitting now!"
         exit 2
         ;;
     *)
+        echo "The answer is 'no'. Skipping attempt to ${1} images."
         exit 1
         ;;
 esac

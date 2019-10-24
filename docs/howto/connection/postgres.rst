@@ -40,20 +40,20 @@ Extra (optional)
     connection. The following parameters out of the standard python parameters
     are supported:
 
-    * **sslmode** - This option determines whether or with what priority a secure SSL
+    * ``sslmode`` - This option determines whether or with what priority a secure SSL
       TCP/IP connection will be negotiated with the server. There are six modes:
-      'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'.
-    * **sslcert** - This parameter specifies the file name of the client SSL certificate,
+      ``disable``, ``allow``, ``prefer``, ``require``, ``verify-ca``, ``verify-full``.
+    * ``sslcert`` - This parameter specifies the file name of the client SSL certificate,
       replacing the default.
-    * **sslkey** - This parameter specifies the file name of the client SSL key,
+    * ``sslkey`` - This parameter specifies the file name of the client SSL key,
       replacing the default.
-    * **sslrootcert** - This parameter specifies the name of a file containing SSL
+    * ``sslrootcert`` - This parameter specifies the name of a file containing SSL
       certificate authority (CA) certificate(s).
-    * **sslcrl** - This parameter specifies the file name of the SSL certificate
+    * ``sslcrl`` - This parameter specifies the file name of the SSL certificate
       revocation list (CRL).
-    * **application_name** - Specifies a value for the application_name
+    * ``application_name`` - Specifies a value for the application_name
       configuration parameter.
-    * **keepalives_idle** - Controls the number of seconds of inactivity after which TCP
+    * ``keepalives_idle`` - Controls the number of seconds of inactivity after which TCP
       should send a keepalive message to the server.
 
     More details on all Postgres parameters supported can be found in
@@ -70,7 +70,7 @@ Extra (optional)
           "sslkey": "/tmp/client-key.pem"
        }
 
-    When specifying the connection as URI (in AIRFLOW_CONN_* variable) you should specify it
+    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 
@@ -78,4 +78,4 @@ Extra (optional)
 
     .. code-block:: bash
 
-        postgresql://postgres_user:XXXXXXXXXXXX@1.1.1.1:5432/postgresdb?sslmode=verify-ca&sslcert=%2Ftmp%2Fclient-cert.pem&sslkey=%2Ftmp%2Fclient-key.pem&sslrootcert=%2Ftmp%2Fserver-ca.pem
+        export AIRFLOW_CONN_POSTGRES_DEFAULT='postgresql://postgres_user:XXXXXXXXXXXX@1.1.1.1:5432/postgresdb?sslmode=verify-ca&sslcert=%2Ftmp%2Fclient-cert.pem&sslkey=%2Ftmp%2Fclient-key.pem&sslrootcert=%2Ftmp%2Fserver-ca.pem'

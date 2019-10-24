@@ -31,5 +31,6 @@ def run_once(f):
             result = f(*args, **kwargs)
             wrapper.has_run = True
             return result
+        return None
     wrapper.has_run = False
     return wrapper

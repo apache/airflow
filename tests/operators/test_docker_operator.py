@@ -17,8 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import logging
+import unittest
+
+from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 try:
     from airflow.operators.docker_operator import DockerOperator
@@ -26,9 +29,6 @@ try:
     from docker import APIClient
 except ImportError:
     pass
-
-from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 
 class TestDockerOperator(unittest.TestCase):
@@ -125,7 +125,7 @@ class TestDockerOperator(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        originalRaiseExceptions = logging.raiseExceptions
+        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')

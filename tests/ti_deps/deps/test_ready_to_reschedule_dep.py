@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock, patch
 from datetime import timedelta
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext

@@ -20,24 +20,19 @@
 import base64
 from functools import wraps
 
-from flask import flash, Response
-from flask import url_for, redirect, make_response
-from flask_bcrypt import generate_password_hash, check_password_hash
-
 import flask_login
+from flask import Response, flash, make_response, redirect, url_for
+from flask_bcrypt import check_password_hash, generate_password_hash
 # noinspection PyUnresolvedReferences
 # pylint: disable=unused-import
-from flask_login import login_required, current_user, logout_user  # noqa: F401
-# pylint: enable=unused-import
-
+from flask_login import current_user, login_required, logout_user  # noqa: F401
+from sqlalchemy import Column, String
+from sqlalchemy.ext.hybrid import hybrid_property
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from sqlalchemy import Column, String
-from sqlalchemy.ext.hybrid import hybrid_property
-
 from airflow import models
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 LOGIN_MANAGER = flask_login.LoginManager()

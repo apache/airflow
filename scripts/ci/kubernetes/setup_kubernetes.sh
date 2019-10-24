@@ -17,21 +17,21 @@
 # under the License.
 
 set -euo pipefail
-
-echo "This script downloads minikube, starts a driver=None minikube cluster, builds the airflow source\
- and docker image, and then deploys airflow onto kubernetes"
-echo "For development, start minikube yourself (ie: minikube start) then run this script as you probably\
- do not want a driver=None minikube cluster"
-
 DIRNAME=$(cd "$(dirname "$0")" && pwd)
 
-# Fix file permissions
-# TODO: change this - it should be Travis independent
-if [[ "${TRAVIS:=}" == true ]]; then
-  sudo chown -R travis.travis .
-fi
+# start kubernetes
+kind delete cluster || true
+kind create cluster --config "${DIRNAME}/kind-cluster-conf.yaml"
+mv "$(kind get kubeconfig-path)" ~/.kube/config
+kubectl config set clusters.kind.server https://docker:19090
+kubectl cluster-info
 
-"${DIRNAME}/minikube/start_minikube.sh"
+kubectl get nodes
+echo "Showing storageClass"
+kubectl get storageclass
+echo "Showing kube-system pods"
+kubectl get -n kube-system pods
+
 "${DIRNAME}/docker/build.sh"
 
 echo "Airflow environment on kubernetes is good to go!"

@@ -26,11 +26,8 @@ import airflow
 from airflow import models
 from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.gcp.operators.automl import (
-    AutoMLTrainModelOperator,
-    AutoMLCreateDatasetOperator,
-    AutoMLImportDataOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
+    AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator, AutoMLDeleteModelOperator,
+    AutoMLImportDataOperator, AutoMLTrainModelOperator,
 )
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")

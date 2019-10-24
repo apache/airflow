@@ -122,7 +122,7 @@ actually gets done.
 An operator describes a single task in a workflow. Operators are usually (but
 not always) atomic, meaning they can stand on their own and don't need to share
 resources with any other operators. The DAG will make sure that operators run in
-the correct certain order; other than those dependencies, operators generally
+the correct order; other than those dependencies, operators generally
 run independently. In fact, they may run on two completely different machines.
 
 This is a subtle but very important point: in general, if two operators need to
@@ -376,7 +376,7 @@ DAGs/tasks:
 .. image:: img/task_manual_vs_scheduled.png
 
 The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by `airflow dags trigger`.
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
 
 Workflows
 =========
@@ -451,8 +451,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Note that by default tasks aren't assigned to any pool and their
-execution parallelism is only limited to the executor's setting.
+Note that if tasks are not given a pool, they are assigned to a default
+pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
+can changed through the UI or CLI (though it cannot be removed).
 
 To combine Pools with SubDAGs see the `SubDAGs`_ section.
 
@@ -548,9 +549,12 @@ passed, then a corresponding list of XCom values is returned.
     def push_function():
         return value
 
-    # inside another PythonOperator where provide_context=True
-    def pull_function(**context):
-        value = context['task_instance'].xcom_pull(task_ids='pushing_task')
+    # inside another PythonOperator
+    def pull_function(task_instance):
+        value = task_instance.xcom_pull(task_ids='pushing_task')
+
+When specifying arguments that are part of the context, they will be
+automatically passed to the function.
 
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
@@ -632,8 +636,7 @@ For example:
 
 .. code:: python
 
-  def branch_func(**kwargs):
-      ti = kwargs['ti']
+  def branch_func(ti):
       xcom_value = int(ti.xcom_pull(task_ids='start_task'))
       if xcom_value >= 5:
           return 'continue_task'
@@ -648,7 +651,6 @@ For example:
 
   branch_op = BranchPythonOperator(
       task_id='branch_task',
-      provide_context=True,
       python_callable=branch_func,
       dag=dag)
 
@@ -790,9 +792,9 @@ detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
-SLAs can be configured for scheduled tasks by using the `sla` parameter.
-In addition to sending alerts to the addresses specified in a task's `email` parameter,
-the `sla_miss_callback` specifies an additional `Callable`
+SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
+In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
+the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
 
 Email Configuration
@@ -823,6 +825,8 @@ For example a ``html_content_template`` file could look like this:
   Host: {{ti.hostname}}<br>
   Log file: {{ti.log_filepath}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+
+.. _concepts/trigger_rule:
 
 Trigger Rules
 =============
@@ -1091,6 +1095,76 @@ You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
 
+You can also use Jinja templating with nested fields, as long as these nested fields
+are marked as templated in the structure they belong to: fields registered in
+``template_fields`` property will be submitted to template substitution, like the
+``path`` field in the example below:
+
+.. code:: python
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataReader('/tmp/{{ ds }}/my_file')
+      ],
+      dag=dag)
+
+.. note:: ``template_fields`` property can equally be a class variable or an
+   instance variable.
+
+Deep nested fields can also be substituted, as long as all intermediate fields are
+marked as template fields:
+
+.. code:: python
+
+  class MyDataTransformer:
+    template_fields = ['reader']
+
+    def __init__(self, my_reader):
+      self.reader = my_reader
+
+    # [additional code here...]
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
+      ],
+      dag=dag)
+
+You can pass custom options to the Jinja ``Environment`` when creating your DAG.
+One common usage is to avoid Jinja from dropping a trailing newline from a
+template string:
+
+.. code:: python
+
+  my_dag = DAG(dag_id='my-dag',
+               jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+               })
+
+See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+to find all available options.
+
 Packaged DAGs
 '''''''''''''
 While often you will specify DAGs in a single ``.py`` file it might sometimes
@@ -1161,8 +1235,8 @@ For example, you can prepare a ``.airflowignore`` file with contents
     tenant_[\d]
 
 
-Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
-"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 

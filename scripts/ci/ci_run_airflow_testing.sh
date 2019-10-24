@@ -28,6 +28,14 @@ basic_sanity_checks
 
 script_start
 
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skipping running tests !!!!!"
+    echo
+    script_end
+    exit
+fi
+
 rebuild_ci_image_if_needed
 
 # Test environment
@@ -74,18 +82,11 @@ elif [[ "${ENV}" == "kubernetes" ]]; then
   echo
   echo "Running kubernetes tests in ${KUBERNETES_MODE}"
   echo
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
-  "${MY_DIR}/kubernetes/setup_kubernetes.sh"
-  "${MY_DIR}/kubernetes/kube/deploy.sh" -d "${KUBERNETES_MODE}"
-  MINIKUBE_IP=$(minikube ip)
-  export MINIKUBE_IP
   docker-compose --log-level ERROR \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-  "${MY_DIR}/kubernetes/minikube/stop_minikube.sh"
+         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
   echo
   echo "Finished Running kubernetes tests in ${KUBERNETES_MODE}"
   echo

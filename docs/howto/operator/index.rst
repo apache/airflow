@@ -33,5 +33,6 @@ information.
     bash
     dingding
     gcp/index
+    kubernetes
     papermill
     python

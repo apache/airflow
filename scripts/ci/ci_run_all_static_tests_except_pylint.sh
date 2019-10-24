@@ -21,20 +21,29 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
+
+export PYTHON_VERSION=3.5
 
 # shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
 basic_sanity_checks
 
-force_python_3_5
-
 script_start
 
-rebuild_ci_slim_image_if_needed
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skip tests"
+    echo
+    script_end
+    exit
+fi
 
+rebuild_ci_slim_image_if_needed
 rebuild_checklicence_image_if_needed
+
+IMAGES_TO_CHECK=("SLIM_CI" "CHECKLICENCE")
+export IMAGES_TO_CHECK
 
 SKIP=pylint pre-commit run --all-files --show-diff-on-failure
 

@@ -18,7 +18,7 @@
 
 
 
-.. image:: img/pin_large.png
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation
@@ -90,15 +90,19 @@ Content
     Using the CLI <usage-cli>
     integration
     metrics
+    errors
     kubernetes
     lineage
+    dag-serialization
     changelog
     faq
+    privacy_notice
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
+    Operators and hooks <operators-and-hooks-ref>
     CLI <cli-ref>
     Macros <macros-ref>
     Python API <_api/index>

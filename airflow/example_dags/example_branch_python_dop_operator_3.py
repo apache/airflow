@@ -58,7 +58,6 @@ def should_run(**kwargs):
 
 cond = BranchPythonOperator(
     task_id='condition',
-    provide_context=True,
     python_callable=should_run,
     dag=dag,
 )

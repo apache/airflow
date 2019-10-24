@@ -30,16 +30,16 @@ import os
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry
 
-# [END howto_operator_vision_retry_import]
-
 import airflow
 from airflow import models
 from airflow.gcp.operators.video_intelligence import (
-    CloudVideoIntelligenceDetectVideoLabelsOperator,
-    CloudVideoIntelligenceDetectVideoExplicitContentOperator,
+    CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 from airflow.operators.bash_operator import BashOperator
+
+# [END howto_operator_vision_retry_import]
+
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 

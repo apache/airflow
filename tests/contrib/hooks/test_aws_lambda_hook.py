@@ -18,10 +18,10 @@
 # under the License.
 #
 
-import unittest
 import io
 import json
 import textwrap
+import unittest
 import zipfile
 
 from airflow.contrib.hooks.aws_lambda_hook import AwsLambdaHook

@@ -19,13 +19,12 @@
 
 import datetime
 import unittest
+from unittest.mock import Mock, patch
 
 import pendulum
-from unittest.mock import patch, Mock
 
 from airflow import settings
-from airflow.models import DAG, TaskInstance as TI
-from airflow.models import SkipMixin
+from airflow.models import DAG, SkipMixin, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State

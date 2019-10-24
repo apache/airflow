@@ -21,22 +21,19 @@ This module contains a Google Cloud Vision operator.
 """
 
 from copy import deepcopy
-from typing import Union, List, Dict, Any, Sequence, Tuple, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 from google.cloud.vision_v1.types import (
-    ProductSet,
-    FieldMask,
-    Image,
-    Product,
-    AnnotateImageRequest,
-    ReferenceImage
+    AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
 )
 
 from airflow.gcp.hooks.vision import CloudVisionHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+
+MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudVisionProductSetCreateOperator(BaseOperator):
@@ -82,15 +79,15 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         self,
         product_set: Union[dict, ProductSet],
         location: str,
-        project_id: str = None,
-        product_set_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        product_set_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
@@ -158,14 +155,14 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         self,
         location: str,
         product_set_id: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
@@ -242,17 +239,17 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
     def __init__(
         self,
         product_set: Union[Dict, ProductSet],
-        location: str = None,
-        product_set_id: str = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        product_set_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         update_mask: Union[Dict, FieldMask] = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.product_set = product_set
         self.update_mask = update_mask
@@ -317,14 +314,14 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         self,
         location: str,
         product_set_id: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.project_id = project_id
@@ -395,15 +392,15 @@ class CloudVisionProductCreateOperator(BaseOperator):
         self,
         location: str,
         product: str,
-        project_id: str = None,
-        product_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        product_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.product = product
@@ -474,14 +471,14 @@ class CloudVisionProductGetOperator(BaseOperator):
         self,
         location: str,
         product_id: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
@@ -569,17 +566,17 @@ class CloudVisionProductUpdateOperator(BaseOperator):
     def __init__(
         self,
         product: Union[Dict, Product],
-        location: str = None,
-        product_id: str = None,
-        project_id: str = None,
+        location: Optional[str] = None,
+        product_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         update_mask: Union[Dict, FieldMask] = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.product = product
         self.location = location
@@ -649,14 +646,14 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         self,
         location: str,
         product_id: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
@@ -709,12 +706,12 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
     def __init__(
         self,
         request: Union[Dict, AnnotateImageRequest],
-        retry: Retry = None,
-        timeout: float = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.request = request
         self.retry = retry
@@ -791,15 +788,15 @@ class CloudVisionReferenceImageCreateOperator(BaseOperator):
         location: str,
         reference_image: Union[Dict, ReferenceImage],
         product_id: str,
-        reference_image_id: str = None,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: str = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        reference_image_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[str] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
         self.product_id = product_id
@@ -878,14 +875,14 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         product_set_id: str,
         product_id: str,
         location: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
@@ -949,14 +946,14 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         product_set_id: str,
         product_id: str,
         location: str,
-        project_id: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
@@ -1015,16 +1012,16 @@ class CloudVisionDetectTextOperator(BaseOperator):
     def __init__(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
-        retry: Retry = None,
-        timeout: float = None,
-        language_hints: Union[str, List[str]] = None,
-        web_detection_params: Dict = None,
-        additional_properties: Dict = None,
+        max_results: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        language_hints: Optional[Union[str, List[str]]] = None,
+        web_detection_params: Optional[Dict] = None,
+        additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
@@ -1078,22 +1075,22 @@ class CloudVisionDetectDocumentTextOperator(BaseOperator):
     :type additional_properties: dict
     """
     # [START vision_document_detect_text_set_template_fields]
-    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")  # Iterable[str]
     # [END vision_document_detect_text_set_template_fields]
 
     def __init__(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
-        retry: Retry = None,
-        timeout: float = None,
-        language_hints: Union[str, List[str]] = None,
-        web_detection_params: Dict = None,
-        additional_properties: Dict = None,
+        max_results: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        language_hints: Optional[Union[str, List[str]]] = None,
+        web_detection_params: Optional[Dict] = None,
+        additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
@@ -1146,14 +1143,14 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
     def __init__(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
-        retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None,
+        max_results: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results
@@ -1202,14 +1199,14 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
     def __init__(
         self,
         image: Union[Dict, Image],
-        max_results: int = None,
-        retry: Retry = None,
-        timeout: float = None,
-        additional_properties: Dict = None,
+        max_results: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.image = image
         self.max_results = max_results

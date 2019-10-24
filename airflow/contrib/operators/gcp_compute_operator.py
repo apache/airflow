@@ -22,17 +22,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.compute import (  # noqa
-    GceBaseOperator,
-    GceInstanceGroupManagerUpdateTemplateOperator,
-    GceInstanceStartOperator,
-    GceInstanceStopOperator,
-    GceInstanceTemplateCopyOperator,
-    GceSetMachineTypeOperator,
-    GcpBodyFieldSanitizer,
-    GcpBodyFieldValidator,
+    GceBaseOperator, GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceStartOperator,
+    GceInstanceStopOperator, GceInstanceTemplateCopyOperator, GceSetMachineTypeOperator,
+    GcpBodyFieldSanitizer, GcpBodyFieldValidator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.compute`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

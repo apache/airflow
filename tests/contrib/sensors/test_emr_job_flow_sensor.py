@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import unittest
 from unittest.mock import MagicMock, patch
-import datetime
+
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException

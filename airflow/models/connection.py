@@ -18,15 +18,15 @@
 # under the License.
 
 import json
-from urllib.parse import urlparse, unquote, parse_qsl
+from urllib.parse import parse_qsl, unquote, urlparse
 
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
 from airflow import LoggingMixin
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 
 
@@ -204,14 +204,14 @@ class Connection(Base, LoggingMixin):
             from airflow.hooks.mysql_hook import MySqlHook
             return MySqlHook(mysql_conn_id=self.conn_id)
         elif self.conn_type == 'google_cloud_platform':
-            from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+            from airflow.gcp.hooks.bigquery import BigQueryHook
             return BigQueryHook(bigquery_conn_id=self.conn_id)
         elif self.conn_type == 'postgres':
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
             from airflow.hooks.pig_hook import PigCliHook
-            return PigCliHook(pig_conn_id=self.conn_id)
+            return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.hooks.hive_hooks import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)

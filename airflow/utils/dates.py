@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 
 from croniter import croniter
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
+
+from airflow.utils import timezone
 
 cron_presets = {
     '@hourly': '0 * * * *',
@@ -78,7 +79,7 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         delta = abs(delta)
     dates = []
     if end_date:
-        if timezone.is_naive(start_date):
+        if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
             end_date = timezone.make_naive(end_date, tz)
         while start_date <= end_date:
             if timezone.is_naive(start_date):

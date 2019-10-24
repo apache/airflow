@@ -19,13 +19,15 @@
 
 
 import unittest
-from airflow import DAG
-from airflow.contrib.sensors.aws_sqs_sensor import SQSSensor
-from airflow.utils import timezone
-from unittest.mock import patch, MagicMock
-from airflow.exceptions import AirflowException
+from unittest.mock import MagicMock, patch
+
 from moto import mock_sqs
+
+from airflow import DAG
 from airflow.contrib.hooks.aws_sqs_hook import SQSHook
+from airflow.contrib.sensors.aws_sqs_sensor import SQSSensor
+from airflow.exceptions import AirflowException
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

@@ -18,15 +18,14 @@
 # under the License.
 
 import json
-import unittest
-from unittest import mock
 import os
 import socket
-
+import unittest
 from datetime import datetime
+from unittest import mock
 
-from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
+from airflow.configuration import conf
 from airflow.www import app as application
 
 
@@ -35,19 +34,19 @@ from airflow.www import app as application
 class TestApiKerberos(unittest.TestCase):
     def setUp(self):
         try:
-            configuration.conf.add_section("api")
+            conf.add_section("api")
         except Exception:
             pass
-        configuration.conf.set("api",
-                               "auth_backend",
-                               "airflow.api.auth.backend.kerberos_auth")
+        conf.set("api",
+                 "auth_backend",
+                 "airflow.api.auth.backend.kerberos_auth")
         try:
-            configuration.conf.add_section("kerberos")
+            conf.add_section("kerberos")
         except Exception:
             pass
-        configuration.conf.set("kerberos",
-                               "keytab",
-                               os.environ['KRB5_KTNAME'])
+        conf.set("kerberos",
+                 "keytab",
+                 os.environ['KRB5_KTNAME'])
 
         self.app, _ = application.create_app(testing=True)
 

@@ -24,12 +24,11 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.video_intelligence import (  # noqa
-    CloudVideoIntelligenceDetectVideoExplicitContentOperator,
-    CloudVideoIntelligenceDetectVideoLabelsOperator,
+    CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.video_intelligence`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

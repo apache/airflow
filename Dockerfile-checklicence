@@ -53,6 +53,20 @@ RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
     && jar -tf "${RAT_JAR}" \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
+ARG  DUMB_INIT_VERSION="1.2.2"
+ENV  DUMB_INIT_VERSION="${DUMB_INIT_VERSION}" \
+     DUMB_INIT_FILE="/tmp/dumb-init_${DUMB_INIT_VERSION}_amd64.deb" \
+     DUMB_INIT_FILE_SHA256SUMS="/tmp/sha256sums" \
+     DUMB_INIT_URL="https://github.com/Yelp/dumb-init/releases/download/v${DUMB_INIT_VERSION}/dumb-init_${DUMB_INIT_VERSION}_amd64.deb" \
+     DUMB_INIT_URL_SHA256SUMS="https://github.com/Yelp/dumb-init/releases/download/v${DUMB_INIT_VERSION}/sha256sums"
+
+WORKDIR /tmp
+RUN echo "Downloading dumb-init from ${DUMB_INIT_URL} to ${DUMB_INIT_FILE}" \
+    && curl -sL "${DUMB_INIT_URL}" > "${DUMB_INIT_FILE}" \
+    && curl -sL "${DUMB_INIT_URL_SHA256SUMS}" > "${DUMB_INIT_FILE_SHA256SUMS}" \
+    && sha256sum --check --ignore-missing "${DUMB_INIT_FILE_SHA256SUMS}" \
+    && dpkg -i "${DUMB_INIT_FILE}"
+
 ARG AIRFLOW_USER=airflow
 ENV AIRFLOW_USER=${AIRFLOW_USER}
 

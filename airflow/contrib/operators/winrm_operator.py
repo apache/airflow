@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode
 import logging
+from base64 import b64encode
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -124,7 +124,7 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = configuration.conf.getboolean(
+            enable_pickling = conf.getboolean(
                 'core', 'enable_xcom_pickling'
             )
             if enable_pickling:

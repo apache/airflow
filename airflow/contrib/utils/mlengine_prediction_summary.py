@@ -21,9 +21,9 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.utils.mlengine_prediction_summary import JsonCoder, run, MakeSummary  # noqa
+from airflow.gcp.utils.mlengine_prediction_summary import JsonCoder, MakeSummary  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.utils.mlengine_prediction_summary`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

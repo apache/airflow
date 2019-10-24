@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
-import unittest
-import shutil
 import os
+import shutil
+import unittest
+from unittest import mock
+
 import pysftp
+from parameterized import parameterized
 
 from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.models import Connection
@@ -84,6 +86,27 @@ class TestSFTPHook(unittest.TestCase):
         output = self.hook.describe_directory(
             os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(new_dir_name not in output)
+
+    def test_create_and_delete_directories(self):
+        base_dir = "base_dir"
+        sub_dir = "sub_dir"
+        new_dir_path = os.path.join(base_dir, sub_dir)
+        self.hook.create_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.assertTrue(base_dir in output)
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        self.assertTrue(sub_dir in output)
+        self.hook.delete_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        self.hook.delete_directory(os.path.join(
+            TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.assertTrue(new_dir_path not in output)
+        self.assertTrue(base_dir not in output)
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
@@ -174,6 +197,16 @@ class TestSFTPHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
+
+    @parameterized.expand([
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
+        (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
+        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
+    ])
+    def test_path_exists(self, path, exists):
+        result = self.hook.path_exists(path)
+        self.assertEqual(result, exists)
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))

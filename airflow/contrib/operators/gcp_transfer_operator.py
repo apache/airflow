@@ -24,20 +24,14 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.cloud_storage_transfer_service import (  # noqa
-    TransferJobPreprocessor,
-    TransferJobValidator,
-    GcpTransferServiceJobCreateOperator,
-    GcpTransferServiceJobDeleteOperator,
-    GcpTransferServiceJobUpdateOperator,
-    GcpTransferServiceOperationCancelOperator,
-    GcpTransferServiceOperationGetOperator,
-    GcpTransferServiceOperationPauseOperator,
-    GcpTransferServiceOperationResumeOperator,
-    GcpTransferServiceOperationsListOperator,
-    GoogleCloudStorageToGoogleCloudStorageTransferOperator,
+    GcpTransferServiceJobCreateOperator, GcpTransferServiceJobDeleteOperator,
+    GcpTransferServiceJobUpdateOperator, GcpTransferServiceOperationCancelOperator,
+    GcpTransferServiceOperationGetOperator, GcpTransferServiceOperationPauseOperator,
+    GcpTransferServiceOperationResumeOperator, GcpTransferServiceOperationsListOperator,
+    GoogleCloudStorageToGoogleCloudStorageTransferOperator, TransferJobPreprocessor, TransferJobValidator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

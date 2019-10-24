@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
-from airflow.typing import Protocol
-from datetime import datetime
 from contextlib import closing
+from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import create_engine
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+from airflow.typing import Protocol
 
 
 class ConnectorProtocol(Protocol):

@@ -30,11 +30,10 @@ from parameterized import parameterized
 
 import airflow.example_dags
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
-    TaskInstance as TI, errors
+from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -42,13 +41,12 @@ from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_p
 from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
-from tests.compat import MagicMock, Mock, PropertyMock, patch
-from tests.compat import mock
+from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
-from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
-
+from tests.test_utils.db import (
+    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
+)
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
@@ -79,20 +77,17 @@ class TestSchedulerJob(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-
-        def getboolean(section, key):
-            if section.lower() == 'core' and key.lower() == 'load_examples':
-                return False
-            else:
-                return configuration.conf.getboolean(section, key)
-
-        cls.patcher = mock.patch('airflow.jobs.scheduler_job.conf.getboolean')
-        cls.mock_getboolean = cls.patcher.start()
-        cls.mock_getboolean.side_effect = getboolean
+        cls.old_val = None
+        if conf.has_option('core', 'load_examples'):
+            cls.old_val = conf.get('core', 'load_examples')
+        conf.set('core', 'load_examples', 'false')
 
     @classmethod
     def tearDownClass(cls):
-        cls.patcher.stop()
+        if cls.old_val is not None:
+            conf.set('core', 'load_examples', cls.old_val)
+        else:
+            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -1991,6 +1986,47 @@ class TestSchedulerJob(unittest.TestCase):
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
+    @mock.patch('airflow.jobs.scheduler_job.send_email')
+    def test_scheduler_only_collect_emails_from_sla_missed_tasks(self, mock_send_email):
+        session = settings.Session()
+
+        test_start_date = days_ago(2)
+        dag = DAG(dag_id='test_sla_miss',
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta(days=1)})
+
+        email1 = 'test1@test.com'
+        task = DummyOperator(task_id='sla_missed',
+                             dag=dag,
+                             owner='airflow',
+                             email=email1,
+                             sla=datetime.timedelta(hours=1))
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='Success'))
+
+        email2 = 'test2@test.com'
+        DummyOperator(task_id='sla_not_missed',
+                      dag=dag,
+                      owner='airflow',
+                      email=email2)
+
+        session.merge(SlaMiss(task_id='sla_missed',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+
+        scheduler.manage_slas(dag=dag, session=session)
+
+        self.assertTrue(1, len(mock_send_email.call_args_list))
+
+        send_email_to = mock_send_email.call_args_list[0][0][0]
+        self.assertIn(email1, send_email_to)
+        self.assertNotIn(email2, send_email_to)
+
     @mock.patch("airflow.utils.email.send_email")
     def test_scheduler_sla_miss_email_exception(self, mock_send_email):
         """
@@ -2276,7 +2312,7 @@ class TestSchedulerJob(unittest.TestCase):
                          schedule_interval='* * * * *',
                          start_date=six_hours_ago_to_the_hour,
                          catchup=True)
-        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = conf.getboolean('scheduler', 'catchup_by_default')
         self.assertEqual(default_catchup, True)
         self.assertEqual(dag1.catchup, True)
 

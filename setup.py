@@ -16,28 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Setup for the Airflow library."""
+"""Setup.py for the Airflow project."""
 
-import importlib
 import io
 import logging
 import os
 import subprocess
 import sys
 import unittest
+from importlib import util
 from typing import List
 
-from setuptools import setup, find_packages, Command
+from setuptools import Command, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 # noinspection PyUnresolvedReferences
-spec = importlib.util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
+spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
 # noinspection PyUnresolvedReferences
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-version = mod.version
+mod = util.module_from_spec(spec)
+spec.loader.exec_module(mod)  # type: ignore
+version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
 
@@ -169,7 +169,6 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 cloudant = ['cloudant>=2.0']
-crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
@@ -189,24 +188,29 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 gcp = [
+    # Please keep the list in alphabetical order
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
     'google-cloud-automl>=0.4.0',
-    'google-cloud-bigtable==0.33.0',
+    'google-cloud-bigtable==1.0.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
+    'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
-    'google-cloud-spanner>=1.9.0, <1.10.0',
+    'google-cloud-pubsub==1.0.0',
+    'google-cloud-redis>=0.3.0',
+    'google-cloud-spanner>=1.10.0',
+    'google-cloud-speech>=0.36.3',
     'google-cloud-storage~=1.16',
+    'google-cloud-tasks==1.2.1',
+    'google-cloud-texttospeech>=0.4.0',
     'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
-    'google-cloud-tasks==1.1.0',
-    'google-cloud-texttospeech>=0.4.0',
-    'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.9.2',
+    'httplib2~=0.9',
     'pandas-gbq',
     'PyOpenSSL',
 ]
@@ -249,12 +253,13 @@ salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
+sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
 slack = ['slackclient>=1.0.0,<2.0.0']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
-statsd = ['statsd>=3.0.1, <4.0']
+statsd = ['statsd>=3.3.0, <4.0']
 vertica = ['vertica-python>=0.5.1']
 virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -263,9 +268,18 @@ zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
 
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 devel = [
+    'astroid~=2.2.5',  # to be removed after pylint solves this: https://github.com/PyCQA/pylint/issues/3123
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'contextdecorator;python_version<"3.4"',
+    'coverage',
+    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'freezegun',
@@ -279,7 +293,8 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',
+    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
+                      # We should also disable checking docstring at the module level
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -287,18 +302,23 @@ devel = [
     'requests_mock',
     'yamllint'
 ]
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from the above list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+############################################################################################################
 
 if PY3:
-    devel += ['mypy']
+    devel += ['mypy==0.720']
 else:
     devel += ['unittest2']
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
+devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch +
+             druid + pinot + segment + snowflake + elasticsearch + sentry +
              atlas + azure + aws + salesforce + cgroups + papermill + virtualenv)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
@@ -320,18 +340,26 @@ def do_setup():
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
-        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        package_data={
+            '': ['airflow/alembic.ini', "airflow/git_version"],
+            'airflow.serialization': ["*.json"],
+        },
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         install_requires=[
             'alembic>=1.0, <2.0',
             'argcomplete~=1.10',
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
-            'dill>=0.2.2, <0.3',
-            'dumb-init>=1.2.2',
+            'cryptography>=0.9.3',
+            'dill>=0.2.2, <0.4',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
@@ -339,12 +367,15 @@ def do_setup():
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
+            'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
+            'jsonschema~=3.0',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
+            'marshmallow-sqlalchemy>=0.16.1, <0.19.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
             'psutil>=4.2.0, <6.0.0',
@@ -365,6 +396,11 @@ def do_setup():
             'zope.deprecation>=4.0, <5.0',
             'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
+        #####################################################################################################
+        # IMPORTANT NOTE!!!!!!!!!!!!!!!
+        # IF you are removing dependencies from this list, please make sure that you also increase
+        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+        #####################################################################################################
         setup_requires=[
             'docutils>=0.14, <1.0',
             'gitpython>=2.0.2',
@@ -381,7 +417,6 @@ def do_setup():
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
-            'crypto': crypto,
             'dask': dask,
             'databricks': databricks,
             'datadog': datadog,
@@ -417,6 +452,7 @@ def do_setup():
             'salesforce': salesforce,
             'samba': samba,
             'sendgrid': sendgrid,
+            'sentry': sentry,
             'segment': segment,
             'slack': slack,
             'snowflake': snowflake,

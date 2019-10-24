@@ -27,5 +27,5 @@ from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechO
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.speech_to_text`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

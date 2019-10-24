@@ -20,19 +20,17 @@ import unittest
 
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
-from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet, Product, ReferenceImage
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (
-    AnnotateImageResponse,
-    EntityAnnotation,
-    SafeSearchAnnotation,
+    AnnotateImageResponse, EntityAnnotation, SafeSearchAnnotation,
 )
+from google.cloud.vision_v1.proto.product_search_service_pb2 import Product, ProductSet, ReferenceImage
 from google.protobuf.json_format import MessageToDict
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.hooks.vision import CloudVisionHook, ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from airflow.gcp.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
 from tests.compat import mock
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
 PROJECT_ID_TEST_2 = 'project-id-2'
@@ -81,6 +79,18 @@ class TestGcpVisionHook(unittest.TestCase):
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudVisionHook(gcp_conn_id='test')
+
+    @mock.patch("airflow.gcp.hooks.vision.CloudVisionHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.vision.CloudVisionHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.vision.ProductSearchClient")
+    def test_product_search_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.hook._client, result)
 
     @mock.patch('airflow.gcp.hooks.vision.CloudVisionHook.get_conn')
     def test_create_productset_explicit_id(self, get_conn):

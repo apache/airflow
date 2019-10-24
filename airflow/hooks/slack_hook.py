@@ -17,10 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Slack"""
+from typing import Optional
 
 from slackclient import SlackClient
-from airflow.hooks.base_hook import BaseHook
+
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 # noinspection PyAbstractClass
@@ -33,7 +35,7 @@ class SlackHook(BaseHook):
     :param token: Slack API token
     :param slack_conn_id: connection that has Slack API token in the password field
     """
-    def __init__(self, token: str = None, slack_conn_id: str = None) -> None:
+    def __init__(self, token: Optional[str] = None, slack_conn_id: Optional[str] = None) -> None:
         self.token = self.__get_token(token, slack_conn_id)
 
     def __get_token(self, token, slack_conn_id):
@@ -51,7 +53,7 @@ class SlackHook(BaseHook):
 
     def call(self, method: str, api_params: dict) -> None:
         """
-        Calls the clack client.
+        Calls the Slack client.
 
         :param method: method
         :param api_params: parameters of the API

@@ -16,18 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import collections
+import os
 import tarfile
 import tempfile
 import time
-import os
-import collections
 import warnings
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
+from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
 from airflow.utils import timezone
 

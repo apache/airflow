@@ -28,14 +28,15 @@ The Google Cloud Platform connection type enables the :ref:`GCP Integrations
 Authenticating to GCP
 ---------------------
 
-There are two ways to connect to GCP using Airflow.
+There are three ways to connect to GCP using Airflow.
 
 1. Use `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
    such as via the metadata server when running on Google Compute Engine.
 2. Use a `service account
    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-   file (JSON format) on disk.
+   file (JSON format) on disk - ``Keyfile Path``.
+3. Use a service account key file (JSON format) from connection configuration - ``Keyfile JSON``.
 
 Default Connection IDs
 ----------------------
@@ -59,7 +60,7 @@ Keyfile Path
 Keyfile JSON
     Contents of a `service account
     <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-    file (JSON format) on disk. It is recommended to :doc:`Secure your connections <../secure-connections>` if using this method to authenticate.
+    file (JSON format) on disk.
 
     Not required if using application default credentials.
 
@@ -95,4 +96,4 @@ Number of Retries
 
     .. code-block:: bash
 
-       google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow&extra__google_cloud_platform__num_retries=5
+       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow&extra__google_cloud_platform__num_retries=5'

@@ -17,21 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
 import logging
 import socket
+from typing import Any, Optional
+from urllib.parse import urlparse
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA
+from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from typing import Any
-from urllib.parse import urlparse
-from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from airflow import configuration as conf
 from airflow import settings
+from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
@@ -90,7 +89,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-
         from airflow.www.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
             AirflowSecurityManager
@@ -108,6 +106,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         def init_views(appbuilder):
             from airflow.www import views
+            # Remove the session from scoped_session registry to avoid
+            # reusing a session with a disconnected connection
+            appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())

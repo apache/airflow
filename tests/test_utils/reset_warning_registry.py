@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Dict, Match
 import re
 import sys
+from typing import Dict, Match, Optional
 
 
 # We need to explicitly clear the warning registry context

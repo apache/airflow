@@ -19,15 +19,12 @@
 #
 
 import unittest
-
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from airflow import DAG
 from airflow.contrib.operators.jira_operator import JiraOperator
 from airflow.models import Connection
-from airflow.utils import db
-from airflow.utils import timezone
+from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(

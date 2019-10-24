@@ -21,9 +21,9 @@ import unittest
 from datetime import timedelta
 
 from airflow import DAG, operators
+from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
-from airflow.hooks.hive_hooks import HiveMetastoreHook
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

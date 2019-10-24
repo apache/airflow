@@ -24,7 +24,6 @@ import unittest
 import uuid
 
 from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
-
 from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock

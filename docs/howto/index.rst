@@ -34,7 +34,6 @@ configuring an Airflow environment.
     initialize-database
     operator/index
     connection/index
-    secure-connections
     write-logs
     run-behind-proxy
     run-with-systemd

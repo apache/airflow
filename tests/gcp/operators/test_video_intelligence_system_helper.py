@@ -17,12 +17,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import argparse
 import os
 
-import argparse
-
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_AI_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY, GcpAuthenticator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "test-bucket-name")
