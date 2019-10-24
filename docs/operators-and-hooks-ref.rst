@@ -667,8 +667,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Vision <https://cloud.google.com/vision/>`__
      - :doc:`How to use <howto/operator/gcp/vision>`
-     - :mod:`airflow.gcp.hooks.vision`
-     - :mod:`airflow.gcp.operators.vision`
+     - :mod:`airflow.providers.google.cloud.hooks.vision`
+     - :mod:`airflow.providers.google.cloud.operators.vision`
      -
 
 

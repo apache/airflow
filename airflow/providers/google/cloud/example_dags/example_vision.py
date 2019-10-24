@@ -36,7 +36,8 @@ import os
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.vision import (
+from airflow.operators.bash_operator import BashOperator
+from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator, CloudVisionAnnotateImageOperator,
     CloudVisionDetectDocumentTextOperator, CloudVisionDetectImageLabelsOperator,
     CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionProductCreateOperator,
@@ -45,7 +46,6 @@ from airflow.gcp.operators.vision import (
     CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
     CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
 )
-from airflow.operators.bash_operator import BashOperator
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry  # isort:skip pylint: disable=wrong-import-order
