@@ -782,7 +782,7 @@ fi
 if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
    # Check if we are in virtualenv
    set +e
-   echo -e "import sys\nif not hasattr(sys,'real_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
+   echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
    RES=$?
    set -e
    if [[ ${RES} != "0" ]]; then
