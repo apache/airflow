@@ -47,8 +47,8 @@ def upgrade():
     #if 'known_event' in inspector.get_table_names() != 'sqlite':
     #    op.drop_constraint('known_event_user_id_fkey', 'known_event')
 
-    op.drop_table("chart")
-    op.drop_table("users")
+    #op.drop_table("chart")
+    #op.drop_table("users")
 
 
 def downgrade():
