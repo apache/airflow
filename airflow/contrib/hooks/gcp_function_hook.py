@@ -27,3 +27,17 @@ warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GcfHook(CloudFunctionsHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+
+        super().__init__(*args, **kwargs)
