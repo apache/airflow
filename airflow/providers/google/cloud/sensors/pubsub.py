@@ -32,6 +32,10 @@ from airflow.utils.decorators import apply_defaults
 class PubSubPullSensor(BaseSensorOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubPullSensor`
+
     This sensor operator will pull up to ``max_messages`` messages from the
     specified PubSub subscription. When the subscription returns messages,
     the poke method's criteria will be fulfilled and the messages will be
