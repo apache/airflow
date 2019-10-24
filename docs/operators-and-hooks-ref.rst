@@ -157,7 +157,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.aws.operators.dynamodb`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Apache Druid <https://druid.apache.org/>`__
@@ -197,7 +197,7 @@ Foundation.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
@@ -289,7 +289,7 @@ AWS: Amazon Web Services
 
 Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
-All hooks are based on :mod:`airflow.contrib.hooks.aws_hook`.
+All hooks are based on :mod:`airflow.providers.aws.hooks.base`.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -305,92 +305,74 @@ These integrations allow you to perform various operations within the Amazon Web
      - Sensors
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
-     - :mod:`airflow.contrib.hooks.aws_athena_hook`
-     - :mod:`airflow.contrib.operators.aws_athena_operator`
-     - :mod:`airflow.contrib.sensors.aws_athena_sensor`
+     - :mod:`airflow.providers.aws.hooks.athena`
+     - :mod:`airflow.providers.aws.operators.athena`
+     - :mod:`airflow.providers.aws.sensors.athena`
 
-   * - `AWS Batch <https://aws.amazon.com/athena/>`__
+   * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
-     - :mod:`airflow.contrib.operators.awsbatch_operator`
+     - :mod:`airflow.providers.aws.operators.batch`
      -
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
-     - :mod:`airflow.contrib.hooks.aws_logs_hook`
+     - :mod:`airflow.providers.aws.hooks.cloudwatch`
      -
      -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
-     - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
-     -
+     - :mod:`airflow.providers.aws.hooks.dynamodb`
+     - :mod:`airflow.providers.aws.operators.dynamodb`
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
-     - :mod:`airflow.contrib.operators.ecs_operator`
+     - :mod:`airflow.providers.aws.operators.ecs`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
-     - :mod:`airflow.contrib.hooks.emr_hook`
-     - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
-       :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
-       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
-     - :mod:`airflow.contrib.sensors.emr_base_sensor`,
-       :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
-       :mod:`airflow.contrib.sensors.emr_step_sensor`
+     - :mod:`airflow.providers.aws.hooks.emr`
+     - :mod:`airflow.providers.aws.operators.emr`
+     - :mod:`airflow.providers.aws.sensors.emr`
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
-     - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
+     - :mod:`airflow.providers.aws.hooks.glue`
      -
-     - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
+     - :mod:`airflow.providers.aws.sensors.glue`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
-     - :mod:`airflow.contrib.hooks.aws_firehose_hook`
+     - :mod:`airflow.providers.aws.hooks.kinesis`
      -
      -
 
-   * - `AWS Lambda <https://aws.amazon.com/kinesis/>`__
-     - :mod:`airflow.contrib.hooks.aws_lambda_hook`
+   * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
+     - :mod:`airflow.providers.aws.hooks.lambda_`
      -
      -
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     - :mod:`airflow.contrib.hooks.redshift_hook`
+     - :mod:`airflow.providers.aws.hooks.redshift`
      -
-     - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
+     - :mod:`airflow.providers.aws.sensors.redshift`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     - :mod:`airflow.hooks.S3_hook`
-     - :mod:`airflow.operators.s3_file_transform_operator`,
-       :mod:`airflow.contrib.operators.s3_copy_object_operator`,
-       :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
-       :mod:`airflow.contrib.operators.s3_list_operator`
-     - :mod:`airflow.sensors.s3_key_sensor`,
-       :mod:`airflow.sensors.s3_prefix_sensor`
+     - :mod:`airflow.providers.aws.hooks.s3`
+     - :mod:`airflow.providers.aws.operators.s3`
+     - :mod:`airflow.providers.aws.sensors.s3`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
-     - :mod:`airflow.contrib.hooks.sagemaker_hook`
-     - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_model_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_training_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_transform_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`
-     - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_transform_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
+     - :mod:`airflow.providers.aws.hooks.sagemaker`
+     - :mod:`airflow.providers.aws.operators.sagemaker`
+     - :mod:`airflow.providers.aws.sensors.sagemaker`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
-     - :mod:`airflow.contrib.hooks.aws_sns_hook`
-     - :mod:`airflow.contrib.operators.sns_publish_operator`
+     - :mod:`airflow.providers.aws.hooks.sns`
+     - :mod:`airflow.providers.aws.operators.sns`
      -
 
-   * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sns/>`__
-     - :mod:`airflow.contrib.hooks.aws_sqs_hook`
-     - :mod:`airflow.contrib.operators.aws_sqs_publish_operator`
-     - :mod:`airflow.contrib.sensors.aws_sqs_sensor`
+   * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sqs/>`__
+     - :mod:`airflow.providers.aws.hooks.sqs`
+     - :mod:`airflow.providers.aws.operators.sqs`
+     - :mod:`airflow.providers.aws.sensors.sqs`
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -416,43 +398,43 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.aws.operators.dynamodb`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
+     - :mod:`airflow.providers.aws.operators.s3`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.operators.redshift_to_s3_operator`
+     - :mod:`airflow.providers.aws.operators.redshift`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      -
-     - :mod:`airflow.operators.s3_to_redshift_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.dynamodb_to_s3`
+     - :mod:`airflow.providers.aws.operators.dynamodb`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
@@ -462,12 +444,12 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.aws.operators.s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
@@ -701,7 +683,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
+     - :mod:`airflow.providers.aws.operators.s3`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
@@ -1176,7 +1158,7 @@ These integrations allow you to copy data.
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.aws.operators.s3`
 
 .. _protocol:
 
@@ -1284,14 +1266,14 @@ These integrations allow you to copy data.
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.aws.operators.s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
+     - :mod:`airflow.providers.aws.operators.s3`

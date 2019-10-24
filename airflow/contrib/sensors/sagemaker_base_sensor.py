@@ -16,59 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.exceptions import AirflowException
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
+"""This module is deprecated. Please use `airflow.providers.aws.sensors.sagemaker`."""
 
-class SageMakerBaseSensor(BaseSensorOperator):
-    """
-    Contains general sensor behavior for SageMaker.
-    Subclasses should implement get_sagemaker_response()
-    and state_from_response() methods.
-    Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.
-    """
-    ui_color = '#ededed'
+import warnings
 
-    @apply_defaults
-    def __init__(
-            self,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.aws_conn_id = aws_conn_id
+# pylint: disable=unused-import
+from airflow.providers.aws.sensors.sagemaker import SageMakerBaseSensor  # noqa
 
-    def poke(self, context):
-        response = self.get_sagemaker_response()
-
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            self.log.info('Bad HTTP response: %s', response)
-            return False
-
-        state = self.state_from_response(response)
-
-        self.log.info('Job currently %s', state)
-
-        if state in self.non_terminal_states():
-            return False
-
-        if state in self.failed_states():
-            failed_reason = self.get_failed_reason_from_response(response)
-            raise AirflowException('Sagemaker job failed for the following reason: %s'
-                                   % failed_reason)
-        return True
-
-    def non_terminal_states(self):
-        raise NotImplementedError('Please implement non_terminal_states() in subclass')
-
-    def failed_states(self):
-        raise NotImplementedError('Please implement failed_states() in subclass')
-
-    def get_sagemaker_response(self):
-        raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
-
-    def get_failed_reason_from_response(self, response):
-        return 'Unknown'
-
-    def state_from_response(self, response):
-        raise NotImplementedError('Please implement state_from_response() in subclass')
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.aws.sensors.sagemaker`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

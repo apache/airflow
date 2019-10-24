@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.contrib.operators.imap_attachment_to_s3_operator import ImapAttachmentToS3Operator
+from airflow.providers.aws.operators.s3 import ImapAttachmentToS3Operator
 
 
 class TestImapAttachmentToS3Operator(unittest.TestCase):

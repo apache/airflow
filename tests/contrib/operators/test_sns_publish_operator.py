@@ -21,7 +21,7 @@
 import unittest
 from unittest import mock
 
-from airflow.contrib.operators.sns_publish_operator import SnsPublishOperator
+from airflow.providers.aws.operators.sns import SnsPublishOperator
 
 TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"

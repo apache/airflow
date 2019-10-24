@@ -23,7 +23,7 @@ import warnings
 
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.operators.gcs import GoogleCloudStorageListOperator
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
