@@ -45,8 +45,8 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook",
     ),
     (
-        "airflow.gcp.hooks.functions.GcfHook",
-        "airflow.contrib.hooks.gcp_function_hook.GcfHook",
+        "airflow.gcp.hooks.functions.CloudFunctionsHook",
+        "airflow.contrib.hooks.gcp_function_hook.CloudFunctionsHook",
     ),
     (
         "airflow.gcp.hooks.kms.GoogleCloudKMSHook",
