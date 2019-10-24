@@ -44,23 +44,42 @@ jobs:
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.15.0 KUBERNETES_MODE=persistent_mode
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=persistent_mode
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.15.0 KUBERNETES_MODE=git_mode
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=git_mode
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests postgres python 3.6"
-      env: BACKEND=postgres ENV=docker
+      env: >-
+        BACKEND=postgres
+        ENV=docker
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests sqlite python 3.5"
-      env: BACKEND=sqlite ENV=docker
+      env:
+        BACKEND=sqlite
+        ENV=docker
+        PYTHON_VERSION=3.5
       python: "3.5"
       stage: test
     - name: "Tests mysql python 3.7"
-      env: BACKEND=mysql ENV=docker
+      env:
+        BACKEND=mysql
+        ENV=docker
+        PYTHON_VERSION=3.7
       python: "3.7"
       stage: test
 services:
