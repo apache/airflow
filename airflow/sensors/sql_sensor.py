@@ -98,4 +98,4 @@ class SqlSensor(BaseSensorOperator):
                 return self.success(first_cell)
             else:
                 raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
-        return not bool(first_cell)
+        return bool(first_cell)
