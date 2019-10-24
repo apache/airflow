@@ -28,7 +28,7 @@ import uuid
 from enum import Enum
 from typing import List, Optional
 
-from airflow.gcp.hooks.dataflow import DataFlowHook
+from airflow.gcp.hooks.dataflow import DataflowHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -199,7 +199,7 @@ class DataFlowJavaOperator(BaseOperator):
         self.check_if_running = check_if_running
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = copy.copy(self.dataflow_default_options)
@@ -329,7 +329,7 @@ class DataflowTemplateOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
 
@@ -419,7 +419,7 @@ class DataFlowPythonOperator(BaseOperator):
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
         self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = self.dataflow_default_options.copy()

@@ -325,7 +325,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(GoogleCloudBaseHook):
+class DataflowHook(GoogleCloudBaseHook):
     """
     Hook for Google Dataflow.
 
