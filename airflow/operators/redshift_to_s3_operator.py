@@ -83,7 +83,7 @@ class RedshiftToS3Transfer(BaseOperator):
             unload_options: Optional[List] = None,
             autocommit: bool = False,
             include_header: bool = False,
-            table_as_file_name: bool = True #Set to True by default for not breaking current workflows
+            table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = schema
@@ -108,7 +108,7 @@ class RedshiftToS3Transfer(BaseOperator):
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
         select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
-        if self.table_as_file_name == True:
+        if self.table_as_file_name:
             unload_query = """
                         UNLOAD ('{select_query}')
                         TO 's3://{s3_bucket}/{s3_key}/{table}_'
@@ -135,7 +135,6 @@ class RedshiftToS3Transfer(BaseOperator):
                                    access_key=credentials.access_key,
                                    secret_key=credentials.secret_key,
                                    unload_options=unload_options)
-            
 
         self.log.info('Executing UNLOAD command...')
         postgres_hook.run(unload_query, self.autocommit)
