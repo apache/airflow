@@ -1104,6 +1104,10 @@ class TestCli(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 
+    def test_cli_list_users_with_args(self):
+        cli.users_list(self.parser.parse_args(['users', 'list',
+                                               '--output', 'tsv']))
+
     def test_cli_import_users(self):
         def assertUserInRoles(email, roles):
             for role in roles:
@@ -1330,6 +1334,10 @@ class TestCli(unittest.TestCase):
         self.assertIn('FakeTeamA', stdout)
         self.assertIn('FakeTeamB', stdout)
 
+    def test_cli_list_roles_with_args(self):
+        cli.roles_list(self.parser.parse_args(['roles', 'list',
+                                               '--output', 'tsv']))
+
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
             args = self.parser.parse_args(['tasks', 'list', dag_id])
@@ -1347,7 +1355,8 @@ class TestCli(unittest.TestCase):
         args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
                                        'example_bash_operator',
                                        '--state', 'success',
-                                       '--limit', '100'])
+                                       '--limit', '100',
+                                       '--output', 'tsv'])
         cli.list_jobs(args)
 
     @mock.patch("airflow.bin.cli.db.initdb")
@@ -1381,6 +1390,11 @@ class TestCli(unittest.TestCase):
         self.assertIn(['postgres_default', 'postgres'], conns)
         self.assertIn(['wasb_default', 'wasb'], conns)
         self.assertIn(['segment_default', 'segment'], conns)
+
+    def test_cli_connections_list_with_args(self):
+        args = self.parser.parse_args(['connections', 'list',
+                                       '--output', 'tsv'])
+        cli.connections_list(args)
 
     def test_cli_connections_list_redirect(self):
         cmd = ['airflow', 'connections', 'list']
@@ -1646,6 +1660,17 @@ class TestCli(unittest.TestCase):
             cli.delete_dag(self.parser.parse_args([
                 'dags', 'delete', key, '--yes']))
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+
+    def test_pool_list(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.pool_list(self.parser.parse_args(['pools', 'list']))
+            stdout = mock_stdout.getvalue()
+        self.assertIn('foo', stdout)
+
+    def test_pool_list_with_args(self):
+        cli.pool_list(self.parser.parse_args(['pools', 'list',
+                                              '--output', 'tsv']))
 
     def test_pool_create(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
