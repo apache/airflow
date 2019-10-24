@@ -681,3 +681,21 @@ commands:
 
     # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
     npm run lint:fix
+
+Resources & links
+=================
+- `Airflow’s official documentation <http://airflow.apache.org/>`__
+
+- Mailing lists:
+
+  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+
+  - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
+
+  - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
+
+- `Issues on Apache’s Jira <https://issues.apache.org/jira/browse/AIRFLOW>`__
+
+- `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
+
+- `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
