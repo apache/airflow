@@ -159,6 +159,39 @@ class TestDruidHook(unittest.TestCase):
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         self.assertEqual(hook.get_conn_url(), 'https://test_host:1/ingest')
 
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = 'airflow'
+        get_conn_value.password = 'password'
+        mock_get_connection.return_value = get_conn_value
+        expected = requests.auth.HTTPBasicAuth('airflow', 'password')
+        self.assertEqual(self.db_hook.get_auth(), expected)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_user(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = None
+        get_conn_value.password = 'password'
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_password(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = 'airflow'
+        get_conn_value.password = None
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_user_and_password(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = None
+        get_conn_value.password = None
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
 
 class TestDruidDbApiHook(unittest.TestCase):
 
