@@ -39,8 +39,11 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :param message: The message you want to send on Slack
     :type message: str
     :param attachments: The attachments to send on Slack. Should be a list of
-                        dictionaries representing Slack attachments.
+        dictionaries representing Slack attachments.
     :type attachments: list
+    :param blocks: The blocks to send on Slack. Should be a list of
+        dictionaries representing Slack layout blocks.
+    :type blocks: list
     :param channel: The channel the message should be posted to
     :type channel: str
     :param username: The username to post to slack with
@@ -57,7 +60,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
     """
 
     template_fields = ['webhook_token', 'message', 'attachments', 'channel',
-                       'username', 'proxy', ]
+                       'username', 'proxy', 'blocks']
 
     @apply_defaults
     def __init__(self,
@@ -65,6 +68,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  webhook_token=None,
                  message="",
                  attachments=None,
+                 blocks=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
@@ -80,6 +84,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.webhook_token = webhook_token
         self.message = message
         self.attachments = attachments
+        self.blocks = blocks
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
@@ -97,6 +102,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.webhook_token,
             self.message,
             self.attachments,
+            self.blocks,
             self.channel,
             self.username,
             self.icon_emoji,
