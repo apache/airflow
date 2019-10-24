@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer operators.
+Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
 
 import os
@@ -28,24 +28,29 @@ from airflow.operators.gcs_to_sftp import GoogleCloudStorageToSFTPOperator
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
+# [START howto_operator_gcs_to_sftp_args_common]
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sftp")
 OBJECT_SRC_1 = "parent-1.bin"
 OBJECT_SRC_2 = "parent-2.bin"
 OBJECT_SRC_3 = "subdir-1/*"
 DESTINATION_PATH_1 = "/tmp/single-file/"
 DESTINATION_PATH_2 = "/tmp/dirs/"
+# [END howto_operator_gcs_to_sftp_args_common]
 
 
 with models.DAG(
     "example_gcs_to_sftp", default_args=default_args, schedule_interval=None
 ) as dag:
+    # [START howto_operator_gcs_to_sftp_copy_single_file]
     copy_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="file-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_1,
         destination_path=DESTINATION_PATH_1,
     )
+    # [END howto_operator_gcs_to_sftp_copy_single_file]
 
+    # [START howto_operator_gcs_to_sftp_move_single_file_destination]
     move_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="file-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
@@ -53,17 +58,22 @@ with models.DAG(
         destination_path=DESTINATION_PATH_1,
         move_object=True,
     )
+    # [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
+    # [START howto_operator_gcs_to_sftp_copy_directory]
     copy_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="dir-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
         destination_path=DESTINATION_PATH_2,
     )
+    # [END howto_operator_gcs_to_sftp_copy_directory]
 
+    # [START howto_operator_gcs_to_sftp_move_specific_files]
     move_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="dir-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
         destination_path=DESTINATION_PATH_2,
     )
+    # [END howto_operator_gcs_to_sftp_move_specific_files]

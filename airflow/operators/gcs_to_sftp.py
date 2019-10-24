@@ -36,6 +36,10 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
     """
     Transfer files from a Google Cloud Storage bucket to SFTP server.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToSFTPOperator`
+
     :param source_bucket: The source Google cloud storage bucket where the
          object is. (templated)
     :type source_bucket: str
@@ -62,6 +66,50 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+
+    :Example:
+
+    The following Operator would copy a single file named
+    ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
+    ``copied_sales/2017/january-backup.avro`` in the SFTP server ::
+
+        copy_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
+            task_id="file-copy-gsc-to-sftp",
+            source_bucket="data",
+            source_object="sales/sales-2017/january.avro",
+            destination_path="copied_sales/2017/january-backup.avro",
+            gcp_conn_id: str = "google_cloud_default",
+            sftp_conn_id: str = "ssh_default",
+        )
+
+    The following Operator would copy all the Avro files from ``sales/sales-2017``
+    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    ``copied_sales/2017`` folder on the SFTP server ::
+
+        copy_files = GoogleCloudStorageToSFTPOperator(
+            task_id='copy_files',
+            source_bucket='data',
+            source_object='sales/sales-2017/*.avro',
+            destination_path='copied_sales/2017/',
+            gcp_conn_id: str = "google_cloud_default",
+            sftp_conn_id: str = "ssh_default",
+        )
+
+    The following Operator would copy all the Avro files from ``sales/sales-2017``
+    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    ``moved_sales/2017`` folder on the SFTP server, deleting the original files in the
+    process. ::
+
+        move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id='copy_files',
+            source_bucket='data',
+            source_object='sales/sales-2017/*.avro',
+            destination_path='moved_sales/2017/',
+            move_object=True,
+            gcp_conn_id: str = "google_cloud_default",
+            sftp_conn_id: str = "ssh_default",
+        )
+
     """
 
     template_fields = ("source_bucket", "source_object", "destination_path")
