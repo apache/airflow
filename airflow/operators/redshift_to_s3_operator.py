@@ -37,7 +37,8 @@ class RedshiftToS3Transfer(BaseOperator):
     :type table: str
     :param s3_bucket: reference to a specific S3 bucket
     :type s3_bucket: str
-    :param s3_key: reference to a specific S3 key. If table_as_file_name is set to False, this param must include the desired file name
+    :param s3_key: reference to a specific S3 key. If table_as_file_name is set
+    to False, this param must include the desired file name
     :type s3_key: str
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
@@ -82,7 +83,7 @@ class RedshiftToS3Transfer(BaseOperator):
             unload_options: Optional[List] = None,
             autocommit: bool = False,
             include_header: bool = False,
-            table_as_file_name : bool = True #Set to True by default for not breaking current workflows
+            table_as_file_name: bool = True #Set to True by default for not breaking current workflows
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = schema
@@ -95,6 +96,7 @@ class RedshiftToS3Transfer(BaseOperator):
         self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
+        self.table_as_file_name = table_as_file_name
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + ['HEADER', ]
@@ -106,7 +108,7 @@ class RedshiftToS3Transfer(BaseOperator):
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
         select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
-        if table_as_file_name == True:
+        if self.table_as_file_name == True:
             unload_query = """
                         UNLOAD ('{select_query}')
                         TO 's3://{s3_bucket}/{s3_key}/{table}_'
@@ -128,7 +130,6 @@ class RedshiftToS3Transfer(BaseOperator):
                         'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                         {unload_options};
                         """.format(select_query=select_query,
-                                   table=self.table,
                                    s3_bucket=self.s3_bucket,
                                    s3_key=self.s3_key,
                                    access_key=credentials.access_key,
