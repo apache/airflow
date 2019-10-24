@@ -55,6 +55,7 @@ from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -73,7 +74,7 @@ from airflow.www_rbac.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER)
+    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
@@ -438,9 +439,9 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag_orm = DagModel.get_dagmodel(dag_id)
+        dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag()
+        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -488,7 +489,9 @@ class Airflow(AirflowBaseView):
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+        # Loads dag from file
+        logging.info("Processing DAG file to render template.")
+        dag = dagbag.get_dag(dag_id, from_file_only=True)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
@@ -1022,9 +1025,11 @@ class Airflow(AirflowBaseView):
             dags = dags.all()
 
             for dag_id, active_dag_runs in dags:
-                max_active_runs = 0
-                if dag_id in dagbag.dags:
-                    max_active_runs = dagbag.dags[dag_id].max_active_runs
+                dag = dagbag.get_dag(dag_id)
+                max_active_runs = dagbag.dags[dag_id].max_active_runs
+                if dag:
+                    # TODO: Make max_active_runs a column so we can query for it directly
+                    max_active_runs = dag.max_active_runs
                 payload.append({
                     'dag_id': dag_id,
                     'active_dag_run': active_dag_runs,
@@ -1206,7 +1211,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
@@ -1257,14 +1262,14 @@ class Airflow(AirflowBaseView):
         # expand/collapse functionality. After 5,000 nodes we stop and fall
         # back on a quick DFS search for performance. See PR #320.
         node_count = [0]
-        node_limit = 5000 / max(1, len(dag.roots))
+        node_limit = 5000 / max(1, len(dag.leaves))
 
         def recurse_nodes(task, visited):
             visited.add(task)
             node_count[0] += 1
 
             children = [
-                recurse_nodes(t, visited) for t in task.upstream_list
+                recurse_nodes(t, visited) for t in task.downstream_list
                 if node_count[0] < node_limit or t not in visited]
 
             # D3 tree uses children vs _children to define what is
@@ -1292,7 +1297,7 @@ class Airflow(AirflowBaseView):
                     }
                     for d in dates],
                 children_key: children,
-                'num_dep': len(task.upstream_list),
+                'num_dep': len(task.downstream_list),
                 'operator': task.task_type,
                 'retries': task.retries,
                 'owner': task.owner,
@@ -1318,10 +1323,8 @@ class Airflow(AirflowBaseView):
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
             'airflow/tree.html',
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.task_type: op for op in dag.tasks}.values(),
+                             key=lambda x: x.task_type),
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs,
@@ -1337,7 +1340,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
@@ -1364,18 +1367,18 @@ class Airflow(AirflowBaseView):
                 }
             })
 
-        def get_upstream(task):
-            for t in task.upstream_list:
+        def get_downstream(task):
+            for t in task.downstream_list:
                 edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
+                    'source_id': task.task_id,
+                    'target_id': t.task_id,
                 }
                 if edge not in edges:
                     edges.append(edge)
-                    get_upstream(t)
+                    get_downstream(t)
 
         for t in dag.roots:
-            get_upstream(t)
+            get_downstream(t)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
@@ -1419,10 +1422,8 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=sorted({op.task_type: op for op in dag.tasks}.values(),
+                             key=lambda x: x.task_type),
             blur=blur,
             root=root or '',
             task_instances=task_instances,
@@ -1698,7 +1699,9 @@ class Airflow(AirflowBaseView):
     def paused(self, session=None):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
-        models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
+        models.DagModel.get_dagmodel(dag_id).set_is_paused(
+            is_paused=is_paused,
+            store_serialized_dags=STORE_SERIALIZED_DAGS)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
@@ -1723,16 +1726,6 @@ class Airflow(AirflowBaseView):
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
-
-    @expose('/refresh_all', methods=['POST'])
-    @has_access
-    @action_logging
-    def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
-        # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
-        flash("All DAGs are now up to date")
-        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)

@@ -29,7 +29,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable, List
+from typing import TYPE_CHECKING, Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
@@ -37,24 +37,30 @@ import six
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from future.standard_library import install_aliases
-from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
+from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 
 from airflow import configuration, settings, utils
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, AirflowDagCycleException
+from airflow.exceptions import AirflowException, AirflowDagCycleException, DagNotFound
 from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import Base, ID_LEN
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
+from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 install_aliases()
 
@@ -182,6 +188,8 @@ class DAG(BaseDag, LoggingMixin):
         'last_loaded',
     }
 
+    _serialized_fields = frozenset()  # type: FrozenSet[str]
+
     def __init__(
         self,
         dag_id,  # type: str
@@ -231,7 +239,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, TaskInstance]
+        self.task_dict = dict()  # type: Dict[str, BaseOperator]
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -716,7 +724,8 @@ class DAG(BaseDag, LoggingMixin):
         for task in self.tasks:
             if (isinstance(task, SubDagOperator) or
                     # TODO remove in Airflow 2.0
-                    type(task).__name__ == 'SubDagOperator'):
+                    type(task).__name__ == 'SubDagOperator' or
+                    task.task_type == 'SubDagOperator'):
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
         return subdag_lst
@@ -775,7 +784,13 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def roots(self):
-        return [t for t in self.tasks if not t.downstream_list]
+        """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
+        return [task for task in self.tasks if not task.upstream_list]
+
+    @property
+    def leaves(self):
+        """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
+        return [task for task in self.tasks if not task.downstream_list]
 
     def topological_sort(self):
         """
@@ -1101,13 +1116,11 @@ class DAG(BaseDag, LoggingMixin):
         return dp
 
     def tree_view(self):
-        """
-        Shows an ascii tree representation of the DAG
-        """
+        """Print an ASCII tree representation of the DAG."""
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
-            for t in task.upstream_list:
+            for t in task.downstream_list:
                 get_downstream(t, level)
 
         for t in self.roots:
@@ -1321,8 +1334,13 @@ class DAG(BaseDag, LoggingMixin):
             if self.is_paused_upon_creation is not None:
                 orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
-        orm_dag.is_subdag = self.is_subdag
+        if self.is_subdag:
+            orm_dag.is_subdag = True
+            orm_dag.fileloc = self.parent_dag.fileloc
+            orm_dag.root_dag_id = self.parent_dag.dag_id
+        else:
+            orm_dag.is_subdag = False
+            orm_dag.fileloc = self.fileloc
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
@@ -1334,6 +1352,16 @@ class DAG(BaseDag, LoggingMixin):
 
         for subdag in self.subdags:
             subdag.sync_to_db(owner=owner, sync_time=sync_time, session=session)
+
+        # Write DAGs to serialized_dag table in DB.
+        # subdags are not written into serialized_dag, because they are not displayed
+        # in the DAG list on UI. They are included in the serialized parent DAG.
+        if STORE_SERIALIZED_DAGS and not self.is_subdag:
+            SerializedDagModel.write_dag(
+                self,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                session=session
+            )
 
     @staticmethod
     @provide_session
@@ -1458,6 +1486,7 @@ class DagModel(Base):
     These items are stored in the database for state related information
     """
     dag_id = Column(String(ID_LEN), primary_key=True)
+    root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = configuration.conf\
@@ -1493,6 +1522,10 @@ class DagModel(Base):
     # Schedule interval
     schedule_interval = Column(Interval)
 
+    __table_args__ = (
+        Index('idx_root_dag_id', root_dag_id, unique=False),
+    )
+
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 
@@ -1525,8 +1558,18 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self):
-        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+    def get_dag(self, store_serialized_dags=False):
+        """Creates a dagbag to load and return a DAG.
+        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
+        There may be a delay for scheduler to write serialized DAG into database,
+        loads from file in this case.
+        FIXME: remove it when webserver does not access to DAG folder in future.
+        """
+        dag = DagBag(
+            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
+        if store_serialized_dags and dag is None:
+            dag = self.get_dag()
+        return dag
 
     @provide_session
     def create_dagrun(self,
@@ -1567,6 +1610,7 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused,  # type: bool
                       including_subdags=True,  # type: bool
+                      store_serialized_dags=False,  # type: bool
                       session=None,
                       ):
         # type: (...) -> None
@@ -1575,11 +1619,15 @@ class DagModel(Base):
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
+        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
         dag_ids = [self.dag_id]  # type: List[str]
         if including_subdags:
-            subdags = self.get_dag().subdags
+            dag = self.get_dag(store_serialized_dags)
+            if dag is None:
+                raise DagNotFound("Dag id {} not found".format(self.dag_id))
+            subdags = dag.subdags
             dag_ids.extend([subdag.dag_id for subdag in subdags])
         dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
         try:
@@ -1589,3 +1637,45 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
+    @classmethod
+    @provide_session
+    def deactivate_deleted_dags(cls, alive_dag_filelocs, session=None):
+        """
+        Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
+        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
+
+        :param alive_dag_filelocs: file paths of alive DAGs
+        :param session: ORM Session
+        """
+        log = LoggingMixin().log
+        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
+                  cls.__tablename__)
+        dag_models = session.query(cls).all()
+        try:
+            for dag_model in dag_models:
+                if dag_model.fileloc is not None:
+                    if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
+                        dag_model.is_active = False
+                    else:
+                        # If is_active is set as False and the DAG File still exists
+                        # Change is_active=True
+                        if not dag_model.is_active:
+                            dag_model.is_active = True
+                else:
+                    continue
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+
+
+# Stringified DAGs and operators contain exactly these fields.
+
+# pylint: disable=protected-access
+DAG._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+    'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+    '_full_filepath', 'user_defined_filters', 'user_defined_macros',
+    '_schedule_interval', 'partial', '_old_context_manager_dags',
+    '_pickle_id', '_log', 'is_subdag', 'task_dict'
+}

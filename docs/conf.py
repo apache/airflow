@@ -194,6 +194,7 @@ exclude_patterns = [
     '_api/airflow/migrations',
     '_api/airflow/plugins_manager',
     '_api/airflow/security',
+    '_api/airflow/serialization',
     '_api/airflow/settings',
     '_api/airflow/stats',
     '_api/airflow/task',

@@ -17,15 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from abc import ABCMeta, abstractmethod
-from cached_property import cached_property
+
 import copy
 import functools
 import logging
 import sys
 import warnings
-from datetime import timedelta, datetime
-from typing import Iterable, Optional, Dict, Callable, Set
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
+from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type
+
+
+from cached_property import cached_property
 
 import jinja2
 import six
@@ -224,6 +227,8 @@ class BaseOperator(LoggingMixin):
     ui_color = '#fff'
     ui_fgcolor = '#000'
 
+    pool = ""  # type: str
+
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs = ('user_defined_macros',
                                          'user_defined_filters',
@@ -235,6 +240,9 @@ class BaseOperator(LoggingMixin):
 
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+
+    # Set at end of file
+    _serialized_fields = frozenset()  # type: FrozenSet[str]
 
     _comps = {
         'task_id',
@@ -568,7 +576,21 @@ class BaseOperator(LoggingMixin):
 
     @cached_property
     def operator_extra_link_dict(self):
-        return {link.name: link for link in self.operator_extra_links}
+        """Returns dictionary of all extra links for the operator"""
+        from airflow.plugins_manager import operator_extra_links
+
+        op_extra_links_from_plugin = {}
+        for ope in operator_extra_links:
+            if ope.operators and self.__class__ in ope.operators:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {
+            link.name: link for link in self.operator_extra_links
+        }
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
 
     @cached_property
     def global_operator_extra_link_dict(self):
@@ -986,12 +1008,28 @@ class BaseOperator(LoggingMixin):
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
 
 
+# pylint: disable=protected-access
+BaseOperator._serialized_fields = frozenset(
+    set(vars(BaseOperator(task_id='test')).keys()) - {
+        'inlets', 'outlets', '_upstream_task_ids', 'default_args'
+    } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
+)
+
+
 class BaseOperatorLink:
     """
     Abstract base class that defines how we get an operator link.
     """
 
     __metaclass__ = ABCMeta
+
+    operators = []   # type: List[Type[BaseOperator]]
+    """
+    This property will be used by Airflow Plugins to find the Operators to which you want
+    to assign this Operator Link
+
+    :return: List of Operator classes used by task for which you want to create extra link
+    """
 
     @property
     @abstractmethod

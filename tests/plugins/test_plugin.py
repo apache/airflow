@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
-
 from flask import Blueprint
 from flask_admin import BaseView, expose
 from flask_admin.base import MenuLink
@@ -27,9 +24,12 @@ from flask_appbuilder import BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.baseoperator import BaseOperator
+# This is the class you derive to create a plugin
+from airflow.plugins_manager import AirflowPlugin
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.tests import AirflowLink, AirflowLink2, GithubLink, GoogleLink
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -104,20 +104,6 @@ ml = MenuLink(
     url="https://airflow.apache.org/")
 
 
-class AirflowLink(BaseOperatorLink):
-    name = 'airflow'
-
-    def get_link(self, operator, dttm):
-        return 'should_be_overridden'
-
-
-class GithubLink(BaseOperatorLink):
-    name = 'github'
-
-    def get_link(self, operator, dttm):
-        return 'https://github.com/apache/airflow'
-
-
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -134,6 +120,9 @@ class AirflowTestPlugin(AirflowPlugin):
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),
+    ]
+    operator_extra_links = [
+        GoogleLink(), AirflowLink2()
     ]
 
 

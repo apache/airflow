@@ -55,7 +55,20 @@ class AirflowPlugin(object):
     menu_links = []  # type: List[Any]
     appbuilder_views = []  # type: List[Any]
     appbuilder_menu_items = []  # type: List[Any]
+
+    # A list of global operator extra links that can redirect users to
+    # external systems. These extra links will be available on the
+    # task page in the form of buttons.
+    #
+    # Note: the global operator extra link can be overridden at each
+    # operator level.
     global_operator_extra_links = []  # type: List[BaseOperatorLink]
+
+    # A list of operator extra links to override or add operator links
+    # to existing Airflow Operators.
+    # These extra links will be available on the task page in form of
+    # buttons.
+    operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod
     def validate(cls):
@@ -178,7 +191,9 @@ flask_blueprints = []  # type: List[Any]
 menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
-global_operator_extra_links = []  # type: List[Any]
+global_operator_extra_links = []  # type: List[BaseOperatorLink]
+operator_extra_links = []  # type: List[BaseOperatorLink]
+
 
 for p in plugins:
     operators_modules.append(
@@ -200,3 +215,8 @@ for p in plugins:
         'blueprint': bp
     } for bp in p.flask_blueprints])
     global_operator_extra_links.extend(p.global_operator_extra_links)
+
+    # Only register Operator links if its ``operators`` property is not an empty list
+    # So that we can only attach this links to a specific Operator
+    operator_extra_links.extend([
+        ope for ope in p.operator_extra_links if ope.operators])
