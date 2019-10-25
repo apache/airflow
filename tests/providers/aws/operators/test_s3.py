@@ -33,6 +33,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 
 import boto3
+from boto3.session import Session
 from moto import mock_s3
 
 from airflow.configuration import conf
@@ -326,6 +327,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.gcp_conn_id, self.GCS_CONN_ID)
         self.assertEqual(operator.dest_gcs, self.GCS_PATH_PREFIX)
 
+    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
     @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
     @mock.patch('airflow.providers.aws.operators.s3.GoogleCloudStorageHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
@@ -642,8 +644,6 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     def test_execute(self, mock_run, mock_Session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
-
-        from boto3.session import Session
         mock_Session.return_value = Session(access_key, secret_key)
 
         schema = "schema"
