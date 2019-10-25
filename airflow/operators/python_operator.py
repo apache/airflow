@@ -336,7 +336,7 @@ class PythonVirtualenvOperator(PythonOperator):
                                     stderr=subprocess.STDOUT,
                                     bufsize=0,
                                     close_fds=True)
-        self.log.info("Got output\n")
+        self.log.info("Got output")
         with self._sp.stdout:
             for line in iter(self._sp.stdout.readline, b''):
                 self.log.info("%s", line)
