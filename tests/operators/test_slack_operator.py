@@ -58,7 +58,6 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         ]
         self.test_attachments_in_json = json.dumps(self.test_attachments)
         self.test_api_params = {'key': 'value'}
-        self.test_kwarg = 'test_kwarg'
 
         self.expected_method = 'chat.postMessage'
         self.expected_api_params = {
@@ -80,7 +79,6 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             icon_url=self.test_icon_url,
             attachments=self.test_attachments,
             api_params=test_api_params,
-            kwarg=self.test_kwarg
         )
 
     @mock.patch('airflow.operators.slack_operator.SlackHook')
