@@ -94,7 +94,6 @@ repos:
       - id: insert-license
         name: Add licence for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
-        types: [shell]
         files: ^breeze$|^breeze-complete$|\.sh$
         args:
           - --comment-style
