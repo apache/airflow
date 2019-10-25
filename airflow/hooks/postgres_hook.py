@@ -22,6 +22,7 @@ from contextlib import closing
 
 import psycopg2
 import psycopg2.extensions
+import psycopg2.extras
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -67,6 +68,13 @@ class PostgresHook(DbApiHook):
             password=conn.password,
             dbname=self.schema or conn.schema,
             port=conn.port)
+        if conn.extra_dejson.get('cursor', False):
+            if (conn.extra_dejson['cursor']).lower() == 'dictcursor':
+                conn_args['cursor_factory'] = psycopg2.extras.DictCursor
+            elif (conn.extra_dejson['cursor']).lower() == 'realdictcursor':
+                conn_args['cursor_factory'] = psycopg2.extras.RealDictCursor
+            elif (conn.extra_dejson['cursor']).lower() == 'namedtuplecursor':
+                conn_args['cursor_factory'] = psycopg2.extras.NamedTupleCursor
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['sslmode', 'sslcert', 'sslkey',
