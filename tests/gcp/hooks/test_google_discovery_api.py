@@ -18,7 +18,7 @@
 # under the License.
 #
 import unittest
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from airflow import configuration, models
 from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook

@@ -18,7 +18,7 @@
 
 
 
-.. image:: img/pin_large.png
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation
@@ -93,6 +93,7 @@ Content
     errors
     kubernetes
     lineage
+    dag-serialization
     changelog
     faq
     privacy_notice
@@ -101,6 +102,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Operators and hooks <operators-and-hooks-ref>
     CLI <cli-ref>
     Macros <macros-ref>
     Python API <_api/index>

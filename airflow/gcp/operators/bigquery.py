@@ -16,24 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint:disable=too-many-lines
 """
 This module contains Google BigQuery operators.
 """
-# pylint:disable=too-many-lines
 
 import json
 import warnings
-from typing import Iterable, List, Optional, Union, Dict, Any, SupportsAbs
+from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils.decorators import apply_defaults
-from airflow.operators.check_operator import \
-    CheckOperator, ValueCheckOperator, IntervalCheckOperator
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
-
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
 
@@ -307,10 +306,14 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        self.log.info('Total Extracted rows: %s', response['totalRows'])
-        rows = response['rows']
+        total_rows = int(response['totalRows'])
+        self.log.info('Total Extracted rows: %s', total_rows)
 
         table_data = []
+        if total_rows == 0:
+            return table_data
+
+        rows = response['rows']
         for dict_row in rows:
             single_row = []
             for fields in dict_row['f']:

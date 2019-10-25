@@ -34,44 +34,35 @@ This DAG relies on the following OS environment variables
 
 import os
 
-# [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry
-# [END howto_operator_vision_retry_import]
-# [START howto_operator_vision_product_set_import]
-from google.cloud.vision_v1.types import ProductSet
-# [END howto_operator_vision_product_set_import]
-# [START howto_operator_vision_product_import]
-from google.cloud.vision_v1.types import Product
-# [END howto_operator_vision_product_import]
-# [START howto_operator_vision_reference_image_import]
-from google.cloud.vision_v1.types import ReferenceImage
-# [END howto_operator_vision_reference_image_import]
-# [START howto_operator_vision_enums_import]
-from google.cloud.vision import enums
-# [END howto_operator_vision_enums_import]
-
 import airflow
 from airflow import models
+from airflow.gcp.operators.vision import (
+    CloudVisionAddProductToProductSetOperator, CloudVisionAnnotateImageOperator,
+    CloudVisionDetectDocumentTextOperator, CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator, CloudVisionProductGetOperator, CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator, CloudVisionProductSetGetOperator,
+    CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
+    CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
+)
 from airflow.operators.bash_operator import BashOperator
 
-from airflow.gcp.operators.vision import (
-    CloudVisionProductSetCreateOperator,
-    CloudVisionProductSetGetOperator,
-    CloudVisionProductSetUpdateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductGetOperator,
-    CloudVisionProductUpdateOperator,
-    CloudVisionProductDeleteOperator,
-    CloudVisionReferenceImageCreateOperator,
-    CloudVisionAddProductToProductSetOperator,
-    CloudVisionRemoveProductFromProductSetOperator,
-    CloudVisionAnnotateImageOperator,
-    CloudVisionDetectTextOperator,
-    CloudVisionDetectDocumentTextOperator,
-    CloudVisionDetectImageLabelsOperator,
-    CloudVisionDetectImageSafeSearchOperator,
-)
+# [START howto_operator_vision_retry_import]
+from google.api_core.retry import Retry  # isort:skip pylint: disable=wrong-import-order
+# [END howto_operator_vision_retry_import]
+# [START howto_operator_vision_product_set_import]
+from google.cloud.vision_v1.types import ProductSet  # isort:skip pylint: disable=wrong-import-order
+# [END howto_operator_vision_product_set_import]
+# [START howto_operator_vision_product_import]
+from google.cloud.vision_v1.types import Product  # isort:skip pylint: disable=wrong-import-order
+# [END howto_operator_vision_product_import]
+# [START howto_operator_vision_reference_image_import]
+from google.cloud.vision_v1.types import ReferenceImage  # isort:skip pylint: disable=wrong-import-order
+# [END howto_operator_vision_reference_image_import]
+# [START howto_operator_vision_enums_import]
+from google.cloud.vision import enums  # isort:skip pylint: disable=wrong-import-order
+# [END howto_operator_vision_enums_import]
+
 
 default_args = {'start_date': airflow.utils.dates.days_ago(1)}
 

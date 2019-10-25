@@ -18,11 +18,11 @@
 # under the License.
 
 
-from functools import wraps
 import logging
 import socket
 import string
 import textwrap
+from functools import wraps
 from typing import Any
 
 from airflow.configuration import conf

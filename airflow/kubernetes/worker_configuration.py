@@ -16,14 +16,15 @@
 # under the License.
 """Configuration of the worker"""
 import os
-from typing import List, Dict
+from typing import Dict, List
+
 import kubernetes.client.models as k8s
 
 from airflow.configuration import conf
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.secret import Secret
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -153,7 +154,7 @@ class WorkerConfiguration(LoggingMixin):
 
         if self.kube_config.git_sync_run_as_user != "":
             init_containers.security_context = k8s.V1SecurityContext(
-                run_as_user=self.kube_config.git_sync_run_as_user or 65533
+                run_as_user=self.kube_config.git_sync_run_as_user
             )  # git-sync user
 
         return [init_containers]

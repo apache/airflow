@@ -19,9 +19,9 @@
 
 import datetime
 import unittest
-from unittest import mock
 import uuid
 from collections import namedtuple
+from unittest import mock
 
 import jinja2
 from parameterized import parameterized

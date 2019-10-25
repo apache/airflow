@@ -16,8 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow import DAG
 from airflow.configuration import conf

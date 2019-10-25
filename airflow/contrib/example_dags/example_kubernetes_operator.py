@@ -19,9 +19,9 @@
 """
 This is an example dag for using the KubernetesPodOperator.
 """
+from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.models import DAG
 
 log = LoggingMixin().log
 

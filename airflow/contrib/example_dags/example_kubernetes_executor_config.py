@@ -26,7 +26,6 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 
-
 default_args = {
     'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)

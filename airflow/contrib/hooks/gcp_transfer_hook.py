@@ -24,9 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.hooks.cloud_storage_transfer_service import (  # noqa
-    GCPTransferServiceHook,
-    GcpTransferJobsStatus,
-    GcpTransferOperationStatus,
+    GcpTransferJobsStatus, GcpTransferOperationStatus, GCPTransferServiceHook,
 )
 
 warnings.warn(

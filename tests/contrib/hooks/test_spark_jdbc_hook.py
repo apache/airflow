@@ -19,10 +19,9 @@
 #
 import unittest
 
+from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
 from airflow.models import Connection
 from airflow.utils import db
-
-from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
 
 
 class TestSparkJDBCHook(unittest.TestCase):

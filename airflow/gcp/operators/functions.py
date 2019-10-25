@@ -21,17 +21,16 @@ This module contains Google Cloud Functions operators.
 """
 
 import re
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.utils.field_validator import GcpBodyFieldValidator, \
-    GcpFieldValidationException
-from airflow.version import version
-from airflow.models import BaseOperator
 from airflow.gcp.hooks.functions import GcfHook
+from airflow.gcp.utils.field_validator import GcpBodyFieldValidator, GcpFieldValidationException
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 def _validate_available_memory_in_mb(value):

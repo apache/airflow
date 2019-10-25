@@ -29,19 +29,20 @@ import time
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
-import lazy_object_proxy
-import pendulum
 
 import dill
+import lazy_object_proxy
+import pendulum
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
-from airflow.exceptions import (AirflowException, AirflowRescheduleException,
-                                AirflowSkipException, AirflowTaskTimeout)
 from airflow import settings
 from airflow.configuration import conf
-from airflow.models.base import Base, ID_LEN
+from airflow.exceptions import (
+    AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
+)
+from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
@@ -50,7 +51,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -96,6 +97,14 @@ def clear_task_instances(tis,
                 ti.max_tries = max(ti.max_tries, ti.try_number - 1)
             ti.state = State.NONE
             session.merge(ti)
+        # Clear all reschedules related to the ti to clear
+        TR = TaskReschedule
+        session.query(TR).filter(
+            TR.dag_id == ti.dag_id,
+            TR.task_id == ti.task_id,
+            TR.execution_date == ti.execution_date,
+            TR.try_number == ti.try_number
+        ).delete()
 
     if job_ids:
         from airflow.jobs import BaseJob as BJ
@@ -463,18 +472,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.executor_config = ti.executor_config
         else:
             self.state = None
-
-    @provide_session
-    def clear_xcom_data(self, session=None):
-        """
-        Clears all XCom data from the database for the task instance
-        """
-        session.query(XCom).filter(
-            XCom.dag_id == self.dag_id,
-            XCom.task_id == self.task_id,
-            XCom.execution_date == self.execution_date
-        ).delete()
-        session.commit()
 
     @property
     def key(self):
@@ -900,9 +897,6 @@ class TaskInstance(Base, LoggingMixin):
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
 
-                # Don't clear Xcom until the task is certain to execute
-                self.clear_xcom_data()
-
                 start_time = time.time()
 
                 self.render_templates(context=context)
@@ -941,7 +935,10 @@ class TaskInstance(Base, LoggingMixin):
                 Stats.incr('ti_successes')
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
-        except AirflowSkipException:
+        except AirflowSkipException as e:
+            # log only if exception has any arguments to prevent log flooding
+            if e.args:
+                self.log.info(e)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:

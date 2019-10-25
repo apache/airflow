@@ -24,10 +24,10 @@ import os
 from datetime import datetime
 from typing import Callable, List, Optional
 
+from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow import AirflowException
 
 
 class GoogleCloudStorageObjectSensor(BaseSensorOperator):

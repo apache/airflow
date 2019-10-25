@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
 import subprocess
 import sys
-from typing import Union, Optional
+from tempfile import NamedTemporaryFile
+from typing import Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook

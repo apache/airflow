@@ -18,11 +18,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Main executable module"""
+
 import os
+
 import argcomplete
 
-from airflow.configuration import conf
 from airflow.bin.cli import CLIFactory
+from airflow.configuration import conf
 
 if __name__ == '__main__':
 

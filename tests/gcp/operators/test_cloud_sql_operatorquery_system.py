@@ -17,18 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from os.path import dirname
 import random
 import string
-import unittest
-
 import time
+import unittest
+from os.path import dirname
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
+from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import TestBaseGcpSystem, TestDagGcpSystem
-from tests.gcp.operators.test_cloud_sql_system_helper import \
-    CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')

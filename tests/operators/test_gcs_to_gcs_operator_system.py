@@ -19,10 +19,11 @@
 """System tests for Google Cloud Build operators"""
 import unittest
 
-from tests.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem, \
-    OPERATORS_EXAMPLES_DAG_FOLDER
+from tests.gcp.utils.base_gcp_system_test_case import (
+    OPERATORS_EXAMPLES_DAG_FOLDER, SKIP_TEST_WARNING, TestDagGcpSystem,
+)
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)

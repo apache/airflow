@@ -16,18 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
-from airflow.typing import Protocol
-import sys
 import re
+import sys
 from datetime import datetime
-
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from typing import Optional
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.typing import Protocol
+from airflow.utils.decorators import apply_defaults
 
 
 class ECSProtocol(Protocol):

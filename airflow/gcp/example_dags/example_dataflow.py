@@ -24,8 +24,9 @@ import os
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.dataflow import DataFlowJavaOperator, CheckJobRunning, DataFlowPythonOperator, \
-    DataflowTemplateOperator
+from airflow.gcp.operators.dataflow import (
+    CheckJobRunning, DataFlowJavaOperator, DataFlowPythonOperator, DataflowTemplateOperator,
+)
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')

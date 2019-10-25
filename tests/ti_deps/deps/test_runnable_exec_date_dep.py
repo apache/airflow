@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-from freezegun import freeze_time
 from unittest.mock import Mock
+
+from freezegun import freeze_time
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep

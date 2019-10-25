@@ -42,14 +42,14 @@ Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``
 Tags
 -----
 
-=================================== ==================================================
-Name                                Description
-=================================== ==================================================
-dag_id                              Dag name of the dag that failed
-task_id                             Task name of the task that failed
-execution_date                      Execution date when the task failed
-operator                            Operator name of the task that failed
-=================================== ==================================================
+======================================= ==================================================
+Name                                    Description
+======================================= ==================================================
+``dag_id``                              Dag name of the dag that failed
+``task_id``                             Task name of the task that failed
+``execution_date``                      Execution date when the task failed
+``operator``                            Operator name of the task that failed
+======================================= ==================================================
 
 Breadcrumbs
 ------------
@@ -57,11 +57,11 @@ Breadcrumbs
 
 When a task fails with an error `breadcrumbs <https://docs.sentry.io/enriching-error-data/breadcrumbs/?platform=python>`__ will be added for the other tasks in the current dag run.
 
-=================================== ==============================================================
-Name                                Description
-=================================== ==============================================================
-completed_tasks[task_id]             Task ID of task that executed before failed task
-completed_tasks[state]               Final state of task that executed before failed task (only Success and Failed states are captured)
-completed_tasks[operator]            Task operator of task that executed before failed task
-completed_tasks[duration]            Duration in seconds of task that executed before failed task
-=================================== ==============================================================
+======================================= ==============================================================
+Name                                    Description
+======================================= ==============================================================
+``completed_tasks[task_id]``            Task ID of task that executed before failed task
+``completed_tasks[state]``              Final state of task that executed before failed task (only Success and Failed states are captured)
+``completed_tasks[operator]``           Task operator of task that executed before failed task
+``completed_tasks[duration]``           Duration in seconds of task that executed before failed task
+======================================= ==============================================================

@@ -28,8 +28,8 @@ this example.*
 """
 
 from airflow import DAG
-from airflow.contrib.sensors.azure_cosmos_sensor import AzureCosmosDocumentSensor
 from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
+from airflow.contrib.sensors.azure_cosmos_sensor import AzureCosmosDocumentSensor
 from airflow.utils import dates
 
 default_args = {

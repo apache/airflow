@@ -22,9 +22,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.bigquery import (  # noqa
-    BigQueryCheckOperator,
-    BigQueryIntervalCheckOperator,
-    BigQueryValueCheckOperator
+    BigQueryCheckOperator, BigQueryIntervalCheckOperator, BigQueryValueCheckOperator,
 )
 
 warnings.warn(

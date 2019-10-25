@@ -85,17 +85,17 @@ Getopt and gstat
 
   * If you use bash, you should run this command (and re-login):
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
-    . ~/.bash_profile
+      echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+      . ~/.bash_profile
 
-  * If you use zsh, you should run this command ((and re-login):
+  * If you use zsh, you should run this command (and re-login):
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
-    . ~/.zprofile
+      echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+      . ~/.zprofile
 
 * If you are on Linux
 
@@ -245,7 +245,7 @@ the database.
 Adding/modifying dependencies
 -----------------------------
 
-If you change apt dependencies in the ``Dockerfile`` or add python pacakges in ``setup.py` or
+If you change apt dependencies in the ``Dockerfile`` or add python pacakges in ``setup.py`` or
 javascript dependencies in ``package.json``. You can add dependencies temporarily for one Breeze
 session or permanently in ``setup.py``, ``Dockerfile``, ``package.json``.
 

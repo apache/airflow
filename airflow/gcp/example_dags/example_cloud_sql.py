@@ -33,14 +33,15 @@ from urllib.parse import urlsplit
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.cloud_sql import CloudSqlInstanceCreateOperator, \
-    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
-    CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceExportOperator, \
-    CloudSqlInstanceImportOperator
-from airflow.gcp.operators.gcs import \
-    GoogleCloudStorageBucketCreateAclEntryOperator, \
-    GoogleCloudStorageObjectCreateAclEntryOperator
+from airflow.gcp.operators.cloud_sql import (
+    CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
+    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
+    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
+    CloudSqlInstancePatchOperator,
+)
+from airflow.gcp.operators.gcs import (
+    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
+)
 
 # [START howto_operator_cloudsql_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

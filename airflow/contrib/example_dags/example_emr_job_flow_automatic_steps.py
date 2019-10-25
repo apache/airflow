@@ -20,10 +20,10 @@
 This is an example dag for a AWS EMR Pipeline with auto steps.
 """
 from datetime import timedelta
+
 import airflow
 from airflow import DAG
-from airflow.contrib.operators.emr_create_job_flow_operator \
-    import EmrCreateJobFlowOperator
+from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 DEFAULT_ARGS = {

@@ -27,7 +27,6 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-
 log = LoggingMixin().log
 
 
@@ -154,6 +153,9 @@ class ConfiguredSentry(DummySentry):
 Sentry = DummySentry()  # type: DummySentry
 
 try:
+    # Verify blinker installation
+    from blinker import signal  # noqa: F401 pylint: disable=unused-import
+
     from sentry_sdk.integrations.logging import ignore_logger
     from sentry_sdk.integrations.flask import FlaskIntegration
     from sentry_sdk import (

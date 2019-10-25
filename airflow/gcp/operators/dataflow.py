@@ -20,19 +20,19 @@
 This module contains Google Dataflow operators.
 """
 
+import copy
 import os
 import re
-import uuid
-import copy
 import tempfile
+import uuid
 from enum import Enum
 from typing import List, Optional
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.dataflow import DataFlowHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.version import version
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 class CheckJobRunning(Enum):

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook

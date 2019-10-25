@@ -19,14 +19,13 @@
 
 import contextlib
 import os
+import unittest
 import warnings
 from collections import OrderedDict
+from unittest import mock
 
 from airflow import configuration
-from airflow.configuration import conf, AirflowConfigParser, parameterized_config
-
-import unittest
-from unittest import mock
+from airflow.configuration import AirflowConfigParser, conf, parameterized_config
 
 
 @contextlib.contextmanager

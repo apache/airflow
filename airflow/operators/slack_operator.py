@@ -18,12 +18,12 @@
 # under the License.
 
 import json
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.slack_hook import SlackHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.slack_hook import SlackHook
-from airflow.exceptions import AirflowException
 
 
 class SlackAPIOperator(BaseOperator):
@@ -115,7 +115,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
                              'Here is a cat video instead\n'
                              'https://www.youtube.com/watch?v=J---aiyznGQ',
                  icon_url: str = 'https://raw.githubusercontent.com/apache/'
-                                 'airflow/master/airflow/www/static/pin_100.jpg',
+                                 'airflow/master/airflow/www/static/pin_100.png',
                  attachments: Optional[List] = None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'

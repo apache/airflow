@@ -25,11 +25,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.utils.db import create_session
 from tests.test_utils.db import clear_db_runs
-
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

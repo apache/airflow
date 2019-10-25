@@ -23,11 +23,11 @@ from glob import glob
 from shutil import move
 from tempfile import mkdtemp
 
+from airflow import AirflowException, LoggingMixin, models
 from airflow.utils import db as db_utils
-from airflow import models, AirflowException, LoggingMixin
 from airflow.utils.timezone import datetime
-from tests.gcp.utils.gcp_authenticator import GcpAuthenticator
 from tests.contrib.utils.run_once_decorator import run_once
+from tests.gcp.utils.gcp_authenticator import GcpAuthenticator
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -163,6 +163,7 @@ class TestDagGcpSystem(TestBaseGcpSystem):
         """
         Returns all file names (note - file names not paths)
         that have the same base name as the .py dag file (for example dag_name.sql etc.)
+
         :param path: path to the dag file.
         :return: list of files matching the base name
         """

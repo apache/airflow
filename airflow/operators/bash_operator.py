@@ -20,8 +20,8 @@
 
 import os
 import signal
-from subprocess import Popen, STDOUT, PIPE
-from tempfile import gettempdir, NamedTemporaryFile
+from subprocess import PIPE, STDOUT, Popen
+from tempfile import NamedTemporaryFile, gettempdir
 from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException

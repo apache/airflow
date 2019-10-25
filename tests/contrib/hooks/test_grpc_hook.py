@@ -19,8 +19,8 @@
 import unittest
 from io import StringIO
 
-from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from tests.compat import mock
 

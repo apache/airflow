@@ -35,6 +35,7 @@ logs
 .*html
 _build/*
 _static/*
+_images/*
 .buildinfo
 searchindex.js
 _api/*

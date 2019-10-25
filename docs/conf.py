@@ -115,6 +115,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
@@ -194,6 +195,7 @@ exclude_patterns = [
     '_api/airflow/migrations',
     '_api/airflow/plugins_manager',
     '_api/airflow/security',
+    '_api/airflow/serialization',
     '_api/airflow/settings',
     '_api/airflow/sentry',
     '_api/airflow/stats',
@@ -207,6 +209,10 @@ exclude_patterns = [
     '_api/airflow/gcp/index.rst',
     '_api/airflow/gcp/example_dags',
     '_api/airflow/gcp/utils',
+    '_api/airflow/providers/index.rst',
+    '_api/airflow/providers/google/index.rst',
+    '_api/airflow/providers/google/marketing_platform/index.rst',
+    '_api/airflow/providers/google/marketing_platform/example_dags',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -281,7 +287,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
-import sphinx_rtd_theme  # pylint: disable=wrong-import-position,wrong-import-order
+import sphinx_rtd_theme  # isort:skip pylint: disable=wrong-import-position,wrong-import-order
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
@@ -296,10 +302,7 @@ html_short_title = ""
 # of the sidebar.
 # html_logo = None
 
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-# html_favicon = None
+html_favicon = "../airflow/www/static/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

@@ -16,12 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import re
 import logging
+import re
 import sys
-
 from contextlib import contextmanager
-from logging import Handler, StreamHandler
+from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -43,9 +42,10 @@ class LoggingMixin:
         self._set_context(context)
 
     @property
-    def log(self):
+    def log(self) -> Logger:
         try:
-            return self._log
+            # FIXME: LoggingMixin should have a default _log field.
+            return self._log  # type: ignore
         except AttributeError:
             self._log = logging.root.getChild(
                 self.__class__.__module__ + '.' + self.__class__.__name__
@@ -59,11 +59,11 @@ class LoggingMixin:
 
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
-    encoding = False
-
     """
     Allows to redirect stdout and stderr to logger
     """
+    encoding = False
+
     def __init__(self, logger, level):
         """
         :param log: The log level method to write to, ie. log.debug, log.warning
@@ -92,6 +92,7 @@ class StreamLogWriter:
     def write(self, message):
         """
         Do whatever it takes to actually log the specified logging record
+
         :param message: message to log
         """
         if not message.endswith("\n"):
@@ -166,6 +167,7 @@ def redirect_stderr(logger, level):
 def set_context(logger, value):
     """
     Walks the tree of loggers and tries to set the context for each handler
+
     :param logger: logger
     :param value: value to set
     """

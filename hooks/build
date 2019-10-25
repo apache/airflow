@@ -31,6 +31,8 @@ cd "${AIRFLOW_SOURCES}"
 
 # shellcheck source=common/_default_branch.sh
 source "${AIRFLOW_SOURCES}/common/_default_branch.sh"
+# shellcheck source=common/_files_for_rebuild_check.sh
+source "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
 echo
 echo "Airflow root directory: ${AIRFLOW_SOURCES}"
@@ -446,7 +448,7 @@ DEPLOY_DIR=${AIRFLOW_SOURCES}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date +%Y-%
 mkdir -pv "${DEPLOY_DIR}"
 
 #
-# Fixing permissions for all filex that are going to be added to Docker context
+# Fixing permissions for all important files that are going to be added to Docker context
 # This is necessary, because there are different default umask settings on different *NIX
 # In case of some systems (especially in the CI environments) there is default +w group permission
 # set automatically via UMASK when git checkout is performed.
@@ -458,49 +460,28 @@ mkdir -pv "${DEPLOY_DIR}"
 #
 # We fix it by removing write permissions for other/group for all files that are in the Docker context.
 #
-if  [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" || "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
-    start_step "Fixing permissions for CI builds for ${AIRFLOW_FIX_PERMISSIONS} files"
-    if [[ "${AIRFLOW_FIX_PERMISSIONS}" == "all" ]]; then
-        # Get all files in the context - by building a small alpine based image
-        # then COPY all files (.) from the context and listing the files via find method
-        docker build -t airflow-context .  -f Dockerfile-context >/dev/null
-        ALL_FILES_TO_FIX=$(docker run --rm airflow-context /bin/sh -c "(cd /context && find .)")
-    elif [[ "${AIRFLOW_FIX_PERMISSIONS}" == "setup" ]]; then
-        ALL_FILES_TO_FIX="\
-            ${AIRFLOW_SOURCES}/setup.py \
-            ${AIRFLOW_SOURCES}/setup.cfg \
-            ${AIRFLOW_SOURCES}/airflow/version.py \
-            ${AIRFLOW_SOURCES}/airflow/__init__.py \
-            ${AIRFLOW_SOURCES}/airflow/bin/airflow \
-            ${AIRFLOW_SOURCES}/airflow/www/package.json \
-            ${AIRFLOW_SOURCES}/airflow/www/package-lock.json \
-            "
-    fi
-    STAT_BIN=stat
-    if [[ "${OSTYPE}" == "darwin"* ]]; then
-        STAT_BIN=gstat
-    fi
-
-    for FILE in ${ALL_FILES_TO_FIX}; do
-        ACCESS_RIGHTS=$("${STAT_BIN}" -c "%A" "${FILE}" || echo "--------")
-        # check if the file is group/other writeable
-        if [[ "${ACCESS_RIGHTS:5:1}" != "-" || "${ACCESS_RIGHTS:8:1}" != "-" ]]; then
-            if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
-                "${STAT_BIN}" --printf "%a %A %F \t%s \t->    " "${FILE}"
-            fi
-            chmod og-w "${FILE}"
-            if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
-                "${STAT_BIN}" --printf "%a %A %F \t%s \t%n\n" "${FILE}"
-            fi
-        fi
-    done
-
-    echo "Group/other write access removed for all $(echo "${ALL_FILES_TO_FIX}" | wc -w) files in context"
-    echo
-    echo
-else
-    echo "Skipping fixing permissions for CI builds"
+STAT_BIN=stat
+if [[ "${OSTYPE}" == "darwin"* ]]; then
+    STAT_BIN=gstat
 fi
+
+for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"; do
+    ACCESS_RIGHTS=$("${STAT_BIN}" -c "%A" "${AIRFLOW_SOURCES}/${FILE}" || echo "--------")
+    # check if the file is group/other writeable
+    if [[ "${ACCESS_RIGHTS:5:1}" != "-" || "${ACCESS_RIGHTS:8:1}" != "-" ]]; then
+        if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
+            "${STAT_BIN}" --printf "%a %A %F \t%s \t->    " "${AIRFLOW_SOURCES}/${FILE}"
+        fi
+        chmod og-w "${AIRFLOW_SOURCES}/${FILE}"
+        if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
+            "${STAT_BIN}" --printf "%a %A %F \t%s \t%n\n" "${AIRFLOW_SOURCES}/${FILE}"
+        fi
+    fi
+done
+
+echo "Group/other write access removed for ${FILES_FOR_REBUILD_CHECK[*]}"
+echo
+echo
 
 start_step "Build Airflow CI slim image"
 

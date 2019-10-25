@@ -17,10 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import psutil
 import time
 import unittest
+from logging.config import dictConfig
 from unittest import mock
+
+import psutil
 
 from airflow import models, settings
 from airflow.jobs import LocalTaskJob
@@ -28,9 +30,6 @@ from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-
-from logging.config import dictConfig
-
 from tests.core import TEST_DAG_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

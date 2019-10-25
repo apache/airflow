@@ -20,8 +20,9 @@
 from typing import Optional
 
 from slackclient import SlackClient
-from airflow.hooks.base_hook import BaseHook
+
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 # noinspection PyAbstractClass
@@ -52,7 +53,7 @@ class SlackHook(BaseHook):
 
     def call(self, method: str, api_params: dict) -> None:
         """
-        Calls the clack client.
+        Calls the Slack client.
 
         :param method: method
         :param api_params: parameters of the API

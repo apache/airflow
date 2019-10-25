@@ -25,10 +25,9 @@ from sqlalchemy import or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {
     'Admin',
@@ -340,8 +339,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pvms = (
             sesh.query(sqla_models.PermissionView)
             .filter(or_(
-                sqla_models.PermissionView.permission is None,  # noqa pylint: disable=singleton-comparison
-                sqla_models.PermissionView.view_menu is None,  # noqa pylint: disable=singleton-comparison
+                sqla_models.PermissionView.permission == None,  # noqa pylint: disable=singleton-comparison
+                sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need

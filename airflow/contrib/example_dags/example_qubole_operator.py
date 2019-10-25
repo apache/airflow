@@ -35,7 +35,7 @@ import airflow
 from airflow import DAG
 from airflow.contrib.operators.qubole_operator import QuboleOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 
 default_args = {
     'owner': 'Airflow',

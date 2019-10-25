@@ -20,19 +20,17 @@ import unittest
 
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
-from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet, Product, ReferenceImage
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (
-    AnnotateImageResponse,
-    EntityAnnotation,
-    SafeSearchAnnotation,
+    AnnotateImageResponse, EntityAnnotation, SafeSearchAnnotation,
 )
+from google.cloud.vision_v1.proto.product_search_service_pb2 import Product, ProductSet, ReferenceImage
 from google.protobuf.json_format import MessageToDict
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.hooks.vision import CloudVisionHook, ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from airflow.gcp.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
 from tests.compat import mock
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
 PROJECT_ID_TEST_2 = 'project-id-2'

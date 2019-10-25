@@ -24,8 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.video_intelligence import (  # noqa
-    CloudVideoIntelligenceDetectVideoExplicitContentOperator,
-    CloudVideoIntelligenceDetectVideoLabelsOperator,
+    CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 

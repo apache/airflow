@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta
 
 from airflow.exceptions import AirflowSensorTimeout

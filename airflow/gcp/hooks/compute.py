@@ -21,12 +21,12 @@ This module contains a Google Compute Engine Hook.
 """
 
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -42,7 +42,7 @@ class GceOperationStatus:
 
 
 # noinspection PyAbstractClass
-class GceHook(GoogleCloudBaseHook):
+class ComputeEngineHook(GoogleCloudBaseHook):
     """
     Hook for Google Compute Engine APIs.
 

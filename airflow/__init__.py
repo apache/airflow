@@ -23,25 +23,32 @@ Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
+
+isort:skip_file
 """
 
-from typing import Optional, Callable
+# flake8: noqa: F401
+from typing import Callable, Optional
+
+from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
+
 
 __version__ = version.version
-
-import sys
-
-# flake8: noqa: F401
-from airflow import settings
-from airflow.configuration import conf
-from airflow.models import DAG
-from airflow.exceptions import AirflowException
 
 settings.initialize()
 
 login = None  # type: Optional[Callable]
+
+from airflow import executors
+from airflow import hooks
+from airflow import macros
+from airflow import operators
+from airflow import sensors
 
 
 class AirflowMacroPlugin:
@@ -49,14 +56,8 @@ class AirflowMacroPlugin:
         self.namespace = namespace
 
 
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
-
 operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
+sensors._integrate_plugins()
 hooks._integrate_plugins()
 executors._integrate_plugins()
 macros._integrate_plugins()

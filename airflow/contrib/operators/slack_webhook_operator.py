@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 
 
 class SlackWebhookOperator(SimpleHttpOperator):

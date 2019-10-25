@@ -21,12 +21,11 @@ Example Airflow DAG for Google Kubernetes Engine.
 """
 
 import os
+
 import airflow
 from airflow import models
 from airflow.gcp.operators.kubernetes_engine import (
-    GKEClusterCreateOperator,
-    GKEClusterDeleteOperator,
-    GKEPodOperator,
+    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

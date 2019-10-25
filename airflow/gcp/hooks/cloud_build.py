@@ -19,12 +19,12 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -61,7 +61,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Functions.
+        Retrieves the connection to Cloud Build.
 
         :return: Google Cloud Build services object.
         """

@@ -17,22 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import os
 import shutil
 import unittest
-import logging
+from unittest import mock
 
 import elasticsearch
-from unittest import mock
 import pendulum
 
-from airflow.models import TaskInstance, DAG
+from airflow.configuration import conf
+from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.configuration import conf
 
 from .elasticmock import elasticmock
 

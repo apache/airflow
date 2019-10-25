@@ -36,21 +36,14 @@ LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 IMAGES_TO_CHECK=("SLIM_CI" "CI" "CHECKLICENCE")
 export IMAGES_TO_CHECK
 
-FILES_FOR_REBUILD_CHECK="\
-setup.py \
-setup.cfg \
-Dockerfile \
-Dockerfile-checklicence \
-.dockerignore \
-airflow/version.py
-"
-
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
 mkdir -p "${AIRFLOW_SOURCES}/logs"
 mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
 # shellcheck source=common/_autodetect_variables.sh
 . "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=common/_files_for_rebuild_check.sh
+. "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
 # Default branch name for triggered builds is the one configured in default branch
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
@@ -75,6 +68,10 @@ export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
 
+# If this variable is set, we mount the whole sources directory to the host rather than
+# selected volumes
+AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+
 function print_info() {
     if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
@@ -82,9 +79,17 @@ function print_info() {
 }
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
-if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mounting host volumes to Docker"
+    print_info "Mount whole sourcce directory for static checks"
+    print_info
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+      "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
+      "--env" "PYTHONDONTWRITEBYTECODE" \
+    )
+elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+    print_info
+    print_info "Mounting necessary host volumes to Docker"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
@@ -205,7 +210,7 @@ function update_all_md5_files() {
     print_info
     print_info "Updating md5sum files"
     print_info
-    for FILE in ${FILES_FOR_REBUILD_CHECK}
+    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
@@ -247,7 +252,7 @@ function check_if_docker_build_is_needed() {
     if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
         print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         set +e
-        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             # Just store md5sum for all files in md5sum.new - do not check if it is different
             check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
@@ -257,7 +262,7 @@ function check_if_docker_build_is_needed() {
         export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
     else
         set +e
-        for FILE in ${FILES_FOR_REBUILD_CHECK}
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
                 export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
@@ -483,7 +488,7 @@ EOF
         fi
     else
         print_info
-        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK}"
+        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
         print_info
     fi
 }
@@ -902,6 +907,23 @@ function rebuild_all_images_if_needed_and_confirmed() {
     fi
 }
 
+function match_files_regexp() {
+    FILE_MATCHES="false"
+    REGEXP=${1}
+    while (($#))
+    do
+        REGEXP=${1}
+        for FILE in ${CHANGED_FILE_NAMES}
+        do
+          if  [[ ${FILE} =~ ${REGEXP} ]]; then
+             FILE_MATCHES="true"
+          fi
+        done
+        shift
+    done
+    export FILE_MATCHES
+}
+
 function build_image_on_ci() {
     if [[ "${CI:=}" != "true" ]]; then
         print_info
@@ -917,15 +939,44 @@ function build_image_on_ci() {
     # Cleanup docker installation. It should be empty in CI but let's not risk
     docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
+    mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        rebuild_ci_image_if_needed
+    echo
+    echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
+    echo
+
+    CHANGED_FILE_NAMES=$(git diff --name-only "${TRAVIS_BRANCH}...HEAD")
+    echo
+    echo "Changed file names in this commit"
+    echo "${CHANGED_FILE_NAMES}"
+    echo
+
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"kubernetes"* ]]; then
+        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
+            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
+    elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
+        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
     elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
         rebuild_checklicence_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_slim_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
-        rebuild_ci_slim_image_if_needed
+        match_files_regexp '.*\.py'
+        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            rebuild_ci_slim_image_if_needed
+        else
+            touch "${BUILD_CACHE_DIR}"/.skip_tests
+        fi
     elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
         rebuild_ci_slim_image_if_needed
     else
@@ -933,6 +984,12 @@ function build_image_on_ci() {
         echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"
         echo
         exit 1
+    fi
+
+    if [[ -f "${BUILD_CACHE_DIR}/.skip_tests" ]]; then
+        echo
+        echo "Skip running tests !!!!"
+        echo
     fi
 
     # Disable force pulling forced above

@@ -18,38 +18,14 @@
 
 IMAGE=${IMAGE:-airflow}
 TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")" || exit 1; pwd)
-AIRFLOW_SOURCES=$(cd "${DIRNAME}/../../../.." || exit 1; pwd)
-PYTHON_DOCKER_IMAGE=python:3.6-slim
+DIRNAME=$(cd "$(dirname "$0")" && pwd)
+AIRFLOW_ROOT="${DIRNAME}/../../../.."
 
 set -e
 
-# Don't rebuild the image more than once on travis
-if [[ -n "${TRAVIS}" || -z "${AIRFLOW_CI_REUSE_K8S_IMAGE}" ]] && \
-    docker image inspect "${IMAGE}:${TAG}" > /dev/null 2>/dev/null; then
-  echo "Re-using existing image"
-  exit 0
-fi
-
-if [[ "${VM_DRIVER:-none}" != "none" ]]; then
-    if ENVCONFIG=$(minikube docker-env); then
-      eval "${ENVCONFIG}"
-    fi
-fi
-
-echo "Airflow directory ${AIRFLOW_SOURCES}"
+echo "Airflow directory ${AIRFLOW_ROOT}"
 echo "Airflow Docker directory ${DIRNAME}"
 
-cd "${AIRFLOW_SOURCES}"
-docker run -ti --rm -v "${AIRFLOW_SOURCES}:/airflow" \
-    -w /airflow "${PYTHON_DOCKER_IMAGE}" ./scripts/ci/kubernetes/docker/compile.sh
+cd "${DIRNAME}" && docker build --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CONTAINER_DOCKER_IMAGE}" --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
 
-pip freeze | grep -v airflow | grep -v mysql> "${DIRNAME}/requirements.txt"
-
-sudo rm -rf "${AIRFLOW_SOURCES}/airflow/www/node_modules"
-sudo rm -rf "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules"
-
-echo "Copy distro ${AIRFLOW_SOURCES}/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
-cp "${AIRFLOW_SOURCES}"/dist/*.tar.gz "${DIRNAME}/airflow.tar.gz"
-cd "${DIRNAME}" && docker build --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
-rm "${DIRNAME}/airflow.tar.gz"
+kind load docker-image "${IMAGE}:${TAG}"

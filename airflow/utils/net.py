@@ -19,7 +19,8 @@
 #
 import importlib
 import socket
-from airflow.configuration import (conf, AirflowConfigException)
+
+from airflow.configuration import AirflowConfigException, conf
 
 
 def get_host_ip_address():

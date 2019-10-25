@@ -21,8 +21,8 @@
 json_formatter module stores all related to ElasticSearch specific logger classes
 """
 
-import logging
 import json
+import logging
 
 
 def merge_dicts(dict1, dict2):

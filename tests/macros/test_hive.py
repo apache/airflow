@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
 from airflow.macros import hive
 

@@ -19,9 +19,7 @@
 import unittest
 
 from tests.gcp.utils.base_gcp_system_test_case import (
-    SKIP_TEST_WARNING,
-    SKIP_LONG_TEST_WARNING,
-    TestDagGcpSystem,
+    SKIP_LONG_TEST_WARNING, SKIP_TEST_WARNING, TestDagGcpSystem,
 )
 from tests.gcp.utils.gcp_authenticator import GCP_AUTOML_KEY
 

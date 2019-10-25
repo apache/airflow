@@ -20,13 +20,10 @@
 import unittest
 
 from airflow.gcp.operators.gcs import (
-    GoogleCloudStorageCreateBucketOperator,
-    GoogleCloudStorageBucketCreateAclEntryOperator,
+    GcsFileTransformOperator, GoogleCloudStorageBucketCreateAclEntryOperator,
+    GoogleCloudStorageCreateBucketOperator, GoogleCloudStorageDeleteOperator,
+    GoogleCloudStorageDownloadOperator, GoogleCloudStorageListOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator,
-    GoogleCloudStorageDeleteOperator,
-    GoogleCloudStorageDownloadOperator,
-    GoogleCloudStorageListOperator,
-    GcsFileTransformOperator
 )
 from tests.compat import mock
 

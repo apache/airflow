@@ -17,25 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+import ssl
+import traceback
+
 import flask_login
-from flask_login import login_required, current_user, logout_user  # noqa: F401
-from flask import flash
+from flask import flash, redirect, url_for
+from flask_login import current_user, login_required, logout_user  # noqa: F401
+from ldap3 import LEVEL, SUBTREE, Connection, Server, Tls, set_config_parameter
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, set_config_parameter, LEVEL, SUBTREE
-import ssl
-
-from flask import url_for, redirect
-
 from airflow import models
-from airflow.configuration import conf
-from airflow.configuration import AirflowConfigException
+from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.db import provide_session
-
-import traceback
-import re
-
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()

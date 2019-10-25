@@ -63,38 +63,13 @@ echo
 echo "Branch: ${AIRFLOW_CONTAINER_BRANCH_NAME}"
 echo
 
-# You can override AUTODETECT_PYTHON_BINARY if you want to use different version but for now we assume
-# that the binary used will be the default python 3 version available on the path
-# unless it is overridden with PYTHON_VERSION variable in the next step
-if ! AUTODETECT_PYTHON_BINARY=${AUTODETECT_PYTHON_BINARY:=$(command -v python3)}; then
-    echo >&2
-    echo >&2 "Error: You must have python3 in your PATH"
-    echo >&2
-    exit 1
-fi
-
-# Determine python version. This can be either specified by AUTODETECT_PYTHON_VERSION variable or it is
-# auto-detected from the version of the python3 binary (or AUTODETECT_PYTHON_BINARY you specify as
-# environment variable).
-# Note that even if we auto-detect it here, it can be further overridden in case IMAGE_NAME is speecified
-# as environment variable. The reason is that IMAGE_NAME is the only differentiating factor we can have
-# in the DockerHub build. We cannot specify different environment variables for different image names
-# so we use IMAGE_NAME to determine which PYTHON_VERSION is actually used for this particular build.
-# It's cumbersome - we can improve it in the future by swtching away from DockerHub builds - only use
-# DockerHub to store the images but not to run it to build the images. If we switch to another CI that
-# will let us build images outside of DockerHub and push them there, we will be able to get rid of this.
-# This will probably be necessary as we scale up becasue DockerHub build are very slow and they are
-# already queueing a lot.
-export AUTODETECT_PYTHON_VERSION=${PYTHON_VERSION:=$(${AUTODETECT_PYTHON_BINARY} -c \
- 'import sys;print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
-
 # IMAGE_NAME might come from DockerHub and we decide which PYTHON_VERSION to use based on it (see below)
 # In case IMAGE_NAME is not set we determine PYTHON_VERSION based on the default python on the path
 # So in virtualenvs it will use the virtualenv's PYTHON_VERSION and in DockerHub it will determine
-# PYTHHON_VERSION from the IMAGE_NAME set in the DockerHub build.
+# PYTHON_VERSION from the IMAGE_NAME set in the DockerHub build.
 # See comment above in PYTHON_VERSION - we will be able to get rid of this cumbersomness when we switch
 # to a different CI system and start pushing images to DockerHub rather than build it there.
-export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${AUTODETECT_PYTHON_VERSION}}
+export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION:-3.5}}
 
 echo
 echo "BASE_IMAGE_NAME=${BASE_IMAGE_NAME:=} (final image will have -ci, -ci-slim suffixes)"
@@ -125,27 +100,29 @@ echo
 echo "Image tag prefix: ${TAG_PREFIX}"
 echo
 
-# Extract python version from image name we want to build in case it was passed
-# Via IMAGE_NAME. The bash construct below extracts last field after '-' delimiter
-# So for example 'airflow:master-python3.6' will produce AUTODETECT_LONG_PYTHON_VERSION=python3.6
-export AUTODETECT_LONG_PYTHON_VERSION="${LOCAL_BASE_IMAGE_NAME##*-}"
+# By that time no matter if we got the version from the IMAGE_NAME or we built
+# IMAGE_NAME with PYTHON_VERSION - the LOCAL_BASE_IMAGE_NAME should end with the correct pythonX.Y
+# So we Extract python version from image name. The bash construct below extracts last
+# field after '-' delimiter, so for example 'airflow:master-python3.6'
+# will produce LONG_PYTHON_VERSION_FROM_IMAGE=python3.6
+export LONG_PYTHON_VERSION_FROM_IMAGE="${LOCAL_BASE_IMAGE_NAME##*-}"
 
 echo
-echo "AUTODETECT_LONG_PYTHON_VERSION=${AUTODETECT_LONG_PYTHON_VERSION}"
+echo "LONG_PYTHON_VERSION_FROM_IMAGE=${LONG_PYTHON_VERSION_FROM_IMAGE}"
 echo
 
-# Verify that Auto-detected python version follows the expected pattern of python3.Y
-if [[ ! ${AUTODETECT_LONG_PYTHON_VERSION} =~ python[3]\.[0-9]+ ]]; then
+# Verify that python version retrieved from image follows the expected pattern of python3.Y
+if [[ ! ${LONG_PYTHON_VERSION_FROM_IMAGE} =~ python[23]\.[0-9]+ ]]; then
     echo >&2
     echo >&2 "ERROR:  Python version extracted from IMAGE_NAME does not match the python3.Y format"
     echo >&2
-    echo >&2 "The IMAGE_NAME format should be '<BRANCH>-python3.Y'"
+    echo >&2 "The IMAGE_NAME format should be '<BRANCH>-python[23].Y'"
     echo >&2
     exit 1
 fi
 
-# Now set the auto-detected python version based on the auto-detected long version
-export PYTHON_VERSION=${AUTODETECT_LONG_PYTHON_VERSION#python}
+# Unless python_version is forced, read actual python version from IMAGE NAME
+export PYTHON_VERSION=${LONG_PYTHON_VERSION_FROM_IMAGE#python}
 
 echo
 echo "PYTHON_VERSION=${PYTHON_VERSION}"

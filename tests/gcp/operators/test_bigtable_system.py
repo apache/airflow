@@ -18,8 +18,7 @@
 # under the License.
 import unittest
 
-from tests.gcp.operators.test_bigtable_system_helper import \
-    GCPBigtableTestHelper
+from tests.gcp.operators.test_bigtable_system_helper import GCPBigtableTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
 

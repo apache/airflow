@@ -18,8 +18,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+
 from airflow.utils.file import TemporaryDirectory
+from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 
 class DataprocTestHelper(LoggingCommandExecutor):

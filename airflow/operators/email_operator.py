@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, List, Optional
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.utils.email import send_email
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.email import send_email
 
 
 class EmailOperator(BaseOperator):

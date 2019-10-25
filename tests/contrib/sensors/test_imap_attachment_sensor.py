@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from parameterized import parameterized
 

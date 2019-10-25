@@ -26,7 +26,6 @@ from airflow.contrib.sensors.mongo_sensor import MongoSensor
 from airflow.models import Connection
 from airflow.utils import db, timezone
 
-
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 

@@ -132,9 +132,9 @@ Here are the guidelines that you should follow to make validation forward-compat
 """
 
 import re
-from typing import Sequence, Dict, Callable
+from typing import Callable, Dict, Sequence
 
-from airflow import LoggingMixin, AirflowException
+from airflow import AirflowException, LoggingMixin
 
 COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
 

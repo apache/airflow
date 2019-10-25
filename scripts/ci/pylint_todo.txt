@@ -1,6 +1,4 @@
 ./airflow/__init__.py
-./airflow/bin/cli.py
-./airflow/config_templates/airflow_local_settings.py
 ./airflow/configuration.py
 ./airflow/contrib/auth/backends/github_enterprise_auth.py
 ./airflow/contrib/auth/backends/google_auth.py
@@ -197,7 +195,6 @@
 ./airflow/operators/presto_check_operator.py
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py
-./airflow/operators/redshift_to_s3_operator.py
 ./airflow/operators/s3_file_transform_operator.py
 ./airflow/operators/s3_to_hive_operator.py
 ./airflow/operators/s3_to_redshift_operator.py
@@ -280,8 +277,6 @@
 ./airflow/www/views.py
 ./airflow/www/widgets.py
 ./scripts/perf/scheduler_ops_metrics.py
-./tests/cli/test_cli.py
-./tests/cli/test_worker_initialisation.py
 ./tests/contrib/hooks/test_aws_hook.py
 ./tests/contrib/hooks/test_aws_lambda_hook.py
 ./tests/contrib/hooks/test_azure_container_instance_hook.py
@@ -359,7 +354,6 @@
 ./tests/operators/test_operators.py
 ./tests/operators/test_papermill_operator.py
 ./tests/operators/test_python_operator.py
-./tests/operators/test_redshift_to_s3_operator.py
 ./tests/operators/test_s3_file_transform_operator.py
 ./tests/operators/test_s3_to_hive_operator.py
 ./tests/operators/test_s3_to_redshift_operator.py

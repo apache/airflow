@@ -44,8 +44,9 @@ https://airflow.apache.org/concepts.html#variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.functions \
-    import GcfFunctionDeployOperator, GcfFunctionDeleteOperator, GcfFunctionInvokeOperator
+from airflow.gcp.operators.functions import (
+    GcfFunctionDeleteOperator, GcfFunctionDeployOperator, GcfFunctionInvokeOperator,
+)
 from airflow.utils import dates
 
 # [START howto_operator_gcf_common_variables]

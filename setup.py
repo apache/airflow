@@ -18,16 +18,16 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-from importlib import util
 import io
 import logging
 import os
 import subprocess
 import sys
 import unittest
+from importlib import util
 from typing import List
 
-from setuptools import setup, find_packages, Command
+from setuptools import Command, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,6 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 cloudant = ['cloudant>=2.0']
-crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
@@ -200,6 +199,7 @@ gcp = [
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
+    'google-cloud-pubsub==1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
@@ -210,7 +210,7 @@ gcp = [
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.9.2',
+    'httplib2~=0.9',
     'pandas-gbq',
     'PyOpenSSL',
 ]
@@ -259,7 +259,7 @@ mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
-statsd = ['statsd>=3.0.1, <4.0']
+statsd = ['statsd>=3.3.0, <4.0']
 vertica = ['vertica-python>=0.5.1']
 virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -274,6 +274,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
 ############################################################################################################
 devel = [
+    'astroid~=2.2.5',  # to be removed after pylint solves this: https://github.com/PyCQA/pylint/issues/3123
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
@@ -292,7 +293,8 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',
+    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
+                      # We should also disable checking docstring at the module level
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -307,13 +309,13 @@ devel = [
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy']
+    devel += ['mypy==0.720']
 else:
     devel += ['unittest2']
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
+devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + sentry +
@@ -338,7 +340,10 @@ def do_setup():
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
-        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        package_data={
+            '': ['airflow/alembic.ini', "airflow/git_version"],
+            'airflow.serialization': ["*.json"],
+        },
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
@@ -353,7 +358,8 @@ def do_setup():
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
-            'dill>=0.2.2, <0.3',
+            'cryptography>=0.9.3',
+            'dill>=0.2.2, <0.4',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
@@ -364,6 +370,7 @@ def do_setup():
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
+            'jsonschema~=3.0',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',
@@ -410,7 +417,6 @@ def do_setup():
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
-            'crypto': crypto,
             'dask': dask,
             'databricks': databricks,
             'datadog': datadog,

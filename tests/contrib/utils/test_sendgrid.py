@@ -19,9 +19,9 @@
 #
 
 import copy
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 
 from airflow.contrib.utils.sendgrid import send_email
 from tests.compat import mock

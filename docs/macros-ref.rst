@@ -23,7 +23,7 @@ Macros reference
 Variables and macros can be used in templates (see the :ref:`jinja-templating` section)
 
 The following come for free out of the box with Airflow.
-Additional custom macros can be added globally through :ref:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
+Additional custom macros can be added globally through :doc:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
 
 Default Variables
 -----------------

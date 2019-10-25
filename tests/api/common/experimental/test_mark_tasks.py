@@ -17,20 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import time
+import unittest
 from datetime import datetime, timedelta
 
 from airflow import models
-from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (
-    set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
-    set_dag_run_state_to_running)
-from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
-from airflow.utils.dates import days_ago
-from airflow.utils.state import State
+    _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
+    set_state,
+)
+from airflow.configuration import conf
 from airflow.models import DagRun
+from airflow.utils import timezone
+from airflow.utils.dates import days_ago
+from airflow.utils.db import create_session, provide_session
+from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"

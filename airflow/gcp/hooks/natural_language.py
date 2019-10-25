@@ -19,23 +19,16 @@
 """
 This module contains a Google Cloud Natural Language Hook.
 """
-from typing import Sequence, Tuple, Union, Dict, Optional
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import LanguageServiceClient
-
+from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
-    Document,
-    AnalyzeEntitiesResponse,
-    ClassifyTextResponse,
-    AnalyzeSyntaxResponse,
-    AnnotateTextResponse,
-    AnalyzeSentimentResponse,
-    AnalyzeEntitySentimentResponse
+    AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, AnalyzeSyntaxResponse,
+    AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
 )
-from google.cloud.language_v1 import enums
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 # noinspection PyAbstractClass
@@ -70,11 +63,12 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         return self._conn
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entities(
         self,
         document: Union[Dict, Document],
-        encoding_type: enums.EncodingType = None,
-        retry: Retry = None,
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeEntitiesResponse:
@@ -104,11 +98,12 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
         document: Union[Dict, Document],
-        encoding_type: enums.EncodingType = None,
-        retry: Retry = None,
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeEntitySentimentResponse:
@@ -138,11 +133,12 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_sentiment(
         self,
         document: Union[Dict, Document],
-        encoding_type: enums.EncodingType = None,
-        retry: Retry = None,
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeSentimentResponse:
@@ -171,11 +167,12 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def analyze_syntax(
         self,
         document: Union[Dict, Document],
-        encoding_type: enums.EncodingType = None,
-        retry: Retry = None,
+        encoding_type: Optional[enums.EncodingType] = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnalyzeSyntaxResponse:
@@ -205,12 +202,13 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_text(
         self,
         document: Union[Dict, Document],
-        features: Dict,
+        features: Union[Dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> AnnotateTextResponse:
@@ -223,7 +221,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         :type document: dict or google.cloud.language_v1.types.Document
         :param features: The enabled features.
             If a dict is provided, it must be of the same form as the protobuf message Features
-        :type features: dict or google.cloud.language_v1.enums.Features
+        :type features: dict or google.cloud.language_v1.types.AnnotateTextRequest.Features
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -248,10 +246,11 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
         )
 
     @GoogleCloudBaseHook.catch_http_exception
+    @GoogleCloudBaseHook.quota_retry()
     def classify_text(
         self,
         document: Union[Dict, Document],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> ClassifyTextResponse:

@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.dataproc import DataprocJobStatus, DataProcHook  # noqa
+from airflow.gcp.hooks.dataproc import DataProcHook, DataprocJobStatus  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dataproc`.",

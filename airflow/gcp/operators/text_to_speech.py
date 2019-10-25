@@ -21,14 +21,14 @@ This module contains a Google Text to Speech operator.
 """
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
-from google.cloud.texttospeech_v1.types import SynthesisInput, VoiceSelectionParams, AudioConfig
+from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow import AirflowException
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -18,8 +18,9 @@
 # under the License.
 
 import logging
-import pandas as pd
 import sys
+
+import pandas as pd
 
 from airflow import settings
 from airflow.configuration import conf

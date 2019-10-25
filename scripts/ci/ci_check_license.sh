@@ -22,6 +22,7 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export PYTHON_VERSION=3.5
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+export MOUNT_LOCAL_SOURCES="true"
 
 export PYTHON_VERSION=3.5
 
