@@ -601,8 +601,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Natural Language <https://cloud.google.com/natural-language/>`__
      - :doc:`How to use <howto/operator/gcp/natural_language>`
-     - :mod:`airflow.gcp.hooks.natural_language`
-     - :mod:`airflow.gcp.operators.natural_language`
+     - :mod:`airflow.providers.google.cloud.hooks.natural_language`
+     - :mod:`airflow.providers.google.cloud.operators.natural_language`
      -
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__

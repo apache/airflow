@@ -25,11 +25,11 @@ from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.natural_language import (
+from airflow.operators.bash_operator import BashOperator
+from airflow.providers.google.cloud.operators.natural_language import (
     CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
 )
-from airflow.operators.bash_operator import BashOperator
 
 # [START howto_operator_gcp_natural_language_document_text]
 TEXT = """

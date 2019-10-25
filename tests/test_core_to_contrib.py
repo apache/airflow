@@ -89,7 +89,7 @@ HOOK = [
         "airflow.contrib.hooks.datastore_hook.DatastoreHook",
     ),
     (
-        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook",
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook",
         "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook",
     ),
     (
@@ -356,22 +356,23 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeEntitiesOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator",
+        "airflow.providers.google.cloud.operators.natural_language."
+        "CloudLanguageAnalyzeEntitySentimentOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeEntitySentimentOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentimentOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeSentimentOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator",
         "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator",
     ),
     (
