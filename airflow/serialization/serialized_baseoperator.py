@@ -133,7 +133,8 @@ class SerializedBaseOperator(BaseOperator, Serialization):
             setattr(op, k, v)
 
         # pylint: disable=protected-access
-        for k in op._serialized_fields - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
+        for k in op._serialized_fields - set(encoded_op.keys()) - set(
+                cls._CONSTRUCTOR_PARAMS.keys()):
             setattr(op, k, None)
 
         return op

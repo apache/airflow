@@ -117,7 +117,8 @@ class SerializedDAG(DAG, Serialization):
             setattr(dag, k, v)
 
         # pylint: disable=protected-access
-        keys_to_set_none = dag._serialized_fields - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
+        keys_to_set_none = dag._serialized_fields - set(encoded_dag.keys()) - set(
+            cls._CONSTRUCTOR_PARAMS.keys())
         for k in keys_to_set_none:
             setattr(dag, k, None)
 

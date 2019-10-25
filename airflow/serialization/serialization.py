@@ -228,7 +228,10 @@ class Serialization:
             raise TypeError('Invalid type {!s} in deserialization.'.format(type_))
 
     _deserialize_datetime = pendulum.from_timestamp
-    _deserialize_timezone = pendulum.timezone
+
+    @classmethod
+    def _deserialize_timezone(cls, name):
+        return pendulum.timezone(name)
 
     @classmethod
     def _deserialize_timedelta(cls, seconds):
