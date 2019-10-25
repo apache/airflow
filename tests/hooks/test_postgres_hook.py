@@ -18,7 +18,6 @@
 # under the License.
 #
 
-import json
 import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
