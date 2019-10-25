@@ -68,6 +68,10 @@ export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
 
+# If this variable is set, we mount the whole sources directory to the host rather than
+# selected volumes
+AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+
 function print_info() {
     if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
@@ -75,9 +79,17 @@ function print_info() {
 }
 
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
-if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mounting host volumes to Docker"
+    print_info "Mount whole sourcce directory for static checks"
+    print_info
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+      "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
+      "--env" "PYTHONDONTWRITEBYTECODE" \
+    )
+elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+    print_info
+    print_info "Mounting necessary host volumes to Docker"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
