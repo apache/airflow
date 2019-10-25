@@ -20,6 +20,7 @@
 from future import standard_library  # noqa
 standard_library.install_aliases()  # noqa
 
+import functools
 import inspect
 import json
 import time
@@ -359,8 +360,7 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
-        'python_callable': lambda x: render(
-            inspect.getsource(x), lexers.PythonLexer),
+        'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
     }
     return attr_renderer
 
@@ -390,6 +390,39 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_python_source(x, return_none_if_x_none=False):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+
+    if x is None and return_none_if_x_none:
+        return None
+
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
 
 
 class UtcAwareFilterMixin(object):

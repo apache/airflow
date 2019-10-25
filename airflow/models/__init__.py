@@ -29,6 +29,7 @@ from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion 
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
 from airflow.models.taskinstance import clear_task_instances, TaskInstance  # noqa: F401
