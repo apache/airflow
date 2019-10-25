@@ -47,7 +47,7 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
     :param destination_bucket: The bucket to upload to.
     :type destination_bucket: str
     :param destination_path: The destination name of the object in the
-        destination Google cloud storage bucket.
+        destination Google Cloud Storage bucket.
         If destination_path is not provided file/files will be placed in the
         main bucket path.
         If a wildcard is supplied in the destination_path argument, this is the
@@ -68,44 +68,6 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-
-       :Example:
-
-    The following Operator would copy a single file named
-    ``sales/sales-2017/january.avro`` from the SFTP to the file named
-    ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
-
-        copy_single_file = SFTPToGoogleCloudStorageOperator(
-            task_id="copy_single_file",
-            source_path='sales/sales-2017/january.avro',
-            destination_bucket=`data_backup`,
-            destination_path='copied_sales/2017/january-backup.avro',,
-        )
-
-    The following Operator would copy all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) from the SFTP to the
-    ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
-
-        copy_files = SFTPToGoogleCloudStorageOperator(
-            task_id="copy_files",
-            source_path='sales/sales-2017/*.avro',
-            destination_bucket=`data_backup`,
-            destination_path='copied_sales/2017/',
-        )
-
-    The following Operator would move all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
-    same folder in the ``data_backup`` bucket, deleting the original files in the
-    process. ::
-
-        move_files = SFTPToGoogleCloudStorageOperator(
-            task_id="move_files",
-            source_path='sales/sales-2017/*.avro',
-            destination_bucket=`data_backup`,
-            destination_path='copied_sales/2017/',
-            move_object=True,
-        )
-
     """
 
     template_fields = ("source_path", "destination_path", "destination_bucket")
@@ -201,6 +163,7 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
                 bucket_name=self.destination_bucket,
                 object_name=destination_object,
                 filename=tmp.name,
+                mime_type=self.mime_type
             )
 
         if self.move_object:

@@ -36,7 +36,6 @@ Prerequisite Tasks
 
 .. _howto/operator:SFTPToGoogleCloudStorageOperator:
 
-
 Operator
 ^^^^^^^^
 
@@ -46,18 +45,6 @@ Transfer files between SFTP and Google Storage is performed with the
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.operators.sftp_to_gcs.SFTPToGoogleCloudStorageOperator`
 parameters which allows you to dynamically determine values.
-
-
-Arguments
-^^^^^^^^^
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/example_dags/example_sftp_to_gcs.py
-    :language: python
-    :start-after: [START howto_operator_sftp_to_gcs_args_common]
-    :end-before: [END howto_operator_sftp_to_gcs_args_common]
-
 
 Copy single files
 -----------------
