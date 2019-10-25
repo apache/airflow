@@ -43,9 +43,10 @@ assists users migrating to a new version.
 
 ### Changes to SQLSensor
 
-SQLSensor now keeps poking after receiving `NULL`. Previously `NULL` response
-has been treated as success criteria. Previous behaviour is still achievable
-setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
+SQLSensor now consistent with python `bool()` function. It will resolve after receiving any value 
+that is casted to `True` with python `bool(value)`. That changes the previous response 
+receiving `NULL` or `'0'`. Earlier `NULL` or `'0'` has been treated as success criteria. 
+That behaviour is still achievable  setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
 ### Simplification of the TriggerDagRunOperator
 
