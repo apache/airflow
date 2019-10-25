@@ -83,7 +83,7 @@ class BaseJob(Base, LoggingMixin):
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
-        self.latest_heartbeat_cached = self.latest_heartbeat
+        self.latest_heartbeat_cached = timezone.utc_epoch()
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getpass.getuser()
