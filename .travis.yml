@@ -21,7 +21,8 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
-    - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - MOUNT_LOCAL_SOURCES="false"
+    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"
@@ -37,6 +38,7 @@ jobs:
     - name: "Check licence compliance for Apache"
       stage: pre-test
       script: ./scripts/ci/ci_check_license.sh
+      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Pylint checks"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
