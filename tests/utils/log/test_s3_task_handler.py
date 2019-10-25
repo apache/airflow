@@ -81,7 +81,7 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_hook_raises(self):
         handler = self.s3_task_handler
         with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.hooks.S3_hook.S3Hook") as mock_hook:
+            with mock.patch("airflow.providers.aws.hooks.s3.S3Hook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
                 # Initialize the hook
                 handler.hook

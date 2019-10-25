@@ -283,7 +283,7 @@ class TestS3ListOperator(unittest.TestCase):
     PREFIX = 'TEST'
     MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
-    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
+    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
     def test_execute(self, mock_hook):
 
         mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
@@ -326,10 +326,8 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.gcp_conn_id, self.GCS_CONN_ID)
         self.assertEqual(operator.dest_gcs, self.GCS_PATH_PREFIX)
 
-    @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
-    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
-    @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GoogleCloudStorageHook')
+    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
+    @mock.patch('airflow.providers.aws.operators.s3.GoogleCloudStorageHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -361,10 +359,8 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         # we expect MOCK_FILES to be uploaded
         self.assertEqual(sorted(self.MOCK_FILES), sorted(uploaded_files))
 
-    @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
-    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
-    @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GoogleCloudStorageHook')
+    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
+    @mock.patch('airflow.providers.aws.operators.GoogleCloudStorageHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -559,7 +555,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @unittest.skipIf(mock_s3 is None, 'moto package not present')
-    @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
+    @mock.patch('airflow.providers.aws.operators.s3.HiveCliHook')
     @mock_s3
     def test_execute(self, mock_hiveclihook):
         conn = boto3.client('s3')
@@ -590,7 +586,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @unittest.skipIf(mock_s3 is None, 'moto package not present')
-    @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
+    @mock.patch('airflow.providers.aws.operators.s3.HiveCliHook')
     @mock_s3
     def test_execute_with_select_expression(self, mock_hiveclihook):
         conn = boto3.client('s3')

@@ -73,7 +73,7 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    @patch('airflow.providers.aws.sensors.sqs.SQSHook')
     def test_poke_delete_raise_airflow_exception(self, mock_sqs_hook):
         message = {'Messages': [{'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
                                  'ReceiptHandle': 'mockHandle',
@@ -95,7 +95,7 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
 
-    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    @patch('airflow.providers.aws.sensors.sqs.SQSHook')
     def test_poke_receive_raise_exception(self, mock_sqs_hook):
         mock_sqs_hook().get_conn().receive_message.side_effect = Exception('test exception')
 

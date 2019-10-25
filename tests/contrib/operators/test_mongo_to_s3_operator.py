@@ -83,8 +83,8 @@ class TestMongoToS3Operator(unittest.TestCase):
             getattr(self.mock_operator, 'mongo_query')
         )
 
-    @mock.patch('airflow.contrib.operators.mongo_to_s3.MongoHook')
-    @mock.patch('airflow.contrib.operators.mongo_to_s3.S3Hook')
+    @mock.patch('airflow.providers.aws.operators.s3.MongoHook')
+    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
     def test_execute(self, mock_s3_hook, mock_mongo_hook):
         operator = self.mock_operator
 
