@@ -19,18 +19,18 @@
 """This module is deprecated. Please use `airflow.sensors.base_sensor`."""
 
 import warnings
+from typing import Iterable
 
 # pylint: disable=unused-import
 from airflow.sensors.base_sensor import BaseSensor
+from airflow.utils.decorators import apply_defaults
 
 warnings.warn(
-        "This module is deprecated. Please use `airflow.models.BaseSensor`.",
-        DeprecationWarning, stacklevel=2)
+    "This module is deprecated. Please use `airflow.models.BaseSensor`.",
+    DeprecationWarning, stacklevel=2)
 
 
 class BaseSensorOperator(BaseSensor):
-    """
-    """
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
@@ -43,8 +43,8 @@ class BaseSensorOperator(BaseSensor):
                  *args,
                  **kwargs) -> None:
         warnings.warn(
-        "This class is deprecated. Please use `airflow.models.BaseSensor`.",
-        DeprecationWarning, stacklevel=2)
+            "This class is deprecated. Please use `airflow.models.BaseSensor`.",
+            DeprecationWarning, stacklevel=2)
         super().__init__(*args, **kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail

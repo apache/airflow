@@ -17,13 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from abc import ABC, abstractmethod
-from datetime import timedelta
-from typing import Dict, Iterable
+"""
+Defines a Base Sensor.
+"""
+from abc import ABC
+from time import sleep
+from typing import Dict, Iterable, List, Optional, Union
 
-from airflow.models import BaseReschedulePokeOperator, SkipMixin, TaskReschedule
+from airflow.exceptions import (
+    AirflowException, AirflowSensorTimeout, AirflowSkipException)
+from airflow.models.base_reschedule_poke_operator import \
+    BaseReschedulePokeOperator
+from airflow.utils.decorators import apply_defaults
+from airflow.utils import timezone
 
-#TODO(reviewer) should this be moved to models?
+
 class BaseSensor(BaseReschedulePokeOperator, ABC):
     """
     Sensor operators are derived from this class and inherit these attributes.
@@ -77,6 +85,7 @@ class BaseSensor(BaseReschedulePokeOperator, ABC):
         if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
             raise AirflowException(
                 "The timeout must be a non-negative number")
+        # pylint: disable=too-many-nested-blocks
         if self.mode not in self.valid_modes:
             raise AirflowException(
                 "The mode must be one of {valid_modes},"
@@ -85,9 +94,31 @@ class BaseSensor(BaseReschedulePokeOperator, ABC):
                         d=self.dag.dag_id if self.dag else "",
                         t=self.task_id, m=self.mode))
 
+    def execute(self, context: Dict):
+        started_at = timezone.utcnow()
+        # pylint: disable=too-many-nested-blocks
+        if self.mode == 'reschedule':
+            super().execute(context)
+        else:
+            while not self.poke(context):
+                if (timezone.utcnow() -
+                   started_at).total_seconds() > self.timeout:
+                    # If sensor is in soft fail mode but will be retried then
+                    # give it a chance and fail with timeout.
+                    # This gives the ability to set up non-blocking AND
+                    # soft-fail sensors.
+                    if self.soft_fail and \
+                       not context['ti'].is_eligible_to_retry():
+                        self._do_skip_downstream_tasks(context)
+                        raise AirflowSkipException('Snap. Time is OUT.')
+                    raise AirflowSensorTimeout('Snap. Time is OUT.')
+                sleep(self.poke_interval)
+        self.log.info("Success criteria met. Exiting.")
+
     def submit_request(self, context: Dict) -> Optional[Union[str, List, Dict]]:
         """ A sensor doesn't submit a request, all it's logic in
         `:py:meth:`poke`."""
         return None
 
-
+    def process_result(self, context: Dict):
+        return None

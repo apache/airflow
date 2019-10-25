@@ -58,7 +58,7 @@ ALL_ID_TYPES = [
 ]
 
 
-class DummyAsyncOperator(BaseReschedulePokeOperator):
+class DummyReschedulePokeOperator(BaseReschedulePokeOperator):
     """
     Test subclass of BaseReschedulePokeOperator
     """
@@ -111,7 +111,7 @@ class TestBaseReschedulePokeOperator(unittest.TestCase):
         if timeout not in kwargs:
             kwargs[timeout] = 0
 
-        async_op = DummyAsyncOperator(
+        async_op = DummyReschedulePokeOperator(
             task_id=ASYNC_OP,
             return_value=return_value,
             resource_id=resource_id,
@@ -169,7 +169,7 @@ class TestBaseReschedulePokeOperator(unittest.TestCase):
 
         context = TaskInstance(task=async_op,
                                execution_date=DEFAULT_DATE).get_template_context()
-        async_op.set_external_resource_id(context, resource_id)
+        async_op.set_state(context, resource_id)
         self.assertEqual(resource_id, async_op.get_external_resource_id(context))
 
     def test_xcom(self):

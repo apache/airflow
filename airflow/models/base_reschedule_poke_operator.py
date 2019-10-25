@@ -23,15 +23,13 @@ operations and polling for completion with reschedule mode.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Iterable, Optional, Union
-from time import sleep
+from typing import Dict, List, Optional, Union
 from datetime import timedelta
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
+from airflow.exceptions import AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
-from airflow.models import SkipMixin, TaskReschedule
+from airflow.models import BaseOperator, SkipMixin, TaskReschedule
 from airflow.models.xcom import XCOM_EXTERNAL_RESOURCE_ID_KEY
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -98,9 +96,16 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
 
     @apply_defaults
     def __init__(self,
+                 poke_interval: float = 60,
+                 timeout: float = 60 * 60 * 24 * 7,
+                 soft_fail: bool = False,
                  *args,
                  **kwargs) -> None:
-        super().__init__(mode='reschedule', *args, **kwargs)
+        super().__init__(*args, **kwargs)
+        self.mode = 'reschedule'
+        self.poke_interval = poke_interval
+        self.soft_fail = soft_fail
+        self.timeout = timeout
 
     @abstractmethod
     def submit_request(self, context: Dict) -> Optional[Union[str, List, Dict]]:
@@ -117,14 +122,12 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
     def poke(self, context: Dict) -> bool:
         """
         Function that the sensors defined while deriving this class should
         override.
         """
         raise NotImplementedError
-
 
     def process_result(self, context: Dict):
         """
@@ -144,16 +147,15 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
         task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
         if not task_reschedules:
             resource_id = self.submit_request(context)
-            self.set_external_resource_id(context, resource_id)
+            self.set_state(context, resource_id)
 
         self.handle_reschedule(context)
         resource_id = self.get_external_resource_id(context)
         self.log.info("Calling process_result for %s.", resource_id)
         self.process_result(context)
-        self.set_external_resource_id(context, None)
 
     @staticmethod
-    def set_external_resource_id(context, value):
+    def set_state(context, value):
         """
         Utility for setting the XCom for the external resource id.
         :param context: Template rendering context
@@ -175,12 +177,18 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
                                        key=XCOM_EXTERNAL_RESOURCE_ID_KEY)
 
     def handle_reschedule(self, context: Dict) -> None:
+        """
+        Reschedules the task at the next poke interval until the success
+        criteria is met.
+        :param context: Template rendering context
+        :type context: dict
+        """
         started_at = timezone.utcnow()
-        if self.reschedule:
-            # If reschedule, use first start date of current try
-            task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
-            if task_reschedules:
-                started_at = task_reschedules[0].start_date
+        # If reschedule, use first start date of current try
+        # pylint: disable=no-value-for-parameter
+        task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
+        if task_reschedules:
+            started_at = task_reschedules[0].start_date
         while not self.poke(context):
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 # If sensor is in soft fail mode but will be retried then
@@ -191,13 +199,9 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
-            if self.reschedule:
-                reschedule_date = timezone.utcnow() + timedelta(
-                    seconds=self.poke_interval)
-                raise AirflowRescheduleException(reschedule_date)
-            else:
-                sleep(self.poke_interval)
-        self.log.info("Success criteria met. Exiting.")
+            reschedule_date = timezone.utcnow() + timedelta(
+                seconds=self.poke_interval)
+            raise AirflowRescheduleException(reschedule_date)
 
     def _do_skip_downstream_tasks(self, context: Dict) -> None:
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
@@ -207,12 +211,14 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
 
     @property
     def reschedule(self):
+        """set mode to reschedule"""
         return self.mode == 'reschedule'
 
     @property
     def deps(self):
         """
-        Adds one additional dependency for all sensor operators that
+        Adds one additional dependency for all reschedul operators that
         checks if a sensor task instance can be rescheduled.
         """
+        # pylint: disable=no-member
         return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
