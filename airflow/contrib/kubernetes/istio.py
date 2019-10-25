@@ -18,7 +18,11 @@
 from airflow import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kubernetes.stream import stream
-from packaging.version import parse as semantic_version
+try:
+    from packaging.version import parse as semantic_version
+except ImportError:
+    # Python 2
+    from distutils.version import LooseVersion as semantic_version
 
 
 class SidecarNames:
