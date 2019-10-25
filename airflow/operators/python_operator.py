@@ -339,7 +339,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self.log.info("Got output")
         with self._sp.stdout:
             for line in iter(self._sp.stdout.readline, b''):
-                self.log.info("%s", line)
+                self.log.info("%s", line.decode().rstrip())
 
         returncode = self._sp.wait()
         if returncode != 0:
