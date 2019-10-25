@@ -80,6 +80,8 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/operators/index
 
+  airflow/providers/google/cloud/operators/index
+
   airflow/providers/google/marketing_platform/sensors/index
 
 
@@ -109,6 +111,8 @@ All hooks are in the following packages:
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index
+
+  airflow/providers/google/cloud/hooks/index
 
 
 Executors

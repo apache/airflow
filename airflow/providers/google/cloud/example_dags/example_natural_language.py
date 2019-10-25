@@ -32,8 +32,7 @@ from airflow.providers.google.cloud.operators.natural_language import (
 )
 
 # [START howto_operator_gcp_natural_language_document_text]
-TEXT = """
-Airflow is a platform to programmatically author, schedule and monitor workflows.
+TEXT = """Airflow is a platform to programmatically author, schedule and monitor workflows.
 
 Use Airflow to author workflows as Directed Acyclic Graphs (DAGs) of tasks. The Airflow scheduler executes
  your tasks on an array of workers while following the specified dependencies. Rich command line utilities
