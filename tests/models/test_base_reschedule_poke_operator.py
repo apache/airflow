@@ -77,7 +77,7 @@ class DummyReschedulePokeOperator(BaseReschedulePokeOperator):
 
     def process_result(self, context):
         """attempt to get the external resource_id"""
-        return self.get_external_resource_id(context)
+        return self.get_state(context)
 
 
 class TestBaseReschedulePokeOperator(unittest.TestCase):
@@ -160,7 +160,7 @@ class TestBaseReschedulePokeOperator(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
 
     @parameterized.expand(ALL_ID_TYPES)
-    def test_set_get_external_resource_id(self, resource_id):
+    def test_set_get_state(self, resource_id):
         """ test resource id mechanism """
         async_op = self._make_async_op(
             return_value=None,
@@ -170,7 +170,7 @@ class TestBaseReschedulePokeOperator(unittest.TestCase):
         context = TaskInstance(task=async_op,
                                execution_date=DEFAULT_DATE).get_template_context()
         async_op.set_state(context, resource_id)
-        self.assertEqual(resource_id, async_op.get_external_resource_id(context))
+        self.assertEqual(resource_id, async_op.get_state(context))
 
     def test_xcom(self):
         """test xcom is set w/ job id. """

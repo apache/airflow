@@ -137,7 +137,7 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
         Refer to get_template_context for more context.
         """
         self.log.info('Using default process_result. Got result of %s. Done.',
-                      self.get_external_resource_id(context))
+                      self.get_state(context))
 
     def execute(self, context: Dict) -> None:
         # On the first execute call submit_request and set the
@@ -150,7 +150,7 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
             self.set_state(context, resource_id)
 
         self.handle_reschedule(context)
-        resource_id = self.get_external_resource_id(context)
+        resource_id = self.get_state(context)
         self.log.info("Calling process_result for %s.", resource_id)
         self.process_result(context)
 
@@ -167,7 +167,7 @@ class BaseReschedulePokeOperator(BaseOperator, SkipMixin, ABC):
                                        value=value)
 
     @staticmethod
-    def get_external_resource_id(context):
+    def get_state(context):
         """
         Utility for getting the XCom for the external resource id.
         :param context: Template rendering context
