@@ -418,10 +418,16 @@ def make_cache_key(*args, **kwargs):
     return (path + args).encode('ascii', 'ignore')
 
 
-def get_python_source(x):
+def get_python_source(x, return_none_if_x_none=False):
     """
     Helper function to get Python source (or not), preventing exceptions
     """
+    if isinstance(x, str):
+        return x
+
+    if x is None and return_none_if_x_none:
+        return None
+
     source_code = None
 
     if isinstance(x, functools.partial):
