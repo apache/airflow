@@ -76,7 +76,8 @@ class TestSlackWebhookOperator(unittest.TestCase):
             **self._config
         )
 
-        template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel', 'username', 'proxy']
+        template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
+                           'username', 'proxy']
 
         self.assertEqual(operator.template_fields, template_fields)
 
