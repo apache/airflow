@@ -37,7 +37,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
         wait for. If ``None`` the sensor waits for the DAG
-    :type external_task_id: str
+    :type external_task_id: str or None
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
