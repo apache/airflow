@@ -19,7 +19,7 @@
 
 import datetime
 import unittest
-from unittest import mock
+from tests.compat import mock
 import uuid
 from collections import namedtuple
 
@@ -214,11 +214,10 @@ class BaseOperatorTest(unittest.TestCase):
         with DAG("test-dag", start_date=DEFAULT_DATE):
             task = DummyOperator(task_id="op1")
 
-        with self.assertRaises(AttributeError) as e:
+        re = "('ClassWithCustomAttributes' object|ClassWithCustomAttributes instance) " \
+             "has no attribute 'missing_field'"
+        with self.assertRaisesRegexp(AttributeError, re):
             task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
-
-        self.assertEqual("'ClassWithCustomAttributes' object has no attribute 'missing_field'",
-                         str(e.exception))
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""

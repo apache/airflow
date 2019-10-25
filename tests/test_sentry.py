@@ -19,7 +19,7 @@
 
 import datetime
 import unittest
-from unittest.mock import Mock, MagicMock
+from tests.compat import Mock, MagicMock
 from freezegun import freeze_time
 
 from sentry_sdk import configure_scope

@@ -17,7 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from contextlib import ContextDecorator
+try:
+    from contextdecorator import ContextDecorator
+except ImportError:
+    from contextlib import ContextDecorator
+
 from shutil import move
 from tempfile import mkdtemp
 from unittest import TestCase, skip

@@ -557,14 +557,14 @@ class TestVarImportView(unittest.TestCase):
             self.assertEqual(case_b_dict, db_dict['dict_key'])
 
 
-@conf_vars({("webserver", "base_url"): "http://localhost:8080/test"})
 class TestMountPoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Clear cached app to remount base_url forcefully
         application.app = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
-        cls.client = Client(app, BaseResponse)
+        with conf_vars({("webserver", "base_url"): "http://localhost:8080/test"}):
+            app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
+            cls.client = Client(app, BaseResponse)
 
     @classmethod
     def tearDownClass(cls):

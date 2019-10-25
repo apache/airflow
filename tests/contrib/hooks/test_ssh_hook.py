@@ -211,6 +211,7 @@ class SSHHookTest(unittest.TestCase):
     def test_tunnel(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
 
+        import psutil
         import subprocess
         import socket
 
@@ -218,7 +219,7 @@ class SSHHookTest(unittest.TestCase):
             args=["python", "-c", HELLO_SERVER_CMD],
             stdout=subprocess.PIPE,
         )
-        with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
+        with psutil.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
             server_output = server_handle.stdout.read(5)
             self.assertEqual(b"ready", server_output)
             socket = socket.socket()

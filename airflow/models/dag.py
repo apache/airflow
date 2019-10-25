@@ -1148,7 +1148,10 @@ class DAG(BaseDag, LoggingMixin):
     def tree_view(self):
         """Print an ASCII tree representation of the DAG."""
         def get_downstream(task, level=0):
-            print((" " * level * 4) + str(task))
+            line = (" " * level * 4) + str(task)
+            if six.PY2:
+                line = line.decode("utf-8")
+            print(line)
             level += 1
             for t in task.downstream_list:
                 get_downstream(t, level)

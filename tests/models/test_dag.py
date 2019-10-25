@@ -815,7 +815,7 @@ class DagTest(unittest.TestCase):
             t5 = DummyOperator(task_id="t5")
             [t1, t2] >> t3 >> [t4, t5]
 
-            self.assertCountEqual(dag.roots, [t1, t2])
+            six.assertCountEqual(self, dag.roots, [t1, t2])
 
     def test_leaves(self):
         """Verify if dag.leaves returns the leaf tasks of a DAG."""
@@ -827,7 +827,7 @@ class DagTest(unittest.TestCase):
             t5 = DummyOperator(task_id="t5")
             [t1, t2] >> t3 >> [t4, t5]
 
-            self.assertCountEqual(dag.leaves, [t4, t5])
+            six.assertCountEqual(self, dag.leaves, [t4, t5])
 
     def test_tree_view(self):
         """Verify correctness of dag.tree_view()."""
