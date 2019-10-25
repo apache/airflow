@@ -19,7 +19,7 @@ from airflow import AirflowException
 from airflow.contrib.kubernetes.istio import Istio
 
 import unittest
-from unittest.mock import MagicMock, patch
+from tests.compat import MagicMock, patch
 
 
 def mock_stream(func, *args, **kwargs):
