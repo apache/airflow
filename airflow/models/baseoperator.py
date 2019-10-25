@@ -27,7 +27,7 @@ import warnings
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type
 
 
 from cached_property import cached_property
@@ -230,6 +230,8 @@ class BaseOperator(LoggingMixin):
     ui_color = '#fff'  # type str
     ui_fgcolor = '#000'  # type str
 
+    pool = ""  # type: str
+
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs = ('user_defined_macros',
                                          'user_defined_filters',
@@ -241,6 +243,9 @@ class BaseOperator(LoggingMixin):
 
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+
+    # Set at end of file
+    _serialized_fields = frozenset()  # type: FrozenSet[str]
 
     _comps = {
         'task_id',
@@ -1074,6 +1079,14 @@ class BaseOperator(LoggingMixin):
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
         else:
             return None
+
+
+# pylint: disable=protected-access
+BaseOperator._serialized_fields = frozenset(
+    set(vars(BaseOperator(task_id='test')).keys()) - {
+        'inlets', 'outlets', '_upstream_task_ids', 'default_args'
+    } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
+)
 
 
 class BaseOperatorLink:
