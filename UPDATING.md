@@ -41,6 +41,15 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Additional arguments passed to BaseOperator cause an exception
+
+Previous versions of Airflow took additional arguments and displayed a message on the console. When the
+message was not noticed by users, it caused very difficult to detect errors.
+
+In order to restore the previous behavior, you must set an ``True`` in  the ``allow_illegal_arguments``
+option of section ``[operators]`` in the ``airflow.cfg`` file. In the future it is possible to completely
+delete this option.
+
 ### Simplification of the TriggerDagRunOperator
 
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.

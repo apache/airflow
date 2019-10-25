@@ -323,7 +323,6 @@ class BaseOperator(LoggingMixin):
     ):
 
         if args or kwargs:
-            # TODO remove *args and **kwargs in Airflow 2.0
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
                     "Invalid arguments were passed to {c} (task_id: {t}). Invalid "
@@ -333,7 +332,7 @@ class BaseOperator(LoggingMixin):
             warnings.warn(
                 'Invalid arguments were passed to {c} (task_id: {t}). '
                 'Support for passing such arguments will be dropped in '
-                'Airflow 2.0. Invalid arguments were:'
+                'future. Invalid arguments were:'
                 '\n*args: {a}\n**kwargs: {k}'.format(
                     c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
                 category=PendingDeprecationWarning,
