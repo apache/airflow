@@ -147,11 +147,12 @@ class SqoopHook(BaseHook):
         if self.hcatalog_table:
             connection_cmd += ["--hcatalog-table", self.hcatalog_table]
 
-        connection_cmd += ["--connect", "{}:{}/{}".format(
-            self.conn.host,
-            self.conn.port,
-            self.conn.schema
-        )]
+        connect_str = self.conn.host
+        if self.conn.port:
+            connect_str += ":{}".format(self.conn.port)
+        if self.conn.schema:
+            connect_str += "/{}".format(self.conn.schema)
+        connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
 
