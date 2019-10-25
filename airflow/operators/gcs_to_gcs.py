@@ -34,6 +34,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     """
     Copies objects from a bucket to another, with renaming if requested.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+
     :param source_bucket: The source Google cloud storage bucket where the
          object is. (templated)
     :type source_bucket: str
@@ -222,6 +226,10 @@ class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
     .. note::
         The synchronization of individual files is not supported. Only entire directories can be
         synchronized.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageSynchronizeBuckets`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :type source_bucket: str
