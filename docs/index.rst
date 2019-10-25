@@ -94,6 +94,7 @@ Content
     errors
     kubernetes
     lineage
+    dag-serialization
     changelog
     faq
     macros
