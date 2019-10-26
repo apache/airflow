@@ -103,15 +103,15 @@ class TestCreateEvaluateOps(unittest.TestCase):
             mock_dataflow_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
-                '{{task.task_id}}',
-                {
+                job_name='{{task.task_id}}',
+                variables={
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
                     'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                'airflow.gcp.utils.mlengine_prediction_summary',
-                ['-m'], py_interpreter='python3')
+                dataflow='airflow.gcp.utils.mlengine_prediction_summary',
+                py_options=['-m'], py_interpreter='python3')
 
         with patch('airflow.gcp.utils.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:
