@@ -117,10 +117,9 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
             prefix, delimiter = self.source_path.split(WILDCARD, 1)
             base_path = os.path.dirname(prefix)
 
-            path_tree = sftp_hook.get_tree_map(
+            files, _, _ = sftp_hook.get_tree_map(
                 base_path, prefix=prefix, delimiter=delimiter
             )
-            files = path_tree.get("files")
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
@@ -163,7 +162,7 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
                 bucket_name=self.destination_bucket,
                 object_name=destination_object,
                 filename=tmp.name,
-                mime_type=self.mime_type
+                mime_type=self.mime_type,
             )
 
         if self.move_object:

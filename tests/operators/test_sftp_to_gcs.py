@@ -111,12 +111,11 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
     @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
     def test_execute_copy_with_wildcard(self, sftp_hook, gcs_hook):
-        sftp_hook.return_value.get_tree_map.return_value = {
-            "files": [
-                "main_dir/test_object3.json",
-                "main_dir/sub_dir/test_object3.json",
-            ]
-        }
+        sftp_hook.return_value.get_tree_map.return_value = [
+            ["main_dir/test_object3.json", "main_dir/sub_dir/test_object3.json"],
+            [],
+            [],
+        ]
 
         task = SFTPToGoogleCloudStorageOperator(
             task_id=TASK_ID,
@@ -154,12 +153,11 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
     @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
     def test_execute_move_with_wildcard(self, sftp_hook, gcs_hook):
-        sftp_hook.return_value.get_tree_map.return_value = {
-            "files": [
-                "main_dir/test_object3.json",
-                "main_dir/sub_dir/test_object3.json",
-            ]
-        }
+        sftp_hook.return_value.get_tree_map.return_value = [
+            ["main_dir/test_object3.json", "main_dir/sub_dir/test_object3.json"],
+            [],
+            [],
+        ]
 
         gcs_hook.return_value.list.return_value = SOURCE_FILES_LIST[:2]
         task = SFTPToGoogleCloudStorageOperator(
