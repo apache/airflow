@@ -139,7 +139,7 @@ sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
 mkdir -p "${AIRFLOW_SOURCES}"/logs/
 mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
-if [[ "${ENV}" == "docker" ]]; then
+if [[ "${ENV}" != "bare" ]]; then
     # Start MiniCluster
     java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
