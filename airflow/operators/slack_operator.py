@@ -100,10 +100,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type icon_url: str
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
-    :type attachments: array of hashes
+    :type attachments: list of hashes
+    :param blocks: extra block layouts. (templated)
+        - see https://api.slack.com/reference/block-kit/blocks.
+    :type blocks: list of hashes
     """
 
-    template_fields = ('username', 'text', 'attachments', 'channel')
+    template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
     @apply_defaults
@@ -116,6 +119,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
                  icon_url='https://raw.githubusercontent.com/apache/'
                           'airflow/master/airflow/www/static/pin_100.png',
                  attachments=None,
+                 blocks=None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel
@@ -123,6 +127,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments
+        self.blocks = blocks
         super(SlackAPIPostOperator, self).__init__(method=self.method,
                                                    *args, **kwargs)
 
@@ -133,4 +138,5 @@ class SlackAPIPostOperator(SlackAPIOperator):
             'text': self.text,
             'icon_url': self.icon_url,
             'attachments': json.dumps(self.attachments),
+            'blocks': json.dumps(self.blocks),
         }
