@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
 import unittest.mock
 from datetime import datetime, timedelta
