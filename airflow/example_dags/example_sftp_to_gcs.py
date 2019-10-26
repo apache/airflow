@@ -28,7 +28,6 @@ from airflow.operators.sftp_to_gcs import SFTPToGoogleCloudStorageOperator
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
-# [START howto_operator_sftp_to_gcs_args_common]
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-sftp-gcs")
 
 TMP_PATH = "/tmp"
@@ -38,7 +37,6 @@ SUBDIR = "subdir"
 OBJECT_SRC_1 = "parent-1.bin"
 OBJECT_SRC_2 = "parent-2.bin"
 OBJECT_SRC_3 = "parent-3.txt"
-# [END howto_operator_sftp_to_gcs_args_common]
 
 
 with models.DAG(
