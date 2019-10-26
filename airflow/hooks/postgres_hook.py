@@ -54,6 +54,16 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
+    def _get_cursor(self, raw_cursor):
+        _cursor = raw_cursor.lower()
+        if _cursor == 'dictcursor':
+            return psycopg2.extras.DictCursor
+        if _cursor == 'realdictcursor':
+            return psycopg2.extras.RealDictCursor
+        if _cursor == 'namedtuplecursor':
+            return psycopg2.extras.NamedTupleCursor
+        raise ValueError('Invalid cursor passed {}'.format(_cursor))
+
     def get_conn(self):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
@@ -68,13 +78,9 @@ class PostgresHook(DbApiHook):
             password=conn.password,
             dbname=self.schema or conn.schema,
             port=conn.port)
-        if conn.extra_dejson.get('cursor', False):
-            if (conn.extra_dejson['cursor']).lower() == 'dictcursor':
-                conn_args['cursor_factory'] = psycopg2.extras.DictCursor
-            elif (conn.extra_dejson['cursor']).lower() == 'realdictcursor':
-                conn_args['cursor_factory'] = psycopg2.extras.RealDictCursor
-            elif (conn.extra_dejson['cursor']).lower() == 'namedtuplecursor':
-                conn_args['cursor_factory'] = psycopg2.extras.NamedTupleCursor
+        raw_cursor = conn.extra_dejson.get('cursor', False)
+        if raw_cursor:
+            conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['sslmode', 'sslcert', 'sslkey',

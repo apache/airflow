@@ -71,6 +71,12 @@ class TestPostgresHookConn(unittest.TestCase):
                                              dbname='schema', port=None)
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_with_invalid_cursor(self, mock_connect):
+        self.connection.extra = '{"cursor": "mycursor"}'
+        with self.assertRaises(ValueError):
+            self.db_hook.get_conn()
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'
