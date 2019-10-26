@@ -81,7 +81,7 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec):
+    def submit_indexing_job(self, json_index_spec: str):
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
