@@ -328,9 +328,8 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.dest_gcs, self.GCS_PATH_PREFIX)
 
     @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
-    @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
     @mock.patch('airflow.providers.aws.operators.s3.GoogleCloudStorageHook')
-    def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
+    def test_execute(self, gcs_mock_hook, s3_mock_hook):
         """Test the execute function when the run is successful."""
 
         operator = S3ToGoogleCloudStorageOperator(
@@ -341,8 +340,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             dest_gcs_conn_id=self.GCS_CONN_ID,
             dest_gcs=self.GCS_PATH_PREFIX)
 
-        s3_one_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
-        s3_two_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
+        s3_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
 
         uploaded_files = operator.execute(None)
         gcs_mock_hook.return_value.upload.assert_has_calls(
@@ -353,8 +351,12 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             ], any_order=True
         )
 
-        s3_one_mock_hook.assert_called_once_with(aws_conn_id=self.AWS_CONN_ID, verify=None)
-        s3_two_mock_hook.assert_called_once_with(aws_conn_id=self.AWS_CONN_ID, verify=None)
+        # Assert if S3Hook is called twice, once for listing and once within S3ToGoogleCloudStorageOperator
+        assert s3_mock_hook.call_args_list == [
+            mock.call(aws_conn_id=self.AWS_CONN_ID, verify=None),
+            mock.call(aws_conn_id=self.AWS_CONN_ID, verify=None),
+        ]
+
         gcs_mock_hook.assert_called_once_with(
             google_cloud_storage_conn_id=self.GCS_CONN_ID, delegate_to=None)
 
@@ -362,8 +364,8 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(sorted(self.MOCK_FILES), sorted(uploaded_files))
 
     @mock.patch('airflow.providers.aws.operators.s3.S3Hook')
-    @mock.patch('airflow.providers.aws.operators.GoogleCloudStorageHook')
-    def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
+    @mock.patch('airflow.providers.aws.operators.s3.GoogleCloudStorageHook')
+    def test_execute_with_gzip(self, gcs_mock_hook, s3_mock_hook):
         """Test the execute function when the run is successful."""
 
         operator = S3ToGoogleCloudStorageOperator(
@@ -376,8 +378,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             gzip=True
         )
 
-        s3_one_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
-        s3_two_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
+        s3_mock_hook.return_value.list_keys.return_value = self.MOCK_FILES
 
         operator.execute(None)
         gcs_mock_hook.return_value.upload.assert_has_calls(
