@@ -128,6 +128,10 @@ HOOK = [
         "airflow.gcp.hooks.bigquery.BigQueryHook",
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
     ),
+    (
+        "airflow.providers.aws.hooks.athena.AWSAthenaHook",
+        "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
+    ),
 ]
 OPERATOR = [
     (
@@ -733,6 +737,10 @@ OPERATOR = [
         "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
+    (
+        "airflow.providers.aws.operators.athena.AWSAthenaOperator",
+        "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
+    ),
 ]
 SENSOR = [
     (
@@ -769,6 +777,10 @@ SENSOR = [
     (
         "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
+    ),
+    (
+        "airflow.providers.aws.sensors.athena.AthenaSensor",
+        "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
     ),
 ]
 ALL = HOOK + OPERATOR + SENSOR
