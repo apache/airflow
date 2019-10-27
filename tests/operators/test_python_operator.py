@@ -22,13 +22,12 @@ import logging
 import os
 import unittest
 from collections import namedtuple
-from datetime import timedelta, date
+from datetime import date, timedelta
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator, ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State

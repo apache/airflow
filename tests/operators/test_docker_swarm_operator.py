@@ -20,10 +20,10 @@
 import unittest
 
 from docker import APIClient
-from tests.compat import mock
 
 from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 class TestDockerSwarmOperator(unittest.TestCase):

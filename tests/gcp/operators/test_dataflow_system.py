@@ -19,7 +19,7 @@
 
 import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import TestDagGcpSystem, SKIP_TEST_WARNING
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_DATAFLOW_KEY
 
 

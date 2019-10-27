@@ -19,14 +19,14 @@
 """
 This module contains a Google Cloud Video Intelligence Hook.
 """
-from typing import Sequence, Tuple, Union, Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
-from google.api_core.operation import Operation
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
@@ -61,6 +61,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
+    @GoogleCloudBaseHook.quota_retry()
     def annotate_video(
         self,
         input_uri: Optional[str] = None,
@@ -69,7 +70,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
         video_context: Union[Dict, VideoContext] = None,
         output_uri: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:

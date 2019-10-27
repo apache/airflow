@@ -22,6 +22,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.utils.mlengine_operator_utils import create_evaluate_ops  # noqa
+
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.utils.mlengine_operator_utils`.",
     DeprecationWarning, stacklevel=2

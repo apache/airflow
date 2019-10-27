@@ -25,10 +25,10 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
+from azure.storage.blob import BlockBlobService
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-
-from azure.storage.blob import BlockBlobService
 
 
 class WasbHook(BaseHook):

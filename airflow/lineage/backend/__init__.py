@@ -25,6 +25,7 @@ class LineageBackend:
                      operator=None, inlets=None, outlets=None, context=None):
         """
         Sends lineage metadata to a backend
+
         :param operator: the operator executing a transformation on the inlets and outlets
         :param inlets: the inlets to this operator
         :param outlets: the outlets from this operator

@@ -19,10 +19,11 @@
 """
 This module contains a Google Cloud Translate Hook.
 """
-from typing import Union, List, Dict, Optional
+from typing import Dict, List, Optional, Union
 
 from google.cloud.translate_v2 import Client
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class CloudTranslateHook(GoogleCloudBaseHook):
@@ -48,6 +49,7 @@ class CloudTranslateHook(GoogleCloudBaseHook):
             self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def translate(
         self,
         values: Union[str, List[str]],

@@ -24,8 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.gcs import (  # noqa
-    GoogleCloudStorageObjectCreateAclEntryOperator,
-    GoogleCloudStorageBucketCreateAclEntryOperator
+    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
 )
 
 warnings.warn(

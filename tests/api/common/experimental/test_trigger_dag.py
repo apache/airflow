@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
-import unittest
 import json
+import unittest
+from unittest import mock
 
+from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
-from airflow.api.common.experimental.trigger_dag import _trigger_dag
 
 
 class TestTriggerDag(unittest.TestCase):

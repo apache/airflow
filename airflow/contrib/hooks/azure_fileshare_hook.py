@@ -18,8 +18,9 @@
 # under the License.
 #
 
-from airflow.hooks.base_hook import BaseHook
 from azure.storage.file import FileService
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class AzureFileShareHook(BaseHook):

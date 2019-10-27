@@ -25,6 +25,7 @@ import copy
 import uuid
 
 import kubernetes.client.models as k8s
+
 from airflow.executors import Executors
 
 
@@ -61,6 +62,7 @@ class PodGenerator:
     Contains Kubernetes Airflow Worker configuration logic
 
     Represents a kubernetes pod and manages execution of a single pod.
+
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables

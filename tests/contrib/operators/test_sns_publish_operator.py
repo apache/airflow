@@ -18,8 +18,8 @@
 # under the License.
 #
 
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow.contrib.operators.sns_publish_operator import SnsPublishOperator
 

@@ -106,5 +106,5 @@ class SqlSensor(BaseSensorOperator):
             else:
                 raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
         if self.allow_null:
-            return str(first_cell) not in ('0', '')
-        return str(first_cell) not in ('0', '', 'None')
+            return first_cell is None or bool(first_cell)
+        return bool(first_cell)

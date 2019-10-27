@@ -51,7 +51,7 @@ GoogleCloudStorageBucketCreateAclEntryOperator
 Creates a new ACL entry on the specified bucket.
 
 For parameter definition, take a look at
-:class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
+:class:`~airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
 
 Arguments
 """""""""

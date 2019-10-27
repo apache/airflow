@@ -18,9 +18,10 @@
 # under the License.
 
 import unittest
+
 from airflow import AirflowException
-from airflow.contrib.sensors.aws_athena_sensor import AthenaSensor
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
+from airflow.contrib.sensors.aws_athena_sensor import AthenaSensor
 from tests.compat import mock
 
 

@@ -21,11 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.dataflow import (  # noqa
-    DataFlowHook,
-    DataflowJobStatus,
-    DEFAULT_DATAFLOW_LOCATION
-)
+from airflow.gcp.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataFlowHook, DataflowJobStatus  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dataflow`.",

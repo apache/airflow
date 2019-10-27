@@ -19,10 +19,9 @@
 
 import unittest
 
+from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
 from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
-
-from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
 
 
 @unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)

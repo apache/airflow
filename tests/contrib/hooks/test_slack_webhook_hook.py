@@ -18,13 +18,14 @@
 # under the License.
 #
 import json
-from requests.exceptions import MissingSchema
 import unittest
 from unittest import mock
 
+from requests.exceptions import MissingSchema
+
+from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 
 
 class TestSlackWebhookHook(unittest.TestCase):
@@ -34,6 +35,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         'webhook_token': 'manual_token',
         'message': 'Awesome message to put on Slack',
         'attachments': [{'fallback': 'Required plain-text summary'}],
+        'blocks': [{'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*bold text*'}}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey:',
@@ -48,6 +50,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         'icon_url': _config['icon_url'],
         'link_names': 1,
         'attachments': _config['attachments'],
+        'blocks': _config['blocks'],
         'text': _config['message']
     }
     expected_message = json.dumps(expected_message_dict)
@@ -102,7 +105,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         message = hook._build_slack_message()
 
         # Then
-        self.assertEqual(self.expected_message, message)
+        self.assertEqual(self.expected_message_dict, json.loads(message))
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')

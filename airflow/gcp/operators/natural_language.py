@@ -19,12 +19,12 @@
 """
 This module contains Google Cloud Language operators.
 """
-from typing import Union, Tuple, Sequence, Optional
+from typing import Optional, Sequence, Tuple, Union
 
-from google.protobuf.json_format import MessageToDict
-from google.cloud.language_v1.types import Document
-from google.cloud.language_v1 import enums
 from google.api_core.retry import Retry
+from google.cloud.language_v1 import enums
+from google.cloud.language_v1.types import Document
+from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from airflow.models import BaseOperator
@@ -112,9 +112,9 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
     # [START natural_language_analyze_entity_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")
@@ -175,9 +175,9 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
     # [START natural_language_analyze_sentiment_template_fields]
     template_fields = ("document", "gcp_conn_id")

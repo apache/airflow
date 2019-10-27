@@ -35,6 +35,8 @@ Default Connection IDs
 
 The default connection ID is ``aws_default``.
 
+.. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}`` on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region. This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow, or via the ``AWS_DEFAULT_REGION`` environment variable.
+
 Configuring the Connection
 --------------------------
 
@@ -49,12 +51,13 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. The following parameters are supported:
 
-    * **aws_account_id**: AWS account ID for the connection
-    * **aws_iam_role**: AWS IAM role for the connection
-    * **external_id**: AWS external ID for the connection
-    * **host**: Endpoint URL for the connection
-    * **region_name**: AWS region for the connection
-    * **role_arn**: AWS role ARN for the connection
+    * ``aws_account_id``: AWS account ID for the connection
+    * ``aws_iam_role``: AWS IAM role for the connection
+    * ``external_id``: AWS external ID for the connection
+    * ``host``: Endpoint URL for the connection
+    * ``region_name``: AWS region for the connection
+    * ``role_arn``: AWS role ARN for the connection
+    * ``aws_session_token``: AWS session token if you use external credentials. You are responsible for renewing these.
 
     Example "extras" field:
 

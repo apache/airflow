@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, Mapping, Iterable, Optional
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator

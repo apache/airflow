@@ -23,12 +23,11 @@ This module allows you to transfer data from any Google API endpoint into a S3 B
 import json
 import sys
 
+from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
+from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
-
-from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
-from airflow.hooks.S3_hook import S3Hook
 
 
 class GoogleApiToS3Transfer(BaseOperator):

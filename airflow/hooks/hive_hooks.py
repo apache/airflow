@@ -20,9 +20,9 @@
 import contextlib
 import os
 import re
+import socket
 import subprocess
 import time
-import socket
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 

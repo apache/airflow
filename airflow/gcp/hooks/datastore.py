@@ -22,12 +22,12 @@ This module contains Google Datastore hook.
 """
 
 import time
-from typing import Any, List, Dict, Union, Optional
 import warnings
+from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 class DatastoreHook(GoogleCloudBaseHook):

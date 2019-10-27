@@ -33,11 +33,11 @@
 # limitations under the License.
 """Kerberos security provider"""
 
-from typing import Optional
 import socket
 import subprocess
 import sys
 import time
+from typing import Optional
 
 from airflow import LoggingMixin
 from airflow.configuration import conf

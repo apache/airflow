@@ -25,28 +25,26 @@ import errno
 import json
 import os
 import os.path
+import platform
 import random
 import re
 import shutil
+import socket
 import string
 import subprocess
-from subprocess import Popen, PIPE
-from typing import Dict, Union, Optional, Any, List
-from urllib.parse import quote_plus
-
-import socket
-import platform
 import time
 import uuid
-import requests
+from subprocess import PIPE, Popen
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import quote_plus
 
-from googleapiclient.errors import HttpError
+import requests
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException, LoggingMixin
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook
@@ -245,7 +243,8 @@ class CloudSqlHook(GoogleCloudBaseHook):
         self,
         instance: str,
         database: str,
-        body: Dict, project_id: Optional[str] = None
+        body: Dict,
+        project_id: Optional[str] = None
     ) -> None:
         """
         Updates a database resource inside a Cloud SQL instance.
@@ -444,8 +443,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         instance_specification: str,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
-        sql_proxy_version=None,
-        sql_proxy_binary_path=None
+        sql_proxy_version: Optional[str] = None,
+        sql_proxy_binary_path: Optional[str] = None
     ) -> None:
         super().__init__()
         self.path_prefix = path_prefix
@@ -465,7 +464,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 
-    def _build_command_line_parameters(self):
+    def _build_command_line_parameters(self) -> None:
         self.command_line_parameters.extend(
             ['-dir', self.cloud_sql_proxy_socket_directory])
         self.command_line_parameters.extend(
@@ -475,7 +474,7 @@ class CloudSqlProxyRunner(LoggingMixin):
     def _is_os_64bit() -> bool:
         return platform.machine().endswith('64')
 
-    def _download_sql_proxy_if_needed(self):
+    def _download_sql_proxy_if_needed(self) -> None:
         if os.path.isfile(self.sql_proxy_path):
             self.log.info("cloud-sql-proxy is already present")
             return
@@ -506,7 +505,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.sql_proxy_was_downloaded = True
 
     @provide_session
-    def _get_credential_parameters(self, session: Session):
+    def _get_credential_parameters(self, session: Session) -> List[str]:
         connection = session.query(Connection). \
             filter(Connection.conn_id == self.gcp_conn_id).first()
         session.expunge_all()
@@ -622,7 +621,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             # Here file cannot be delete by concurrent task (each task has its own copy)
             os.remove(self.credentials_path)
 
-    def get_proxy_version(self):
+    def get_proxy_version(self) -> Optional[str]:
         """
         Returns version of the Cloud SQL Proxy.
         """
@@ -863,7 +862,7 @@ class CloudSqlDatabaseHook(BaseHook):
                 return candidate
 
     @staticmethod
-    def _quote(value):
+    def _quote(value) -> Optional[str]:
         return quote_plus(value) if value else None
 
     def _generate_connection_uri(self) -> str:
@@ -926,17 +925,17 @@ class CloudSqlDatabaseHook(BaseHook):
             quote_plus(self.password) if self.password else 'PASSWORD', 'XXXXXXXXXXXX'))
         return connection_uri
 
-    def _get_instance_socket_name(self):
-        return self.project_id + ":" + self.location + ":" + self.instance
+    def _get_instance_socket_name(self) -> str:
+        return self.project_id + ":" + self.location + ":" + self.instance  # type: ignore
 
-    def _get_sqlproxy_instance_specification(self):
+    def _get_sqlproxy_instance_specification(self) -> str:
         instance_specification = self._get_instance_socket_name()
         if self.sql_proxy_use_tcp:
             instance_specification += "=tcp:" + str(self.sql_proxy_tcp_port)
         return instance_specification
 
     @provide_session
-    def create_connection(self, session: Session = None):
+    def create_connection(self, session: Optional[Session] = None) -> None:
         """
         Create connection in the Connection table, according to whether it uses
         proxy, TCP, UNIX sockets, SSL. Connection ID will be randomly generated.
@@ -953,7 +952,7 @@ class CloudSqlDatabaseHook(BaseHook):
         session.commit()
 
     @provide_session
-    def retrieve_connection(self, session: Session = None) -> Optional[Connection]:
+    def retrieve_connection(self, session: Optional[Session] = None) -> Optional[Connection]:
         """
         Retrieves the dynamically created connection from the Connection table.
 
@@ -969,7 +968,7 @@ class CloudSqlDatabaseHook(BaseHook):
         return None
 
     @provide_session
-    def delete_connection(self, session: Session = None) -> None:
+    def delete_connection(self, session: Optional[Session] = None) -> None:
         """
         Delete the dynamically created connection from the Connection table.
 

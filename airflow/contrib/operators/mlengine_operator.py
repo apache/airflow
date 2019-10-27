@@ -22,10 +22,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.mlengine import (  # noqa
-    MLEngineBatchPredictionOperator,
-    MLEngineModelOperator,
-    MLEngineTrainingOperator,
-    MLEngineVersionOperator,
+    MLEngineBatchPredictionOperator, MLEngineModelOperator, MLEngineTrainingOperator, MLEngineVersionOperator,
 )
 
 warnings.warn(

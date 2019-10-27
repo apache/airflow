@@ -18,8 +18,10 @@
 # under the License.
 
 import unittest
-from google.cloud.speech_v1.proto.cloud_speech_pb2 import RecognizeResponse, SpeechRecognitionResult, \
-    SpeechRecognitionAlternative
+
+from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
+    RecognizeResponse, SpeechRecognitionAlternative, SpeechRecognitionResult,
+)
 
 from airflow import AirflowException
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator

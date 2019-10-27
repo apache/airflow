@@ -19,10 +19,10 @@
 
 
 """
-This module contains AWS Athena hook
+This module contains the AWS DynamoDB hook
 """
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
 
 
 class AwsDynamoDBHook(AwsHook):
@@ -54,7 +54,7 @@ class AwsDynamoDBHook(AwsHook):
 
     def write_batch_data(self, items):
         """
-        Write batch items to dynamodb table with provisioned throughout capacity.
+        Write batch items to DynamoDB table with provisioned throughout capacity.
         """
 
         dynamodb_conn = self.get_conn()

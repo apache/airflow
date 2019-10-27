@@ -17,9 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-import unittest
-
 import re
+import unittest
 from datetime import timedelta
 
 from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex

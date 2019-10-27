@@ -23,8 +23,8 @@ import itertools
 import os
 import random
 import unittest
-from unittest import mock
 from collections import OrderedDict
+from unittest import mock
 
 import pandas as pd
 from hmsclient import HMSClient

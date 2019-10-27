@@ -19,14 +19,9 @@
 import os
 import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import (
-    SKIP_TEST_WARNING,
-    TestDagGcpSystem,
-)
+from tests.contrib.operators.test_dataproc_operator_system_helper import DataprocTestHelper
+from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
-from tests.contrib.operators.test_dataproc_operator_system_helper import (
-    DataprocTestHelper,
-)
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")

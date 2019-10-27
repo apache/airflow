@@ -19,7 +19,7 @@
 """
 This module contains a Google BigQuery Data Transfer Service sensor.
 """
-from typing import Sequence, Tuple, Union, Set, Optional
+from typing import Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
@@ -75,7 +75,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         expected_statuses: Union[Set[str], str] = 'SUCCEEDED',
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         *args,

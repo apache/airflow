@@ -21,27 +21,21 @@
 
 import datetime
 import re
-import unittest
-from unittest.mock import MagicMock, Mock, patch, PropertyMock
-from typing import Dict
-
 import time
+import unittest
 from copy import deepcopy
+from typing import Dict
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 from airflow import DAG, AirflowException
-from airflow.gcp.hooks.dataproc import _DataProcJobBuilder
-from airflow.gcp.operators.dataproc import \
-    DataprocClusterCreateOperator, \
-    DataprocClusterDeleteOperator, \
-    DataProcHadoopOperator, \
-    DataProcHiveOperator, \
-    DataProcPigOperator, \
-    DataProcPySparkOperator, \
-    DataProcSparkOperator, \
-    DataprocWorkflowTemplateInstantiateInlineOperator, \
-    DataprocWorkflowTemplateInstantiateOperator, \
-    DataprocClusterScaleOperator, DataProcJobBaseOperator
 from airflow.exceptions import AirflowTaskTimeout
+from airflow.gcp.hooks.dataproc import _DataProcJobBuilder
+from airflow.gcp.operators.dataproc import (
+    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
+    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataProcPigOperator,
+    DataProcPySparkOperator, DataProcSparkOperator, DataprocWorkflowTemplateInstantiateInlineOperator,
+    DataprocWorkflowTemplateInstantiateOperator,
+)
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.timezone import make_aware
 from airflow.version import version

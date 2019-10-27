@@ -24,12 +24,12 @@ Create Date: 2019-06-07 07:46:04.262275
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '004c1210f153'
-down_revision = '939bb1e647c8'
+down_revision = '74effc47d867'
 branch_labels = None
 depends_on = None
 

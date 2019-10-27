@@ -20,8 +20,8 @@
 import unittest
 
 from airflow.gcp.hooks.translate import CloudTranslateHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests.compat import mock
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
 

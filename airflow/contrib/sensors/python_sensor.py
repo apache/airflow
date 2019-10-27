@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.operators.python_operator import PythonOperator
+from typing import Callable, Dict, List, Optional
 
+from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from typing import Optional, Dict, Callable, List
 
 
 class PythonSensor(BaseSensorOperator):

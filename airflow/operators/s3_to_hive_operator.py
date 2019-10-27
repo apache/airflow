@@ -17,21 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-from typing import Dict, Union, Optional
-
-from airflow.utils.file import TemporaryDirectory
-import gzip
 import bz2
-import tempfile
+import gzip
 import os
+import tempfile
+from tempfile import NamedTemporaryFile
+from typing import Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
 from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.compression import uncompress_file
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.file import TemporaryDirectory
 
 
 class S3ToHiveTransfer(BaseOperator):

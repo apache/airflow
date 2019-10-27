@@ -24,18 +24,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.tasks import (  # noqa
-    CloudTasksQueueCreateOperator,
-    CloudTasksQueueDeleteOperator,
-    CloudTasksQueueGetOperator,
-    CloudTasksQueuePauseOperator,
-    CloudTasksQueuePurgeOperator,
-    CloudTasksQueueResumeOperator,
-    CloudTasksQueuesListOperator,
-    CloudTasksQueueUpdateOperator,
-    CloudTasksTaskCreateOperator,
-    CloudTasksTaskDeleteOperator,
-    CloudTasksTaskGetOperator,
-    CloudTasksTaskRunOperator,
+    CloudTasksQueueCreateOperator, CloudTasksQueueDeleteOperator, CloudTasksQueueGetOperator,
+    CloudTasksQueuePauseOperator, CloudTasksQueuePurgeOperator, CloudTasksQueueResumeOperator,
+    CloudTasksQueuesListOperator, CloudTasksQueueUpdateOperator, CloudTasksTaskCreateOperator,
+    CloudTasksTaskDeleteOperator, CloudTasksTaskGetOperator, CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
 )
 

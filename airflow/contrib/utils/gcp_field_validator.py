@@ -24,9 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.utils.field_validator import (  # noqa
-    GcpBodyFieldValidator,
-    GcpFieldValidationException,
-    GcpValidationSpecificationException
+    GcpBodyFieldValidator, GcpFieldValidationException, GcpValidationSpecificationException,
 )
 
 warnings.warn(

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.hooks.pig_hook import PigCliHook
 from tests.compat import mock
 

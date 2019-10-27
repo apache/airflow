@@ -24,7 +24,7 @@ import re
 
 from docutils import nodes
 # noinspection PyUnresolvedReferences
-from pygments.lexers import guess_lexer, Python3Lexer, PythonLexer  # pylint: disable=no-name-in-module
+from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer  # pylint: disable=no-name-in-module
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 

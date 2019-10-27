@@ -24,9 +24,10 @@ Airflow connection of type `azure_cosmos` exists. Authorization can be done by s
 login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
+import uuid
+
 import azure.cosmos.cosmos_client as cosmos_client
 from azure.cosmos.errors import HTTPFailure
-import uuid
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base_hook import BaseHook

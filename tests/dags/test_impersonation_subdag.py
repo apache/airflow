@@ -20,10 +20,9 @@
 from datetime import datetime
 
 from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.operators.bash_operator import BashOperator
-
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

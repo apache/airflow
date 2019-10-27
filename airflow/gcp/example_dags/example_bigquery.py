@@ -26,21 +26,14 @@ from urllib.parse import urlparse
 import airflow
 from airflow import models
 from airflow.gcp.operators.bigquery import (
-    BigQueryOperator,
-    BigQueryCreateEmptyTableOperator,
-    BigQueryCreateEmptyDatasetOperator,
-    BigQueryGetDatasetOperator,
-    BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
-    BigQueryDeleteDatasetOperator,
-    BigQueryCreateExternalTableOperator,
-    BigQueryGetDataOperator,
-    BigQueryTableDeleteOperator,
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator, BigQueryGetDataOperator, BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator, BigQueryOperator, BigQueryPatchDatasetOperator,
+    BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
 )
-
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
-from airflow.operators.bash_operator import BashOperator
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address
 WALLET_ADDRESS = os.environ.get("GCP_ETH_WALLET_ADDRESS", "0x06012c8cf97BEaD5deAe237070F9587f8E7A266d")
@@ -203,6 +196,16 @@ with models.DAG(
         ],
     )
 
+    get_empty_dataset_tables = BigQueryGetDatasetTablesOperator(
+        task_id="get_empty_dataset_tables",
+        dataset_id=DATASET_NAME
+    )
+
+    get_dataset_tables = BigQueryGetDatasetTablesOperator(
+        task_id="get_dataset_tables",
+        dataset_id=DATASET_NAME
+    )
+
     delete_table = BigQueryTableDeleteOperator(
         task_id="delete-table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
     )
@@ -235,7 +238,7 @@ with models.DAG(
     )
 
     create_dataset >> execute_query_save >> delete_dataset
-    create_dataset >> create_table >> delete_dataset
+    create_dataset >> get_empty_dataset_tables >> create_table >> get_dataset_tables >> delete_dataset
     create_dataset >> get_dataset >> delete_dataset
     create_dataset >> patch_dataset >> update_dataset >> delete_dataset
     execute_query_save >> get_data >> get_dataset_result

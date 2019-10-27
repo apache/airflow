@@ -19,12 +19,12 @@
 
 import unittest
 
-from airflow.models import Base as airflow_base
-
-from airflow.settings import engine
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
+
+from airflow.models import Base as airflow_base
+from airflow.settings import engine
 
 
 class TestDb(unittest.TestCase):

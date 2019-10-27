@@ -18,14 +18,13 @@
 # under the License.
 #
 import unittest
-from typing import Dict, Any
+from typing import Any, Dict
 
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
-
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 PROJECT_ID = "test-project"
@@ -42,7 +41,7 @@ FULL_TASK_PATH = (
 class TestCloudTasksHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")

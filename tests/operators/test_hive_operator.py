@@ -20,8 +20,8 @@
 import datetime
 import os
 import unittest
-
 from unittest import mock
+
 import nose
 
 from airflow import DAG, operators
@@ -29,7 +29,6 @@ from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
-
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

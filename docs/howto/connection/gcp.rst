@@ -60,7 +60,7 @@ Keyfile Path
 Keyfile JSON
     Contents of a `service account
     <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-    file (JSON format) on disk. It is recommended to :doc:`Secure your connections <../secure-connections>` if using this method to authenticate.
+    file (JSON format) on disk.
 
     Not required if using application default credentials.
 

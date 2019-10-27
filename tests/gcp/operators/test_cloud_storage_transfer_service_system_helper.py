@@ -21,13 +21,12 @@ import argparse
 import os
 import subprocess
 
-from googleapiclient._auth import default_credentials, with_scopes
 from googleapiclient import discovery
+from googleapiclient._auth import default_credentials, with_scopes
 
-from tests.gcp.utils.base_gcp_system_test_case import RetrieveVariables
-from tests.gcp.utils.gcp_authenticator import GcpAuthenticator, GCP_GCS_TRANSFER_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-
+from tests.gcp.utils.base_gcp_system_test_case import RetrieveVariables
+from tests.gcp.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY, GcpAuthenticator
 
 retrieve_variables = RetrieveVariables()
 

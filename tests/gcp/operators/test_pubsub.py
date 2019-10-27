@@ -17,13 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode as b64e
 import unittest
 
 from airflow.gcp.operators.pubsub import (
+    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
-    PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
-    PubSubPublishOperator)
+)
 from tests.compat import mock
 
 TASK_ID = 'test-task-id'
@@ -32,10 +31,10 @@ TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
 TEST_MESSAGES = [
     {
-        'data': b64e(b'Hello, World!'),
+        'data': b'Hello, World!',
         'attributes': {'type': 'greeting'}
     },
-    {'data': b64e(b'Knock, knock')},
+    {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}}]
 TEST_POKE_INTERVAl = 0
 
@@ -44,38 +43,68 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_failifexists(self, mock_hook):
-        operator = PubSubTopicCreateOperator(task_id=TASK_ID,
-                                             project=TEST_PROJECT,
-                                             topic=TEST_TOPIC,
-                                             fail_if_exists=True)
+        operator = PubSubTopicCreateOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=True
+        )
 
         operator.execute(None)
         mock_hook.return_value.create_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_exists=True)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=True,
+            labels=None,
+            message_storage_policy=None,
+            kms_key_name=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_succeedifexists(self, mock_hook):
-        operator = PubSubTopicCreateOperator(task_id=TASK_ID,
-                                             project=TEST_PROJECT,
-                                             topic=TEST_TOPIC,
-                                             fail_if_exists=False)
+        operator = PubSubTopicCreateOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=False
+        )
 
         operator.execute(None)
         mock_hook.return_value.create_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_exists=False)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=False,
+            labels=None,
+            message_storage_policy=None,
+            kms_key_name=None,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
-        operator = PubSubTopicDeleteOperator(task_id=TASK_ID,
-                                             project=TEST_PROJECT,
-                                             topic=TEST_TOPIC)
+        operator = PubSubTopicDeleteOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC
+        )
 
         operator.execute(None)
         mock_hook.return_value.delete_topic.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, fail_if_not_exists=False)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_not_exists=False,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
@@ -83,40 +112,83 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
-            task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC,
-            subscription=TEST_SUBSCRIPTION)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION
+        )
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, None,
-            10, False)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            subscription_project_id=None,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
         another_project = 'another-project'
         operator = PubSubSubscriptionCreateOperator(
-            task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
             subscription=TEST_SUBSCRIPTION,
-            subscription_project=another_project)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+            subscription_project_id=another_project,
+            task_id=TASK_ID
+        )
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, another_project,
-            10, False)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            subscription_project_id=another_project,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
-            task_id=TASK_ID, topic_project=TEST_PROJECT, topic=TEST_TOPIC)
-        mock_hook.return_value.create_subscription.return_value = (
-            TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC
+        )
+        mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, None, None, 10, False)
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=None,
+            subscription_project_id=None,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
 
@@ -125,12 +197,20 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionDeleteOperator(
-            task_id=TASK_ID, project=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION)
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION
+        )
 
         operator.execute(None)
         mock_hook.return_value.delete_subscription.assert_called_once_with(
-            TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=False)
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            fail_if_not_exists=False,
+            retry=None,
+            timeout=None,
+            metadata=None
+        )
 
 
 class TestPubSubPublishOperator(unittest.TestCase):
@@ -138,10 +218,11 @@ class TestPubSubPublishOperator(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
     def test_publish(self, mock_hook):
         operator = PubSubPublishOperator(task_id=TASK_ID,
-                                         project=TEST_PROJECT,
+                                         project_id=TEST_PROJECT,
                                          topic=TEST_TOPIC,
                                          messages=TEST_MESSAGES)
 
         operator.execute(None)
         mock_hook.return_value.publish.assert_called_once_with(
-            TEST_PROJECT, TEST_TOPIC, TEST_MESSAGES)
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )

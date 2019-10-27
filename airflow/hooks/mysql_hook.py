@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
+
 import MySQLdb
 import MySQLdb.cursors
-import json
 
 from airflow.hooks.dbapi_hook import DbApiHook
 

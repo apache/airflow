@@ -23,7 +23,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
-
 SETTINGS_FILE_POLICY = """
 def policy(task_instance):
     task_instance.run_as_user = "myself"

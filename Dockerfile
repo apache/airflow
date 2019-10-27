@@ -43,7 +43,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="1"
+ARG DEPENDENCIES_EPOCH_NUMBER="2"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -55,7 +55,6 @@ RUN apt-get update \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 
 # Install basic apt dependencies
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
@@ -82,6 +81,14 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            rsync \
            sasl2-bin \
            sudo \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install graphviz - needed to build docs with diagrams
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           graphviz \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -127,6 +134,10 @@ ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
 ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
 ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
+ARG KUBERNETES_VERSION="v1.15.0"
+ENV KUBERNETES_VERSION=${KUBERNETES_VERSION}
+ARG KIND_VERSION="v0.5.0"
+ENV KIND_VERSION=${KIND_VERSION}
 
 RUN echo "${APT_DEPS_IMAGE}"
 
@@ -140,6 +151,9 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
         && apt-get update \
         && apt-get install --no-install-recommends -y \
           gnupg \
+          apt-transport-https \
+          ca-certificates \
+          software-properties-common \
           krb5-user \
           ldap-utils \
           less \
@@ -162,6 +176,44 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
 
 # TODO: We should think about removing those and moving them into docker-compose dependencies.
 COPY scripts/ci/docker_build/ci_build_install_deps.sh /tmp/ci_build_install_deps.sh
+
+# Kubernetes dependencies
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
+    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
+    && apt-get update \
+    && apt-get -y install --no-install-recommends docker-ce \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    ;\
+fi
+
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+    curl -Lo kubectl \
+    "https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin/kubectl \
+    ;\
+fi
+
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+    curl -Lo kind \
+    "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
+    && chmod +x kind \
+    && mv kind /usr/local/bin/kind \
+    ;\
+fi
+
+ENV HADOOP_DISTRO=cdh \
+    HADOOP_MAJOR=5 \
+    HADOOP_DISTRO_VERSION=5.11.0 \
+    HADOOP_VERSION=2.6.0 \
+    HIVE_VERSION=1.1.0
+ENV HADOOP_URL=https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/
+ENV HADOOP_HOME=/tmp/hadoop-cdh HIVE_HOME=/tmp/hive
 
 RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then /tmp/ci_build_install_deps.sh; fi
 
@@ -218,7 +270,7 @@ ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
 # PIP version used to install dependencies
-ARG PIP_VERSION="19.0.1"
+ARG PIP_VERSION="19.0.2"
 ENV PIP_VERSION=${PIP_VERSION}
 RUN echo "Pip version: ${PIP_VERSION}"
 
@@ -252,7 +304,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # And is automatically reinstalled from the scratch every month
 RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install --no-use-pep517 \
+        pip install \
         "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         && pip uninstall --yes apache-airflow; \
     fi
@@ -285,7 +337,7 @@ COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
@@ -303,7 +355,7 @@ COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
 WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""

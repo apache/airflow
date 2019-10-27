@@ -16,24 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint:disable=too-many-lines
 """
 This module contains Google BigQuery operators.
 """
-# pylint:disable=too-many-lines
 
 import json
 import warnings
-from typing import Iterable, List, Optional, Union, Dict, Any, SupportsAbs
+from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils.decorators import apply_defaults
-from airflow.operators.check_operator import \
-    CheckOperator, ValueCheckOperator, IntervalCheckOperator
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
-
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
 
@@ -307,10 +306,14 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        self.log.info('Total Extracted rows: %s', response['totalRows'])
-        rows = response['rows']
+        total_rows = int(response['totalRows'])
+        self.log.info('Total Extracted rows: %s', total_rows)
 
         table_data = []
+        if total_rows == 0:
+            return table_data
+
+        rows = response['rows']
         for dict_row in rows:
             single_row = []
             for fields in dict_row['f']:
@@ -1130,6 +1133,65 @@ class BigQueryGetDatasetOperator(BaseOperator):
         return cursor.get_dataset(
             dataset_id=self.dataset_id,
             project_id=self.project_id)
+
+
+class BigQueryGetDatasetTablesOperator(BaseOperator):
+    """
+    This operator retrieves the list of tables in the specified dataset.
+
+    :param dataset_id: the dataset ID of the requested dataset.
+    :type dataset_id: str
+    :param project_id: (Optional) the project of the requested dataset. If None,
+        self.project_id will be used.
+    :type project_id: str
+    :param max_results: (Optional) the maximum number of tables to return.
+    :type max_results: int
+    :param page_token: (Optional) page token, returned from a previous call,
+        identifying the result set.
+    :type page_token: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: (Optional) The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+
+    :rtype: dict
+        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list#response-body
+    """
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f00004'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id: str,
+                 project_id: Optional[str] = None,
+                 max_results: Optional[int] = None,
+                 page_token: Optional[str] = None,
+                 gcp_conn_id: Optional[str] = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args, **kwargs) -> None:
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.max_results = max_results
+        self.page_token = page_token
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                               delegate_to=self.delegate_to)
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        self.log.info('Start getting tables list from dataset: %s:%s', self.project_id, self.dataset_id)
+
+        return cursor.get_dataset_tables(
+            dataset_id=self.dataset_id,
+            project_id=self.project_id,
+            max_results=self.max_results,
+            page_token=self.page_token)
 
 
 class BigQueryPatchDatasetOperator(BaseOperator):

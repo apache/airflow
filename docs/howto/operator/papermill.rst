@@ -50,33 +50,11 @@ supports S3, GCS, Azure and Local. HDFS is *not* supported.
 Example DAG
 '''''''''''
 
-.. code:: python
+Use the :class:`~airflow/contrib/operators/papermill_operator.PapermillOperator`
+to execute a jupyter notebook:
 
-    import airflow
-
-    from airflow.models import DAG
-    from airflow.operators.papermill_operator import PapermillOperator
-
-    from datetime import timedelta
-
-    args = {
-        'owner': 'Airflow',
-        'start_date': airflow.utils.dates.days_ago(2)
-    }
-
-    dag = DAG(
-        dag_id='example_papermill_operator', default_args=args,
-        schedule_interval='0 0 * * *',
-        dagrun_timeout=timedelta(minutes=60))
-
-    run_this = PapermillOperator(
-        task_id="run_example_notebook",
-        dag=dag,
-        input_nb="/tmp/hello_world.ipynb",
-        output_nb="/tmp/out-{{ execution_date }}.ipynb",
-        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
-    )
-
-This DAG will use Papermill to run the notebook "hello_world", based on the execution date
-it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
-templated.
+.. exampleinclude:: ../../../airflow/contrib/example_dags/example_papermill_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_papermill]
+    :end-before: [END howto_operator_papermill]

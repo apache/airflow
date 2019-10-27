@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import json
+import os
 from tempfile import mkstemp
 
 from airflow.configuration import conf
