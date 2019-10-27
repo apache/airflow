@@ -16,13 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-
 import unittest
 
-from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
-from airflow.contrib.operators.aws_athena_operator import AWSAthenaOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.aws.operators.athena import AWSAthenaOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.compat import mock

@@ -20,8 +20,8 @@
 import unittest
 
 from airflow import AirflowException
-from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
-from airflow.contrib.sensors.aws_athena_sensor import AthenaSensor
+from airflow.providers.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.aws.sensors.athena import AthenaSensor
 from tests.compat import mock
 
 

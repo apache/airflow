@@ -35,7 +35,6 @@
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/contrib/hooks/wasb_hook.py
 ./airflow/contrib/operators/adls_list_operator.py
-./airflow/contrib/operators/aws_athena_operator.py
 ./airflow/contrib/operators/awsbatch_operator.py
 ./airflow/contrib/operators/azure_container_instances_operator.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
@@ -87,7 +86,6 @@
 ./airflow/contrib/operators/vertica_to_mysql.py
 ./airflow/contrib/operators/wasb_delete_blob_operator.py
 ./airflow/contrib/operators/winrm_operator.py
-./airflow/contrib/sensors/aws_athena_sensor.py
 ./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
 ./airflow/contrib/sensors/aws_redshift_cluster_sensor.py
 ./airflow/contrib/sensors/aws_sqs_sensor.py
@@ -202,6 +200,8 @@
 ./airflow/operators/sqlite_operator.py
 ./airflow/operators/subdag_operator.py
 ./airflow/plugins_manager.py
+./airflow/providers/aws/operators/athena.py
+./airflow/providers/aws/sensors/athena.py
 ./airflow/sensors/__init__.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py

@@ -305,9 +305,9 @@ These integrations allow you to perform various operations within the Amazon Web
      - Sensors
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
-     - :mod:`airflow.contrib.hooks.aws_athena_hook`
-     - :mod:`airflow.contrib.operators.aws_athena_operator`
-     - :mod:`airflow.contrib.sensors.aws_athena_sensor`
+     - :mod:`airflow.providers.aws.hooks.athena`
+     - :mod:`airflow.providers.aws.operators.athena`
+     - :mod:`airflow.providers.aws.sensors.athena`
 
    * - `AWS Batch <https://aws.amazon.com/athena/>`__
      -
