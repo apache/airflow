@@ -23,7 +23,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.hooks.s3 import provide_bucket_name, S3Hook # noqa
+from airflow.providers.aws.hooks.s3 import S3Hook, provide_bucket_name  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.aws.hooks.s3`.",
