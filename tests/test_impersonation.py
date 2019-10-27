@@ -161,20 +161,16 @@ class TestImpersonation(unittest.TestCase):
             'test_superuser',
         )
 
+    @unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__DEFAULT_IMPERSONATION=TEST_USER)
     def test_default_impersonation(self):
         """
         If default_impersonation=TEST_USER, tests that the job defaults
         to running as TEST_USER for a test without run_as_user set
         """
-        os.environ['AIRFLOW__CORE__DEFAULT_IMPERSONATION'] = TEST_USER
-
-        try:
-            self.run_backfill(
-                'test_default_impersonation',
-                'test_deelevated_user'
-            )
-        finally:
-            del os.environ['AIRFLOW__CORE__DEFAULT_IMPERSONATION']
+        self.run_backfill(
+            'test_default_impersonation',
+            'test_deelevated_user'
+        )
 
     def test_impersonation_subdag(self):
         """

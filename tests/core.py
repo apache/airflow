@@ -809,26 +809,20 @@ class TestCore(unittest.TestCase):
     def test_config_override_original_when_non_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = "some value"
-        self.assertNotIn(key, os.environ)
 
-        os.environ[key] = value
-        FERNET_KEY = conf.get('core', 'FERNET_KEY')
+        with unittest.mock.patch.dict('os.environ', {key: value}):
+            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+
         self.assertEqual(value, FERNET_KEY)
-
-        # restore the envvar back to the original state
-        del os.environ[key]
 
     def test_config_override_original_when_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = ""
-        self.assertNotIn(key, os.environ)
 
-        os.environ[key] = value
-        FERNET_KEY = conf.get('core', 'FERNET_KEY')
+        with unittest.mock.patch.dict('os.environ', {key: value}):
+            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+
         self.assertEqual(value, FERNET_KEY)
-
-        # restore the envvar back to the original state
-        del os.environ[key]
 
     def test_round_time(self):
 
@@ -2042,17 +2036,10 @@ class FakeHDFSHook:
 class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
-        os.environ['AIRFLOW_CONN_TEST_URI'] = (
-            'postgres://username:password@ec2.compute.com:5432/the_database')
-        os.environ['AIRFLOW_CONN_TEST_URI_NO_CREDS'] = (
-            'postgres://ec2.compute.com/the_database')
 
-    def tearDown(self):
-        env_vars = ['AIRFLOW_CONN_TEST_URI', 'AIRFLOW_CONN_AIRFLOW_DB']
-        for ev in env_vars:
-            if ev in os.environ:
-                del os.environ[ev]
-
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+    })
     def test_using_env_var(self):
         c = SqliteHook.get_connection(conn_id='test_uri')
         self.assertEqual('ec2.compute.com', c.host)
@@ -2061,6 +2048,9 @@ class TestConnection(unittest.TestCase):
         self.assertEqual('password', c.password)
         self.assertEqual(5432, c.port)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_using_unix_socket_env_var(self):
         c = SqliteHook.get_connection(conn_id='test_uri_no_creds')
         self.assertEqual('ec2.compute.com', c.host)
@@ -2083,16 +2073,20 @@ class TestConnection(unittest.TestCase):
         c = SqliteHook.get_connection(conn_id='airflow_db')
         self.assertNotEqual('ec2.compute.com', c.host)
 
-        os.environ['AIRFLOW_CONN_AIRFLOW_DB'] = \
-            'postgres://username:password@ec2.compute.com:5432/the_database'
-        c = SqliteHook.get_connection(conn_id='airflow_db')
-        self.assertEqual('ec2.compute.com', c.host)
-        self.assertEqual('the_database', c.schema)
-        self.assertEqual('username', c.login)
-        self.assertEqual('password', c.password)
-        self.assertEqual(5432, c.port)
-        del os.environ['AIRFLOW_CONN_AIRFLOW_DB']
+        with unittest.mock.patch.dict('os.environ', {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        }):
+            c = SqliteHook.get_connection(conn_id='airflow_db')
+            self.assertEqual('ec2.compute.com', c.host)
+            self.assertEqual('the_database', c.schema)
+            self.assertEqual('username', c.login)
+            self.assertEqual('password', c.password)
+            self.assertEqual(5432, c.port)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
@@ -2101,6 +2095,10 @@ class TestConnection(unittest.TestCase):
         hook2 = conn2.get_hook()
         self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_dbapi_get_sqlalchemy_engine(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
@@ -2108,6 +2106,10 @@ class TestConnection(unittest.TestCase):
         self.assertIsInstance(engine, sqlalchemy.engine.Engine)
         self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_get_connections_env_var(self):
         conns = SqliteHook.get_connections(conn_id='test_uri')
         assert len(conns) == 1
@@ -2137,9 +2139,9 @@ snakebite = None  # type: None
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
 class TestHDFSHook(unittest.TestCase):
-    def setUp(self):
-        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
-
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()
         self.assertIsInstance(client, snakebite.client.Client)
@@ -2147,6 +2149,9 @@ class TestHDFSHook(unittest.TestCase):
         self.assertEqual(8020, client.port)
         self.assertEqual('foo', client.service.channel.effective_user)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
     @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
     def test_get_autoconfig_client(self, mock_get_connections,
@@ -2159,6 +2164,9 @@ class TestHDFSHook(unittest.TestCase):
         MockAutoConfigClient.assert_called_once_with(effective_user='foo',
                                                      use_sasl=False)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
     def test_get_autoconfig_client_no_conn(self, MockAutoConfigClient):
         HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()

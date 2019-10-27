@@ -20,8 +20,9 @@
 import os
 import unittest
 from base64 import b64encode
+from unittest import mock
 
-from airflow import models
+from airflow import models, AirflowException
 from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
@@ -32,6 +33,7 @@ from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2017, 1, 1)
+TEST_CONN_ID = "conn_id_for_testing"
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -366,11 +368,8 @@ class TestSFTPOperator(unittest.TestCase):
             content_received = file.read()
         self.assertEqual(content_received.strip(), test_remote_file_content)
 
+    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
-        from airflow.exceptions import AirflowException
-        conn_id = "conn_id_for_testing"
-        os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
-
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
