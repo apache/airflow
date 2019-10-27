@@ -733,6 +733,10 @@ OPERATOR = [
         "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
+    (
+        "airflow.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator",
+        "airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator",
+    ),
 ]
 SENSOR = [
     (
