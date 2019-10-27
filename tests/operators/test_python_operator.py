@@ -62,7 +62,7 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
-@unittest.mock.patch('os.envion', {
+@unittest.mock.patch('os.environ', {
     'AIRFLOW_CTX_DAG_ID': None,
     'AIRFLOW_CTX_TASK_ID': None,
     'AIRFLOW_CTX_EXECUTION_DATE': None,

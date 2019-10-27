@@ -38,7 +38,9 @@ class TestConf(unittest.TestCase):
         conf.set('core', 'percent', 'with%%inside')
 
     def test_airflow_home_default(self):
-        with unittest.mock.patch.dict('os.environ', AIRFLOW_HOME=None):
+        with unittest.mock.patch.dict('os.environ'):
+            if 'AIRFLOW_HOME' in os.environ:
+                del os.environ['AIRFLOW_HOME']
             self.assertEqual(
                 configuration.get_airflow_home(),
                 configuration.expand_env_var('~/airflow'))
@@ -50,7 +52,9 @@ class TestConf(unittest.TestCase):
                 '/path/to/airflow')
 
     def test_airflow_config_default(self):
-        with unittest.mock.patch.dict('os.environ', AIRFLOW_CONFIG=None):
+        with unittest.mock.patch.dict('os.environ'):
+            if 'AIRFLOW_CONFIG' in os.environ:
+                del os.environ['AIRFLOW_CONFIG']
             self.assertEqual(
                 configuration.get_airflow_config('/home/airflow'),
                 configuration.expand_env_var('/home/airflow/airflow.cfg'))
@@ -347,7 +351,7 @@ AIRFLOW_HOME = /root/airflow
         conf.remove_option('celery', 'worker_concurrency')
 
         with self.assertWarns(DeprecationWarning):
-            with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY=99):
+            with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                 self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
         with self.assertWarns(DeprecationWarning):
