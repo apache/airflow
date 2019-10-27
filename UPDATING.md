@@ -640,7 +640,18 @@ airflow users --remove-role --username jondoe --role Public
 ### Unification of `do_xcom_push` flag
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
-See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+The following operators were affected:
+
+* DatastoreExportOperator (Backwards compatible)
+* DatastoreImportOperator (Backwards compatible)
+* KubernetesPodOperator (Not backwards compatible)
+* SSHOperator (Not backwards compatible)
+* WinRMOperator (Not backwards compatible)
+* BashOperator (Not backwards compatible)
+* DockerOperator (Not backwards compatible)
+* SimpleHttpOperator (Not backwards compatible)
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
 
 ### Changes to Dataproc related Operators
 The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from
