@@ -41,6 +41,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+# Removal of XCom.get_one()
+
+This one is supersede by `XCom.get_many().first()` which will return the same result.
+
 ### Migration of AWS components
 
 All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in

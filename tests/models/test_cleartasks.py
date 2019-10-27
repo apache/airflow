@@ -26,11 +26,16 @@ from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance as TI, XCom, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 
 
 class TestClearTasks(unittest.TestCase):
+
+    def tearDown(self):
+        with create_session() as session:
+            session.query(TI).delete()
 
     def test_clear_task_instances(self):
         dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,
@@ -42,11 +47,11 @@ class TestClearTasks(unittest.TestCase):
 
         ti0.run()
         ti1.run()
-        session = settings.Session()
-        qry = session.query(TI).filter(
-            TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session, dag=dag)
-        session.commit()
+        with create_session() as session:
+            qry = session.query(TI).filter(
+                TI.dag_id == dag.dag_id).all()
+            clear_task_instances(qry, session, dag=dag)
+
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
@@ -70,11 +75,11 @@ class TestClearTasks(unittest.TestCase):
         self.assertFalse(dag.has_task(task0.task_id))
         self.assertFalse(dag.has_task(task1.task_id))
 
-        session = settings.Session()
-        qry = session.query(TI).filter(
-            TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
-        session.commit()
+        with create_session() as session:
+            qry = session.query(TI).filter(
+                TI.dag_id == dag.dag_id).all()
+            clear_task_instances(qry, session)
+
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
@@ -94,11 +99,11 @@ class TestClearTasks(unittest.TestCase):
         ti0.run()
         ti1.run()
 
-        session = settings.Session()
-        qry = session.query(TI).filter(
-            TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
-        session.commit()
+        with create_session() as session:
+            qry = session.query(TI).filter(
+                TI.dag_id == dag.dag_id).all()
+            clear_task_instances(qry, session)
+
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
@@ -248,10 +253,10 @@ class TestClearTasks(unittest.TestCase):
                  task_id=task_id,
                  execution_date=execution_date)
 
-        ret_value = XCom.get_one(key=key,
-                                 dag_id=dag_id,
-                                 task_id=task_id,
-                                 execution_date=execution_date)
+        ret_value = XCom.get_many(key=key,
+                                  dag_ids=dag_id,
+                                  task_ids=task_id,
+                                  execution_date=execution_date).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -278,10 +283,10 @@ class TestClearTasks(unittest.TestCase):
                  task_id=task_id,
                  execution_date=execution_date)
 
-        ret_value = XCom.get_one(key=key,
-                                 dag_id=dag_id,
-                                 task_id=task_id,
-                                 execution_date=execution_date)
+        ret_value = XCom.get_many(key=key,
+                                  dag_ids=dag_id,
+                                  task_ids=task_id,
+                                  execution_date=execution_date).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -330,8 +335,7 @@ class TestClearTasks(unittest.TestCase):
                  task_id=task_id2,
                  execution_date=execution_date)
 
-        results = XCom.get_many(key=key,
-                                execution_date=execution_date)
+        results = XCom.get_many(key=key, execution_date=execution_date)
 
         for result in results:
             self.assertEqual(result.value, json_obj)
