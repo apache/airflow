@@ -102,7 +102,6 @@ class TestConf(unittest.TestCase):
             cfg_dict['kubernetes_environment_variables']['AIRFLOW__TESTSECTION__TESTKEY'],
             '< hidden >')
 
-
     def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
@@ -347,9 +346,9 @@ AIRFLOW_HOME = /root/airflow
         # Remove it so we are sure we use the right setting
         conf.remove_option('celery', 'worker_concurrency')
 
-        with self.assertWarns(DeprecationWarning) as warn,
-            mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY=99) as mock_environ:
-            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
+        with self.assertWarns(DeprecationWarning):
+            with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY=99):
+                self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')

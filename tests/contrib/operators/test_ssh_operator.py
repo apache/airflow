@@ -21,7 +21,7 @@ import unittest
 import unittest.mock
 from base64 import b64encode
 
-from airflow import models, AirflowException
+from airflow import AirflowException, models
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session

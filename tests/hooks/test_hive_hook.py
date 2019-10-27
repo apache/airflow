@@ -111,7 +111,7 @@ class TestHiveCliHook(unittest.TestCase):
             dag_id_ctx_var_name: 'test_dag_id',
             task_id_ctx_var_name: 'test_task_id',
             execution_date_ctx_var_name: 'test_execution_date',
-            dag_run_id_ctx_var_name:'test_dag_run_id',
+            dag_run_id_ctx_var_name: 'test_dag_run_id',
         }):
             hook = HiveCliHook()
             output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
@@ -414,7 +414,7 @@ class TestHiveServer2Hook(unittest.TestCase):
 
         with mock.patch.dict(
             'os.environ',
-            conn_env="jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
+            {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"}
         ):
             HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
             mock_connect.assert_called_once_with(

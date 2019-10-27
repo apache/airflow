@@ -22,7 +22,7 @@ import unittest
 from base64 import b64encode
 from unittest import mock
 
-from airflow import models, AirflowException
+from airflow import AirflowException, models
 from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
@@ -386,7 +386,7 @@ class TestSFTPOperator(unittest.TestCase):
         task_1 = SFTPOperator(
             task_id="test_sftp",
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
-            ssh_conn_id=conn_id,
+            ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -396,11 +396,11 @@ class TestSFTPOperator(unittest.TestCase):
             task_1.execute(None)
         except Exception:
             pass
-        self.assertEqual(task_1.ssh_hook.ssh_conn_id, conn_id)
+        self.assertEqual(task_1.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
         task_2 = SFTPOperator(
             task_id="test_sftp",
-            ssh_conn_id=conn_id,  # no ssh_hook provided
+            ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -410,13 +410,13 @@ class TestSFTPOperator(unittest.TestCase):
             task_2.execute(None)
         except Exception:
             pass
-        self.assertEqual(task_2.ssh_hook.ssh_conn_id, conn_id)
+        self.assertEqual(task_2.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
         # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
         task_3 = SFTPOperator(
             task_id="test_sftp",
             ssh_hook=self.hook,
-            ssh_conn_id=conn_id,
+            ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
