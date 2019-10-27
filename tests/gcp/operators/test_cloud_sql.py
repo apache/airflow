@@ -19,7 +19,6 @@
 
 # pylint: disable=too-many-lines
 
-import json
 import os
 import unittest
 
@@ -787,36 +786,3 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
             operator.execute(None)
         err = cm.exception
         self.assertIn("The UNIX socket path length cannot exceed", str(err))
-
-    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
-                "delete_connection")
-    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
-                "get_connection")
-    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_cloudsql_hook_delete_connection_on_exception(
-            self, get_connections, run, get_connection, delete_connection):
-        connection = Connection()
-        connection.parse_from_uri(
-            "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False")
-        get_connection.return_value = connection
-
-        db_connection = Connection()
-        db_connection.host = "127.0.0.1"
-        db_connection.set_extra(json.dumps({"project_id": "example-project",
-                                            "location": "europe-west1",
-                                            "instance": "testdb",
-                                            "database_type": "mysql"}))
-        get_connections.return_value = [db_connection]
-        run.side_effect = Exception("Exception when running a query")
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        with self.assertRaises(Exception) as cm:
-            operator.execute(None)
-        err = cm.exception
-        self.assertEqual("Exception when running a query", str(err))
-        delete_connection.assert_called_once_with()

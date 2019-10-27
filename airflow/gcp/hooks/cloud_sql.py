@@ -934,57 +934,16 @@ class CloudSqlDatabaseHook(BaseHook):
             instance_specification += "=tcp:" + str(self.sql_proxy_tcp_port)
         return instance_specification
 
-    @provide_session
-    def create_connection(self, session: Optional[Session] = None) -> None:
+    def create_connection(self) -> Connection:
         """
-        Create connection in the Connection table, according to whether it uses
-        proxy, TCP, UNIX sockets, SSL. Connection ID will be randomly generated.
-
-        :param session: Session of the SQL Alchemy ORM (automatically generated with
-                        decorator).
+        Create Connection object, according to whether it uses proxy, TCP, UNIX sockets, SSL.
+        Connection ID will be randomly generated.
         """
-        assert session is not None
         connection = Connection(conn_id=self.db_conn_id)
         uri = self._generate_connection_uri()
         self.log.info("Creating connection %s", self.db_conn_id)
         connection.parse_from_uri(uri)
-        session.add(connection)
-        session.commit()
-
-    @provide_session
-    def retrieve_connection(self, session: Optional[Session] = None) -> Optional[Connection]:
-        """
-        Retrieves the dynamically created connection from the Connection table.
-
-        :param session: Session of the SQL Alchemy ORM (automatically generated with
-                        decorator).
-        """
-        assert session is not None
-        self.log.info("Retrieving connection %s", self.db_conn_id)
-        connections = session.query(Connection).filter(
-            Connection.conn_id == self.db_conn_id)
-        if connections.count():
-            return connections[0]
-        return None
-
-    @provide_session
-    def delete_connection(self, session: Optional[Session] = None) -> None:
-        """
-        Delete the dynamically created connection from the Connection table.
-
-        :param session: Session of the SQL Alchemy ORM (automatically generated with
-                        decorator).
-        """
-        assert session is not None
-        self.log.info("Deleting connection %s", self.db_conn_id)
-        connections = session.query(Connection).filter(
-            Connection.conn_id == self.db_conn_id)
-        if connections.count():
-            connection = connections[0]
-            session.delete(connection)
-            session.commit()
-        else:
-            self.log.info("Connection was already deleted!")
+        return connection
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:
         """
@@ -1006,17 +965,15 @@ class CloudSqlDatabaseHook(BaseHook):
             gcp_conn_id=self.gcp_conn_id
         )
 
-    def get_database_hook(self) -> Union[PostgresHook, MySqlHook]:
+    def get_database_hook(self, connection: Connection) -> Union[PostgresHook, MySqlHook]:
         """
         Retrieve database hook. This is the actual Postgres or MySQL database hook
         that uses proxy or connects directly to the Google Cloud SQL database.
         """
         if self.database_type == 'postgres':
-            self.db_hook = PostgresHook(postgres_conn_id=self.db_conn_id,
-                                        schema=self.database)
+            self.db_hook = PostgresHook(connection=connection, schema=self.database)
         else:
-            self.db_hook = MySqlHook(mysql_conn_id=self.db_conn_id,
-                                     schema=self.database)
+            self.db_hook = MySqlHook(connection=connection, schema=self.database)
         return self.db_hook
 
     def cleanup_database_hook(self) -> None:

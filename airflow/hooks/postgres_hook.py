@@ -56,6 +56,7 @@ class PostgresHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.connection = kwargs.pop("connection", None)
 
     def _get_cursor(self, raw_cursor):
         _cursor = raw_cursor.lower()
@@ -68,8 +69,9 @@ class PostgresHook(DbApiHook):
         raise ValueError('Invalid cursor passed {}'.format(_cursor))
 
     def get_conn(self):
+
         conn_id = getattr(self, self.conn_name_attr)
-        conn = self.get_connection(conn_id)
+        conn = self.connection or self.get_connection(conn_id)
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):
