@@ -30,6 +30,8 @@ GCP_CONN_ID = "GCP_CONN_ID"
 SFTP_CONN_ID = "SFTP_CONN_ID"
 DELEGATE_TO = "DELEGATE_TO"
 
+DEFAULT_MIME_TYPE = "application/octet-stream"
+
 TEST_BUCKET = "test-bucket"
 SOURCE_OBJECT_WILDCARD_FILENAME = "main_dir/test_object*.json"
 SOURCE_OBJECT_NO_WILDCARD = "main_dir/test_object3.json"
@@ -69,12 +71,16 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        args, kwargs = sftp_hook.return_value.retrieve_file.call_args
-        self.assertEqual(args[0], os.path.join(SOURCE_OBJECT_NO_WILDCARD))
+        sftp_hook.return_value.retrieve_file.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
+        )
 
-        args, kwargs = gcs_hook.return_value.upload.call_args
-        self.assertEqual(kwargs["bucket_name"], TEST_BUCKET)
-        self.assertEqual(kwargs["object_name"], DESTINATION_PATH_FILE)
+        gcs_hook.return_value.upload.assert_called_once_with(
+            bucket_name=TEST_BUCKET,
+            object_name=DESTINATION_PATH_FILE,
+            filename=mock.ANY,
+            mime_type=DEFAULT_MIME_TYPE,
+        )
 
         sftp_hook.return_value.delete_file.assert_not_called()
 
@@ -97,12 +103,16 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        args, kwargs = sftp_hook.return_value.retrieve_file.call_args
-        self.assertEqual(args[0], os.path.join(SOURCE_OBJECT_NO_WILDCARD))
+        sftp_hook.return_value.retrieve_file.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
+        )
 
-        args, kwargs = gcs_hook.return_value.upload.call_args
-        self.assertEqual(kwargs["bucket_name"], TEST_BUCKET)
-        self.assertEqual(kwargs["object_name"], DESTINATION_PATH_FILE)
+        gcs_hook.return_value.upload.assert_called_once_with(
+            bucket_name=TEST_BUCKET,
+            object_name=DESTINATION_PATH_FILE,
+            filename=mock.ANY,
+            mime_type=DEFAULT_MIME_TYPE,
+        )
 
         sftp_hook.return_value.delete_file.assert_called_once_with(
             SOURCE_OBJECT_NO_WILDCARD
@@ -133,21 +143,28 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
             "main_dir", prefix="main_dir/test_object", delimiter=".json"
         )
 
-        args_index = 0
-        kwargs_index = 1
-        call_one, call_two = sftp_hook.return_value.retrieve_file.call_args_list
-        self.assertEqual(call_one[args_index][0], "main_dir/test_object3.json")
-        self.assertEqual(call_two[args_index][0], "main_dir/sub_dir/test_object3.json")
-
-        call_one, call_two = gcs_hook.return_value.upload.call_args_list
-        self.assertEqual(call_one[kwargs_index]["bucket_name"], TEST_BUCKET)
-        self.assertEqual(
-            call_one[kwargs_index]["object_name"], "destination_dir/test_object3.json"
+        sftp_hook.return_value.retrieve_file.assert_has_calls(
+            [
+                mock.call("main_dir/test_object3.json", mock.ANY),
+                mock.call("main_dir/sub_dir/test_object3.json", mock.ANY),
+            ]
         )
-        self.assertEqual(call_two[kwargs_index]["bucket_name"], TEST_BUCKET)
-        self.assertEqual(
-            call_two[kwargs_index]["object_name"],
-            "destination_dir/sub_dir/test_object3.json",
+
+        gcs_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call(
+                    bucket_name=TEST_BUCKET,
+                    object_name="destination_dir/test_object3.json",
+                    mime_type=DEFAULT_MIME_TYPE,
+                    filename=mock.ANY,
+                ),
+                mock.call(
+                    bucket_name=TEST_BUCKET,
+                    object_name="destination_dir/sub_dir/test_object3.json",
+                    mime_type=DEFAULT_MIME_TYPE,
+                    filename=mock.ANY,
+                ),
+            ]
         )
 
     @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
@@ -172,10 +189,12 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
         )
         task.execute(None)
 
-        args_index = 0
-        call_one, call_two = sftp_hook.return_value.delete_file.call_args_list
-        self.assertEqual(call_one[args_index][0], "main_dir/test_object3.json")
-        self.assertEqual(call_two[args_index][0], "main_dir/sub_dir/test_object3.json")
+        sftp_hook.return_value.delete_file.assert_has_calls(
+            [
+                mock.call("main_dir/test_object3.json"),
+                mock.call("main_dir/sub_dir/test_object3.json"),
+            ]
+        )
 
     @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
     @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
