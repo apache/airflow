@@ -320,8 +320,8 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
-     - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
-     -
+     - :mod:`airflow.providers.aws.hooks.dynamodb`
+     - :mod:`airflow.providers.aws.operators.dynamodb`
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__

@@ -48,11 +48,14 @@ All AWS components (hooks, operators, sensors, example DAGs) will be grouped tog
 components remain backwards compatible but raise a `DeprecationWarning` when imported from the old module.
 Migrated are:
 
-|                            Old path                             |                         New path                         |
-|-----------------------------------------------------------------|----------------------------------------------------------|
-| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook             | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
-| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
-| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor          | airflow.providers.aws.sensors.athena.AthenaSensor        |
+|                                 Old path                                  |                              New path                                   |
+|---------------------------------------------------------------------------|-------------------------------------------------------------------------|
+| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook                       | airflow.providers.aws.hooks.athena.AWSAthenaHook                        |
+| airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook                   | airflow.providers.aws.hooks.dynamodb.AwsDynamoDBHook                    |
+| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator           | airflow.providers.aws.operators.athena.AWSAthenaOperator                |
+| airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator             | airflow.providers.aws.operators.dynamodb.DynamoDBToS3Operator           |
+| airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator | airflow.providers.aws.operators.dynamodb.HiveToDynamoDBTransferOperator |
+| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor                    | airflow.providers.aws.sensors.athena.AthenaSensor                       |
 
 ### Additional arguments passed to BaseOperator cause an exception
 

@@ -16,22 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
 import datetime
-import json
 import unittest
+from multiprocessing import SimpleQueue
 from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from boto.compat import json  # type: ignore
 
-import airflow.contrib.operators.hive_to_dynamodb
-from airflow import DAG
-from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-
-DEFAULT_DATE = datetime.datetime(2015, 1, 1)
-DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
-DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+import airflow.providers.aws.operators.dynamodb
+from airflow.models import DAG
+from airflow.providers.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.aws.operators.dynamodb import DynamoDBToS3Operator
 
 try:
     from moto import mock_dynamodb2
@@ -39,10 +37,60 @@ except ImportError:
     mock_dynamodb2 = None
 
 
+class DynamodbToS3Test(unittest.TestCase):
+
+    def setUp(self):
+        self.output_queue = SimpleQueue()
+
+        def mock_upload_file(Filename, Bucket, Key):  # pylint: disable=unused-argument,invalid-name
+            with open(Filename) as f:
+                lines = f.readlines()
+                for line in lines:
+                    self.output_queue.put(json.loads(line))
+        self.mock_upload_file_func = mock_upload_file
+
+    def output_queue_to_list(self):
+        items = []
+        while not self.output_queue.empty():
+            items.append(self.output_queue.get())
+        return items
+
+    @patch('airflow.providers.aws.operators.dynamodb.S3Hook')
+    @patch('airflow.providers.aws.operators.dynamodb.AwsDynamoDBHook')
+    def test_dynamodb_to_s3_success(self, mock_aws_dynamodb_hook, mock_s3_hook):
+        responses = [
+            {
+                'Items': [{'a': 1}, {'b': 2}],
+                'LastEvaluatedKey': '123',
+            },
+            {
+                'Items': [{'c': 3}],
+            },
+        ]
+        table = MagicMock()
+        table.return_value.scan.side_effect = responses
+        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+
+        s3_client = MagicMock()
+        s3_client.return_value.upload_file = self.mock_upload_file_func
+        mock_s3_hook.return_value.get_conn = s3_client
+
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id='dynamodb_to_s3',
+            dynamodb_table_name='airflow_rocks',
+            s3_bucket_name='airflow-bucket',
+            file_size=4000,
+        )
+
+        dynamodb_to_s3_operator.execute(context={})
+
+        self.assertEqual([{'a': 1}, {'b': 2}, {'c': 3}], self.output_queue_to_list())
+
+
 class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        args = {'owner': 'airflow', 'start_date': datetime.datetime(2015, 1, 1)}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         self.sql = 'SELECT 1'
@@ -85,7 +133,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = airflow.providers.aws.operators.dynamodb.HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name="test_airflow",
             task_id='hive_to_dynamodb_check',
@@ -125,7 +173,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = airflow.providers.aws.operators.dynamodb.HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name='test_airflow',
             task_id='hive_to_dynamodb_check',
@@ -138,7 +186,3 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
         table = self.hook.get_conn().Table('test_airflow')
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
-
-
-if __name__ == '__main__':
-    unittest.main()

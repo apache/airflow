@@ -49,7 +49,6 @@
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/hipchat_operator.py
-./airflow/contrib/operators/hive_to_dynamodb.py
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
 ./airflow/contrib/operators/jira_operator.py
 ./airflow/contrib/operators/mongo_to_s3.py
@@ -201,6 +200,7 @@
 ./airflow/operators/subdag_operator.py
 ./airflow/plugins_manager.py
 ./airflow/providers/aws/operators/athena.py
+./airflow/providers/aws/operators/dynamodb.py
 ./airflow/providers/aws/sensors/athena.py
 ./airflow/sensors/__init__.py
 ./airflow/sensors/base_sensor_operator.py

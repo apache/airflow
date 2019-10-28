@@ -132,6 +132,10 @@ HOOK = [
         "airflow.providers.aws.hooks.athena.AWSAthenaHook",
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
+    (
+        "airflow.providers.aws.hooks.dynamodb.AwsDynamoDBHook",
+        "airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook",
+    ),
 ]
 OPERATOR = [
     (
@@ -740,6 +744,14 @@ OPERATOR = [
     (
         "airflow.providers.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
+    ),
+    (
+        "airflow.providers.aws.operators.dynamodb.HiveToDynamoDBTransferOperator",
+        "airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator",
+    ),
+    (
+        "airflow.providers.aws.operators.dynamodb.DynamoDBToS3Operator",
+        "airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator",
     ),
 ]
 SENSOR = [
