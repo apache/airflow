@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.providers.google.cloud.operators.test_vision_system_helper import GCPVisionTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
+from tests.providers.google.cloud.operators.test_vision_system_helper import GCPVisionTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
