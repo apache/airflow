@@ -77,24 +77,32 @@ class SubDagOperator(BaseSensorOperator):
             conflicts = [t for t in subdag.tasks if t.pool == self.pool]
             if conflicts:
                 # only query for pool conflicts if one may exist
-                pool = (
-                    session  # type: ignore
-                    .query(Pool)
-                    .filter(Pool.slots == 1)
-                    .filter(Pool.pool == self.pool)
-                    .first()
-                )
-                if pool and any(t.pool == self.pool for t in subdag.tasks):
-                    raise AirflowException(
-                        'SubDagOperator {sd} and subdag task{plural} {t} both '
-                        'use pool {p}, but the pool only has 1 slot. The '
-                        'subdag tasks will never run.'.format(
-                            sd=self.task_id,
-                            plural=len(conflicts) > 1,
-                            t=', '.join(t.task_id for t in conflicts),
-                            p=self.pool
-                        )
+                try:
+                    pool = (
+                        session  # type: ignore
+                        .query(Pool)
+                        .filter(Pool.slots == 1)
+                        .filter(Pool.pool == self.pool)
+                        .first()
                     )
+                    if pool and any(t.pool == self.pool for t in subdag.tasks):
+                        raise AirflowException(
+                            'SubDagOperator {sd} and subdag task{plural} {t} both '
+                            'use pool {p}, but the pool only has 1 slot. The '
+                            'subdag tasks will never run.'.format(
+                                sd=self.task_id,
+                                plural=len(conflicts) > 1,
+                                t=', '.join(t.task_id for t in conflicts),
+                                p=self.pool
+                            )
+                        )
+                except Exception as exc:
+                    # Handle missing slot_pool relation - this is to solve
+                    # https://issues.apache.org/jira/browse/AIRFLOW-5796 where error is printed
+                    # During `airflow db reset` when the migration is in progress
+                    # and SubDag operator is instantiated before slot_pool relation is created
+                    if "slot_pool" not in str(exc):
+                        raise
 
     def _get_dagrun(self, execution_date):
         dag_runs = DagRun.find(
