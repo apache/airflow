@@ -36,8 +36,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         wait for
     :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
-        wait for. If ``None`` the sensor waits for the DAG
-    :type external_task_id: str
+        wait for. If ``None`` (default value) the sensor waits for the DAG
+    :type external_task_id: str or None
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
@@ -62,7 +62,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  external_dag_id,
-                 external_task_id,
+                 external_task_id=None,
                  allowed_states=None,
                  execution_delta=None,
                  execution_date_fn=None,
