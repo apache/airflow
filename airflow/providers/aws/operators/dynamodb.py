@@ -21,11 +21,11 @@ import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
 
-from airflow.hooks.S3_hook import S3Hook
 from airflow.hooks.hive_hooks import HiveServer2Hook
+from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
 from airflow.providers.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.utils.decorators import apply_defaults
