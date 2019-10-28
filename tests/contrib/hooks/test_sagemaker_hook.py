@@ -295,6 +295,11 @@ class TestSageMakerHook(unittest.TestCase):
         hook.check_training_config(create_training_params)
         mock_check_url.assert_called_once_with(data_url)
 
+        # InputDataConfig is optional, verify if check succeeds without InputDataConfig
+        create_training_params_no_inputdataconfig = create_training_params.copy()
+        create_training_params_no_inputdataconfig.pop("InputDataConfig")
+        hook.check_training_config(create_training_params_no_inputdataconfig)
+
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'check_s3_url')
     def test_check_valid_tuning(self, mock_check_url, mock_client):
