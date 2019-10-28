@@ -49,8 +49,6 @@ class AwsSnsHook(AwsHook):
         :type target_arn: str
         :param message: the default message you want to send
         :param message: str
-        :param subject: subject of message
-        :type subject: str
         """
 
         conn = self.get_conn()
@@ -58,13 +56,6 @@ class AwsSnsHook(AwsHook):
         messages = {
             'default': message
         }
-
-        if subject is None:
-            return conn.publish(
-                TargetArn=target_arn,
-                Message=json.dumps(messages),
-                MessageStructure='json'
-            )
 
         return conn.publish(
             TargetArn=target_arn,
