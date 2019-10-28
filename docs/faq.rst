@@ -222,7 +222,7 @@ Why next_ds or prev_ds might not contain expected values?
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
 
-I am running multiple webserver processes, how can I solve records in the ``ab_permission_view`` with ``null`` ``permission_id``?
+How do I stop the sync perms happening multiple times per webserver?
 ------------------------------------------------
 
-Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False`` and have a process that runs the ``sync_perm`` CLI command instead.
+Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
