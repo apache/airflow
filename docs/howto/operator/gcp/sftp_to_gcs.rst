@@ -61,8 +61,8 @@ Moving single file
 ------------------
 
 To move the file use the ``move_object`` parameter. Once the file is copied to Google Storage,
-the original file from the SFTP is deleted. Using the ``destination_path`` defines the path to which file
-will be present in the bucket.
+the original file from the SFTP is deleted.
+The ``destination_path`` parameter defines the full path of the file in the bucket.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_sftp_to_gcs.py
     :language: python
