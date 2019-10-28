@@ -66,11 +66,25 @@ class DruidHook(BaseHook):
         return "{conn_type}://{host}:{port}/{endpoint}".format(
             conn_type=conn_type, host=host, port=port, endpoint=endpoint)
 
+    def get_auth(self):
+        """
+        Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
+
+        If these details have not been set then returns None.
+        """
+        conn = self.get_connection(self.druid_ingest_conn_id)
+        user = conn.login
+        password = conn.password
+        if user is not None and password is not None:
+            return requests.auth.HTTPBasicAuth(user, password)
+        else:
+            return None
+
     def submit_indexing_job(self, json_index_spec):
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, json=json_index_spec, headers=self.header)
+        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
