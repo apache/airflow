@@ -41,7 +41,7 @@ class AwsSnsHook(AwsHook):
         self.conn = self.get_client_type('sns')
         return self.conn
 
-    def publish_to_target(self, target_arn, message, subject=None):
+    def publish_to_target(self, target_arn, message):
         """
         Publish a message to a topic or an endpoint.
 
@@ -60,6 +60,5 @@ class AwsSnsHook(AwsHook):
         return conn.publish(
             TargetArn=target_arn,
             Message=json.dumps(messages),
-            MessageStructure='json',
-            Subject=subject
+            MessageStructure='json'
         )
