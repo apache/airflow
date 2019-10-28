@@ -223,6 +223,6 @@ Why next_ds or prev_ds might not contain expected values?
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
 
 How do I stop the sync perms happening multiple times per webserver?
-------------------------------------------------
+-------------------------------------------------------------------
 
 Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
