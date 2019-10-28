@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
+from tests.compat import mock
 from datetime import datetime, timedelta
+from tempfile import NamedTemporaryFile
 
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
@@ -31,7 +32,8 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class BashOperatorTestCase(unittest.TestCase):
+class TestBashOperator(unittest.TestCase):
+
     def test_echo_env_variables(self):
         """
         Test that env variables are exported correctly to the
@@ -57,10 +59,8 @@ class BashOperatorTestCase(unittest.TestCase):
             external_trigger=False,
         )
 
-        import tempfile
-        with tempfile.NamedTemporaryFile() as f:
-            fname = f.name
-            t = BashOperator(
+        with NamedTemporaryFile() as tmp_file:
+            task = BashOperator(
                 task_id='echo_env_vars',
                 dag=self.dag,
                 bash_command='echo $AIRFLOW_HOME>> {0};'
@@ -68,26 +68,36 @@ class BashOperatorTestCase(unittest.TestCase):
                              'echo $AIRFLOW_CTX_DAG_ID >> {0};'
                              'echo $AIRFLOW_CTX_TASK_ID>> {0};'
                              'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
-                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(fname)
+                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name)
             )
 
-            original_AIRFLOW_HOME = os.environ['AIRFLOW_HOME']
+            with mock.patch.dict('os.environ', {
+                'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME',
+                'PYTHONPATH': 'AWESOME_PYTHONPATH'
+            }):
+                task.run(DEFAULT_DATE, DEFAULT_DATE,
+                         ignore_first_depends_on_past=True, ignore_ti_state=True)
 
-            os.environ['AIRFLOW_HOME'] = 'MY_PATH_TO_AIRFLOW_HOME'
-            t.run(DEFAULT_DATE, DEFAULT_DATE,
-                  ignore_first_depends_on_past=True, ignore_ti_state=True)
-
-            with open(fname, 'r') as fr:
-                output = ''.join(fr.readlines())
+            with open(tmp_file.name, 'r') as file:
+                output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
                 # exported in run-tests as part of PYTHONPATH
-                self.assertIn('tests/test_utils', output)
+                self.assertIn('AWESOME_PYTHONPATH', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
                 self.assertIn(DEFAULT_DATE.isoformat(), output)
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
 
-            os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
+    def test_return_value(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_return_value',
+            xcom_push=True,
+            dag=None
+        )
+        return_value = bash_operator.execute(context={})
+
+        self.assertEqual(return_value, 'stdout')
 
     def test_task_retries(self):
         bash_operator = BashOperator(
