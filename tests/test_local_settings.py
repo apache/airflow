@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import importlib
 import os
 import sys
 import tempfile
@@ -24,14 +25,14 @@ import unittest
 from unittest.mock import MagicMock, call
 
 SETTINGS_FILE_POLICY = """
-def test_policy(task_instance):
+def policy(task_instance):
     task_instance.run_as_user = "myself"
 """
 
 SETTINGS_FILE_POLICY_WITH_DUNDER_ALL = """
-__all__ = ["test_policy"]
+__all__ = ["policy"]
 
-def test_policy(task_instance):
+def policy(task_instance):
     task_instance.run_as_user = "myself"
 
 def not_policy():
@@ -39,7 +40,7 @@ def not_policy():
 """
 
 SETTINGS_FILE_POD_MUTATION_HOOK = """
-def test_pod_mutation_hook(pod):
+def pod_mutation_hook(pod):
     pod.namespace = 'airflow-tests'
 """
 
@@ -58,7 +59,9 @@ class SettingsContext:
         return self.settings_file
 
     def __exit__(self, *exc_info):
+        from airflow import settings
         sys.path.remove(self.settings_root)
+        importlib.reload(settings)
 
 
 class TestLocalSettings(unittest.TestCase):
@@ -109,7 +112,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)
+            settings.policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
@@ -133,7 +136,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)
+            settings.policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
@@ -147,6 +150,6 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             pod = MagicMock()
-            settings.test_pod_mutation_hook(pod)
+            settings.pod_mutation_hook(pod)
 
             assert pod.namespace == 'airflow-tests'
