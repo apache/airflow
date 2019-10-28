@@ -42,7 +42,7 @@ Operator
 Transfer files between SFTP and Google Storage is performed with the
 :class:`~airflow.operators.sftp_to_gcs.SFTPToGoogleCloudStorageOperator` operator.
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.operators.sftp_to_gcs.SFTPToGoogleCloudStorageOperator`
 parameters which allows you to dynamically determine values.
 
@@ -86,10 +86,10 @@ Move specific files
 -------------------
 
 Using the ``wildcard`` in ``source_path`` parameter allows you to move the specific files.
-Using the ``destination_path`` defines the path which will be prefixed to all copied files,
-e.g. ``tests_sftp_hook_dir/subdir/parent-1.bin`` will be copied to ``specific_files/parent-1.bin``,
-``tests_sftp_hook_dir/subdir/parent-2.bin`` will be copied to ``specific_files/parent-2.bin`` and
-``tests_sftp_hook_dir/subdir/parent-3.txt`` will be skipped.
+The ``destination_path`` defines the path that is prefixed to all copied files,
+e.g. ``tests_sftp_hook_dir/subdir/parent-1.bin`` is copied to ``specific_files/parent-1.bin``,
+and ``tests_sftp_hook_dir/subdir/parent-2.bin`` is copied to ``specific_files/parent-2.bin`` .
+``tests_sftp_hook_dir/subdir/parent-3.txt`` is skipped.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_sftp_to_gcs.py
     :language: python
@@ -100,6 +100,6 @@ e.g. ``tests_sftp_hook_dir/subdir/parent-1.bin`` will be copied to ``specific_fi
 Reference
 ^^^^^^^^^
 
-For further information, look at:
+For more information, see
 
 * `Google Cloud Storage Documentation <https://cloud.google.com/storage/>`__
