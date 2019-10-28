@@ -741,6 +741,10 @@ OPERATOR = [
         "airflow.providers.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
+    (
+        "airflow.providers.aws.operators.batch.AWSBatchOperator",
+        "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
+    ),
 ]
 SENSOR = [
     (

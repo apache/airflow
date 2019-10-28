@@ -21,8 +21,8 @@
 import sys
 import unittest
 
-from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.aws.operators.batch import AWSBatchOperator
 from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {

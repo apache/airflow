@@ -52,6 +52,7 @@ Migrated are:
 |-----------------------------------------------------------------|----------------------------------------------------------|
 | airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook             | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.awsbatch_operator.AWSBatchOperator    | airflow.providers.aws.operators.batch.AWSBatchOperator   |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor          | airflow.providers.aws.sensors.athena.AthenaSensor        |
 
 ### Additional arguments passed to BaseOperator cause an exception

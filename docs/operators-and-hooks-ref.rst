@@ -309,9 +309,9 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.aws.operators.athena`
      - :mod:`airflow.providers.aws.sensors.athena`
 
-   * - `AWS Batch <https://aws.amazon.com/athena/>`__
+   * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
-     - :mod:`airflow.contrib.operators.awsbatch_operator`
+     - :mod:`airflow.providers.aws.operators.batch`
      -
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__

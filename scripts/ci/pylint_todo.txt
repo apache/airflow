@@ -35,7 +35,6 @@
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/contrib/hooks/wasb_hook.py
 ./airflow/contrib/operators/adls_list_operator.py
-./airflow/contrib/operators/awsbatch_operator.py
 ./airflow/contrib/operators/azure_container_instances_operator.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
 ./airflow/operators/cassandra_to_gcs.py
@@ -201,6 +200,7 @@
 ./airflow/operators/subdag_operator.py
 ./airflow/plugins_manager.py
 ./airflow/providers/aws/operators/athena.py
+./airflow/providers/aws/operators/batch.py
 ./airflow/providers/aws/sensors/athena.py
 ./airflow/sensors/__init__.py
 ./airflow/sensors/base_sensor_operator.py
