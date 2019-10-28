@@ -87,7 +87,7 @@ class HttpSensorTests(unittest.TestCase):
 
         prep_request = requests.Request(
             'HEAD',
-            'https://www.google.com',
+            'https://www.httpbin.org',
             {}).prepare()
 
         self.assertEqual(prep_request.url, received_request.url)

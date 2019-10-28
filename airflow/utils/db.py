@@ -175,7 +175,7 @@ def initdb(rbac=False):
     merge_conn(
         Connection(
             conn_id='http_default', conn_type='http',
-            host='https://www.google.com/'))
+            host='https://www.httpbin.org/'))
     merge_conn(
         Connection(
             conn_id='mssql_default', conn_type='mssql',
