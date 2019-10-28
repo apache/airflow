@@ -186,8 +186,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         init_views(appbuilder)
         init_plugin_blueprints(app)
 
-        security_manager = appbuilder.sm
-        security_manager.sync_roles()
+        if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+            security_manager = appbuilder.sm
+            security_manager.sync_roles()
 
         from airflow.www_rbac.api.experimental import endpoints as e
         # required for testing purposes otherwise the module retains
