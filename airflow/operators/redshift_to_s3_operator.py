@@ -37,7 +37,8 @@ class RedshiftToS3Transfer(BaseOperator):
     :type table: str
     :param s3_bucket: reference to a specific S3 bucket
     :type s3_bucket: str
-    :param s3_key: reference to a specific S3 key. If table_as_file_name is set to False, this param must include the desired file name
+    :param s3_key: reference to a specific S3 key. If table_as_file_name is set
+        to False, this param must include the desired file name
     :type s3_key: str
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
