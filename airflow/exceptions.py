@@ -20,6 +20,7 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
+# pylint: disable=invalid-name
 
 
 class AirflowException(Exception):
