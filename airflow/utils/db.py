@@ -298,6 +298,10 @@ def initdb():
         Connection(
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='pinot_broker_default', conn_type='pinot',
+            host='localhost', port=8099, extra='{"endpoint": "/query", "schema": "http"}'))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
