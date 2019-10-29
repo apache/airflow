@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module containing """
 
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
@@ -30,38 +31,39 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.tests import AirflowLink, AirflowLink2, GithubLink, GoogleLink
 
 
-# Will show up under airflow.hooks.test_plugin.PluginHook
 class PluginHook(BaseHook):
-    pass
+    """Will show up under airflow.hooks.test_plugin.PluginHook"""
+    pass  # pylint: disable=unnecessary-pass
 
 
-# Will show up under airflow.operators.test_plugin.PluginOperator
 class PluginOperator(BaseOperator):
-    pass
+    """Will show up under airflow.operators.test_plugin.PluginOperator"""
+    pass  # pylint: disable=unnecessary-pass
 
 
-# Will show up under airflow.sensors.test_plugin.PluginSensorOperator
 class PluginSensorOperator(BaseSensorOperator):
-    pass
+    """Will show up under airflow.sensors.test_plugin.PluginSensorOperator"""
+    pass  # pylint: disable=unnecessary-pass
 
 
-# Will show up under airflow.executors.test_plugin.PluginExecutor
 class PluginExecutor(BaseExecutor):
-    pass
+    """Will show up under airflow.executors.test_plugin.PluginExecutor"""
+    pass  # pylint: disable=unnecessary-pass
 
 
-# Will show up under airflow.macros.test_plugin.plugin_macro
 def plugin_macro():
-    pass
+    """Will show up under airflow.macros.test_plugin.plugin_macro"""
+    pass  # pylint: disable=unnecessary-pass
 
 
-# Creating a flask appbuilder BaseView
 class PluginTestAppBuilderBaseView(AppBuilderBaseView):
+    """Creating a flask appbuilder BaseView"""
     default_view = "test"
 
     @expose("/")
     def test(self):
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
+        """exposes / route as a test"""
+        return self.render("test_plugin/test.html", content="Hello galaxy!")  # pylint: disable=no-member
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
@@ -83,13 +85,13 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-# Create a handler to validate statsd stat name
 def stat_name_dummy_handler(stat_name):
+    """Create a handler to validate statsd stat name"""
     return stat_name
 
 
-# Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
+    """Defining the plugin class"""
     name = "test_plugin"
     operators = [PluginOperator]
     sensors = [PluginSensorOperator]
@@ -110,12 +112,15 @@ class AirflowTestPlugin(AirflowPlugin):
 
 
 class MockPluginA(AirflowPlugin):
+    """class to mock airflow plugin"""
     name = 'plugin-a'
 
 
 class MockPluginB(AirflowPlugin):
+    """class to mock airflow plugin"""
     name = 'plugin-b'
 
 
 class MockPluginC(AirflowPlugin):
+    """class to mock airflow plugin"""
     name = 'plugin-c'

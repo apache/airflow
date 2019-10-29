@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module containing tests for plugin_manager"""
 
 import unittest
 
@@ -23,10 +24,16 @@ from airflow.www import app as application
 
 
 class TestPluginsRBAC(unittest.TestCase):
+    """
+    Tests for RBAC Plugin
+    """
     def setUp(self):
         self.app, self.appbuilder = application.create_app(testing=True)
 
     def test_flaskappbuilder_views(self):
+        """
+        Tests flask app builder views
+        """
         from tests.plugins.test_plugin import v_appbuilder_package
         appbuilder_class_name = str(v_appbuilder_package['view'].__class__.__name__)
         plugin_views = [view for view in self.appbuilder.baseviews
@@ -46,6 +53,9 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertEqual(link.childs[0].name, v_appbuilder_package['name'])
 
     def test_flaskappbuilder_menu_links(self):
+        """
+        Tests flask app builder menu links
+        """
         from tests.plugins.test_plugin import appbuilder_mitem
 
         # menu item should exist matching appbuilder_mitem
@@ -60,6 +70,9 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertEqual(link.childs[0].name, appbuilder_mitem['name'])
 
     def test_app_blueprints(self):
+        """
+        Tests app blueprints
+        """
         from tests.plugins.test_plugin import bp
 
         # Blueprint should be present in the app
