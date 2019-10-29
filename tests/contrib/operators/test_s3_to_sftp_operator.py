@@ -61,10 +61,10 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook
-        from airflow.hooks.S3_hook import S3Hook
+        from airflow.providers.aws.hooks.s3 import AWSS3Hook
 
         hook = SSHHook(ssh_conn_id='ssh_default')
-        s3_hook = S3Hook('aws_default')
+        s3_hook = AWSS3Hook('aws_default')
         hook.no_host_key_check = True
         args = {
             'owner': 'airflow',

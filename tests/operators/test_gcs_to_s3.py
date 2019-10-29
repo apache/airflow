@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
 from tests.compat import mock
 
@@ -55,7 +55,7 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
                                                   dest_s3_key=S3_BUCKET,
                                                   replace=False)
         # create dest bucket
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
         b.create()
         b.put_object(Key=MOCK_FILES[0], Body=b'testing')
@@ -85,7 +85,7 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
                                                   dest_s3_key=S3_BUCKET,
                                                   replace=False)
         # create dest bucket with all the files
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
         b.create()
         [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES]
@@ -115,7 +115,7 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
                                                   dest_s3_key=S3_BUCKET,
                                                   replace=False)
         # create dest bucket without files
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
         b.create()
 
@@ -144,7 +144,7 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
                                                   dest_s3_key=S3_BUCKET,
                                                   replace=True)
         # create dest bucket with all the files
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
         b.create()
         [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES]
@@ -174,7 +174,7 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
                                                   dest_s3_key=S3_BUCKET,
                                                   replace=True)
         # create dest bucket with just two files (the first two files in MOCK_FILES)
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
         b.create()
         [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES[:2]]

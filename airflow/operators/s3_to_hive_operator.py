@@ -26,7 +26,7 @@ from typing import Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.utils.compression import uncompress_file
 from airflow.utils.decorators import apply_defaults
@@ -148,7 +148,7 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        self.s3 = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 

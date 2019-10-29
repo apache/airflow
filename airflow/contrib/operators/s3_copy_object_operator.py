@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -90,7 +90,7 @@ class S3CopyObjectOperator(BaseOperator):
         self.verify = verify
 
     def execute(self, context):
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_hook = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         s3_hook.copy_object(self.source_bucket_key, self.dest_bucket_key,
                             self.source_bucket_name, self.dest_bucket_name,
                             self.source_version_id)

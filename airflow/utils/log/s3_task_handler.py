@@ -43,11 +43,11 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.hooks.S3_hook import S3Hook
-            return S3Hook(remote_conn_id)
+            from airflow.providers.aws.hooks.s3 import AWSS3Hook
+            return AWSS3Hook(remote_conn_id)
         except Exception:
             self.log.error(
-                'Could not create an S3Hook with connection id "%s". '
+                'Could not create an AWSS3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
                 'the S3 connection exists.', remote_conn_id
             )

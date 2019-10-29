@@ -19,7 +19,7 @@
 
 from typing import Iterable
 
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -86,7 +86,7 @@ class S3ListOperator(BaseOperator):
         self.verify = verify
 
     def execute(self, context):
-        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        hook = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
             'Getting the list of files from bucket: %s in prefix: %s (Delimiter {%s)',
