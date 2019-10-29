@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This module contains SFTP hook.
+"""
 import datetime
 import stat
 from typing import Dict, List, Optional, Tuple
@@ -219,6 +221,12 @@ class SFTPHook(SSHHook):
         conn.remove(path)
 
     def get_mod_time(self, path: str) -> str:
+        """
+        Returns modification time.
+
+        :param path: full path to the remote file
+        :type path: str
+        """
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')

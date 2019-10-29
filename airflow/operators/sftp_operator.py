@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains SFTP operator.
+"""
 import os
 
 from airflow.contrib.hooks.ssh_hook import SSHHook
@@ -24,6 +27,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=missing-docstring
 class SFTPOperation:
     PUT = 'put'
     GET = 'get'
@@ -108,7 +112,7 @@ class SFTPOperator(BaseOperator):
                 if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
-                    self.log.info("ssh_hook is not provided or invalid. " +
+                    self.log.info("ssh_hook is not provided or invalid. "
                                   "Trying ssh_conn_id to create SSHHook.")
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
 
@@ -116,8 +120,8 @@ class SFTPOperator(BaseOperator):
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
-                self.log.info("remote_host is provided explicitly. " +
-                              "It will replace the remote_host which was defined " +
+                self.log.info("remote_host is provided explicitly. "
+                              "It will replace the remote_host which was defined "
                               "in ssh_hook or predefined in connection of ssh_conn_id.")
                 self.ssh_hook.remote_host = self.remote_host
 

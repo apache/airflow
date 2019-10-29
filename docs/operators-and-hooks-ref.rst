@@ -1226,6 +1226,18 @@ communication protocols or interface.
      -
      - :mod:`airflow.contrib.sensors.file_sensor`
 
+   * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
+     -
+     - :mod:`airflow.hooks.sftp_hook`
+     - :mod:`airflow.operators.sftp_operator`
+     - :mod:`airflow.sensors.sftp_sensor`
+
+   * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
+     -
+     - :mod:`airflow.contrib.hooks.ftp_hook`
+     -
+     - :mod:`airflow.contrib.sensors.ftp_sensor`
+
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
      - :mod:`airflow.hooks.http_hook`

@@ -23,9 +23,9 @@ from base64 import b64encode
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.sftp.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -383,7 +383,7 @@ class TestSFTPOperator(unittest.TestCase):
         )
         try:
             task_1.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_1.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
@@ -397,7 +397,7 @@ class TestSFTPOperator(unittest.TestCase):
         )
         try:
             task_2.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_2.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
@@ -413,7 +413,7 @@ class TestSFTPOperator(unittest.TestCase):
         )
         try:
             task_3.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
 

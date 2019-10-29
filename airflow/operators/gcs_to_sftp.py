@@ -24,8 +24,8 @@ from tempfile import NamedTemporaryFile
 from typing import Optional
 
 from airflow import AirflowException
-from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.hooks.sftp_hook import SFTPHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
