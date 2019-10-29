@@ -25,8 +25,8 @@ from typing import Optional
 
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.hooks.sftp_hook import SFTPHook
 from airflow.models import BaseOperator
+from airflow.providers.sftp.hooks.sftp_hook import SFTPHook
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
