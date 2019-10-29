@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module containing tests for kerberos"""
 
 import os
 import unittest
@@ -30,6 +31,9 @@ from tests.test_utils.config import conf_vars
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class TestKerberos(unittest.TestCase):
+    """
+    Test case for Kerberos
+    """
     def setUp(self):
 
         if not conf.has_section("kerberos"):
@@ -44,7 +48,7 @@ class TestKerberos(unittest.TestCase):
         """
         We expect no result, but a successful run. No more TypeError
         """
-        self.assertIsNone(renew_from_kt(principal=self.args.principal,
+        self.assertIsNone(renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                                         keytab=self.args.keytab))
 
     def test_args_from_cli(self):
@@ -54,8 +58,8 @@ class TestKerberos(unittest.TestCase):
         self.args.keytab = "test_keytab"
 
         with conf_vars({('kerberos', 'keytab'): ''}):
-            with self.assertRaises(SystemExit) as se:
-                renew_from_kt(principal=self.args.principal,
+            with self.assertRaises(SystemExit) as system_error:
+                renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                               keytab=self.args.keytab)
 
                 with self.assertLogs(LoggingMixin().log) as log:
@@ -64,4 +68,4 @@ class TestKerberos(unittest.TestCase):
                         'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
                         '(unknown enctype)'.format(self.args.keytab), log.output)
 
-                self.assertEqual(se.exception.code, 1)
+                self.assertEqual(system_error.exception.code, 1)
