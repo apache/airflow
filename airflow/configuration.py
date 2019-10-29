@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module responsible for loading airflow configuration"""
+# pylint: disable=invalid-name
 
 import copy
 import os
@@ -84,15 +86,20 @@ def run_command(command):
 def _read_default_config_file(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    with open(file_path, encoding='utf-8') as file:
-        return file.read()
+
+    with open(file_path, encoding='utf-8') as _file:
+        return _file.read()
 
 
 DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
 TEST_CONFIG = _read_default_config_file('default_test.cfg')
 
 
+# pylint: disable=too-many-ancestors
 class AirflowConfigParser(ConfigParser):
+    """
+    Class for parsing airflow configuration
+    """
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this
@@ -201,7 +208,9 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.as_command_stdout:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
-                return run_command(command)
+                command_output = run_command(command)
+
+                return command_output
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
@@ -316,10 +325,10 @@ class AirflowConfigParser(ConfigParser):
         :rtype: dict
         """
         if (section not in self._sections and
-                section not in self.airflow_defaults._sections):
+                section not in self.airflow_defaults._sections):  # pylint: disable=protected-access
             return None
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])
+        _section = copy.deepcopy(self.airflow_defaults._sections[section])  # pylint: disable=protected-access
 
         if section in self._sections:
             _section.update(copy.deepcopy(self._sections[section]))
@@ -343,6 +352,9 @@ class AirflowConfigParser(ConfigParser):
                         val = False
             _section[key] = val
         return _section
+
+    def _handle_opt(self):
+        pass
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,
@@ -369,7 +381,7 @@ class AirflowConfigParser(ConfigParser):
             command to run (False)
         :type include_cmds: bool
         """
-        cfg = {}
+        config = {}
         configs = [
             ('default', self.airflow_defaults),
             ('airflow.cfg', self),
@@ -377,51 +389,78 @@ class AirflowConfigParser(ConfigParser):
 
         for (source_name, config) in configs:
             for section in config.sections():
-                sect = cfg.setdefault(section, OrderedDict())
-                for (k, val) in config.items(section=section, raw=raw):
-                    if display_source:
-                        val = (val, source_name)
-                    sect[k] = val
+                self._set_config_section(config, display_source, raw, section, source_name)
 
-        # add env vars and overwrite because they have priority
         if include_env:
-            for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
-                try:
-                    _, section, key = ev.split('__', 2)
-                    opt = self._get_env_var_option(section, key)
-                except ValueError:
-                    continue
-                if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
+            self._include_env_variables(config, display_sensitive, display_source, raw)
+
+        if include_cmds:
+            self._include_bash_commands(config, display_sensitive, display_source, raw)
+
+        return config
+
+    def _set_config_section(self, config, display_source, raw, section, source_name):
+        """
+        sets config section
+        :param config:
+        :param display_source:
+        :param raw:
+        :param section:
+        :param source_name:
+        :return:
+        """
+        sect = config.setdefault(section, OrderedDict())
+        for (k, val) in config.items(section=section, raw=raw):
+            if display_source:
+                val = (val, source_name)
+            sect[k] = val
+
+    def _include_env_variables(self, config, display_sensitive, display_source, raw):
+        """
+        add env vars and overwrite because they have priority
+        :param config:
+        :param display_sensitive:
+        :param display_source:
+        :param raw:
+        :return:
+        """
+        for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
+            try:
+                _, section, key = ev.split('__', 2)
+                opt = self._get_env_var_option(section, key)
+            except ValueError:
+                continue
+            if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
+                opt = '< hidden >'
+            elif raw:
+                opt = opt.replace('%', '%%')
+            if display_source:
+                opt = (opt, 'env var')
+
+            section = section.lower()
+            # if we lower key for kubernetes_environment_variables section,
+            # then we won't be able to set any Airflow environment
+            # variables. Airflow only parse environment variables starts
+            # with AIRFLOW_. Therefore, we need to make it a special case.
+            if section != 'kubernetes_environment_variables':
+                key = key.lower()
+            config.setdefault(section, OrderedDict()).update({key: opt})
+
+    def _include_bash_commands(self, config, display_sensitive, display_source, raw):
+        """
+        add bash commands
+       """
+        for (section, key) in self.as_command_stdout:
+            opt = self._get_cmd_option(section, key)
+            if opt:
+                if not display_sensitive:
                     opt = '< hidden >'
+                if display_source:
+                    opt = (opt, 'cmd')
                 elif raw:
                     opt = opt.replace('%', '%%')
-                if display_source:
-                    opt = (opt, 'env var')
-
-                section = section.lower()
-                # if we lower key for kubernetes_environment_variables section,
-                # then we won't be able to set any Airflow environment
-                # variables. Airflow only parse environment variables starts
-                # with AIRFLOW_. Therefore, we need to make it a special case.
-                if section != 'kubernetes_environment_variables':
-                    key = key.lower()
-                cfg.setdefault(section, OrderedDict()).update({key: opt})
-
-        # add bash commands
-        if include_cmds:
-            for (section, key) in self.as_command_stdout:
-                opt = self._get_cmd_option(section, key)
-                if opt:
-                    if not display_sensitive:
-                        opt = '< hidden >'
-                    if display_source:
-                        opt = (opt, 'cmd')
-                    elif raw:
-                        opt = opt.replace('%', '%%')
-                    cfg.setdefault(section, OrderedDict()).update({key: opt})
-                    del cfg[section][key + '_cmd']
-
-        return cfg
+                config.setdefault(section, OrderedDict()).update({key: opt})
+                del config[section][key + '_cmd']
 
     def load_test_config(self):
         """
@@ -450,10 +489,18 @@ class AirflowConfigParser(ConfigParser):
 
 
 def get_airflow_home():
+    """
+    Gets AIRFLOW_HOME environment variable
+    :return: value of AIRFLOW_HOME environment variable
+    """
     return expand_env_var(os.environ.get('AIRFLOW_HOME', '~/airflow'))
 
 
 def get_airflow_config(airflow_home):
+    """
+    Gets os path of where airflow.cfg is located
+    :param airflow_home:
+    """
     if 'AIRFLOW_CONFIG' not in os.environ:
         return os.path.join(airflow_home, 'airflow.cfg')
     return expand_env_var(os.environ['AIRFLOW_CONFIG'])
@@ -501,6 +548,10 @@ def parameterized_config(template):
 
 
 def get_airflow_test_config(airflow_home):
+    """
+    Gets os path of where test airflow.cfg is located
+    :param airflow_home:
+    """
     if 'AIRFLOW_TEST_CONFIG' not in os.environ:
         return os.path.join(airflow_home, 'unittests.cfg')
     return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
@@ -583,10 +634,10 @@ getsection = conf.getsection
 has_option = conf.has_option
 remove_option = conf.remove_option
 as_dict = conf.as_dict
-set = conf.set # noqa
+_set = conf.set # noqa
 
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
-             remove_option, as_dict, set]:
+             remove_option, as_dict, _set]:
     deprecated(
         func.__name__,
         "Accessing configuration method '{f.__name__}' directly from "
