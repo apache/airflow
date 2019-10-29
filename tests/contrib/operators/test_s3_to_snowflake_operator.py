@@ -19,13 +19,12 @@
 
 import unittest
 
-from airflow import DAG
-from airflow.contrib.operators.s3_to_snowflake_operator import S3ToSnowflakeOperator
+from airflow.contrib.operators.s3_to_snowflake_operator import S3ToSnowflakeTransfer
 from tests.compat import mock
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
-class TestS3ToRedshiftOperator(unittest.TestCase):
+class TestS3ToSnowflakeOperator(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.snowflake_hook.SnowflakeHook.run")
     def test_execute(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
@@ -34,7 +33,7 @@ class TestS3ToRedshiftOperator(unittest.TestCase):
         file_format = 'file_format'
         schema = 'schema'
 
-        t = S3ToSnowflakeOperator(
+        S3ToSnowflakeTransfer(
             s3_keys=s3_keys,
             table=table,
             stage=stage,

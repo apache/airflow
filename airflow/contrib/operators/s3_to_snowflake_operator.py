@@ -22,7 +22,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
 
 
-class S3ToSnowflakeOperator(BaseOperator):
+class S3ToSnowflakeTransfer(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Snowflake
 
@@ -53,7 +53,7 @@ class S3ToSnowflakeOperator(BaseOperator):
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',
                  *args, **kwargs):
-        super(S3ToSnowflakeOperator, self).__init__(*args, **kwargs)
+        super(S3ToSnowflakeTransfer, self).__init__(*args, **kwargs)
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage
