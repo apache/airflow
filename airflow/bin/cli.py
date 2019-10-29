@@ -47,7 +47,7 @@ import daemon
 import psutil
 from daemon.pidfile import TimeoutPIDLockFile
 from sqlalchemy.orm import exc
-from tabulate import tabulate
+from tabulate import tabulate, tabulate_formats
 
 import airflow
 from airflow import api, jobs, settings
@@ -265,23 +265,23 @@ def delete_dag(args):
         print("Bail.")
 
 
-def _tabulate_pools(pools):
+def _tabulate_pools(pools, tablefmt="fancy_grid"):
     return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
-                             tablefmt="fancy_grid")
+                             tablefmt=tablefmt)
 
 
 def pool_list(args):
     """Displays info of all the pools"""
     log = LoggingMixin().log
     pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_get(args):
     """Displays pool info by a given name"""
     log = LoggingMixin().log
     pools = [api_client.get_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
@@ -291,7 +291,7 @@ def pool_set(args):
     pools = [api_client.create_pool(name=args.pool,
                                     slots=args.slots,
                                     description=args.description)]
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
@@ -299,7 +299,7 @@ def pool_delete(args):
     """Deletes pool by a given name"""
     log = LoggingMixin().log
     pools = [api_client.delete_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
@@ -311,14 +311,14 @@ def pool_import(args):
     else:
         print("Missing pools file.")
         pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_export(args):
     """Exports all of the pools to the file"""
     log = LoggingMixin().log
     pools = pool_export_helper(args.file)
-    log.info(_tabulate_pools(pools=pools))
+    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_import_helper(filepath):
@@ -742,7 +742,7 @@ def list_jobs(args, dag=None):
         all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
-                       tablefmt="fancy_grid")
+                       tablefmt=args.output)
         print(msg)
 
 
@@ -1257,7 +1257,7 @@ def connections_list(args):
         conns = [map(reprlib.repr, conn) for conn in conns]
         msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt="fancy_grid")
+                       tablefmt=args.output)
         print(msg)
 
 
@@ -1427,7 +1427,7 @@ def users_list(args):
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
     users = [[user.__getattribute__(field) for field in fields] for user in users]
     msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
-                   tablefmt="fancy_grid")
+                   tablefmt=args.output)
     print(msg)
 
 
@@ -1640,7 +1640,7 @@ def roles_list(args):
     role_names = sorted([[r.name] for r in roles])
     msg = tabulate(role_names,
                    headers=['Role'],
-                   tablefmt="fancy_grid")
+                   tablefmt=args.output)
     print(msg)
 
 
@@ -1783,6 +1783,14 @@ class CLIFactory:
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
+        'output': Arg(
+            ("--output",), (
+                "Output table format. The specified value is passed to "
+                "the tabulate module (https://pypi.org/project/tabulate/). "
+                "Valid values are: ({})".format("|".join(tabulate_formats))
+            ),
+            choices=tabulate_formats,
+            default="fancy_grid"),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -2259,7 +2267,7 @@ class CLIFactory:
                     'func': list_jobs,
                     'name': 'list_jobs',
                     'help': "List the jobs",
-                    'args': ('dag_id_opt', 'state', 'limit'),
+                    'args': ('dag_id_opt', 'state', 'limit', 'output',),
                 },
                 {
                     'func': dag_state,
@@ -2393,37 +2401,37 @@ class CLIFactory:
                     'func': pool_list,
                     'name': 'list',
                     'help': 'List pools',
-                    'args': (),
+                    'args': ('output',),
                 },
                 {
                     'func': pool_get,
                     'name': 'get',
                     'help': 'Get pool size',
-                    'args': ('pool_name',),
+                    'args': ('pool_name', 'output',),
                 },
                 {
                     'func': pool_set,
                     'name': 'set',
                     'help': 'Configure pool',
-                    'args': ('pool_name', 'pool_slots', 'pool_description'),
+                    'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
                 },
                 {
                     'func': pool_delete,
                     'name': 'delete',
                     'help': 'Delete pool',
-                    'args': ('pool_name',),
+                    'args': ('pool_name', 'output',),
                 },
                 {
                     'func': pool_import,
                     'name': 'import',
                     'help': 'Import pool',
-                    'args': ('pool_import',),
+                    'args': ('pool_import', 'output',),
                 },
                 {
                     'func': pool_export,
                     'name': 'export',
                     'help': 'Export pool',
-                    'args': ('pool_export',),
+                    'args': ('pool_export', 'output',),
                 },
             ),
         }, {
@@ -2535,7 +2543,7 @@ class CLIFactory:
                     'func': connections_list,
                     'name': 'list',
                     'help': 'List connections',
-                    'args': (),
+                    'args': ('output',),
                 },
                 {
                     'func': connections_add,
@@ -2558,7 +2566,7 @@ class CLIFactory:
                     'func': users_list,
                     'name': 'list',
                     'help': 'List users',
-                    'args': (),
+                    'args': ('output',),
                 },
                 {
                     'func': users_create,
@@ -2606,7 +2614,7 @@ class CLIFactory:
                     'func': roles_list,
                     'name': 'list',
                     'help': 'List roles',
-                    'args': (),
+                    'args': ('output',),
                 },
                 {
                     'func': roles_create,

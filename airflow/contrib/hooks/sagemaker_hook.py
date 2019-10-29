@@ -210,8 +210,9 @@ class SageMakerHook(AwsHook):
         :type training_config: dict
         :return: None
         """
-        for channel in training_config['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+        if "InputDataConfig" in training_config:
+            for channel in training_config['InputDataConfig']:
+                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def check_tuning_config(self, tuning_config):
         """

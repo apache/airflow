@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.dataproc import DataProcHook
+from airflow.gcp.hooks.dataproc import DataprocHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils import timezone
@@ -56,7 +56,7 @@ class DataprocOperationBaseOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.project_id = project_id
         self.region = region
-        self.hook = DataProcHook(
+        self.hook = DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version='v1beta2'
@@ -282,7 +282,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         if state == 'DELETING':
             raise Exception('Tried to create a cluster but it\'s in DELETING, something went wrong.')
         if state == 'ERROR':
-            cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
+            cluster = DataprocHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
             try:
                 error_details = cluster['status']['details']
             except KeyError:
@@ -292,9 +292,9 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             self.log.info('Dataproc cluster creation resulted in an ERROR state running diagnostics')
             self.log.info(error_details)
             diagnose_operation_name = \
-                DataProcHook.execute_dataproc_diagnose(service, self.project_id,
+                DataprocHook.execute_dataproc_diagnose(service, self.project_id,
                                                        self.region, self.cluster_name)
-            diagnose_result = DataProcHook.wait_for_operation_done(service, diagnose_operation_name)
+            diagnose_result = DataprocHook.wait_for_operation_done(service, diagnose_operation_name)
             if diagnose_result.get('response') and diagnose_result.get('response').get('outputUri'):
                 output_uri = diagnose_result.get('response').get('outputUri')
                 self.log.info('Diagnostic information for ERROR cluster available at [%s]', output_uri)
@@ -474,7 +474,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         return cluster_data
 
     def _usable_existing_cluster_present(self, service):
-        existing_cluster = DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
+        existing_cluster = DataprocHook.find_cluster(service, self.project_id, self.region, self.cluster_name)
         if existing_cluster:
             self.log.info(
                 'Cluster %s already exists... Checking status...',
@@ -488,8 +488,8 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 return True
 
             elif existing_status == 'DELETING':
-                while DataProcHook.find_cluster(service, self.project_id, self.region, self.cluster_name) \
-                    and DataProcHook.get_cluster_state(service, self.project_id,
+                while DataprocHook.find_cluster(service, self.project_id, self.region, self.cluster_name) \
+                    and DataprocHook.get_cluster_state(service, self.project_id,
                                                        self.region, self.cluster_name) == 'DELETING':
                     self.log.info('Existing cluster is deleting, waiting for it to finish')
                     time.sleep(15)
@@ -497,10 +497,10 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
             elif existing_status == 'ERROR':
                 self.log.info('Existing cluster in ERROR state, deleting it first')
 
-                operation_name = DataProcHook.execute_delete(service, self.project_id,
+                operation_name = DataprocHook.execute_delete(service, self.project_id,
                                                              self.region, self.cluster_name)
                 self.log.info("Cluster delete operation name: %s", operation_name)
-                DataProcHook.wait_for_operation_done_or_error(service, operation_name)
+                DataprocHook.wait_for_operation_done_or_error(service, operation_name)
 
         return False
 
@@ -509,7 +509,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
         Create a new cluster on Google Cloud Dataproc.
         """
         self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataProcHook(
+        hook = DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -765,7 +765,7 @@ class DataProcJobBaseOperator(BaseOperator):
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
 
-        self.hook = DataProcHook(gcp_conn_id=gcp_conn_id,
+        self.hook = DataprocHook(gcp_conn_id=gcp_conn_id,
                                  delegate_to=delegate_to)
         self.job_template = None
         self.job = None

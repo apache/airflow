@@ -102,7 +102,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html')
+            base_template='appbuilder/baselayout.html',
+            update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):
             from airflow.www import views
@@ -191,8 +192,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         init_views(appbuilder)
         init_plugin_blueprints(app)
 
-        security_manager = appbuilder.sm
-        security_manager.sync_roles()
+        if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+            security_manager = appbuilder.sm
+            security_manager.sync_roles()
 
         from airflow.www.api.experimental import endpoints as e
         # required for testing purposes otherwise the module retains

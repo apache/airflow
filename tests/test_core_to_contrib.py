@@ -37,7 +37,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook",
     ),
     (
-        "airflow.gcp.hooks.dataproc.DataProcHook",
+        "airflow.gcp.hooks.dataproc.DataprocHook",
         "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
     ),
     (
@@ -45,7 +45,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook",
     ),
     (
-        "airflow.gcp.hooks.functions.GcfHook",
+        "airflow.gcp.hooks.functions.CloudFunctionsHook",
         "airflow.contrib.hooks.gcp_function_hook.GcfHook",
     ),
     (
@@ -57,7 +57,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook",
     ),
     (
-        "airflow.gcp.hooks.spanner.CloudSpannerHook",
+        "airflow.gcp.hooks.spanner.SpannerHook",
         "airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook",
     ),
     (
@@ -65,7 +65,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook",
     ),
     (
-        "airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook",
+        "airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook",
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
@@ -121,12 +121,16 @@ HOOK = [
         "airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook",
     ),
     (
-        "airflow.gcp.hooks.vision.CloudVisionHook",
+        "airflow.providers.google.cloud.hooks.vision.CloudVisionHook",
         "airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook",
     ),
     (
         "airflow.gcp.hooks.bigquery.BigQueryHook",
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
+    ),
+    (
+        "airflow.providers.aws.hooks.athena.AWSAthenaHook",
+        "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
 ]
 OPERATOR = [
@@ -474,67 +478,67 @@ OPERATOR = [
         "CloudVideoIntelligenceDetectVideoShotsOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionAddProductToProductSetOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionAnnotateImageOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionAnnotateImageOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionDetectDocumentTextOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDetectDocumentTextOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionDetectImageLabelsOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionDetectImageSafeSearchOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionDetectTextOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductCreateOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductCreateOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductDeleteOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductDeleteOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductGetOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductGetOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductSetCreateOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductSetCreateOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductSetDeleteOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductSetDeleteOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductSetGetOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductSetGetOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductSetUpdateOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductSetUpdateOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionProductUpdateOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionProductUpdateOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionReferenceImageCreateOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionReferenceImageCreateOperator",
         "airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator",
     ),
     (
-        "airflow.gcp.operators.vision.CloudVisionRemoveProductFromProductSetOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator",
         "airflow.contrib.operators.gcp_vision_operator."
         "CloudVisionRemoveProductFromProductSetOperator",
     ),
@@ -733,6 +737,10 @@ OPERATOR = [
         "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
+    (
+        "airflow.providers.aws.operators.athena.AWSAthenaOperator",
+        "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
+    ),
 ]
 SENSOR = [
     (
@@ -769,6 +777,10 @@ SENSOR = [
     (
         "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
+    ),
+    (
+        "airflow.providers.aws.sensors.athena.AthenaSensor",
+        "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
     ),
 ]
 ALL = HOOK + OPERATOR + SENSOR

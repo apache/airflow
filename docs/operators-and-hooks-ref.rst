@@ -305,9 +305,9 @@ These integrations allow you to perform various operations within the Amazon Web
      - Sensors
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
-     - :mod:`airflow.contrib.hooks.aws_athena_hook`
-     - :mod:`airflow.contrib.operators.aws_athena_operator`
-     - :mod:`airflow.contrib.sensors.aws_athena_sensor`
+     - :mod:`airflow.providers.aws.hooks.athena`
+     - :mod:`airflow.providers.aws.operators.athena`
+     - :mod:`airflow.providers.aws.sensors.athena`
 
    * - `AWS Batch <https://aws.amazon.com/athena/>`__
      -
@@ -667,8 +667,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Vision <https://cloud.google.com/vision/>`__
      - :doc:`How to use <howto/operator/gcp/vision>`
-     - :mod:`airflow.gcp.hooks.vision`
-     - :mod:`airflow.gcp.operators.vision`
+     - :mod:`airflow.providers.google.cloud.hooks.vision`
+     - :mod:`airflow.providers.google.cloud.operators.vision`
      -
 
 

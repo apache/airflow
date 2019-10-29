@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""merge 004c1210f153 and 74effc47d867
-
-Revision ID: b0125267960b
-Revises: 004c1210f153, 74effc47d867
-Create Date: 2019-10-18 08:45:11.598735
-
-"""
-
-# revision identifiers, used by Alembic.
-revision = 'b0125267960b'
-down_revision = ('004c1210f153', '74effc47d867')
-branch_labels = None
-depends_on = None
-
-
-def upgrade():
-    """Apply merge 004c1210f153 and 74effc47d867"""
-    pass
-
-
-def downgrade():
-    """Unapply merge 004c1210f153 and 74effc47d867"""
-    pass

@@ -22,7 +22,7 @@ import unittest
 
 from mock import MagicMock
 
-from airflow.gcp.hooks.dataproc import DataProcHook, _DataProcJob
+from airflow.gcp.hooks.dataproc import DataprocHook, _DataProcJob
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
@@ -42,9 +42,9 @@ class TestDataProcHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
                         new=mock_init):
-            self.dataproc_hook = DataProcHook()
+            self.dataproc_hook = DataprocHook()
 
-    @mock.patch("airflow.gcp.hooks.dataproc.DataProcHook._authorize")
+    @mock.patch("airflow.gcp.hooks.dataproc.DataprocHook._authorize")
     @mock.patch("airflow.gcp.hooks.dataproc.build")
     def test_dataproc_client_creation(self, mock_build, mock_authorize):
         result = self.dataproc_hook.get_conn()
@@ -55,7 +55,7 @@ class TestDataProcHook(unittest.TestCase):
 
     @mock.patch(DATAPROC_STRING.format('_DataProcJob'))
     def test_submit(self, job_mock):
-        with mock.patch(DATAPROC_STRING.format('DataProcHook.get_conn',
+        with mock.patch(DATAPROC_STRING.format('DataprocHook.get_conn',
                                                return_value=None)):
             self.dataproc_hook.submit(GCP_PROJECT_ID_HOOK_UNIT_TEST, JOB)
             job_mock.assert_called_once_with(mock.ANY, GCP_PROJECT_ID_HOOK_UNIT_TEST, JOB, GCP_REGION,

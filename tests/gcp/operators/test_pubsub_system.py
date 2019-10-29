@@ -16,21 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+
 from tests.gcp.utils.gcp_authenticator import GCP_PUBSUB_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_PUBSUB_KEY), SKIP_TEST_WARNING)
-class PubSubSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name,
-            dag_id="example_gcp_pubsub",
-            require_local_executor=True,
-            gcp_key=GCP_PUBSUB_KEY,
-        )
-
+@skip_gcp_system(GCP_PUBSUB_KEY, require_local_executor=True)
+class PubSubSystemTest(SystemTest):
+    @provide_gcp_context(GCP_PUBSUB_KEY)
     def test_run_example_dag(self):
-        self._run_dag()
+        self.run_dag(dag_id="example_gcp_pubsub", dag_folder=GCP_DAG_FOLDER)

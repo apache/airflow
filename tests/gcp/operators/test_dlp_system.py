@@ -23,19 +23,13 @@ This module contains various unit tests for
 example_gcp_dlp DAG
 """
 
-import unittest
-
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_DLP_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DLP_KEY), SKIP_TEST_WARNING)
-class GcpDLPExampleDagsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_dlp',
-            gcp_key=GCP_DLP_KEY)
-
+@skip_gcp_system(GCP_DLP_KEY, require_local_executor=True)
+class GcpDLPExampleDagsSystemTest(SystemTest):
+    @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dag_function(self):
-        self._run_dag()
+        self.run_dag('example_gcp_dlp', GCP_DAG_FOLDER)

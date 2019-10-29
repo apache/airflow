@@ -29,8 +29,8 @@ from google.cloud.vision_v1.types import (
     AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
 )
 
-from airflow.gcp.hooks.vision import CloudVisionHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]

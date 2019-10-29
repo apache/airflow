@@ -16,47 +16,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
 from tests.providers.google.marketing_platform.operators.test_campaign_manager_system_helper import (
     GoogleCampaignManagerTestHelper,
 )
+from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
-# Required scopes for future tests
-# ['https://www.googleapis.com/auth/dfatrafficking',
-#  'https://www.googleapis.com/auth/dfareporting',
-#  'https://www.googleapis.com/auth/ddmconversions']
+# Required scopes
+SCOPES = [
+    'https://www.googleapis.com/auth/dfatrafficking',
+    'https://www.googleapis.com/auth/dfareporting',
+    'https://www.googleapis.com/auth/ddmconversions'
+]
 
 
-@unittest.skipIf(
-    TestDagGcpSystem.skip_check(GOOGLE_CAMPAIGN_MANAGER_KEY), SKIP_TEST_WARNING
-)
-class CampaignManagerSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name,
-            dag_id="example_campaign_manager",
-            gcp_key=GOOGLE_CAMPAIGN_MANAGER_KEY,
-        )
-        self.helper = GoogleCampaignManagerTestHelper()
+@skip_gcp_system(GOOGLE_CAMPAIGN_MANAGER_KEY)
+class CampaignManagerSystemTest(SystemTest):
+    helper = GoogleCampaignManagerTestHelper()
 
+    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.create_bucket()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.create_bucket()
 
+    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_bucket()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_bucket()
         super().tearDown()
 
+    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
-        self._run_dag()
+        self.run_dag('example_campaign_manager', "airflow/providers/google/marketing_platform/example_dags")

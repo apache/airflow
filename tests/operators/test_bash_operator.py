@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
+import unittest.mock
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
 
@@ -71,23 +71,22 @@ class TestBashOperator(unittest.TestCase):
                              'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name)
             )
 
-            original_AIRFLOW_HOME = os.environ['AIRFLOW_HOME']
-
-            os.environ['AIRFLOW_HOME'] = 'MY_PATH_TO_AIRFLOW_HOME'
-            task.run(DEFAULT_DATE, DEFAULT_DATE,
-                     ignore_first_depends_on_past=True, ignore_ti_state=True)
+            with unittest.mock.patch.dict('os.environ', {
+                'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME',
+                'PYTHONPATH': 'AWESOME_PYTHONPATH'
+            }):
+                task.run(DEFAULT_DATE, DEFAULT_DATE,
+                         ignore_first_depends_on_past=True, ignore_ti_state=True)
 
             with open(tmp_file.name, 'r') as file:
                 output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
                 # exported in run-tests as part of PYTHONPATH
-                self.assertIn('tests/test_utils', output)
+                self.assertIn('AWESOME_PYTHONPATH', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
                 self.assertIn(DEFAULT_DATE.isoformat(), output)
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
-
-            os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
 
     def test_return_value(self):
         bash_operator = BashOperator(

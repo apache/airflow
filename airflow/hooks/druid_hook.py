@@ -81,11 +81,11 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec):
+    def submit_indexing_job(self, json_index_spec: str):
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, json=json_index_spec, headers=self.header, auth=self.get_auth())
+        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
