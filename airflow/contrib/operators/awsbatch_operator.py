@@ -22,7 +22,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.operators.batch import BatchProtocol, AWSBatchOperator  # noqa
+from airflow.providers.aws.operators.batch import AWSBatchOperator, BatchProtocol  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.aws.operators.batch`.",
