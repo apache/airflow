@@ -18,8 +18,8 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.utils.decorators import apply_defaults
 
 
