@@ -20,8 +20,8 @@
 This module allows you to transfer mail attachments from a mail server into s3 bucket.
 """
 from airflow.contrib.hooks.imap_hook import ImapHook
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.utils.decorators import apply_defaults
 
 
