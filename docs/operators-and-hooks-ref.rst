@@ -359,7 +359,7 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     - :mod:`airflow.hooks.S3_hook`
+     - :mod:`airflow.providers.aws.hooks.s3`
      - :mod:`airflow.operators.s3_file_transform_operator`,
        :mod:`airflow.contrib.operators.s3_copy_object_operator`,
        :mod:`airflow.contrib.operators.s3_delete_objects_operator`,

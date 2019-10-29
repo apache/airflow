@@ -48,11 +48,12 @@ All AWS components (hooks, operators, sensors, example DAGs) will be grouped tog
 components remain backwards compatible but raise a `DeprecationWarning` when imported from the old module.
 Migrated are:
 
-|                            Old path                             |                         New path                         |
-|-----------------------------------------------------------------|----------------------------------------------------------|
-| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook             | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
+| Old path                                                     | New path                                                 |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
+| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
-| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor          | airflow.providers.aws.sensors.athena.AthenaSensor        |
+| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.aws.sensors.athena.AthenaSensor        |
 
 ### Additional arguments passed to BaseOperator cause an exception
 
