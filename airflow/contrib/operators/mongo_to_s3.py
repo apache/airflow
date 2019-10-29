@@ -21,7 +21,7 @@ import json
 from bson import json_util
 
 from airflow.contrib.hooks.mongo_hook import MongoHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -73,7 +73,7 @@ class MongoToS3Operator(BaseOperator):
         """
         Executed by task_instance at runtime
         """
-        s3_conn = S3Hook(self.s3_conn_id)
+        s3_conn = AWSS3Hook(self.s3_conn_id)
 
         # Grab collection and execute query according to whether or not it is a pipeline
         if self.is_pipeline:

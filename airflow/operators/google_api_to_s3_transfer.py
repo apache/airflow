@@ -24,7 +24,7 @@ import json
 import sys
 
 from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
@@ -155,7 +155,7 @@ class GoogleApiToS3Transfer(BaseOperator):
         return google_api_response
 
     def _load_data_to_s3(self, data):
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        s3_hook = AWSS3Hook(aws_conn_id=self.aws_conn_id)
         s3_hook.load_string(
             string_data=json.dumps(data),
             key=self.s3_destination_key,

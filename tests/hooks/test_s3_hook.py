@@ -23,13 +23,13 @@ from unittest import mock
 
 from botocore.exceptions import NoCredentialsError
 
-from airflow.hooks.S3_hook import provide_bucket_name
+from airflow.providers.aws.hooks.s3 import provide_bucket_name
 from airflow.models import Connection
 
 try:
-    from airflow.hooks.S3_hook import S3Hook
+    from airflow.providers.aws.hooks.s3 import AWSS3Hook
 except ImportError:
-    S3Hook = None  # type: ignore
+    AWSS3Hook = None  # type: ignore
 
 try:
     import boto3
@@ -38,24 +38,24 @@ except ImportError:
     mock_s3 = None
 
 
-@unittest.skipIf(S3Hook is None,
-                 "Skipping test because S3Hook is not available")
+@unittest.skipIf(AWSS3Hook is None,
+                 "Skipping test because AWSS3Hook is not available")
 @unittest.skipIf(mock_s3 is None,
                  "Skipping test because moto.mock_s3 is not available")
-class TestS3Hook(unittest.TestCase):
+class TestAWSS3Hook(unittest.TestCase):
 
     def setUp(self):
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):
-        parsed = S3Hook.parse_s3_url(self.s3_test_url)
+        parsed = AWSS3Hook.parse_s3_url(self.s3_test_url)
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
 
     @mock_s3
     def test_check_for_bucket(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
 
@@ -63,27 +63,27 @@ class TestS3Hook(unittest.TestCase):
         self.assertFalse(hook.check_for_bucket('not-a-bucket'))
 
     def test_check_for_bucket_raises_error_with_invalid_conn_id(self):
-        hook = S3Hook(aws_conn_id="does_not_exist")
+        hook = AWSS3Hook(aws_conn_id="does_not_exist")
 
         with self.assertRaises(NoCredentialsError):
             hook.check_for_bucket('bucket')
 
     @mock_s3
     def test_get_bucket(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         self.assertIsNotNone(bucket)
 
     @mock_s3
     def test_create_bucket_default_region(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         hook.create_bucket(bucket_name='new_bucket')
         bucket = hook.get_bucket('new_bucket')
         self.assertIsNotNone(bucket)
 
     @mock_s3
     def test_create_bucket_us_standard_region(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-1')
         bucket = hook.get_bucket('new_bucket')
         self.assertIsNotNone(bucket)
@@ -92,7 +92,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_create_bucket_other_region(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-2')
         bucket = hook.get_bucket('new_bucket')
         self.assertIsNotNone(bucket)
@@ -101,7 +101,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_check_for_prefix(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='a', Body=b'a')
@@ -112,7 +112,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_list_prefixes(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='a', Body=b'a')
@@ -125,7 +125,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_list_prefixes_paged(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
 
@@ -142,7 +142,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_list_keys(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='a', Body=b'a')
@@ -155,7 +155,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_list_keys_paged(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
 
@@ -169,7 +169,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_check_for_key(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='a', Body=b'a')
@@ -180,14 +180,14 @@ class TestS3Hook(unittest.TestCase):
         self.assertFalse(hook.check_for_key('s3://bucket//b'))
 
     def test_check_for_key_raises_error_with_invalid_conn_id(self):
-        hook = S3Hook(aws_conn_id="does_not_exist")
+        hook = AWSS3Hook(aws_conn_id="does_not_exist")
 
         with self.assertRaises(NoCredentialsError):
             hook.check_for_key('a', 'bucket')
 
     @mock_s3
     def test_get_key(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='a', Body=b'a')
@@ -197,7 +197,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_read_key(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         conn = hook.get_conn()
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
@@ -211,12 +211,12 @@ class TestS3Hook(unittest.TestCase):
     def test_select_key(self, mock_get_client_type):
         mock_get_client_type.return_value.select_object_content.return_value = \
             {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         self.assertEqual(hook.select_key('my_key', 'mybucket'), 'Contént')
 
     @mock_s3
     def test_check_for_wildcard_key(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='abc', Body=b'a')
@@ -233,7 +233,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_get_wildcard_key(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key='abc', Body=b'a')
@@ -256,7 +256,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_load_string(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         conn = hook.get_conn()
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
@@ -269,7 +269,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_load_bytes(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         conn = hook.get_conn()
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
@@ -282,7 +282,7 @@ class TestS3Hook(unittest.TestCase):
 
     @mock_s3
     def test_load_fileobj(self):
-        hook = S3Hook(aws_conn_id=None)
+        hook = AWSS3Hook(aws_conn_id=None)
         conn = hook.get_conn()
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
@@ -295,10 +295,10 @@ class TestS3Hook(unittest.TestCase):
 
             self.assertEqual(body, b'Content')
 
-    @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
+    @mock.patch.object(AWSS3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
 
-        class FakeS3Hook(S3Hook):
+        class FakeAWSS3Hook(AWSS3Hook):
 
             @provide_bucket_name
             def test_function(self, bucket_name=None):
@@ -314,7 +314,7 @@ class TestS3Hook(unittest.TestCase):
             def test_function_with_wildcard_key(self, wildcard_key, bucket_name=None):
                 return bucket_name
 
-        fake_s3_hook = FakeS3Hook()
+        fake_s3_hook = FakeAWSS3Hook()
         test_bucket_name = fake_s3_hook.test_function()
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key('test_key')
         test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key('test_*_key')

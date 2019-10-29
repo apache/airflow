@@ -58,7 +58,7 @@ def provide_bucket_name(func):
     return wrapper
 
 
-class S3Hook(AwsHook):
+class AWSS3Hook(AwsHook):
     """
     Interact with AWS S3, using the boto3 library.
     """

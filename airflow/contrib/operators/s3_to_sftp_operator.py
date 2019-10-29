@@ -21,7 +21,7 @@ from tempfile import NamedTemporaryFile
 from urllib.parse import urlparse
 
 from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.aws.hooks.s3 import AWSS3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -76,7 +76,7 @@ class S3ToSFTPOperator(BaseOperator):
     def execute(self, context):
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
-        s3_hook = S3Hook(self.s3_conn_id)
+        s3_hook = AWSS3Hook(self.s3_conn_id)
 
         s3_client = s3_hook.get_conn()
         sftp_client = ssh_hook.get_conn().open_sftp()
