@@ -44,13 +44,16 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             dag=None
         ).execute(None)
 
+        files = str(s3_keys)
+        files = files.replace('[', '(')
+        files = files.replace(']', ')')
         base_sql = """
                 FROM @{stage}/
                 files={files}
                 file_format={file_format}
             """.format(
             stage=stage,
-            files=s3_keys,
+            files=files,
             file_format=file_format
         )
 
