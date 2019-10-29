@@ -20,8 +20,8 @@
 import unittest
 
 from airflow.contrib.operators.s3_to_snowflake_operator import S3ToSnowflakeTransfer
-from tests.compat import mock
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from tests.compat import mock
 
 
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
