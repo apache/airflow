@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module containing helper functions and tests for cli tools"""
+
 import contextlib
 import io
 import os
@@ -48,6 +50,9 @@ TEST_DAG_ID = 'unit_tests'
 
 
 def reset(dag_id):
+    """
+    resets a dag
+    """
     session = Session()
     tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
@@ -79,6 +84,32 @@ def create_mock_args(  # pylint: disable=too-many-arguments
     raw=None,
     interactive=None,
 ):
+    """
+    creates mock arguments for a task
+    :param task_id:
+    :param dag_id:
+    :param subdir:
+    :param execution_date:
+    :param task_params:
+    :param dry_run:
+    :param queue:
+    :param pool:
+    :param priority_weight_total:
+    :param retries:
+    :param local:
+    :param mark_success:
+    :param ignore_all_dependencies:
+    :param ignore_depends_on_past:
+    :param ignore_dependencies:
+    :param force:
+    :param run_as_user:
+    :param executor_config:
+    :param cfg_path:
+    :param pickle:
+    :param raw:
+    :param interactive:
+    :return: args
+    """
     if executor_config is None:
         executor_config = {}
     args = MagicMock(spec=Namespace)
@@ -108,6 +139,7 @@ def create_mock_args(  # pylint: disable=too-many-arguments
 
 
 class TestCLI(unittest.TestCase):
+    """Class containing cli test cases"""
 
     EXAMPLE_DAGS_FOLDER = os.path.join(
         os.path.dirname(
@@ -129,27 +161,27 @@ class TestCLI(unittest.TestCase):
         self.child = MagicMock()
         self.process = MagicMock()
 
-    def test_ready_prefix_on_cmdline(self):
+    def test_ready_prefix_on_cmdline(self):  # pylint: disable=missing-docstring
         self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
         self.process.children.return_value = [self.child]
 
         with patch('psutil.Process', return_value=self.process):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 1)
 
-    def test_ready_prefix_on_cmdline_no_children(self):
+    def test_ready_prefix_on_cmdline_no_children(self):  # pylint: disable=missing-docstring
         self.process.children.return_value = []
 
         with patch('psutil.Process', return_value=self.process):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
-    def test_ready_prefix_on_cmdline_zombie(self):
+    def test_ready_prefix_on_cmdline_zombie(self):  # pylint: disable=missing-docstring
         self.child.cmdline.return_value = []
         self.process.children.return_value = [self.child]
 
         with patch('psutil.Process', return_value=self.process):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
-    def test_ready_prefix_on_cmdline_dead_process(self):
+    def test_ready_prefix_on_cmdline_dead_process(self):  # pylint: disable=missing-docstring
         self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
         self.process.children.return_value = [self.child]
 
@@ -157,6 +189,9 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
     def test_cli_webserver_debug(self):
+        """
+        Tests webserver -d flag runs correctly
+        """
         env = os.environ.copy()
         proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
         sleep(3)  # wait for webserver to start
@@ -169,6 +204,9 @@ class TestCLI(unittest.TestCase):
         proc.wait()
 
     def test_local_run(self):
+        """
+        Local run test
+        """
         args = create_mock_args(
             task_id='print_the_context',
             dag_id='example_python_operator',
@@ -209,7 +247,8 @@ class TestCLI(unittest.TestCase):
             sys.stdout = saved_stdout
 
     def test_next_execution(self):
-        # A scaffolding function
+        """A scaffolding function"""
+
         def reset_dr_db(dag_id):
             session = Session()
             dr = session.query(models.DagRun).filter_by(dag_id=dag_id)
@@ -276,6 +315,9 @@ class TestCLI(unittest.TestCase):
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
+        """
+        Tests backfill cmd works correctly
+        """
         cli.backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
@@ -342,6 +384,9 @@ class TestCLI(unittest.TestCase):
         mock_run.reset_mock()
 
     def test_show_dag_print(self):
+        """
+        Tests that show cmd works correctly
+        """
         temp_stdout = io.StringIO()
         with contextlib.redirect_stdout(temp_stdout):
             cli.show_dag(self.parser.parse_args([
@@ -353,6 +398,9 @@ class TestCLI(unittest.TestCase):
 
     @mock.patch("airflow.bin.cli.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
+        """
+        Tests that render_dag is called correctly when --save flag is used
+        """
         temp_stdout = io.StringIO()
         with contextlib.redirect_stdout(temp_stdout):
             cli.show_dag(self.parser.parse_args([
@@ -367,6 +415,9 @@ class TestCLI(unittest.TestCase):
     @mock.patch("airflow.bin.cli.subprocess.Popen")
     @mock.patch("airflow.bin.cli.render_dag")
     def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
+        """
+        Tests that render_dag is called correctly when using --imgcat flag
+        """
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
         mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
         temp_stdout = io.StringIO()

@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Module for test worker initialisation"""
 
 import unittest
 from argparse import Namespace
@@ -32,6 +33,8 @@ mock_args = Namespace(queues=1, concurrency=1)
 
 
 class TestWorkerPrecheck(unittest.TestCase):
+    """Test case for worked checks"""
+
     @mock.patch('airflow.settings.validate_session')
     def test_error(self, mock_validate_session):
         """
