@@ -52,8 +52,11 @@ Migrated are:
 | ------------------------------------------------------------ | -------------------------------------------------------- |
 | airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
 | airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
+| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.aws.hooks.sqs.SQSHook        |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.aws.operators.sqs.SQSPublishOperator |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.aws.sensors.athena.AthenaSensor        |
+| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.aws.sensors.sqs.SQSSensor        |
 
 ### Additional arguments passed to BaseOperator cause an exception
 

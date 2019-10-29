@@ -88,7 +88,6 @@
 ./airflow/contrib/operators/winrm_operator.py
 ./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
 ./airflow/contrib/sensors/aws_redshift_cluster_sensor.py
-./airflow/contrib/sensors/aws_sqs_sensor.py
 ./airflow/contrib/sensors/azure_cosmos_sensor.py
 ./airflow/contrib/sensors/bash_sensor.py
 ./airflow/contrib/sensors/cassandra_record_sensor.py
@@ -295,7 +294,6 @@
 ./tests/contrib/hooks/test_spark_submit_hook.py
 ./tests/contrib/hooks/test_sqoop_hook.py
 ./tests/contrib/hooks/test_zendesk_hook.py
-./tests/contrib/operators/test_aws_sqs_publish_operator.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
 ./tests/operators/test_cassandra_to_gcs.py
@@ -319,7 +317,6 @@
 ./tests/contrib/sensors/test_file_sensor.py
 ./tests/contrib/sensors/test_python_sensor.py
 ./tests/contrib/sensors/test_redis_pub_sub_sensor.py
-./tests/contrib/sensors/test_sqs_sensor.py
 ./tests/contrib/sensors/test_weekday_sensor.py
 ./tests/core.py
 ./tests/executors/test_base_executor.py
