@@ -42,6 +42,19 @@ class TestAwsLambdaHook(unittest.TestCase):
 
         message = "Hello world"
         topic_name = "test-topic"
+        subject = "test-subject"
+        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+
+        response = hook.publish_to_target(target, message, subject)
+
+        self.assertTrue('MessageId' in response)
+
+    @mock_sns
+    def test_publish_to_target_without_subject(self):
+        hook = AwsSnsHook(aws_conn_id='aws_default')
+
+        message = "Hello world"
+        topic_name = "test-topic"
         target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
 
         response = hook.publish_to_target(target, message)
