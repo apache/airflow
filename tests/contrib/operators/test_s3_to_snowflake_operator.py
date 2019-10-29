@@ -40,6 +40,8 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             file_format=file_format,
             schema=schema,
             columns_array=None,
+            task_id="task_id",
+            dag=None
         ).execute(None)
 
         base_sql = """
