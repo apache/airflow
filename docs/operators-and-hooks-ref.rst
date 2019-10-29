@@ -442,7 +442,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Snowflake <http://snowflake.com/>`__
      -
-     - :mod:`airflow.contrib.s3_to_snowflake_operator`
+     - :mod:`airflow.contrib.operators.s3_to_snowflake_operator`
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_

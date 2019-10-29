@@ -24,7 +24,7 @@ from tests.compat import mock
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
-class TestS3ToSnowflakeOperator(unittest.TestCase):
+class TestS3ToSnowflakeTransfer(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.snowflake_hook.SnowflakeHook.run")
     def test_execute(self, mock_run):
         s3_keys = ['1.csv', '2.csv']

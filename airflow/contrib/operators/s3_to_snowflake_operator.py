@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains AWS S3 to Snowflake operator.
+"""
+
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
