@@ -60,7 +60,7 @@ SEPARATOR_WIDTH="$(tput cols)"
 CMDNAME="$(basename -- "$0")"
 
 # Update short and long options in the breeze-complete script
-# This way autocomplete will work automagically with all options
+# This way autocomplete will work automatically with all options
 # shellcheck source=breeze-complete
 . "${MY_DIR}/breeze-complete"
 
