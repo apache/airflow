@@ -22,7 +22,37 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
+from requests.auth import HTTPBasicAuth
+
 from airflow.hooks.presto_hook import PrestoHook
+from airflow.models import Connection
+
+
+class TestPrestoHookConn(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+
+        self.connection = Connection(
+            login='login',
+            password='password',
+            host='host',
+            schema='hive',
+        )
+
+        class UnitTestPrestoHook(PrestoHook):
+            conn_name_attr = 'presto_conn_id'
+
+        self.db_hook = UnitTestPrestoHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+
+    @patch('airflow.hooks.presto_hook.presto.connect')
+    def test_get_conn(self, mock_connect):
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, protocol='http',
+                                             schema='hive', source='airflow', username='login',
+                                             requests_kwargs={'auth': HTTPBasicAuth('login', 'password')})
 
 
 class TestPrestoHook(unittest.TestCase):
@@ -58,8 +88,8 @@ class TestPrestoHook(unittest.TestCase):
         self.cur.fetchone.return_value = result_sets[0]
 
         self.assertEqual(result_sets[0], self.db_hook.get_first(statement))
-        assert self.conn.close.call_count == 1
-        assert self.cur.close.call_count == 1
+        self.conn.close.assert_called_once_with()
+        self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
@@ -68,10 +98,9 @@ class TestPrestoHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
 
         self.assertEqual(result_sets, self.db_hook.get_records(statement))
-        assert self.conn.close.call_count == 1
-        assert self.cur.close.call_count == 1
+        self.conn.close.assert_called_once_with()
+        self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
-        print(1)
 
     def test_get_pandas_df(self):
         statement = 'SQL'
