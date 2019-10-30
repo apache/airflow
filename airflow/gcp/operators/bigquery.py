@@ -26,6 +26,8 @@ import json
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
+from googleapiclient.errors import HttpError
+
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
@@ -362,7 +364,8 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 # pylint: disable=too-many-instance-attributes
 class BigQueryOperator(BaseOperator):
     """
-    Executes BigQuery SQL queries in a specific BigQuery database
+    Executes BigQuery SQL queries in a specific BigQuery database.
+    This operator does not assert idempotency.
 
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
@@ -746,15 +749,19 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_empty_table(
-            project_id=self.project_id,
-            dataset_id=self.dataset_id,
-            table_id=self.table_id,
-            schema_fields=schema_fields,
-            time_partitioning=self.time_partitioning,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration
-        )
+        try:
+            cursor.create_empty_table(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                schema_fields=schema_fields,
+                time_partitioning=self.time_partitioning,
+                labels=self.labels,
+                encryption_configuration=self.encryption_configuration
+            )
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
 
 
 # pylint: disable=too-many-instance-attributes
@@ -917,22 +924,26 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_external_table(
-            external_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
-            source_uris=source_uris,
-            source_format=self.source_format,
-            compression=self.compression,
-            skip_leading_rows=self.skip_leading_rows,
-            field_delimiter=self.field_delimiter,
-            max_bad_records=self.max_bad_records,
-            quote_character=self.quote_character,
-            allow_quoted_newlines=self.allow_quoted_newlines,
-            allow_jagged_rows=self.allow_jagged_rows,
-            src_fmt_configs=self.src_fmt_configs,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration
-        )
+        try:
+            cursor.create_external_table(
+                external_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                compression=self.compression,
+                skip_leading_rows=self.skip_leading_rows,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                src_fmt_configs=self.src_fmt_configs,
+                labels=self.labels,
+                encryption_configuration=self.encryption_configuration
+            )
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):
@@ -1083,11 +1094,15 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_empty_dataset(
-            project_id=self.project_id,
-            dataset_id=self.dataset_id,
-            dataset_reference=self.dataset_reference,
-            location=self.location)
+        try:
+            cursor.create_empty_dataset(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                dataset_reference=self.dataset_reference,
+                location=self.location)
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
 
 
 class BigQueryGetDatasetOperator(BaseOperator):

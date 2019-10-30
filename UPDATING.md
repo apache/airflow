@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Idempotency in BigQuery operators
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
+methods of `BigQueryHook`. 
+
 ### Migration of AWS components
 
 All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in
