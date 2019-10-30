@@ -24,7 +24,7 @@ from typing import Optional
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.gcp.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -24,12 +24,12 @@ import os
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.pubsub import (
+from airflow.operators.bash_operator import BashOperator
+from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
-from airflow.gcp.sensors.pubsub import PubSubPullSensor
-from airflow.operators.bash_operator import BashOperator
+from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 TOPIC = "PubSubTestTopic"

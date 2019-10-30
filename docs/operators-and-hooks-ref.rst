@@ -607,9 +607,9 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
      -
-     - :mod:`airflow.gcp.hooks.pubsub`
-     - :mod:`airflow.gcp.operators.pubsub`
-     - :mod:`airflow.gcp.sensors.pubsub`
+     - :mod:`airflow.providers.google.cloud.hooks.pubsub`
+     - :mod:`airflow.providers.google.cloud.operators.pubsub`
+     - :mod:`airflow.providers.google.cloud.sensors.pubsub`
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`

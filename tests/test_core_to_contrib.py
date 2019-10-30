@@ -93,7 +93,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook",
     ),
     (
-        "airflow.gcp.hooks.pubsub.PubSubHook",
+        "airflow.providers.google.cloud.hooks.pubsub.PubSubHook",
         "airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook",
     ),
     (
@@ -593,23 +593,23 @@ OPERATOR = [
         "PostgresToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubPublishOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubPublishOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubTopicCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
@@ -768,7 +768,7 @@ SENSOR = [
         "GCPTransferServiceWaitForJobStatusSensor",
     ),
     (
-        "airflow.gcp.sensors.pubsub.PubSubPullSensor",
+        "airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor",
         "airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor",
     ),
     (

@@ -107,13 +107,13 @@ It is required now to pass key-word only arguments to `PubSub` hook.
 These changes are not backward compatible.
 
 Affected components:
- * airflow.gcp.hooks.pubsub.PubSubHook
- * airflow.gcp.operators.pubsub.PubSubTopicCreateOperator
- * airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator
- * airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator
- * airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator
- * airflow.gcp.operators.pubsub.PubSubPublishOperator
- * airflow.gcp.sensors.pubsub.PubSubPullSensor
+ * airflow.providers.google.cloud.hooks.pubsub.PubSubHook
+ * airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator
+ * airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator
+ * airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator
+ * airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator
+ * airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator
+ * airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor
 
 ### Changes to `aws_default` Connection's default region
 
@@ -225,7 +225,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.gcp.hooks.kms.GoogleCloudKMSHook                                                                   |
 |airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook                                                              |airflow.gcp.hooks.mlengine.MLEngineHook                                                                    |
 |airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook                                          |airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook                                                |
-|airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.gcp.hooks.pubsub.PubSubHook                                                                        |
+|airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
 |airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                      |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook                                                       |
@@ -377,11 +377,11 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                          |airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                           |
 |airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                          |airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                           |
 |airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator                           |airflow.operators.postgres_to_gcs.PostgresToGoogleCloudStorageOperator                                     |
-|airflow.contrib.operators.pubsub_operator.PubSubPublishOperator                                                   |airflow.gcp.operators.pubsub.PubSubPublishOperator                                                         |
-|airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator                                        |airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator                                              |
-|airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator                                        |airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator                                              |
-|airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator                                               |airflow.gcp.operators.pubsub.PubSubTopicCreateOperator                                                     |
-|airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator                                               |airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator                                                     |
+|airflow.contrib.operators.pubsub_operator.PubSubPublishOperator                                                   |airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator                                                         |
+|airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator                                        |airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator                                              |
+|airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator                                        |airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator                                              |
+|airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator                                                     |
+|airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator                                                     |
 |airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                          |airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           |
 |airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableSensor                                                           |
 |airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor                |
@@ -389,7 +389,7 @@ The following table shows changes in import paths.
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor                                              |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor                                                 |airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor                                                     |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor                                      |
-|airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.gcp.sensors.pubsub.PubSubPullSensor                                                                |
+|airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor                                                                |
 
 
 ### Remove provide_context
