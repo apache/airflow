@@ -28,6 +28,7 @@ warnings.warn(
     DeprecationWarning, stacklevel=2
 )
 
+
 class DataProcHook(DataprocHook):
     """
     This class is deprecated. Please use `airflow.gcp.hooks.dataproc.DataprocHook`.

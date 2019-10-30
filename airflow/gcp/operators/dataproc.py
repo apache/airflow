@@ -22,10 +22,10 @@ This module contains Google Dataproc operators.
 """
 # pylint: disable=C0302
 
+import inspect
 import ntpath
 import os
 import re
-import inspect
 import time
 import uuid
 import warnings
@@ -919,7 +919,8 @@ class DataProcPigOperator(DataProcJobBaseOperator):
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
         *args,
-        **kwargs) -> None:
+        **kwargs
+    ) -> None:
         # TODO: Remove one day
         warnings.warn(
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"

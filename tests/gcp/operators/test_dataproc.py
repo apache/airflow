@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import inspect
 import unittest
 from datetime import datetime
 from typing import Any
@@ -30,7 +31,6 @@ from airflow.gcp.operators.dataproc import (
     DataprocUpdateClusterOperator, DataprocWorkflowTemplateInstantiateInlineOperator,
     DataprocWorkflowTemplateInstantiateOperator,
 )
-import inspect
 from airflow.version import version as airflow_version
 
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
