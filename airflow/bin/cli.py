@@ -1693,7 +1693,7 @@ def list_dag_runs(args, dag=None):
                                                                  'run_id',
                                                                  'state',
                                                                  'execution_date',
-                                                                 'state_date')
+                                                                 'start_date')
     print(header_template.format(dag_run_header=dag_run_header,
                                  line='-' * 120))
     for dag_run in dag_runs:
