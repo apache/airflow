@@ -53,7 +53,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.job_definition, 'hello-world')
         self.assertEqual(self.batch.max_retries, 5)
         self.assertEqual(self.batch.overrides, {})
-        self.assertEqual(self.batch.array_properties, None)
+        self.assertEqual(self.batch.array_properties, {})
         self.assertEqual(self.batch.region_name, 'eu-west-1')
         self.assertEqual(self.batch.aws_conn_id, None)
         self.assertEqual(self.batch.hook, self.aws_hook_mock.return_value)
@@ -78,7 +78,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
             containerOverrides={},
             jobDefinition='hello-world',
-            arrayProperties=None
+            arrayProperties={}
         )
 
         wait_mock.assert_called_once_with()
@@ -99,7 +99,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
             containerOverrides={},
             jobDefinition='hello-world',
-            arrayProperties=None
+            arrayProperties={}
         )
 
     def test_wait_end_tasks(self):
