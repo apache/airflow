@@ -51,3 +51,39 @@ class TestPrestoHook(unittest.TestCase):
         target_fields = None
         self.db_hook.insert_rows(table, rows, target_fields)
         mock_insert_rows.assert_called_once_with(table, rows, None, 0)
+
+    def test_get_first_record(self):
+        statement = 'SQL'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.fetchone.return_value = result_sets[0]
+
+        self.assertEqual(result_sets[0], self.db_hook.get_first(statement))
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_records(self):
+        statement = 'SQL'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.fetchall.return_value = result_sets
+
+        self.assertEqual(result_sets, self.db_hook.get_records(statement))
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+        print(1)
+
+    def test_get_pandas_df(self):
+        statement = 'SQL'
+        column = 'col'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.description = [(column,)]
+        self.cur.fetchall.return_value = result_sets
+        df = self.db_hook.get_pandas_df(statement)
+
+        self.assertEqual(column, df.columns[0])
+
+        self.assertEqual(result_sets[0][0], df.values.tolist()[0][0])
+        self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
+
+        self.cur.execute.assert_called_once_with(statement, None)
