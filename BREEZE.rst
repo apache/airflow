@@ -839,167 +839,185 @@ Airflow Breeze Syntax
 
 This is the current syntax for  `./breeze <./breeze>`_:
 
+ .. START BREEZE HELP MARKER
+
 .. code-block:: text
 
-    Usage: breeze [FLAGS] \
-      [-k]|[-S <STATIC_CHECK>]|[-F <STATIC_CHECK>]|[-O]|[-e]|[-a]|[-b]|[-t <TARGET>]|[-x <COMMAND>]|[-d <COMMAND>] \
-      -- <EXTRA_ARGS>
 
-    Commands
 
-      By default, the ``breeze`` script enters an IT environment and drops you to a bash shell,
-      but you can also choose commands to run specific actions instead:
+  Usage: breeze [FLAGS] \
+    [-k]|[-S <STATIC_CHECK>]|[-F <STATIC_CHECK>]|[-O]|[-e]|[-a]|[-b]|[-t <TARGET>]|[-x <COMMAND>]|[-d <COMMAND>] \
+    -- <EXTRA_ARGS>
 
-    -k, --stop-environment
-            Stops running a Docker Compose environment. When you start the environment, the Docker
-            containers continue running so that startup time is shorter. But they take quite a lot of
-            memory and CPU. This command stops all running containers in the environment.
+  The swiss-knife-army tool for Airflow testings. It allows to perform various test tasks:
 
-    -O, --build-docs
-           Builds documentation.
+    * Enter interactive environment when no command flags are specified (default behaviour)
+    * Stop the interactive environment with -k, --stop-environment command
+    * Run static checks - either for currently staged change or for all files with
+      -S, --static-check or -F, --static-check-all-files commanbd
+    * Build documentation with -O, --build-docs command
+    * Setup local virtualenv with -e, --setup-virtualenv command
+    * Setup autocomplete for itself with -a, --setup-autocomplete command
+    * Build docker image with -b, --build-only command
+    * Run test target specified with -t, --test-target connad
+    * Execute arbitrary command in the test environmenrt with -x, --execute-command command
+    * Execute arbitrary docker-compose command with -d, --docker-compose command
 
-    -S, --static-check <STATIC_CHECK>
-            Runs selected static checks for currently changed files. Specify a static check that
-            you would like to run or use 'all' to run all checks. One of
-            [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs
-              check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license
-              check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
-            You can pass extra arguments including options to the pre-commit framework as
-            <EXTRA_ARGS> passed after --. For example:
+  ** Commands
 
-            './breeze  --static-check mypy' or
-            './breeze  --static-check mypy -- --files tests/core.py'
+    By default the script enters IT environment and drops you to bash shell,
+    but you can also choose one of the commands to run specific actions instead:
 
-            You can see all the options by adding --help EXTRA_ARG:
+  -k, --stop-environment
+          Bring down running docker compose environment. When you start the environment, the docker
+          containers will continue running so that startup time is shorter. But they take quite a lot of
+          memory and CPU. This command stops all running containers from the environment.
 
-            './breeze  --static-check mypy -- --help'
+  -O, --build-docs
+         Build documentation.
 
-    -F, --static-check-all-files <STATIC_CHECK>
-            Runs selected static checks for all applicable files. Specify a static check that
-            you would like to run or use 'all' to run all checks. One of
-            [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs
-              check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license
-              check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
-            You can pass extra arguments including options to the pre-commit framework as
-            <EXTRA_ARGS> passed after --. For example:
+  -S, --static-check <STATIC_CHECK>
+          Run selected static checks for currently changed files. You should specify static check that
+          you would like to run or 'all' to run all checks. One of
+          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          You can pass extra arguments including options to to the pre-commit framework as
+          <EXTRA_ARGS> passed after --. For example:
 
-            './breeze --static-check-all-files mypy' or
-            './breeze --static-check-all-files mypy -- --verbose'
+          './breeze  --static-check mypy' or
+          './breeze  --static-check mypy -- --files tests/core.py'
 
-            You can see all the options by adding --help EXTRA_ARG:
+          You can see all the options by adding --help EXTRA_ARG:
 
-            './breeze --static-check-all-files mypy -- --help'
+          './breeze  --static-check mypy -- --help'
 
-    -e, --initialize-local-virtualenv
-            Initializes a locally created virtualenv installing all dependencies of Airflow.
-            This local virtualenv can be used to aid autocompletion and IDE support as
-            well as run unit tests directly from the IDE. You need to have virtualenv
-            activated before running this command.
+  -F, --static-check-all-files <STATIC_CHECK>
+          Run selected static checks for all applicable files. You should specify static check that
+          you would like to run or 'all' to run all checks. One of
+          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          You can pass extra arguments including options to the pre-commit framework as
+          <EXTRA_ARGS> passed after --. For example:
 
-    -a, --setup-autocomplete
-            Sets up autocompletion for breeze commands. Once you do it, you need to re-enter the bash
-            shell. When you type the breeze command, <TAB> will autocomplete parameters and values.
+          './breeze --static-check-all-files mypy' or
+          './breeze --static-check-all-files mypy -- --verbose'
 
-    -b, --build-only
-            Only builds Docker images but does not enter the airflow-testing Docker container.
+          You can see all the options by adding --help EXTRA_ARG:
 
-    -t, --test-target <TARGET>
-            Runs the specified unit test target. You can specify multiple
-            targets separated with commas. The <EXTRA_ARGS> passed after -- are treated
-            as additional options passed to nosetest. For example:
+          './breeze --static-check-all-files mypy -- --help'
 
-            './breeze --test-target tests.core -- --logging-level=DEBUG'
+  -e, --initialize-local-virtualenv
+          Initializes locally created virtualenv installing all dependencies of Airflow.
+          This local virtualenv can be used to aid autocompletion and IDE support as
+          well as run unit tests directly from the IDE. You need to have virtualenv
+          activated before running this command.
 
-    -x, --execute-command <COMMAND>
-            Runs the specified command instead of entering the environment. The command is run using
-            'bash -c "<command with args>". If you need to pass arguments to your command, you need
-            to pass them together with the command surrounded with " or '. Alternatively, you can pass
-            arguments as <EXTRA_ARGS> passed after --. For example:
+  -a, --setup-autocomplete
+          Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
+          shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
-            './breeze --execute-command "ls -la"' or
-            './breeze --execute-command ls -- --la'
+  -b, --build-only
+          Only build docker images but do not enter the airflow-testing docker container.
 
-    -d, --docker-compose <COMMAND>
-            Runs the docker-compose command instead of entering the environment. Use the 'help' command
-            to see available commands. The <EXTRA_ARGS> passed after -- are treated
-            as additional options passed to docker-compose. For example:
+  -t, --test-target <TARGET>
+          Run the specified unit test target. There might be multiple
+          targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
+          as additional options passed to nosetest. For example:
 
-            './breeze --docker-compose pull -- --ignore-pull-failures'
+          './breeze --test-target tests.core -- --logging-level=DEBUG'
 
-    ** General flags
+  -x, --execute-command <COMMAND>
+          Run chosen command instead of entering the environment. The command is run using
+          'bash -c "<command with args>" if you need to pass arguments to your command, you need
+          to pass them together with command surrounded with " or '. Alternatively you can pass arguments as
+           <EXTRA_ARGS> passed after --. For example:
 
-    -h, --help
-            Shows this help message.
+          './breeze --execute-command "ls -la"' or
+          './breeze --execute-command ls -- --la'
 
-    -P, --python <PYTHON_VERSION>
-            Specifies a Python version for the image. This is always major/minor version.
-            One of [ 3.5 3.6 3.7 ]. Default is the python3 or python on the path.
+  -d, --docker-compose <COMMAND>
+          Run docker-compose command instead of entering the environment. Use 'help' command
+          to see available commands. The <EXTRA_ARGS> passed after -- are treated
+          as additional options passed to docker-compose. For example
 
-    -E, --env <ENVIRONMENT>
-            Specifies an environment for tests. The environment determines which types of tests can be run.
-            One of [ docker kubernetes ]. Default: docker.
+          './breeze --docker-compose pull -- --ignore-pull-failures'
 
-    -B, --backend <BACKEND>
-            Specifies backend for tests. It determines which database is used.
-            One of [ sqlite mysql postgres ]. Default: sqlite.
+  ** General flags
 
-    -K, --kubernetes-version <KUBERNETES_VERSION>
-            Specifies Kubernetes version. The flag is applicable if the 'kubernetes' environment is used.
-            One of [ v1.13.0 ]. Default: v1.13.0.
+  -h, --help
+          Shows this help message.
 
-    -M, --kubernetes-mode <KUBERNETES_MODE>
-            Specifies Kubernetes mode. The flag is applicable if the 'kubernetes' environment is used.
-            One of [ persistent_mode git_mode ]. Default: git_mode.
+  -P, --python <PYTHON_VERSION>
+          Python version used for the image. This is always major/minor version.
+          One of [ 3.5 3.6 3.7 ]. Default is the python3 or python on the path.
 
-    -s, --skip-mounting-source-volume
-            Skips mounting local volume with sources. You get exactly what is in the
-            Docker image rather than your current local sources of Airflow.
+  -E, --env <ENVIRONMENT>
+          Environment to use for tests. It determines which types of tests can be run.
+          One of [ docker kubernetes ]. Default: docker
 
-    -v, --verbose
-            Shows verbose information about executed commands (enabled by default for running tests).
+  -B, --backend <BACKEND>
+          Backend to use for tests - it determines which database is used.
+          One of [ sqlite mysql postgres ]. Default: sqlite
 
-    -y, --assume-yes
-            Assumes 'yes' answer to all questions.
+  -K, --kubernetes-version <KUBERNETES_VERSION>
+          Kubernetes version - only used in case of 'kubernetes' environment.
+          One of [ v1.13.0 ]. Default: v1.13.0
 
-    -n, --assume-no
-            Assumes 'no' answer to all questions.
+  -M, --kubernetes-mode <KUBERNETES_MODE>
+          Kubernetes mode - only used in case of 'kubernetes' environment.
+          One of [ persistent_mode git_mode ]. Default: git_mode
 
-    -C, --toggle-suppress-cheatsheet
-            Toggles on/off the cheatsheet displayed before starting bash shell.
+  -s, --skip-mounting-source-volume
+          Skips mounting local volume with sources - you get exactly what is in the
+          docker image rather than your current local sources of airflow.
 
-    -A, --toggle-suppress-asciiart
-            Toggles on/off asciiart displayed before starting bash shell.
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test)
 
-    ** Dockerfile management flags
+  -y, --assume-yes
+          Assume 'yes' answer to all questions.
 
-    -D, --dockerhub-user
-            Specifies a Docker Hub user that pulls, pushes and builds images. Default: apache.
+  -n, --assume-no
+          Assume 'no' answer to all questions.
 
-    -H, --dockerhub-repo
-            Specifies a Docker Hub repository used to pull, push, and build images. Default: airflow.
+  -C, --toggle-suppress-cheatsheet
+          Toggles on/off cheatsheet displayed before starting bash shell
 
-    -r, --force-build-images
-            Forces building the local Docker images. The images are rebuilt
-            automatically for the first time or when changes are detected in
-            package-related files, but you can force it using this flag.
+  -A, --toggle-suppress-asciiart
+          Toggles on/off asciiart displayed before starting bash shell
 
-    -R, --force-build-images-clean
-            Forces building images without cache. This removes the pulled or built images
-            and starts building images from scratch. This may take time.
+  ** Dockerfile management flags
 
-    -p, --force-pull-images
-            Forces pulling images from Docker Hub before building to populate the cache. The
-            images are pulled by default only for the first time you run the
-            environment. Later the locally built images are used from the cache.
+  -D, --dockerhub-user
+          DockerHub user used to pull, push and build images. Default: apache.
 
-    -u, --push-images
-            Uploads the images to Docker Hub after rebuilding.
-            It is useful in case you use your own Docker Hub user to store images and you want
-            to build them locally. Note that you need to use 'docker login' before you upload images.
+  -H, --dockerhub-repo
+          DockerHub repository used to pull, push, build images. Default: airflow.
 
-    -c, --cleanup-images
-            Cleans up your local Docker cache of the Airflow Docker images. This does not reclaim space in the
-            Docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
+  -r, --force-build-images
+          Forces building of the local docker images. The images are rebuilt
+          automatically for the first time or when changes are detected in
+          package-related files, but you can force it using this flag.
+
+  -R, --force-build-images-clean
+          Force build images without cache. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -p, --force-pull-images
+          Forces pulling of images from DockerHub before building to populate cache. The
+          images are pulled by default only for the first time you run the
+          environment, later the locally build images are used as cache.
+
+  -u, --push-images
+          After building - uploads the images to DockerHub
+          It is useful in case you use your own DockerHub user to store images and you want
+          to build them locally. Note that you need to use 'docker login' before you upload images.
+
+  -c, --cleanup-images
+          Cleanup your local docker cache of the airflow docker images. This will not reclaim space in
+          docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
+
+
+ .. END BREEZE HELP MARKER
+
 
 Convenience Scripts
 -------------------
