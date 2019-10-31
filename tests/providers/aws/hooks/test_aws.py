@@ -21,8 +21,8 @@ import unittest
 
 import boto3
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.models import Connection
+from airflow.providers.aws.hooks.aws import AwsHook
 from tests.compat import mock
 
 try:
@@ -39,7 +39,7 @@ class TestAwsHook(unittest.TestCase):
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         client = boto3.client('emr', region_name='us-east-1')
-        if len(client.list_clusters()['Clusters']):
+        if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
         hook = AwsHook(aws_conn_id='aws_default')
@@ -148,7 +148,7 @@ class TestAwsHook(unittest.TestCase):
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEquals(credentials_from_hook.token, 'session_token')
+        self.assertEqual(credentials_from_hook.token, 'session_token')
 
     @mock.patch.object(AwsHook, 'get_connection')
     def test_get_credentials_from_extra_without_token(self, mock_get_connection):
@@ -163,7 +163,7 @@ class TestAwsHook(unittest.TestCase):
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
         self.assertIsNone(credentials_from_hook.token)
 
-    @mock.patch('airflow.contrib.hooks.aws_hook._parse_s3_config',
+    @mock.patch('airflow.providers.aws.hooks.aws._parse_s3_config',
                 return_value=('aws_access_key_id', 'aws_secret_access_key'))
     @mock.patch.object(AwsHook, 'get_connection')
     def test_get_credentials_from_extra_with_s3_config_and_profile(

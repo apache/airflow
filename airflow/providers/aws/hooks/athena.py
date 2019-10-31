@@ -22,7 +22,7 @@ This module contains AWS Athena hook
 """
 from time import sleep
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.aws.hooks.aws import AwsHook
 
 
 class AWSAthenaHook(AwsHook):

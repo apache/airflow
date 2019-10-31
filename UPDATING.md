@@ -50,6 +50,7 @@ Migrated are:
 
 | Old path                                                     | New path                                                 |
 | ------------------------------------------------------------ | -------------------------------------------------------- |
+| airflow.hooks.aws_hook.AwsHook                               | airflow.providers.aws.hooks.aws.AwsHook                    |
 | airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
 | airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
 | airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.aws.hooks.sqs.SQSHook        |

@@ -20,7 +20,7 @@
 """
 This module contains AWS SQS hook
 """
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.aws.hooks.aws import AwsHook
 
 
 class SQSHook(AwsHook):

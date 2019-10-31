@@ -140,6 +140,10 @@ HOOK = [
         "airflow.providers.aws.hooks.sqs.SQSHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
+    (
+        "airflow.providers.aws.hooks.aws.AwsHook",
+        "airflow.contrib.hooks.aws_hook.AwsHook",
+    ),
 ]
 OPERATOR = [
     (

@@ -276,7 +276,6 @@
 ./airflow/www/views.py
 ./airflow/www/widgets.py
 ./scripts/perf/scheduler_ops_metrics.py
-./tests/contrib/hooks/test_aws_hook.py
 ./tests/contrib/hooks/test_aws_lambda_hook.py
 ./tests/contrib/hooks/test_azure_container_instance_hook.py
 ./tests/contrib/hooks/test_azure_cosmos_hook.py
