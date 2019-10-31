@@ -39,9 +39,9 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
-rebuild_ci_slim_image_if_needed
+rebuild_ci_image_if_needed
 
-IMAGES_TO_CHECK=("SLIM_CI")
+IMAGES_TO_CHECK=("CI")
 export IMAGES_TO_CHECK
 
 SKIP=pylint,check-apache-license pre-commit run --all-files --show-diff-on-failure

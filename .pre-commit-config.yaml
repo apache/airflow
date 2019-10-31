@@ -192,7 +192,7 @@ repos:
         require_serial: true
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/local_ci_build.sh
+        entry: ./scripts/ci/pre_commit_ci_build.sh
         language: system
         always_run: true
         pass_filenames: false

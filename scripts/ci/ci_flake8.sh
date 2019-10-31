@@ -31,7 +31,7 @@ basic_sanity_checks
 
 script_start
 
-rebuild_ci_slim_image_if_needed
+rebuild_ci_image_if_needed
 
 run_flake8 "$@"
 

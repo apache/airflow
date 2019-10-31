@@ -33,7 +33,7 @@ export BUILD_CACHE_DIR
 
 LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
-IMAGES_TO_CHECK=("SLIM_CI" "CI" "CHECKLICENCE")
+IMAGES_TO_CHECK=("CI" "CHECKLICENCE")
 export IMAGES_TO_CHECK
 
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
@@ -236,11 +236,8 @@ function update_all_md5_files() {
 # or the Dockerfile itself changes.
 #
 # Another reason to skip rebuilding Docker is thar currently it takes a bit longer time than simple Docker
-# files. There are the following, problems with the current Dockerfiles that need longer build times:
-# 1) We need to fix group permissions of files in Docker because different linux build services have
-#    different default umask and Docker uses group permissions in checking for cache invalidation.
-# 2) we use multi-stage build and in case of slim image we needlessly build a full CI image because
-#    support for this only comes with the upcoming buildkit: https://github.com/docker/cli/issues/1134
+# We need to fix group permissions of files in Docker because different linux build services have
+# different default umask and Docker uses group permissions in checking for cache invalidation.
 #
 # As result of this check - most of the static checks will start pretty much immediately.
 #
@@ -355,29 +352,29 @@ function assert_not_in_container() {
     fi
 }
 
-function cleanup_last_force_answer() {
-    # Removes the "Force answer" (yes/no/quit) given previously, unles you specifically want to use it.
+function forget_last_answer() {
+    # Removes the "Forced answer" (yes/no/quit) given previously, unles you specifically want to remember it.
     #
     # This is the default behaviour of all rebuild scripts to ask independently whether you want to
-    # rebuild the image or not. Sometimes however we want to reuse answer previously given. For
+    # rebuild the image or not. Sometimes however we want to remember answer previously given. For
     # example if you answered "no" to rebuild the image, the assumption is that you do not
-    # want to rebuild image for other rebuilds in the same pre-commit execution.
+    # want to rebuild image also for other rebuilds in the same pre-commit execution.
     #
-    # All the pre-commit checks therefore have `export SKIP_CLEANUP_OF_LAST_ANSWER="true"` set
+    # All the pre-commit checks therefore have `export REMEMBER_LAST_ANSWER="true"` set
     # So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
     # recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
     # "no" answer given previously. This happens until you run any of the breeze commands or run all
     # precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
     # be asked again.
-    if [[ ${SKIP_CLEANUP_OF_LAST_ANSWER:=""} != "true" ]]; then
+    if [[ ${REMEMBER_LAST_ANSWER:="false"} != "true" ]]; then
         print_info
-        print_info "Removing last answer from ${LAST_FORCE_ANSWER_FILE}"
+        print_info "Forgetting last answer from ${LAST_FORCE_ANSWER_FILE}:"
         print_info
         rm -f "${LAST_FORCE_ANSWER_FILE}"
     else
         if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
             print_info
-            print_info "Retaining last answer from ${LAST_FORCE_ANSWER_FILE}"
+            print_info "Still remember last answer from ${LAST_FORCE_ANSWER_FILE}:"
             print_info "$(cat "${LAST_FORCE_ANSWER_FILE}")"
             print_info
         fi
@@ -494,46 +491,9 @@ EOF
 }
 
 #
-# Rebuilds the slim image for static checks if needed. In order to speed it up, it's built without NPM
-#
-function rebuild_ci_slim_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
-
-    # Temporary force python version 3.5 for static checks
-    export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
-    export PYTHON_VERSION=3.5
-
-    export THE_IMAGE_TYPE="SLIM_CI"
-
-    rebuild_image_if_needed
-
-    export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-slim"
-    export PYTHON_VERSION=${OLD_PYTHON_VERSION}
-}
-
-#
-# Cleans up the CI slim image
-#
-function cleanup_ci_slim_image() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="false"
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
-    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
-
-    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
-
-    export THE_IMAGE_TYPE="SLIM_CI"
-
-    rebuild_image_if_needed
-}
-
-#
 # Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
 
@@ -546,10 +506,9 @@ function rebuild_ci_image_if_needed() {
 
 
 #
-# Cleans up the CI slim image
+# Cleans up the CI image
 #
 function cleanup_ci_image() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
@@ -563,7 +522,6 @@ function cleanup_ci_image() {
 # Rebuilds the image for licence checks if needed.
 #
 function rebuild_checklicence_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
 
@@ -575,10 +533,9 @@ function rebuild_checklicence_image_if_needed() {
 }
 
 #
-# Cleans up the CI slim image
+# Cleans up the checklicence image
 #
 function cleanup_checklicence_image() {
-    export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
     export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
@@ -648,7 +605,7 @@ function basic_sanity_checks() {
     go_to_airflow_sources
     check_if_coreutils_installed
     create_cache_directory
-    cleanup_last_force_answer
+    forget_last_answer
 }
 
 
@@ -664,7 +621,7 @@ function run_flake8() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
@@ -676,7 +633,7 @@ function run_flake8() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -691,7 +648,7 @@ function run_docs() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/docs/build.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
@@ -721,7 +678,7 @@ function run_mypy() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
             | tee -a "${OUTPUT_LOG}"
     else
@@ -733,7 +690,7 @@ function run_mypy() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -750,7 +707,7 @@ function run_pylint_main() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
@@ -762,7 +719,7 @@ function run_pylint_main() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -780,7 +737,7 @@ function run_pylint_tests() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
@@ -792,7 +749,7 @@ function run_pylint_tests() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -852,7 +809,7 @@ function refresh_pylint_todo() {
         --env AIRFLOW_CI_SILENT \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
-        "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
 }
 
 function rebuild_all_images_if_needed_and_confirmed() {
@@ -861,15 +818,7 @@ function rebuild_all_images_if_needed_and_confirmed() {
 
     for THE_IMAGE_TYPE in "${IMAGES_TO_CHECK[@]}"
     do
-        if [[ "${THE_IMAGE_TYPE}" == "SLIM_CI" ]]; then
-            # Temporary force python version 3.5 for static checks
-            export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
-            export PYTHON_VERSION=3.5
-
-            check_if_docker_build_is_needed
-
-            export PYTHON_VERSION=${OLD_PYTHON_VERSION}
-        fi
+        check_if_docker_build_is_needed
     done
 
     if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
@@ -901,7 +850,6 @@ function rebuild_all_images_if_needed_and_confirmed() {
 
         if [[ ${SKIP_REBUILD} != "true" ]]; then
             rebuild_ci_image_if_needed
-            rebuild_ci_slim_image_if_needed
             rebuild_checklicence_image_if_needed
         fi
     fi
@@ -969,16 +917,16 @@ function build_image_on_ci() {
     elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
         rebuild_checklicence_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
-        rebuild_ci_slim_image_if_needed
+        rebuild_ci_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
         match_files_regexp '.*\.py'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
-            rebuild_ci_slim_image_if_needed
+            rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
     elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
-        rebuild_ci_slim_image_if_needed
+        rebuild_ci_image_if_needed
     else
         echo
         echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"

@@ -79,11 +79,9 @@ images maintained on the Docker Hub in the ``apache/airflow`` repository.
 
 There are three images that we are currently managing:
 
-* **Slim CI** image that is used for static code checks (size of ~500MB). Its tag follows the pattern
-  of ``<BRANCH>-python<PYTHON_VERSION>-ci-slim`` (for example, ``apache/airflow:master-python3.6-ci-slim``).
-  The image is built using the `<Dockerfile>`_ Dockerfile.
-* **Full CI image*** that is used for testing. It contains a lot more test-related installed software
-  (size of ~1GB). Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+* **CI image*** that is used for testing od both Unit tests and static check tests.
+  It contains a lot test-related packages (size of ~1GB).
+  Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
   (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
   `<Dockerfile>`_ Dockerfile.
 * **Checklicense image** that is used during license check with the Apache RAT tool. It does not
