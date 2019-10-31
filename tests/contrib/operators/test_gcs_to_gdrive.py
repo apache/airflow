@@ -20,9 +20,9 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcs_to_gdrive_operator import GcsToGDriveOperator
+from airflow.operators.gcs_to_gdrive_operator import GcsToGDriveOperator
 
-MODULE = "airflow.contrib.operators.gcs_to_gdrive_operator"
+MODULE = "airflow.operators.gcs_to_gdrive_operator"
 
 
 class TestGcsToGDriveOperator(unittest.TestCase):
