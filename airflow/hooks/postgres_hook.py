@@ -33,6 +33,10 @@ class PostgresHook(DbApiHook):
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
 
+    You can specify cursor mode in the extra connection parameters as
+    ``{"cursor": "dictcursor"}``.
+    It must be one of "dictcursor", "realdictcursor" and "namedtuplecursor".
+
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
 
