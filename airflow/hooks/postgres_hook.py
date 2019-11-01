@@ -23,6 +23,7 @@ from contextlib import closing
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
+
 from airflow.hooks.dbapi_hook import DbApiHook
 
 
