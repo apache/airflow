@@ -23,8 +23,12 @@ Each DAG may or may not have a schedule, which informs how DAG Runs are
 created. ``schedule_interval`` is defined as a DAG argument, and receives
 preferably a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
-use one of these cron "presets":
+a ``str``, or a ``datetime.timedelta`` object. 
+
+.. tip::
+    You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
+
+Alternatively, you can also use one of these cron "presets":
 
 +--------------+----------------------------------------------------------------+---------------+
 | preset       | meaning                                                        | cron          |
