@@ -254,6 +254,16 @@
       type: string
       example: ~
       default: ""
+    - name: sql_alchemy_connect_args
+      description: |
+        Import path for connect args in SqlAlchemy. Default to an empty dict.
+        This is useful when you want to configure db engine args that SqlAlchemy won't parse
+        in connection string.
+        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: ~
     - name: parallelism
       description: |
         The amount of parallelism as a setting to the executor. This defines
