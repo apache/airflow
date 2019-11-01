@@ -20,6 +20,7 @@ import os
 import shutil
 import unittest
 from subprocess import check_call
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import ANY
 
@@ -28,13 +29,14 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow import AirflowException
-from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator, KubernetesPodYamlOperator
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_launcher import PodLauncher
-from airflow.kubernetes.pod_refiner import XcomSidecarConfig, _AIRFLOW_VERSION
+from airflow.kubernetes.pod_refiner import _AIRFLOW_VERSION, XcomSidecarConfig
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.utils.state import State
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
@@ -109,8 +111,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_config_path(self, client_mock, launcher_mock):
-        from airflow.utils.state import State
-
         file_path = "/tmp/fake_file"
         k = KubernetesPodOperator(
             namespace='default',
@@ -135,8 +135,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_secrets_correctly_set(self, mock_client, launcher_mock):
-        from airflow.utils.state import State
-
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(
             namespace='default',
@@ -534,8 +532,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_configmaps(self, mock_client, mock_launcher):
         # GIVEN
-        from airflow.utils.state import State
-
         configmap = 'test-configmap'
         # WHEN
         k = KubernetesPodOperator(
@@ -562,7 +558,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, launcher_mock):
         # GIVEN
-        from airflow.utils.state import State
         secret_ref = 'secret_name'
         secrets = [Secret('env', None, secret_ref)]
         # WHEN
@@ -585,6 +580,333 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+
+class TestKubernetesPodYamlOperator(unittest.TestCase):
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_success_launch_pod(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+        mock_k8s_deserializer,
+        mock_pod_refiner,
+        mock_pod_launcher
+    ):
+        yaml_file = [
+            {
+                'apiVersion': 'v1',
+                'kind': 'Pod',
+                'metadata': {
+                    'name': 'myapp-pod',
+                },
+                'spec': {
+                    'containers': [
+                        {
+                            'name': 'base',
+                            'image': 'busybox',
+                        }
+                    ],
+                }
+            }
+        ]
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        mock_pod_launcher.PodLauncher.return_value.run_pod.return_value = (State.SUCCESS, "RESULT")
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=False,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        task.execute(mock.MagicMock())
+        mock_kube_client.get_kube_client.assert_called_once_with(
+            cluster_context="CLUSTER_CONTEXT", config_file="CONFIG_FILE", in_cluster="IN_CLUSTER"
+        )
+        mock_yaml_deserializer.safe_load_all.assert_called_once_with('yaml-file.yaml')
+        mock_pod_refiner.refine_pod.assert_called_once_with(
+            mock_k8s_deserializer.deserialize.return_value, extract_xcom="DO_XCOM_PUSH",
+        )
+        mock_k8s_deserializer.deserialize.assert_called_once_with(
+            yaml_file[0], k8s.V1Pod
+        )
+        mock_pod_launcher.PodLauncher.assert_called_once_with(
+            extract_xcom='DO_XCOM_PUSH',
+            kube_client=mock_kube_client.get_kube_client.return_value
+        )
+        mock_pod_launcher.PodLauncher.return_value.run_pod.assert_called_once_with(
+            get_logs=True, pod=mock_pod_refiner.refine_pod.return_value, startup_timeout=120
+        )
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_launch_pod_with_delete(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+        mock_k8s_deserializer,
+        mock_pod_refiner,
+        mock_pod_launcher
+    ):
+        yaml_file = [
+            {
+                'apiVersion': 'v1',
+                'kind': 'Pod',
+                'metadata': {
+                    'name': 'myapp-pod',
+                },
+                'spec': {
+                    'containers': [
+                        {
+                            'name': 'base',
+                            'image': 'busybox',
+                        }
+                    ],
+                }
+            }
+        ]
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        mock_pod_launcher.PodLauncher.return_value.run_pod.return_value = (State.SUCCESS, "RESULT")
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=True,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        task.execute(mock.MagicMock())
+        mock_kube_client.get_kube_client.assert_called_once_with(
+            cluster_context="CLUSTER_CONTEXT", config_file="CONFIG_FILE", in_cluster="IN_CLUSTER"
+        )
+        mock_yaml_deserializer.safe_load_all.assert_called_once_with('yaml-file.yaml')
+        mock_pod_refiner.refine_pod.assert_called_once_with(
+            mock_k8s_deserializer.deserialize.return_value, extract_xcom="DO_XCOM_PUSH",
+        )
+        mock_k8s_deserializer.deserialize.assert_called_once_with(
+            yaml_file[0], k8s.V1Pod
+        )
+        mock_pod_launcher.PodLauncher.assert_called_once_with(
+            extract_xcom='DO_XCOM_PUSH',
+            kube_client=mock_kube_client.get_kube_client.return_value
+        )
+        mock_pod_launcher.PodLauncher.return_value.run_pod.assert_called_once_with(
+            get_logs=True, pod=mock_pod_refiner.refine_pod.return_value, startup_timeout=120
+        )
+        mock_pod_launcher.PodLauncher.return_value.delete_pod.assert_called_once_with(
+            mock_pod_refiner.refine_pod.return_value
+        )
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_missing_pod_defintion(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+    ):
+        yaml_file = []
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=False,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        with self.assertRaisesRegex(
+            AirflowException, "Pod Launching failed: You must specify Pod resource definitions."
+        ):
+            task.execute(mock.MagicMock())
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_multiple_pod_definition(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+    ):
+        yaml_file = [{}, {}]
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=False,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Pod Launching failed: You can only run one Pod at a time. Please delete the other "
+            "resource definitions from the YAML file"
+        ):
+            task.execute(mock.MagicMock())
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_pod_return_failure(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+        mock_k8s_deserializer,
+        mock_pod_refiner,
+        mock_pod_launcher
+    ):
+        yaml_file = [
+            {
+                'apiVersion': 'v1',
+                'kind': 'Pod',
+                'metadata': {
+                    'name': 'myapp-pod',
+                },
+                'spec': {
+                    'containers': [
+                        {
+                            'name': 'base',
+                            'image': 'busybox',
+                        }
+                    ],
+                }
+            }
+        ]
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        mock_pod_launcher.PodLauncher.return_value.run_pod.return_value = (State.FAILED, "RESULT")
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=False,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        with self.assertRaisesRegex(AirflowException, "Pod Launching failed: Pod returned a failure: failed"):
+            task.execute(mock.MagicMock())
+
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
+    def test_failed_launch_pod(
+        self,
+        mock_kube_client,
+        mock_yaml_deserializer,
+        mock_k8s_deserializer,
+        mock_pod_refiner,
+        mock_pod_launcher
+    ):
+        yaml_file = [
+            {
+                'apiVersion': 'v1',
+                'kind': 'Pod',
+                'metadata': {
+                    'name': 'myapp-pod',
+                },
+                'spec': {
+                    'containers': [
+                        {
+                            'name': 'base',
+                            'image': 'busybox',
+                        }
+                    ],
+                }
+            }
+        ]
+        ex = AirflowException("TEST EXCEPTION")
+        mock_yaml_deserializer.safe_load_all.return_value = yaml_file
+        mock_pod_launcher.PodLauncher.return_value.run_pod.side_effect = ex
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml="yaml-file.yaml",
+            do_xcom_push="DO_XCOM_PUSH",
+            config_file="CONFIG_FILE",
+            in_cluster="IN_CLUSTER",
+            cluster_context="CLUSTER_CONTEXT",
+            is_delete_operator_pod=False,
+            get_logs=True,
+            startup_timeout_seconds=120,
+        )
+        with self.assertRaisesRegex(AirflowException, "Pod Launching failed: TEST EXCEPTION"):
+            task.execute(mock.MagicMock())
+
+
+class TestIntegrationKubernetesPodYamlOperator(unittest.TestCase):
+
+    def test_start_pod(self):
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml=dedent("""
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  labels:
+                    run: example-yaml-2
+                  name: example-yaml-2
+                spec:
+                  containers:
+                  - args:
+                    - sh
+                    - -c
+                    - echo 123; sleep 10
+                    image: busybox
+                    name: example-yaml-2
+                  restartPolicy: Never
+            """),
+            do_xcom_push=False,
+            is_delete_operator_pod=True,
+        )
+        result = task.execute({})
+        self.assertEqual(None, result)
+
+    def test_start_pod_with_xcom(self):
+        task = KubernetesPodYamlOperator(
+            task_id='pod-yaml',
+            yaml=dedent("""
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: example-yaml-xcom
+                spec:
+                  containers:
+                  - args:
+                    - sh
+                    - -c
+                    - mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json
+                    image: alpine
+                    name: example-yaml-xcom
+                  restartPolicy: Never
+            """),
+            do_xcom_push=True,
+        )
+        result = task.execute({})
+        self.assertEqual([1, 2, 3, 4], result)
 
 
 # pylint: enable=unused-argument

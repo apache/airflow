@@ -334,12 +334,10 @@ class KubernetesPodYamlOperator(BaseOperator):
             pod = pod_refiner.refine_pod(pod, extract_xcom=self.do_xcom_push)
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
-
             try:
-                final_state, result = launcher.run_pod(
-                    pod=pod,
-                    startup_timeout=self.startup_timeout_seconds,
-                    get_logs=self.get_logs)
+                run_pod = launcher.run_pod(pod=pod, startup_timeout=self.startup_timeout_seconds,
+                                           get_logs=self.get_logs)
+                final_state, result = run_pod
             finally:
                 if self.is_delete_operator_pod:
                     launcher.delete_pod(pod)

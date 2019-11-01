@@ -47,7 +47,7 @@ class XcomSidecarConfig:
     )
 
 
-def add_sidecar_container(pod: k8s.V1Pod) -> None:
+def _add_sidecar_container(pod: k8s.V1Pod) -> None:
     """Adds sidecar container. It is used to get xcom values."""
     if pod.spec.volumes is None:
         pod.spec.volumes = []
@@ -58,7 +58,7 @@ def add_sidecar_container(pod: k8s.V1Pod) -> None:
     pod.spec.containers.append(XcomSidecarConfig.CONTAINER)
 
 
-def add_labels(pod: k8s.V1Pod) -> None:
+def _add_labels(pod: k8s.V1Pod) -> None:
     """Add labels with the Airflow version. This is useful when debugging issues."""
     if not pod.metadata:
         pod.metadata = k8s.V1ObjectMeta(labels={})
@@ -67,7 +67,7 @@ def add_labels(pod: k8s.V1Pod) -> None:
     pod.metadata.labels["airflow-version"] = _AIRFLOW_VERSION
 
 
-def set_default_namespace(pod: k8s.V1Pod) -> None:
+def _set_default_namespace(pod: k8s.V1Pod) -> None:
     """Sets the default namespace if it is not set."""
     if not pod.metadata:
         pod.metadata = k8s.V1ObjectMeta(labels={})
@@ -76,7 +76,7 @@ def set_default_namespace(pod: k8s.V1Pod) -> None:
         pod.metadata.namespace = "default"
 
 
-def add_random_name_prefix(pod: k8s.V1Pod) -> None:
+def _add_random_name_prefix(pod: k8s.V1Pod) -> None:
     """
     To enable the same task to be run multiple times, but for a different date, a
     random value must be added to name.
@@ -95,11 +95,11 @@ def refine_pod(pod: k8s.V1Pod, extract_xcom: bool = False):
     result_pod = copy.deepcopy(pod)
 
     if extract_xcom:
-        add_sidecar_container(result_pod)
+        _add_sidecar_container(result_pod)
 
-    add_labels(result_pod)
-    set_default_namespace(result_pod)
-    add_random_name_prefix(result_pod)
+    _add_labels(result_pod)
+    _set_default_namespace(result_pod)
+    _add_random_name_prefix(result_pod)
 
     pod_mutation_hook(result_pod)
 
