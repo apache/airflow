@@ -28,7 +28,7 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_refiner import XcomSidecarConfig
+from airflow.kubernetes.pod_enricher import XcomSidecarConfig
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 

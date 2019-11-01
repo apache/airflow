@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Functions that are responsible for refining the pod
+Functions that are responsible for enriching the pod
 """
 import copy
 import uuid

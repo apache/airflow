@@ -32,7 +32,7 @@ from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator, KubernetesPodYamlOperator
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_launcher import PodLauncher
-from airflow.kubernetes.pod_refiner import _AIRFLOW_VERSION, XcomSidecarConfig
+from airflow.kubernetes.pod_enricher import _AIRFLOW_VERSION, XcomSidecarConfig
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -585,7 +585,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
 class TestKubernetesPodYamlOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
-    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_enricher')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
@@ -594,7 +594,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
         mock_kube_client,
         mock_yaml_deserializer,
         mock_k8s_deserializer,
-        mock_pod_refiner,
+        mock_pod_enricher,
         mock_pod_launcher
     ):
         yaml_file = [
@@ -632,7 +632,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             cluster_context="CLUSTER_CONTEXT", config_file="CONFIG_FILE", in_cluster="IN_CLUSTER"
         )
         mock_yaml_deserializer.safe_load_all.assert_called_once_with('yaml-file.yaml')
-        mock_pod_refiner.refine_pod.assert_called_once_with(
+        mock_pod_enricher.refine_pod.assert_called_once_with(
             mock_k8s_deserializer.deserialize.return_value, extract_xcom="DO_XCOM_PUSH",
         )
         mock_k8s_deserializer.deserialize.assert_called_once_with(
@@ -643,11 +643,11 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             kube_client=mock_kube_client.get_kube_client.return_value
         )
         mock_pod_launcher.PodLauncher.return_value.run_pod.assert_called_once_with(
-            get_logs=True, pod=mock_pod_refiner.refine_pod.return_value, startup_timeout=120
+            get_logs=True, pod=mock_pod_enricher.refine_pod.return_value, startup_timeout=120
         )
 
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
-    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_enricher')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
@@ -656,7 +656,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
         mock_kube_client,
         mock_yaml_deserializer,
         mock_k8s_deserializer,
-        mock_pod_refiner,
+        mock_pod_enricher,
         mock_pod_launcher
     ):
         yaml_file = [
@@ -694,7 +694,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             cluster_context="CLUSTER_CONTEXT", config_file="CONFIG_FILE", in_cluster="IN_CLUSTER"
         )
         mock_yaml_deserializer.safe_load_all.assert_called_once_with('yaml-file.yaml')
-        mock_pod_refiner.refine_pod.assert_called_once_with(
+        mock_pod_enricher.refine_pod.assert_called_once_with(
             mock_k8s_deserializer.deserialize.return_value, extract_xcom="DO_XCOM_PUSH",
         )
         mock_k8s_deserializer.deserialize.assert_called_once_with(
@@ -705,10 +705,10 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             kube_client=mock_kube_client.get_kube_client.return_value
         )
         mock_pod_launcher.PodLauncher.return_value.run_pod.assert_called_once_with(
-            get_logs=True, pod=mock_pod_refiner.refine_pod.return_value, startup_timeout=120
+            get_logs=True, pod=mock_pod_enricher.refine_pod.return_value, startup_timeout=120
         )
         mock_pod_launcher.PodLauncher.return_value.delete_pod.assert_called_once_with(
-            mock_pod_refiner.refine_pod.return_value
+            mock_pod_enricher.refine_pod.return_value
         )
 
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
@@ -764,7 +764,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             task.execute(mock.MagicMock())
 
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
-    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_enricher')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
@@ -773,7 +773,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
         mock_kube_client,
         mock_yaml_deserializer,
         mock_k8s_deserializer,
-        mock_pod_refiner,
+        mock_pod_enricher,
         mock_pod_launcher
     ):
         yaml_file = [
@@ -810,7 +810,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
             task.execute(mock.MagicMock())
 
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_launcher')
-    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_refiner')
+    @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.pod_enricher')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.k8s_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.yaml_deserializer')
     @mock.patch('airflow.contrib.operators.kubernetes_pod_operator.kube_client')
@@ -819,7 +819,7 @@ class TestKubernetesPodYamlOperator(unittest.TestCase):
         mock_kube_client,
         mock_yaml_deserializer,
         mock_k8s_deserializer,
-        mock_pod_refiner,
+        mock_pod_enricher,
         mock_pod_launcher
     ):
         yaml_file = [

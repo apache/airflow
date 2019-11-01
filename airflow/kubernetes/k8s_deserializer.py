@@ -20,7 +20,7 @@ Deserializer list or dict to model of Kubernetes Python API Client.
 Implementation based on the Kubernetes Python Client:
 https://github.com/kubernetes-client/python/blob/v10.0.1/kubernetes/client/api_client.py#L614
 
-Copied because these functions are part of the private interface. :-(
+I copied it, because these functions are part of the private interface. :-(
 """
 
 import re

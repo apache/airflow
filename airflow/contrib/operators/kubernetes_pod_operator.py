@@ -21,7 +21,7 @@ import kubernetes.client.models as k8s
 import yaml as yaml_deserializer
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import k8s_deserializer, kube_client, pod_generator, pod_launcher, pod_refiner
+from airflow.kubernetes import k8s_deserializer, kube_client, pod_generator, pod_launcher, pod_enricher
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -152,7 +152,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod = append_to_pod(pod, self.volume_mounts)
             pod = append_to_pod(pod, self.secrets)
 
-            pod = pod_refiner.refine_pod(pod, extract_xcom=self.do_xcom_push)
+            pod = pod_enricher.refine_pod(pod, extract_xcom=self.do_xcom_push)
 
             self.pod = pod
 
@@ -331,7 +331,7 @@ class KubernetesPodYamlOperator(BaseOperator):
             pod_dict = yaml_document_all[0]
             pod = k8s_deserializer.deserialize(pod_dict, k8s.V1Pod)
 
-            pod = pod_refiner.refine_pod(pod, extract_xcom=self.do_xcom_push)
+            pod = pod_enricher.refine_pod(pod, extract_xcom=self.do_xcom_push)
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
             try:

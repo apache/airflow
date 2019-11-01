@@ -20,12 +20,12 @@ from unittest import mock
 
 import kubernetes.client.models as k8s
 
-from airflow.kubernetes import pod_refiner
+from airflow.kubernetes import pod_enricher
 
 
-class TestPodRefiner(unittest.TestCase):
+class TestPodEnricher(unittest.TestCase):
 
-    @mock.patch('airflow.kubernetes.pod_refiner.uuid.uuid4', return_value="123456789")
+    @mock.patch('airflow.kubernetes.pod_enricher.uuid.uuid4', return_value="123456789")
     def test_should_apply_mutation(self, mock_uuid4):
         pod = k8s.V1Pod(
             api_version='v1',
@@ -43,14 +43,14 @@ class TestPodRefiner(unittest.TestCase):
             )
         )
 
-        result = pod_refiner.refine_pod(pod)
+        result = pod_enricher.refine_pod(pod)
 
         expected_result = k8s.V1Pod(
             api_version='v1',
             kind='Pod',
             metadata=k8s.V1ObjectMeta(
                 labels={
-                    'airflow-version': pod_refiner._AIRFLOW_VERSION,
+                    'airflow-version': pod_enricher._AIRFLOW_VERSION,
                     'run': 'example-yaml-2'
                 },
                 name='example-yaml-2-12345678',
@@ -69,7 +69,7 @@ class TestPodRefiner(unittest.TestCase):
         )
         self.assertEqual(expected_result, result)
 
-    @mock.patch('airflow.kubernetes.pod_refiner.uuid.uuid4', return_value="123456789")
+    @mock.patch('airflow.kubernetes.pod_enricher.uuid.uuid4', return_value="123456789")
     def test_should_add_sidecar(self, mock_uuid4):
         pod = k8s.V1Pod(
             api_version='v1',
@@ -87,14 +87,14 @@ class TestPodRefiner(unittest.TestCase):
             )
         )
 
-        result_pod = pod_refiner.refine_pod(pod, extract_xcom=True)
+        result_pod = pod_enricher.refine_pod(pod, extract_xcom=True)
 
         self.assertEqual(
-            pod_refiner.XcomSidecarConfig.CONTAINER, result_pod.spec.containers[1]
+            pod_enricher.XcomSidecarConfig.CONTAINER, result_pod.spec.containers[1]
         )
         self.assertEqual(
-            pod_refiner.XcomSidecarConfig.VOLUME, result_pod.spec.volumes[0]
+            pod_enricher.XcomSidecarConfig.VOLUME, result_pod.spec.volumes[0]
         )
         self.assertEqual(
-            pod_refiner.XcomSidecarConfig.VOLUME_MOUNT, result_pod.spec.containers[0].volume_mounts[0]
+            pod_enricher.XcomSidecarConfig.VOLUME_MOUNT, result_pod.spec.containers[0].volume_mounts[0]
         )
