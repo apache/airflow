@@ -23,25 +23,23 @@ from contextlib import closing
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-
 from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class PostgresHook(DbApiHook):
     """
     Interact with Postgres.
+
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
-
-    You can specify cursor mode in the extra connection parameters as
-    ``{"cursor": "dictcursor"}``.
-    It must be one of "dictcursor", "realdictcursor" and "namedtuplecursor".
+    Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
+    psycopg2.extras for more details.
 
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
 
     Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the the
+    and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
