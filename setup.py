@@ -256,6 +256,7 @@ segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
 sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
 slack = ['slackclient>=1.0.0,<2.0.0']
+pagerduty = ['pypd>=1.1.0']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
@@ -320,7 +321,8 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + sentry +
-             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv)
+             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
+             pagerduty)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -456,6 +458,7 @@ def do_setup():
             'sentry': sentry,
             'segment': segment,
             'slack': slack,
+            'pagerduty': pagerduty,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,

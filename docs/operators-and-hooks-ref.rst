@@ -841,6 +841,11 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.contrib.sensors.datadog_sensor`
 
+   * - `Pagerduty <https://www.pagerduty.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.pagerduty_hook`
+     -
+     -
 
    * - `Dingding <https://oapi.dingtalk.com>`__
      - :doc:`How to use <howto/operator/dingding>`
