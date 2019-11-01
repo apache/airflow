@@ -38,4 +38,7 @@ To start a scheduler, simply run the command:
 
     airflow scheduler
 
-You can refer :doc:`dag-run` for details on scheduling a DAG.
+You can start scheduling a DAG once your scheduler has started running successfully.
+
+.. important::
+    You should refer :doc:`dag-run` for details on scheduling a DAG.
