@@ -52,6 +52,7 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -67,8 +68,9 @@ from airflow.www.forms import (
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER)
+    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
@@ -410,21 +412,21 @@ class Airflow(AirflowBaseView):
         if not filter_dag_ids:
             return
 
-        dags_to_latest_runs = dict(session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-            .group_by(DagRun.dag_id).all())
+        query = session.query(
+            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('last_run')
+        ).group_by(DagRun.dag_id)
 
-        payload = {}
-        for dag in dagbag.dags.values():
-            dag_accessible = 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids
-            if (dag_accessible and dag.dag_id in dags_to_latest_runs and
-                    dags_to_latest_runs[dag.dag_id]):
-                payload[dag.safe_dag_id] = {
-                    'dag_id': dag.dag_id,
-                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
-                }
+        if 'all_dags' not in filter_dag_ids:
+            # Filter to only ask for accesible dags
+            query = query.filter(DagRun.dag_id.in_(filter_dag_ids.keys()))
 
-        return wwwutils.json_response(payload)
+        resp = {
+            r.dag_id.replace('.', '__dot__'): {
+                'dag_id': r.dag_id,
+                'last_run': r.last_run.strftime("%Y-%m-%d %H:%M"),
+            } for r in query
+        }
+        return wwwutils.json_response(resp)
 
     @expose('/code')
     @has_dag_access(can_dag_read=True)
@@ -454,9 +456,9 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag_orm = DagModel.get_dagmodel(dag_id)
+        dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag()
+        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -489,7 +491,9 @@ class Airflow(AirflowBaseView):
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+        # Loads dag from file
+        logging.info("Processing DAG file to render template.")
+        dag = dagbag.get_dag(dag_id, from_file_only=True)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
@@ -1024,8 +1028,11 @@ class Airflow(AirflowBaseView):
 
             for dag_id, active_dag_runs in dags:
                 max_active_runs = 0
-                if dag_id in dagbag.dags:
-                    max_active_runs = dagbag.dags[dag_id].max_active_runs
+                dag = dagbag.get_dag(dag_id)
+                max_active_runs = dagbag.dags[dag_id].max_active_runs
+                if dag:
+                    # TODO: Make max_active_runs a column so we can query for it directly
+                    max_active_runs = dag.max_active_runs
                 payload.append({
                     'dag_id': dag_id,
                     'active_dag_run': active_dag_runs,
@@ -1205,17 +1212,10 @@ class Airflow(AirflowBaseView):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag_model = DagModel.get_dagmodel(dag_id)
-        if not dag_model:
-            flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
+        dag = dagbag.get_dag(dag_id)
+        if not dag:
+            flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
-        dag = dag_model.get_dag()
-
-        if dag is None:
-            dag = dagbag.get_dag(dag_id)
-            if dag is None:
-                flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
-                return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
         if root:
@@ -1324,7 +1324,7 @@ class Airflow(AirflowBaseView):
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
             'airflow/tree.html',
-            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
+            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs,
@@ -1340,7 +1340,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
@@ -1422,7 +1422,7 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.__class__ for op in dag.tasks}, key=lambda x: x.__name__),
+            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             blur=blur,
             root=root or '',
             task_instances=task_instances,
@@ -1690,7 +1690,9 @@ class Airflow(AirflowBaseView):
     def paused(self):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
-        models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
+        models.DagModel.get_dagmodel(dag_id).set_is_paused(
+            is_paused=is_paused,
+            store_serialized_dags=STORE_SERIALIZED_DAGS)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
@@ -1715,17 +1717,6 @@ class Airflow(AirflowBaseView):
 
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
-
-    @expose('/refresh_all', methods=['POST'])
-    @has_access
-    @action_logging
-    def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
-        # sync permissions for all dags
-        for dag_id, dag in dagbag.dags.items():
-            appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
-        flash("All DAGs are now up to date")
-        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)

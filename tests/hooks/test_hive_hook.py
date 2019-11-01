@@ -107,23 +107,19 @@ class TestHiveCliHook(unittest.TestCase):
         dag_run_id_ctx_var_name = \
             AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
                 'env_var_format']
-        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
-        os.environ[task_id_ctx_var_name] = 'test_task_id'
-        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
-        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
-
-        hook = HiveCliHook()
-        output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
-        self.assertIn('value', output)
-        self.assertIn('test_dag_id', output)
-        self.assertIn('test_task_id', output)
-        self.assertIn('test_execution_date', output)
-        self.assertIn('test_dag_run_id', output)
-
-        del os.environ[dag_id_ctx_var_name]
-        del os.environ[task_id_ctx_var_name]
-        del os.environ[execution_date_ctx_var_name]
-        del os.environ[dag_run_id_ctx_var_name]
+        with mock.patch.dict('os.environ', {
+            dag_id_ctx_var_name: 'test_dag_id',
+            task_id_ctx_var_name: 'test_task_id',
+            execution_date_ctx_var_name: 'test_execution_date',
+            dag_run_id_ctx_var_name: 'test_dag_run_id',
+        }):
+            hook = HiveCliHook()
+            output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
+            self.assertIn('value', output)
+            self.assertIn('test_dag_id', output)
+            self.assertIn('test_task_id', output)
+            self.assertIn('test_execution_date', output)
+            self.assertIn('test_dag_run_id', output)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_file(self, mock_run_cli):
@@ -415,21 +411,20 @@ class TestHiveServer2Hook(unittest.TestCase):
         from airflow.hooks.base_hook import CONN_ENV_PREFIX
         conn_id = "conn_with_password"
         conn_env = CONN_ENV_PREFIX + conn_id.upper()
-        conn_value = os.environ.get(conn_env)
-        os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
 
-        HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
-        mock_connect.assert_called_once_with(
-            host='localhost',
-            port=10000,
-            auth='LDAP',
-            kerberos_service_name=None,
-            username='conn_id',
-            password='conn_pass',
-            database='default')
-
-        if conn_value:
-            os.environ[conn_env] = conn_value
+        with mock.patch.dict(
+            'os.environ',
+            {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"}
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host='localhost',
+                port=10000,
+                auth='LDAP',
+                kerberos_service_name=None,
+                username='conn_id',
+                password='conn_pass',
+                database='default')
 
     def test_get_records(self):
         hook = HiveServer2Hook()
@@ -504,18 +499,20 @@ class TestHiveServer2Hook(unittest.TestCase):
         os.environ[execution_date_ctx_var_name] = 'test_execution_date'
         os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
 
-        hook = HiveServer2Hook()
-        output = '\n'.join(res_tuple[0]
-                           for res_tuple
-                           in hook.get_results(hql=hql,
-                                               hive_conf={'key': 'value'})['data'])
+        with mock.patch.dict('os.environ', {
+            dag_id_ctx_var_name: 'test_dag_id',
+            task_id_ctx_var_name: 'test_task_id',
+            execution_date_ctx_var_name: 'test_execution_date',
+            dag_run_id_ctx_var_name: 'test_dag_run_id',
+
+        }):
+            hook = HiveServer2Hook()
+            output = '\n'.join(res_tuple[0]
+                               for res_tuple
+                               in hook.get_results(hql=hql,
+                                                   hive_conf={'key': 'value'})['data'])
         self.assertIn('value', output)
         self.assertIn('test_dag_id', output)
         self.assertIn('test_task_id', output)
         self.assertIn('test_execution_date', output)
         self.assertIn('test_dag_run_id', output)
-
-        del os.environ[dag_id_ctx_var_name]
-        del os.environ[task_id_ctx_var_name]
-        del os.environ[execution_date_ctx_var_name]
-        del os.environ[dag_run_id_ctx_var_name]

@@ -145,8 +145,6 @@ class TestGKEPodOperator(unittest.TestCase):
                                      name=TASK_NAME,
                                      namespace=NAMESPACE,
                                      image=IMAGE)
-        if CREDENTIALS in os.environ:
-            del os.environ[CREDENTIALS]
 
     def test_template_fields(self):
         self.assertTrue(set(KubernetesPodOperator.template_fields).issubset(

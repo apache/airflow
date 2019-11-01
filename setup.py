@@ -152,12 +152,13 @@ aws = [
     'boto3>=1.7.0, <1.8.0',
 ]
 azure = [
-    'azure-storage>=0.34.0',
-    'azure-mgmt-resource>=2.2.0',
-    'azure-mgmt-datalake-store>=0.5.0',
-    'azure-datalake-store>=0.0.45',
     'azure-cosmos>=3.0.1',
+    'azure-datalake-store>=0.0.45',
     'azure-mgmt-containerinstance>=1.5.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-mgmt-resource>=2.2.0',
+    'azure-storage-blob<12.0',
+    'azure-storage>=0.34.0'
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
@@ -340,7 +341,10 @@ def do_setup():
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
-        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        package_data={
+            '': ['airflow/alembic.ini', "airflow/git_version"],
+            'airflow.serialization': ["*.json"],
+        },
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
@@ -367,6 +371,7 @@ def do_setup():
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
+            'jsonschema~=3.0',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',

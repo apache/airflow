@@ -44,9 +44,6 @@ export AIRFLOW_SOURCES
 export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_SOURCES}/tests/dags"
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
-# add test/test_utils to PYTHONPATH TODO: Do we need that ??? Looks fishy.
-export PYTHONPATH=${PYTHONPATH:=}:${AIRFLOW_SOURCES}/tests/test_utils
-
 # make sure the default AWS_REGION is set
 export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
 

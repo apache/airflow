@@ -41,6 +41,37 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Migration of AWS components
+
+All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in
+[AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths). Migrated
+components remain backwards compatible but raise a `DeprecationWarning` when imported from the old module.
+Migrated are:
+
+| Old path                                                     | New path                                                 |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
+| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
+| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.aws.hooks.sqs.SQSHook        |
+| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.aws.operators.sqs.SQSPublishOperator |
+| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.aws.sensors.athena.AthenaSensor        |
+| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.aws.sensors.sqs.SQSSensor        |
+
+### Additional arguments passed to BaseOperator cause an exception
+
+Previous versions of Airflow took additional arguments and displayed a message on the console. When the
+message was not noticed by users, it caused very difficult to detect errors.
+
+In order to restore the previous behavior, you must set an ``True`` in  the ``allow_illegal_arguments``
+option of section ``[operators]`` in the ``airflow.cfg`` file. In the future it is possible to completely
+delete this option.
+
+### Simplification of the TriggerDagRunOperator
+
+The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
+As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
 ### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
@@ -188,23 +219,23 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
 |airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEClusterHook                                                         |
 |airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataFlowHook                                                                    |
-|airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataProcHook                                                                    |
+|airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
-|airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.GcfHook                                                                        |
+|airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.CloudFunctionsHook                                                                        |
 |airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.gcp.hooks.kms.GoogleCloudKMSHook                                                                   |
 |airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook                                                              |airflow.gcp.hooks.mlengine.MLEngineHook                                                                    |
-|airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook                                          |airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook                                                |
+|airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook                                          |airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook                                                |
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.gcp.hooks.pubsub.PubSubHook                                                                        |
-|airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.CloudSpannerHook                                                                 |
+|airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                 |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook                                                       |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook                                                           |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSqlHook                                                                   |
 |airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.gcp.hooks.tasks.CloudTasksHook                                                                     |
-|airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook                                                 |airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook                                                       |
+|airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook                                                 |airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook                                                       |
 |airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook                                                    |airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook                                    |
 |airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook                                                       |airflow.gcp.hooks.translate.CloudTranslateHook                                                             |
 |airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook                                      |airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook                                            |
-|airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook                                                             |airflow.gcp.hooks.vision.CloudVisionHook                                                                   |
+|airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook                                                             |airflow.providers.google.cloud.hooks.vision.CloudVisionHook                                                                   |
 |airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook                                                             |airflow.gcp.hooks.gcs.GoogleCloudStorageHook                                                               |
 |airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                            |airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                             |
 |airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator                                           |airflow.gcp.operators.bigquery.BigQueryCheckOperator                                                       |
@@ -287,10 +318,10 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator                                             |
 |airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeleteOperator                                                  |
 |airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeployOperator                                                  |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator                      |airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator                                |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentimentOperator               |airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator                         |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator                     |airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentimentOperator                               |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator                         |airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator                                   |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator                      |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator                                |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentimentOperator               |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator                         |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator                     |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator                               |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator                         |airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator                          |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator                                    |
@@ -313,22 +344,22 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator|airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator          |
 |airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator         |airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator                   |
 |airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator          |airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator                    |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator                           |airflow.gcp.operators.vision.CloudVisionAddProductToProductSetOperator                                     |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator                                    |airflow.gcp.operators.vision.CloudVisionAnnotateImageOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator                               |airflow.gcp.operators.vision.CloudVisionDetectDocumentTextOperator                                         |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator                                |airflow.gcp.operators.vision.CloudVisionDetectImageLabelsOperator                                          |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator                            |airflow.gcp.operators.vision.CloudVisionDetectImageSafeSearchOperator                                      |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator                                       |airflow.gcp.operators.vision.CloudVisionDetectTextOperator                                                 |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator                                    |airflow.gcp.operators.vision.CloudVisionProductCreateOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator                                    |airflow.gcp.operators.vision.CloudVisionProductDeleteOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator                                       |airflow.gcp.operators.vision.CloudVisionProductGetOperator                                                 |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator                                 |airflow.gcp.operators.vision.CloudVisionProductSetCreateOperator                                           |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator                                 |airflow.gcp.operators.vision.CloudVisionProductSetDeleteOperator                                           |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator                                    |airflow.gcp.operators.vision.CloudVisionProductSetGetOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator                                 |airflow.gcp.operators.vision.CloudVisionProductSetUpdateOperator                                           |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator                                    |airflow.gcp.operators.vision.CloudVisionProductUpdateOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator                             |airflow.gcp.operators.vision.CloudVisionReferenceImageCreateOperator                                       |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator                      |airflow.gcp.operators.vision.CloudVisionRemoveProductFromProductSetOperator                                |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator                           |airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator                                     |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionAnnotateImageOperator                                              |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator                               |airflow.providers.google.cloud.operators.vision.CloudVisionDetectDocumentTextOperator                                         |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator                                |airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator                                          |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator                            |airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator                                      |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator                                       |airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator                                                 |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionProductCreateOperator                                              |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionProductDeleteOperator                                              |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator                                       |airflow.providers.google.cloud.operators.vision.CloudVisionProductGetOperator                                                 |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator                                 |airflow.providers.google.cloud.operators.vision.CloudVisionProductSetCreateOperator                                           |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator                                 |airflow.providers.google.cloud.operators.vision.CloudVisionProductSetDeleteOperator                                           |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionProductSetGetOperator                                              |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator                                 |airflow.providers.google.cloud.operators.vision.CloudVisionProductSetUpdateOperator                                           |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionProductUpdateOperator                                              |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator                             |airflow.providers.google.cloud.operators.vision.CloudVisionReferenceImageCreateOperator                                       |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator                      |airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator                                |
 |airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator                         |airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator                                   |
 |airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator                         |airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator                                   |
 |airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator                                    |airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator                                                 |
@@ -626,7 +657,18 @@ airflow users --remove-role --username jondoe --role Public
 ### Unification of `do_xcom_push` flag
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
-See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+The following operators were affected:
+
+* DatastoreExportOperator (Backwards compatible)
+* DatastoreImportOperator (Backwards compatible)
+* KubernetesPodOperator (Not backwards compatible)
+* SSHOperator (Not backwards compatible)
+* WinRMOperator (Not backwards compatible)
+* BashOperator (Not backwards compatible)
+* DockerOperator (Not backwards compatible)
+* SimpleHttpOperator (Not backwards compatible)
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
 
 ### Changes to Dataproc related Operators
 The 'properties' and 'jars' properties for the Dataproc related operators (`DataprocXXXOperator`) have been renamed from

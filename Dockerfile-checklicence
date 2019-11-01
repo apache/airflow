@@ -39,7 +39,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG RAT_VERSION="0.12"
+ARG RAT_VERSION="0.13"
 
 ENV RAT_VERSION="${RAT_VERSION}" \
     RAT_JAR="/tmp/apache-rat-${RAT_VERSION}.jar" \

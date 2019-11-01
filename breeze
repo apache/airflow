@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -59,7 +60,7 @@ SEPARATOR_WIDTH="$(tput cols)"
 CMDNAME="$(basename -- "$0")"
 
 # Update short and long options in the breeze-complete script
-# This way autocomplete will work automagically with all options
+# This way autocomplete will work automatically with all options
 # shellcheck source=breeze-complete
 . "${MY_DIR}/breeze-complete"
 
@@ -782,7 +783,7 @@ fi
 if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
    # Check if we are in virtualenv
    set +e
-   echo -e "import sys\nif not hasattr(sys,'real_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
+   echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
    RES=$?
    set -e
    if [[ ${RES} != "0" ]]; then

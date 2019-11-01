@@ -28,6 +28,7 @@ from airflow.models.errors import ImportError  # noqa: F401, pylint:disable=rede
 from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401

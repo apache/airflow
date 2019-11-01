@@ -352,8 +352,7 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
-        'python_callable': lambda x: render(
-            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
+        'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
     }
 
 
@@ -390,6 +389,10 @@ def get_python_source(x: Any) -> Optional[str]:
     """
     if isinstance(x, str):
         return x
+
+    if x is None:
+        return None
+
     source_code = None
 
     if isinstance(x, functools.partial):

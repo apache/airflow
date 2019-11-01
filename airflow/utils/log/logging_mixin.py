@@ -20,7 +20,7 @@ import logging
 import re
 import sys
 from contextlib import contextmanager
-from logging import Handler, StreamHandler
+from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -42,9 +42,10 @@ class LoggingMixin:
         self._set_context(context)
 
     @property
-    def log(self):
+    def log(self) -> Logger:
         try:
-            return self._log
+            # FIXME: LoggingMixin should have a default _log field.
+            return self._log  # type: ignore
         except AttributeError:
             self._log = logging.root.getChild(
                 self.__class__.__module__ + '.' + self.__class__.__name__

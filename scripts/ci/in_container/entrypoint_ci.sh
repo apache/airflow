@@ -115,9 +115,6 @@ fi
 
 export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
 
-# add test/test_utils to PYTHONPATH (TODO: Do we need it?)
-export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
-
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 

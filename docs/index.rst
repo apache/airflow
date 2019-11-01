@@ -93,6 +93,7 @@ Content
     errors
     kubernetes
     lineage
+    dag-serialization
     changelog
     faq
     privacy_notice

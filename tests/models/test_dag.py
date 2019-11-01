@@ -36,6 +36,7 @@ from airflow.models import DAG, DagModel, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
+from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.state import State
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
@@ -839,6 +840,30 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         self.assertTrue(orm_dag.is_paused)
+
+    def test_dag_is_deactivated_upon_dagfile_deletion(self):
+        dag_id = 'old_existing_dag'
+        dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
+        dag = DAG(
+            dag_id,
+            is_paused_upon_creation=True,
+        )
+        dag.fileloc = dag_fileloc
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+
+        self.assertTrue(orm_dag.is_active)
+        self.assertEqual(orm_dag.fileloc, dag_fileloc)
+
+        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        self.assertFalse(orm_dag.is_active)
+
+        # CleanUp
+        session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
 
     def test_dag_naive_default_args_start_date_with_timezone(self):
         local_tz = pendulum.timezone('Europe/Zurich')
