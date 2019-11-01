@@ -750,6 +750,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         cursor = conn.cursor()
 
         try:
+            self.log.info('Creating Table %s:%s.%s',
+                          self.project_id, self.dataset_id, self.table_id)
             cursor.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
@@ -759,9 +761,14 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 labels=self.labels,
                 encryption_configuration=self.encryption_configuration
             )
+            self.log.info('Table created successfully: %s:%s.%s',
+                          self.project_id, self.dataset_id, self.table_id)
         except HttpError as err:
             if err.resp.status != 409:
                 raise
+            else:
+                self.log.info('Table %s:%s.%s already exists.', self.project_id,
+                              self.dataset_id, self.table_id)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -1095,14 +1102,17 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         cursor = conn.cursor()
 
         try:
+            self.log.info('Creating Dataset: %s in project: %s ', self.dataset_id, self.project_id)
             cursor.create_empty_dataset(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
                 location=self.location)
+            self.log.info('Dataset created successfully.')
         except HttpError as err:
             if err.resp.status != 409:
                 raise
+            self.log.info('Dataset %s already exists.', self.dataset_id)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):
