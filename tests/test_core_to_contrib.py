@@ -133,6 +133,10 @@ HOOK = [
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
     (
+        "airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook",
+        "airflow.contrib.hooks.aws_datasync_hook.AWSDataSyncHook",
+    ),
+    (
         "airflow.providers.amazon.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
