@@ -19,8 +19,8 @@
 Google Cloud Storage Transfer Operator to SFTP
 ==============================================
 
-Google has service `Google Cloud Storage <https://cloud.google.com/storage/>`__ that is
-used to store large data from various applications.
+Google has a service `Google Cloud Storage <https://cloud.google.com/storage/>`__.
+This service is used to store large data from various applications.
 SFTP (SSH File Transfer Protocol) is a secure file transfer protocol.
 It runs over the SSH protocol. It supports the full security and authentication functionality of SSH.
 
@@ -43,26 +43,15 @@ Operator
 Transfer files between SFTP and Google Storage is performed with the
 :class:`~airflow.operators.gcs_to_sftp.GoogleCloudStorageToSFTPOperator` operator.
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.operators.gcs_to_sftp.GoogleCloudStorageToSFTPOperator`
-parameters which allows you to dynamically determine values.
+to define values dynamically.
 
 
-Arguments
-^^^^^^^^^
+Copying single files
+--------------------
 
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
-    :language: python
-    :start-after: [START howto_operator_gcs_to_sftp_args_common]
-    :end-before: [END howto_operator_gcs_to_sftp_args_common]
-
-
-Copy single files
------------------
-
-The following Operator would copy a single file.
+The following Operator copies a single file.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
     :language: python
@@ -70,12 +59,12 @@ The following Operator would copy a single file.
     :start-after: [START howto_operator_gcs_to_sftp_copy_single_file]
     :end-before: [END howto_operator_gcs_to_sftp_copy_single_file]
 
-Move single file
-----------------
+Moving single files
+-------------------
 
-Using the ``move_object`` parameter allows you to move the file. After copying the file to SFTP,
-the original file from the Google Storage is deleted. Using the ``destination_path`` defines the path to which file
-will be present on the SFTP server.
+To move the file use the ``move_object`` parameter. Once the file is copied to SFTP,
+the original file from the Google Storage is deleted. The ``destination_path`` parameter defines the
+full path of the file on the SFTP server.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
     :language: python
@@ -84,10 +73,10 @@ will be present on the SFTP server.
     :end-before: [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
 
-Copy directory
---------------
+Copying directory
+-----------------
 
-Using the ``wildcard`` in ``source_object`` parameter allows you to copy the directory.
+Use the ``wildcard`` in ``source_path`` parameter to copy the directory.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
     :language: python
@@ -95,11 +84,11 @@ Using the ``wildcard`` in ``source_object`` parameter allows you to copy the dir
     :start-after: [START howto_operator_gcs_to_sftp_copy_directory]
     :end-before: [END howto_operator_gcs_to_sftp_copy_directory]
 
-Move specific files
--------------------
+Moving specific files
+---------------------
 
-Using the ``wildcard`` in ``source_object`` parameter allows you to move the specific files.
-Using the ``destination_path`` defines the path which will be prefixed to all copied files.
+Use the ``wildcard`` in ``source_path`` parameter to move the specific files.
+The ``destination_path`` defines the path that is prefixed to all copied files.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
     :language: python
