@@ -379,8 +379,3 @@
 ./tests/utils/test_log_handlers.py
 ./tests/utils/test_tests.py
 ./tests/utils/test_timezone.py
-./tests/www/api/experimental/test_endpoints.py
-./tests/www/api/experimental/test_kerberos_endpoints.py
-./tests/www/test_security.py
-./tests/www/test_utils.py
-./tests/www/test_views.py

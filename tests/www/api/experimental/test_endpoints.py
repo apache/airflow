@@ -58,9 +58,6 @@ class TestApiExperimental(TestBase):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-    def setUp(self):
-        super().setUp()
-
     def tearDown(self):
         session = Session()
         session.query(DagRun).delete()
@@ -308,9 +305,6 @@ class TestPoolApiExperimental(TestBase):
             self.pools.append(pool)
         self.session.commit()
         self.pool = self.pools[-1]
-
-    def tearDown(self):
-        super().tearDown()
 
     def _get_pool_count(self):
         response = self.client.get('/api/experimental/pools')
