@@ -1151,9 +1151,9 @@ def worker(args):
     """Starts Airflow Celery worker"""
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
+    log = LoggingMixin().log
 
     if not settings.validate_session():
-        log = LoggingMixin().log
         log.error("Worker exiting... database connection precheck failed! ")
         sys.exit(1)
 
@@ -1165,6 +1165,8 @@ def worker(args):
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
     worker = worker.worker(app=celery_app)   # pylint: disable=redefined-outer-name
+    skip_serve_logs = args.skip_serve_logs
+
     options = {
         'optimization': 'fair',
         'O': 'fair',
@@ -1174,6 +1176,12 @@ def worker(args):
         'hostname': args.celery_hostname,
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
+
+    if skip_serve_logs is False:
+        log.warning(
+            "Starting serve logs process within worker is going to be deprecated, "
+            "and will be removed from Airflow 2.0",
+        )
 
     if conf.has_option("celery", "pool"):
         options["pool"] = conf.get("celery", "pool")
@@ -1195,9 +1203,9 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+            if skip_serve_logs is False:
+                sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
             worker.run(**options)
-            sub_proc.kill()
 
         stdout.close()
         stderr.close()
@@ -1205,9 +1213,12 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        if skip_serve_logs is False:
+            sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
 
         worker.run(**options)
+
+    if skip_serve_logs is False:
         sub_proc.kill()
 
 
@@ -2242,6 +2253,12 @@ class CLIFactory:
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
+        'skip_serve_logs': Arg(
+            ("-s", "--skip_serve_logs"),
+            default=False,
+            help=(
+                "Don't start the serve logs process along with the workers."),
+            action="store_true"),
     }
     subparsers = (
         {
@@ -2525,7 +2542,7 @@ class CLIFactory:
             'func': worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",

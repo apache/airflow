@@ -156,6 +156,32 @@ class TestCLI(unittest.TestCase):
         with patch('psutil.Process', return_value=self.process):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
+    @mock.patch('airflow.bin.cli.subprocess.Popen')
+    @mock.patch('celery.platforms.check_privileges')
+    @mock.patch('celery.worker.WorkController.Blueprint.start')
+    def test_serve_logs_on_worker_start(self, mock_run, mock_privil, mock_popen):
+        mock_popen.return_value.communicate.return_value = (b'output', b'error')
+        mock_popen.return_value.returncode = 0
+        mock_run.return_value.returncode = 0
+        mock_privil.return_value = 0
+
+        args = self.parser.parse_args(['worker', '-c', '-1'])
+        cli.worker(args)
+        mock_popen.assert_called_once()
+
+    @mock.patch('airflow.bin.cli.subprocess.Popen')
+    @mock.patch('celery.platforms.check_privileges')
+    @mock.patch('celery.worker.WorkController.Blueprint.start')
+    def test_skip_serve_logs_on_worker_start(self, mock_run, mock_privil, mock_popen):
+        mock_popen.return_value.communicate.return_value = (b'output', b'error')
+        mock_popen.return_value.returncode = 0
+        mock_run.run.return_value.returncode = 0
+        mock_privil.return_value = 0
+
+        args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
+        cli.worker(args)
+        mock_popen.assert_not_called()
+
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
         proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
