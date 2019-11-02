@@ -126,8 +126,6 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
                 self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
 
         else:
-            destination_object = os.path.join(self.destination_path, self.source_path)
-            self.log.info("destination_object %s", destination_object)
             destination_object = (
                 self.destination_path
                 if self.destination_path
