@@ -197,14 +197,14 @@ RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install kubectl
-ARG KUBECTL_VERSION="v1.15.0"
+ARG KUBECTL_VERSION="v1.15.3"
 
 RUN KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
   && curl -L "${KUBECTL_URL}" -o "/usr/local/bin/kubectl" \
   && chmod +x /usr/local/bin/kubectl
 
 # Install Kind
-ARG KIND_VERSION="v0.5.0"
+ARG KIND_VERSION="v0.6.1"
 
 RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
    && curl -L "${KIND_URL}" -o "/usr/local/bin/kind" \
@@ -361,7 +361,7 @@ COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 # Package NPM for production
 RUN yarn run prod
 
-COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
+COPY scripts/docker/entrypoint.sh /entrypoint.sh
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
@@ -376,6 +376,9 @@ COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANG
      .github pytest.ini \
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
+
+# Needed for building images via docker-in-docker inside the docker
+COPY Dockerfile ${AIRFLOW_SOURCES}/Dockerfile
 
 # Intall autocomplete
 RUN register-python-argcomplete airflow >> ~/.bashrc
