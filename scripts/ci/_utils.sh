@@ -60,6 +60,8 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 
+# By default we assume the kubernetes cluster is not being started
+export START_KUBERNETES_CLUSTER=${START_KUBERNETES_CLUSTER:="false"}
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -81,7 +83,7 @@ function print_info() {
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mount whole sourcce directory for static checks"
+    print_info "Mount whole source directory for static checks"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
@@ -91,12 +93,18 @@ elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
     print_info "Mounting necessary host volumes to Docker"
     print_info
+    if [[ -d "${AIRFLOW_SOURCES}/.bash_history" ]]; then
+        rm -rf "${AIRFLOW_SOURCES}/.bash_history"
+    fi
+    touch "${AIRFLOW_SOURCES}/.bash_history"
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
+      "-v" "${AIRFLOW_SOURCES}/common:/opt/airflow/common:cached" \
       "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache:cached" \
       "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
       "-v" "${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached" \
       "-v" "${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached" \
+      "-v" "${AIRFLOW_SOURCES}/.kube:/root/.kube:cached" \
       "-v" "${AIRFLOW_SOURCES}/.bash_history:/root/.bash_history:cached" \
       "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
       "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
@@ -111,7 +119,6 @@ elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
       "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
       "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "--env" "PYTHONDONTWRITEBYTECODE" \
     )
 else
@@ -160,7 +167,7 @@ function remove_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
@@ -482,11 +489,58 @@ EOF
             print_info
             print_info "${ACTION} completed: ${THE_IMAGE_TYPE} image."
             print_info
+            if [[ ${START_KUBERNETES_CLUSTER} == "true" && ${THE_IMAGE_TYPE} == "CI" ]]; then
+                build_and_save_kubernetes_image
+            fi
         fi
     else
         print_info
         print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
         print_info
+    fi
+    if [[ ${START_KUBERNETES_CLUSTER} == "true" \
+          && ${THE_IMAGE_TYPE} == "CI" \
+          && ! -d "${AIRFLOW_CI_SAVED_IMAGE_DIR}" ]]; then
+        echo
+        echo "The image has not been saved yet for Kubernetes tests. Saving it."
+        build_and_save_kubernetes_image
+    fi
+}
+
+# Builds and saves Kubernetes image to a .tar file so that it can be mounted inside the container and
+# Loaded by kind inside the docker
+function build_and_save_kubernetes_image() {
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+    export AIRFLOW_CI_SAVED_IMAGE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image"
+    export AIRFLOW_CI_IMAGE_ID_FILE="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image.sha256"
+
+    SAVED_AIRFLOW_IMAGE_ID=$(cat "${AIRFLOW_CI_IMAGE_ID_FILE}" 2>/dev/null || true)
+    export SAVED_AIRFLOW_IMAGE_ID
+
+    if [[ ${SAVED_AIRFLOW_IMAGE_ID} == "" ]]; then
+        echo
+        echo "This is the first time the image is saved"
+        echo
+    fi
+    AIRFLOW_IMAGE_ID=$(docker inspect --format='{{index .Id}}' "${AIRFLOW_CI_IMAGE}")
+    if [[ "${AIRFLOW_IMAGE_ID}" == "${SAVED_AIRFLOW_IMAGE_ID}" ]]; then
+        echo
+        echo "The image ${AIRFLOW_CI_IMAGE} has not changed since the last time, skiping saving."
+        echo
+    else
+        TMPDIR=$(mktemp -d)
+        echo
+        echo "Saving ${AIRFLOW_CI_IMAGE} image to ${AIRFLOW_CI_SAVED_IMAGE_DIR}"
+        echo
+        docker save "${AIRFLOW_CI_IMAGE}" | tar -xC "${TMPDIR}"
+        mkdir -pv "${AIRFLOW_CI_SAVED_IMAGE_DIR}"
+        rsync --recursive --checksum --whole-file --delete --stats --human-readable \
+            "${TMPDIR}/" "${AIRFLOW_CI_SAVED_IMAGE_DIR}"
+        rm -rf "${TMPDIR}"
+        echo
+        echo "Image ${AIRFLOW_CI_IMAGE} saved to ${AIRFLOW_CI_SAVED_IMAGE_DIR}"
+        echo
+        echo "${AIRFLOW_IMAGE_ID}" >"${AIRFLOW_CI_IMAGE_ID_FILE}"
     fi
 }
 
@@ -498,9 +552,10 @@ function rebuild_ci_image_if_needed() {
 
     export THE_IMAGE_TYPE="CI"
 
-    rebuild_image_if_needed
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+    export AIRFLOW_CI_SAVED_IMAGE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image"
+
+    rebuild_image_if_needed
 }
 
 
@@ -873,14 +928,16 @@ function build_image_on_ci() {
 
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
-            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
+            'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
+            'airflow/www/.*\.html' 'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else

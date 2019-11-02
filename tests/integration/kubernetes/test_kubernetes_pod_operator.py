@@ -39,7 +39,7 @@ from airflow.kubernetes.volume_mount import VolumeMount
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('KUBERNETES_VERSION'):
+    if os.environ.get('START_KUBERNETES_CLUSTER') == "true":
         raise e
     else:
         raise unittest.SkipTest(

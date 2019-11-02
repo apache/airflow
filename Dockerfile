@@ -188,7 +188,7 @@ RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG KUBECTL_VERSION="v1.15.0"
+ARG KUBECTL_VERSION="v1.15.3"
 ENV KUBECTL_VERSION=${KUBECTL_VERSION}
 ARG KIND_VERSION="v0.5.0"
 ENV KIND_VERSION=${KIND_VERSION}

@@ -79,11 +79,11 @@ images maintained on the Docker Hub in the ``apache/airflow`` repository.
 
 There are three images that we are currently managing:
 
-* **CI image*** that is used for testing od both Unit tests and static check tests.
-  It contains a lot test-related packages (size of ~1GB).
-  Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+* **CI image*** that is used for testing. It contains a lot more test-related installed software
+  (size of ~1GB). Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
   (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
   `<Dockerfile>`_ Dockerfile.
+* **Production-ready image** that is used TODO
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
@@ -224,7 +224,7 @@ follows:
 
   .. code-block:: bash
 
-    ./breeze --python 3.6 --backend mysql --env docker
+    ./breeze --python 3.6 --backend mysql
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -232,25 +232,6 @@ them when you run the script. You can delete the ``.build/`` directory in case y
 default settings.
 
 The defaults when you run the Breeze environment are Python 3.6, Sqlite, and Docker.
-
-Available Docker Environments
-..............................
-
-You can choose a container environment when you run Breeze with ``--env`` flag.
-Running the default ``docker`` environment takes a considerable amount of resources. You can run a
-slimmed-down version of the environment - just the Apache Airflow container - by choosing ``bare``
-environment instead.
-
-The following environments are available:
-
- * The ``docker`` environment (default): starts all dependencies required by a full integration test suite
-   (Postgres, Mysql, Celery, etc). This option is resource intensive so do not forget to
-   [stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
-   and can slow down your machine.
- * The ``kubernetes`` environment: Runs Airflow tests within a Kubernetes cluster.
- * The ``bare`` environment:  runs Airflow in the Docker without any external dependencies.
-   It only works for independent tests. You can only run it with the sqlite backend.
-
 
 Cleaning Up the Environment
 ---------------------------
@@ -535,6 +516,7 @@ the database.
 
    run-tests --with-db-init tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
 
+
 Running Tests for a Specified Target
 ------------------------------------
 
@@ -556,6 +538,17 @@ You can also specify individual tests or a group of tests:
 .. code-block:: bash
 
     ./breeze --test-target tests.core:TestCore
+
+Running Tests with Kubernetes Cluster
+-------------------------------------
+
+If you want to run Kubernetes tests, you need to set use ``--start-kubernetes-cluster`` Breeze flag.
+It will create Kubernetes cluster (using `kind (Kubernetes-IN-Docker) <https://kind.sigs.k8s.io/>`_.)
+right after entering the container.
+This might take some time. Note that in order to use latest sources you need to
+rebuild the latest docker image for Breeze first.
+
+All kubernetes tests are in ``tests.integration.kubernetes`` package.
 
 Running Static Code Checks
 --------------------------
@@ -717,33 +710,43 @@ On the host:
   ./scripts/ci/ci_pylint.sh ./airflow/example_dags/test_utils.py
 
 Running Test Suites via Scripts
---------------------------------------------
+-------------------------------
 
-To run all tests with default settings (Python 3.6, Sqlite backend, "docker" environment), enter:
+To run tests use ``./scripts/ci/local_ci_run_airflow_testing.sh`` scripts.
+
+Optionally use one of the variables (defaults are bold):
+
+* PYTHON_VERSION is one of **3.6**/3.7
+* BACKEND is one of **sqlite**/postgres/mysql
+
+For Kubernetes tests you should set ``START_KUBERNETES_CLUSTER`` variable to true.
+This will start Kubernetes cluster inside the container
+using `kind (Kubernetes-IN-Docker) <https://kind.sigs.k8s.io/>`_.
+You might also optionally specify one of the variables (defaults are bold):
+
+* KUBERNETES_MODE is a mode of kubernetes: one of persistent_mode/**git_mode**
+* KUBERNETES_VERSION is required for Kubernetes tests. Default: v1.15.3.
+
+To run all non-kubernetes tests with default settings (Python 3.6, Sqlite backend, no kubernetes), enter:
 
 .. code-block::
 
   ./scripts/ci/local_ci_run_airflow_testing.sh
 
 
-To select Python 3.6 version, Postgres backend, and a "docker" environment, specify:
+To select Python 3.6 version, Postgres backend, specify:
 
 .. code-block::
 
-  PYTHON_VERSION=3.6 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow_testing.sh
+  PYTHON_VERSION=3.6 BACKEND=postgres ./scripts/ci/local_ci_run_airflow_testing.sh
 
 To run Kubernetes tests, enter:
 
 .. code-block::
 
-  KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
+  START_KUBERNETES_CLUSTER=true KUBERNETES_MODE=persistent_mode KUBERNETES_VERSION=v1.15.3 BACKEND=postgres \
     ./scripts/ci/local_ci_run_airflow_testing.sh
 
-* PYTHON_VERSION is one of 3.6/3.7
-* BACKEND is one of postgres/sqlite/mysql
-* ENV is one of docker/kubernetes/bare
-* KUBERNETES_VERSION is required for Kubernetes tests. Currently, it is KUBERNETES_VERSION=v1.13.0.
-* KUBERNETES_MODE is a mode of kubernetes: either persistent_mode or git_mode.
 
 Using Your Host IDE with Breeze
 ===============================
@@ -942,21 +945,28 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
 
-  -E, --env <ENVIRONMENT>
-          Environment to use for tests. It determines which types of tests can be run.
-          One of [ docker kubernetes ]. Default: docker
-
   -B, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
           One of [ sqlite mysql postgres ]. Default: sqlite
 
-  -K, --kubernetes-version <KUBERNETES_VERSION>
-          Kubernetes version - only used in case of 'kubernetes' environment.
-          One of [ v1.13.0 ]. Default: v1.13.0
+  -K, --start-kubernetes-cluster
+          Starts test kubernetes cluster after entering the environment. The cluster is started using
+          Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
+          --kubernetes-version flags.
+
+  -Z, --recreate-kubernetes-cluster
+          Recreates kubernetes cluster if one has already been created. By default if you do not stop
+          environment, the kubernetes cluster created for testing is continuously running and when
+          you start kubernetes testing again it will be reused. You can force deletion and recreation
+          of such cluster with this flag.
 
   -M, --kubernetes-mode <KUBERNETES_MODE>
-          Kubernetes mode - only used in case of 'kubernetes' environment.
+          Kubernetes mode - only used in case --start-kubernetes-cluster flag is specified.
           One of [ persistent_mode git_mode ]. Default: git_mode
+
+  -V, --kubernetes-version <KUBERNETES_VERSION>
+          Kubernetes version - only used in case --start-kubernetes-cluster flag is specified.
+          One of [ v1.15.3 v1.16.2 ]. Default: v1.15.3
 
   -s, --skip-mounting-source-volume
           Skips mounting local volume with sources - you get exactly what is in the
@@ -990,14 +1000,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
 
-  -R, --force-build-images-clean
-          Force build images without cache. This will remove the pulled or build images
-          and start building images from scratch. This might take a long time.
-
   -p, --force-pull-images
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  -R, --force-clean-build
+          Force build images without cache at all. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -L, --use-local-cache
+          Uses local cache to build images. No pulled images will be used, but results of local builds in
+          the Docker cache are used instead.
 
   -u, --push-images
           After building - uploads the images to DockerHub
@@ -1010,7 +1024,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
 
  .. END BREEZE HELP MARKER
-
 
 Convenience Scripts
 -------------------
